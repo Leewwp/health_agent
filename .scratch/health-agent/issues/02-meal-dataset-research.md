@@ -26,3 +26,13 @@
 - **推荐组合**：Food.com Recipes & Reviews（Kaggle，CC0，52 万食谱自带热量/蛋白/脂肪/碳水 + 312 分类，裁剪导入 1000~3000 条）为主库 + USDA FoodData Central（公有领域）做营养校准 + **自建中文菜名映射表**（映射现有 cuisine/taste/mealTime slot）。
 - 许可：Food.com 为 CC0（可商用免署名，Images 外链不可再分发，与健身数据集 Gym visual 例外同构）；USDA 公有领域。
 - 图片列为后续迭代项（无合规中文菜品图源）；图片 URL 易失效需设计兜底。
+
+## 落地与核验状态（2026-08-10）
+
+- [x] 已下载 Kaggle `irkaal/foodcom-recipes-and-reviews` v2 完整压缩包到 `data/meal/raw/foodcom-recipes-and-reviews-v2.zip`。
+- [x] 已从压缩包筛选生成 1,000 条健康倾向菜谱：`data/meal/processed/healthy_recipes_1000.csv`。
+- [x] 1,000 条结果定位为离线候选池；最终 `meal_item` MVP 仍按 issue 09 只导入其中 300～500 条，完成中文映射、标签补齐和人工抽检后再入库。
+- [x] 已核验 ZIP CRC、文件列表、官方数据包大小；`recipes.csv` 可正常读取，原始数据共 522,517 条记录。
+- [x] 已逐条回溯 1,000 个输出 `source_recipe_id`，全部存在于原始 `recipes.csv`，名称和营养数值一致。
+- [x] 原始包和处理结果已加入 `.gitignore`，后续实现不需要重复下载；如需重建，运行 `scripts/prepare_meal_dataset.py` 即可。
+- [x] 详细官方来源、版本、文件大小、SHA-256 及许可边界见 [Kaggle Food.com 数据集真实性核验](../../../docs/research/kaggle-foodcom-dataset-verification.md)。
