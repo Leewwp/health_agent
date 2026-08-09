@@ -1,7 +1,7 @@
 # 12 用户身份与数据隔离方案
 
 - Type: grilling
-- Status: open
+- Status: resolved
 - Blocked by: 11
 
 ## Question
@@ -27,3 +27,13 @@
 4. **JWT**：不推荐。同源或反向代理后的 Web 页面使用 session cookie 更简单；JWT 不解决用户注册、撤销、CSRF/XSS 和数据隔离本身。
 
 若前端放 Vercel，优先评估把 `/api/**` external rewrite 到后端，使浏览器继续使用相对 API 路径并保持同源 cookie；若改用独立 API origin，则必须验收 CORS credentials、cookie SameSite/Secure、CSRF 和代理头。具体方式在 21 号部署票中确定。
+
+## Answer
+
+2026-08-10 已决策：第一版采用匿名演示身份，不开发真实账号体系，也不使用单一公共账号。
+
+- 后端签发不可篡改的随机身份凭证，浏览器通过 HttpOnly Cookie 持有。
+- 前端移除可编辑的 `X-User-Id`，会话、健康档案、计划和偏好均由服务端身份确定归属。
+- 提供重置演示数据的能力，并按长期不活跃 TTL 清理匿名数据。
+- 管理端 Trace 和评估接口与普通用户接口隔离并单独保护。
+- 不为了展示技术引入 JWT；跨域部署时另行验收 Cookie、CORS、SameSite、Secure 和 CSRF 配置。
