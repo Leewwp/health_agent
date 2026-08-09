@@ -37,3 +37,12 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# 本地餐食数据集，不提交原始包和处理结果
+data/meal/raw/
+data/meal/processed/
+
+# 本地环境变量与密钥覆盖
+.env
+.env.*
+!.env.example

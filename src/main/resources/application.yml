@@ -15,8 +15,8 @@ server:
   port: 8080
 agentscope:
   dashscope:
-    api-key: sk-ws-H.ERPLPHL.o5X8.MEQCIAGT4258D7-rLsafxDGz9TmQyxLY4YHrXucsGfG83V1nAiA8VnMO0THxXl-wIu8xzJq0pzDYnhO68cSp299TIK8WiA
-    base-url: https://ws-e9kih4e9np1x8tlc.cn-beijing.maas.aliyuncs.com
+    api-key: ${DASHSCOPE_API_KEY:请填入自己的apiKey}
+    base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
 diet:
   llm:
     main-model: qwen-max
