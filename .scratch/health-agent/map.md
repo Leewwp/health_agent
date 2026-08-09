@@ -21,7 +21,7 @@
 - **检索术语（2026-08-09）**：餐食混合语义召回称 RAG；作息采用结构化事实检索与来源引用；历史反馈采用偏好记忆与重排，三者不混称 RAG。
 - **部署原则（2026-08-09）**：只部署一个后端实例；会话状态使用本地串行守卫，重复提交通过 requestId 幂等控制，不使用 Redis 分布式锁。具体托管平台与身份形态仍待决定。
 - **前端原则（2026-08-09）**：不引入 Vue/React/Vite；保留 vanilla hash 路由，使用原生 ES Modules 按页面、领域和共享 UI 拆分。
-- **计划交互下限（2026-08-09）**：周计划支持草稿、激活、历史版本和单餐/单动作替换；第一版不做拖拽排程与任意表格编辑。
+- **计划交互下限（2026-08-10）**：周计划支持草稿、激活、历史版本和单餐/单动作调整；不做日期级拖拽排程与任意表格编辑，但训练动作套组支持动作池拖拽加入、套组内动作排序、移除和参数调整。03 号原型是该交互的浏览器参考。
 - **Vercel 事实（2026-08-09）**：适合独立静态前端，不适合将当前 Spring Boot/MySQL/Redis 整栈作为生产默认方案；后端仍需传统容器、PaaS 或 VM。只迁前端不会明显释放 4C4G 服务器资源。
 - **训练能力边界（2026-08-09）**：全量动作仅供浏览；计划只使用 20-40 个经过人工审核和补充元数据的入门动作，按版本化指南规则生成。LLM 不决定训练剂量与安全结论。
 - git 注意：本仓库位于父级备份仓库 `/Users/pp/Desktop/file` 内，**只允许 stage `code/project/health-agent/...` 路径**。因此研究子代理不建 `research/<name>` 分支，改为直接写入 `.scratch/health-agent/research/<topic>.md`（对 wayfinder 技能中"throwaway branch"的本地化偏差）。
@@ -33,6 +33,7 @@
 
 - [01 作息信息源调研](issues/01-routine-sources-research.md) — 15 个权威来源核验：睡眠时长（成人 7-9h、65+ 7-8h）、咖啡因睡前 6h 截止、午睡 20-30min 等可落库；**训练时段无普遍最优**（按昼夜节律匹配，禁止写死）；cssm.org.cn 为冒充域名需排雷。产出 research/routine-sources.md。
 - [02 餐食数据集调研](issues/02-meal-dataset-research.md) — 无单一数据集满足全部标准（中文数据集均限研究用途）；**组合方案**：Food.com（CC0，营养+分类，导入 1000~3000 条）+ USDA FDC（公有领域校准）+ 自建中文菜名映射表；图片为迭代项。产出 research/meal-dataset.md。
+- [03 健身动作展示原型](issues/03-exercise-display-prototype.md) — **已确认 A/B/C 组合**：动作浏览卡片、对话详情抽屉、按日期容器组织餐饮/作息/训练套组；收藏是偏好入口，候选资格仍是计划拖拽约束；训练套组支持拖拽加入、排序、移除、调参数，折叠套组在拖入时展开，取消拖拽离开时恢复折叠。
 - [07 前端页面形态与项目定位](issues/07-frontend-form-decision.md) — **方案 B 已拍板**：前后端分离（static/ → `frontend/`）+ Nginx 同源反代 `/api/`，vanilla hash 路由零改写，Docker Compose 部署。论证见 docs/research/frontend-backend-split.md。
 - [06 后端技术栈展示方案](issues/06-backend-tech-showcase.md) — 只保留对应真实缺口的 Flyway、Redis 缓存、Compose、CI、OpenAPI、Actuator 与核心测试；会话锁和 requestId 幂等均为单实例本地实现；排除 MQ、Redis 分布式锁及 trace 异步化。
 - [11 Vercel 部署适配调研](issues/11-vercel-deployment-research.md) — Vercel 只推荐托管静态前端；Spring Boot/MySQL/Redis 使用外部常驻运行环境，不为 Vercel 重写后端，也不以 Beta Java 容器作为生产方案。
