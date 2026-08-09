@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>健身动作展示原型</title>
+    <style>
+        :root {
+            --ink: #182329;
+            --muted: #69767a;
+            --paper: #f4f6f3;
+            --surface: #ffffff;
+            --line: #dce3df;
+            --teal: #176b67;
+            --teal-soft: #dcefea;
+            --orange: #d86b32;
+            --orange-soft: #fff0e4;
+            --yellow: #e6b84d;
+            --yellow-soft: #fff7d9;
+            --blue: #3f6d9e;
+            --blue-soft: #e8f0fa;
+            --shadow: 0 18px 50px rgba(24, 35, 41, .10);
+            --shadow-small: 0 8px 24px rgba(24, 35, 41, .08);
+            --radius: 14px;
+        }
+
+        * { box-sizing: border-box; }
+        html { color-scheme: light; background: var(--paper); }
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        button, input, select { font: inherit; }
+        button { cursor: pointer; }
+        button:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 3px solid rgba(216, 107, 50, .28);
+            outline-offset: 2px;
+        }
+        a { color: inherit; }
+
+        .prototype-shell { min-height: 100vh; padding: 24px 24px 104px; }
+        .prototype-head, .workspace, .conversation-shell, .plan-shell {
+            width: min(1380px, 100%);
+            margin: 0 auto;
+        }
+        .prototype-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+        .eyebrow { color: var(--orange); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+        h1, h2, h3, p { margin-top: 0; }
+        h1 { max-width: 720px; margin-bottom: 8px; font-size: clamp(30px, 4vw, 54px); line-height: 1.05; letter-spacing: -.04em; }
+        h2 { margin-bottom: 4px; font-size: 22px; letter-spacing: -.025em; }
+        h3 { margin-bottom: 2px; font-size: 16px; }
+        .lede { max-width: 670px; margin-bottom: 0; color: var(--muted); font-size: 16px; }
+        .head-metrics { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 430px; }
+        .metric { padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.7); color: var(--muted); }
+        .metric strong { margin-right: 4px; color: var(--ink); font-size: 16px; }
+
+        .button, .icon-button, .filter-button, .tab-button, .switch-button {
+            border: 1px solid var(--line);
+            background: var(--surface);
+            color: var(--ink);
+            transition: 160ms ease;
+        }
+        .button { min-height: 40px; padding: 9px 14px; border-radius: 9px; font-weight: 750; }
+        .button:hover, .filter-button:hover, .tab-button:hover, .switch-button:hover { border-color: var(--teal); color: var(--teal); }
+        .button.primary { border-color: var(--teal); color: #fff; background: var(--teal); }
+        .button.primary:hover { background: #0e5753; }
+        .button.soft { border-color: transparent; background: var(--teal-soft); color: var(--teal); }
+        .button[disabled] { cursor: not-allowed; opacity: .46; }
+        .button.small { min-height: 34px; padding: 7px 10px; font-size: 13px; }
+        .icon-button { display: inline-grid; width: 34px; height: 34px; place-items: center; border-radius: 9px; font-size: 20px; line-height: 1; }
+        .icon-button.is-favorite { border-color: #f4d27e; color: #a26a00; background: var(--yellow-soft); }
+
+        .workspace { display: grid; grid-template-columns: 238px minmax(0, 1fr); gap: 18px; align-items: start; }
+        .filter-rail { position: sticky; top: 20px; display: grid; gap: 18px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-small); }
+        .filter-rail h2 { font-size: 17px; }
+        .filter-group { display: grid; gap: 7px; }
+        .filter-label { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+        .filter-control { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: #fbfcfb; }
+        .filter-note { padding: 11px; border-left: 3px solid var(--orange); color: var(--muted); background: var(--orange-soft); font-size: 12px; }
+        .scope-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: var(--paper); }
+        .tab-button { min-height: 34px; padding: 6px 5px; border-color: transparent; border-radius: 7px; font-size: 12px; }
+        .tab-button.active { border-color: var(--line); background: #fff; color: var(--teal); font-weight: 800; box-shadow: 0 2px 8px rgba(24, 35, 41, .06); }
+
+        .content-column { min-width: 0; }
+        .content-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+        .toolbar-copy { color: var(--muted); }
+        .toolbar-copy strong { color: var(--ink); }
+        .toolbar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+        .exercise-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+        .exercise-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-small); }
+        .exercise-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .exercise-card-body { display: grid; gap: 9px; padding: 13px; }
+        .exercise-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .exercise-card h3 { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .english-name { color: var(--muted); font-size: 11px; }
+        .tag-row { display: flex; flex-wrap: wrap; gap: 5px; }
+        .tag { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border-radius: 999px; color: var(--muted); background: #eff3f1; font-size: 11px; }
+        .tag.orange { color: #9c4c20; background: var(--orange-soft); }
+        .tag.teal { color: var(--teal); background: var(--teal-soft); }
+        .tag.blue { color: #355e8d; background: var(--blue-soft); }
+        .tag.yellow { color: #896000; background: var(--yellow-soft); }
+        .status-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+        .status-line strong { color: var(--teal); }
+
+        .media-frame { position: relative; display: grid; min-height: 164px; aspect-ratio: 4 / 3; place-items: center; overflow: hidden; background: #e8eeeb; }
+        .media-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .media-frame img[hidden] { display: none; }
+        .media-fallback { position: absolute; inset: 0; display: none; place-items: center; padding: 22px; color: var(--muted); background: repeating-linear-gradient(135deg, #eef2ef, #eef2ef 12px, #e5ebe7 12px, #e5ebe7 24px); text-align: center; }
+        .media-frame.is-broken .media-fallback { display: grid; }
+        .media-badge { position: absolute; top: 10px; left: 10px; padding: 4px 7px; border-radius: 6px; color: #fff; background: rgba(24, 35, 41, .72); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+        .media-credit { position: absolute; right: 9px; bottom: 7px; padding: 2px 5px; border-radius: 4px; color: rgba(255,255,255,.92); background: rgba(24, 35, 41, .62); font-size: 10px; }
+        .media-frame.is-broken .media-credit { color: var(--muted); background: rgba(255,255,255,.72); }
+
+        .empty-state { grid-column: 1 / -1; padding: 44px 20px; border: 1px dashed #bac8c2; border-radius: var(--radius); color: var(--muted); background: rgba(255,255,255,.5); text-align: center; }
+
+        .conversation-shell { display: grid; grid-template-columns: minmax(0, 1.1fr) 290px; gap: 18px; }
+        .conversation-panel { min-height: 690px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: #fbfcfb; box-shadow: var(--shadow); }
+        .conversation-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
+        .conversation-list { display: grid; gap: 20px; padding: 24px 4px 90px; }
+        .message-row { display: flex; gap: 11px; align-items: flex-start; }
+        .message-row.user { justify-content: flex-end; }
+        .avatar { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; border-radius: 9px; color: #fff; background: var(--teal); font-weight: 800; }
+        .message-row.user .avatar { order: 2; background: var(--orange); }
+        .message-body { max-width: min(620px, 88%); }
+        .message-label { margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+        .message-bubble { padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; background: #fff; }
+        .message-row.user .message-bubble { color: #fff; border-color: var(--orange); background: var(--orange); }
+        .recommendation-block { margin-top: 12px; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); }
+        .recommendation-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 12px; font-weight: 800; }
+        .mini-action { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+        .mini-action + .mini-action { margin-top: 7px; }
+        .mini-action .media-frame { min-height: 64px; aspect-ratio: 4 / 3; border-radius: 7px; }
+        .mini-action .media-badge, .mini-action .media-credit { display: none; }
+        .mini-action h3 { margin: 0; font-size: 13px; }
+        .composer { position: sticky; bottom: 78px; display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.92); box-shadow: var(--shadow-small); }
+        .composer input { min-width: 0; flex: 1; border: 0; outline: 0; color: var(--muted); background: transparent; }
+        .saved-rail { display: grid; align-content: start; gap: 14px; }
+        .rail-panel { padding: 17px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-small); }
+        .rail-panel h2 { font-size: 16px; }
+        .saved-list { display: grid; gap: 8px; }
+        .saved-item { display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 9px; background: var(--paper); }
+        .saved-item .dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--yellow); }
+        .saved-item button { padding: 0; border: 0; color: var(--ink); background: transparent; text-align: left; }
+
+        .plan-shell { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+        .plan-column, .pool-column { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+        .plan-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+        .plan-header p { margin-bottom: 0; color: var(--muted); }
+        .plan-day { display: grid; gap: 9px; padding: 14px 0; border-top: 1px solid var(--line); }
+        .plan-day:first-of-type { border-top: 0; }
+        .day-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .day-label strong { font-size: 13px; }
+        .day-label span { color: var(--muted); font-size: 12px; }
+        .plan-action { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfb; }
+        .plan-action .media-frame { min-height: 52px; aspect-ratio: 1 / 1; border-radius: 7px; }
+        .plan-action .media-badge, .plan-action .media-credit { display: none; }
+        .plan-action p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+        .workout-set { display: grid; gap: 11px; padding: 15px 0; border-top: 1px solid var(--line); }
+        .workout-set:first-of-type { border-top: 0; }
+        .workout-set-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .workout-set-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+        .workout-set-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+        .workout-set-summary strong { color: var(--ink); font-size: 16px; }
+        .workout-action-list { display: grid; gap: 8px; }
+        .workout-action { display: grid; grid-template-columns: 26px 62px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfb; }
+        .workout-action .media-frame { min-height: 56px; aspect-ratio: 1 / 1; border-radius: 7px; }
+        .workout-action .media-badge, .workout-action .media-credit { display: none; }
+        .workout-action h3 { margin: 0; font-size: 13px; }
+        .workout-action p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+        .workout-action-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+        .workout-action-controls .button { min-height: 32px; padding: 6px 8px; font-size: 11px; }
+        .workout-set-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+        .workout-set-footer .toolbar-copy { font-size: 11px; }
+        .drag-handle { display: inline-grid; width: 26px; height: 26px; place-items: center; border-radius: 7px; color: var(--muted); background: #edf1ef; font-size: 17px; line-height: 1; cursor: grab; }
+        .drag-handle:active { cursor: grabbing; }
+        .workout-action.is-dragging, .pool-item.is-dragging { opacity: .42; }
+        .workout-set[data-drop-target="workout"], .workout-action[data-drop-target="action"] { transition: border-color 160ms ease, background 160ms ease; }
+        .workout-set.is-drag-over { border: 2px dashed var(--teal); border-radius: 11px; background: var(--teal-soft); }
+        .workout-action.is-drag-over { border-color: var(--orange); background: var(--orange-soft); }
+        .schedule-day { display: grid; gap: 10px; padding: 15px 0; border-top: 1px solid var(--line); }
+        .schedule-day:first-of-type { border-top: 0; }
+        .schedule-day-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+        .schedule-day-header strong { font-size: 16px; }
+        .schedule-day-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+        .schedule-block { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 9px; align-items: stretch; }
+        .schedule-block-label { display: grid; align-content: start; justify-items: center; gap: 4px; padding-top: 11px; color: var(--muted); font-size: 11px; }
+        .schedule-block-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: var(--teal); background: var(--teal-soft); font-size: 12px; font-weight: 800; }
+        .schedule-block.meal .schedule-block-icon { color: #9c4c20; background: var(--orange-soft); }
+        .schedule-block.rest .schedule-block-icon { color: #896000; background: var(--yellow-soft); }
+        .schedule-block-content { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfb; }
+        .schedule-block-content h3 { margin: 0; font-size: 13px; }
+        .schedule-block-content p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+        .schedule-block.workout-slot .schedule-block-content { padding: 0 12px; }
+        .schedule-block.workout-slot .workout-set { padding: 12px 0; border-top: 0; }
+        .schedule-block.workout-slot .workout-set.is-drag-over { padding: 11px; }
+        .plan-column.is-dragging .schedule-block.workout-slot .schedule-block-content { border-color: #c7d9d3; }
+        .pool-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0; }
+        .pool-tabs .tab-button { padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+        .pool-tabs .tab-button.active { border-color: var(--teal); background: var(--teal-soft); }
+        .pool-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .pool-item { display: grid; grid-template-columns: 26px 82px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfb; }
+        .drag-placeholder { display: block; width: 26px; height: 26px; }
+        .pool-item[draggable="true"] { cursor: grab; }
+        .pool-item[draggable="true"]:active { cursor: grabbing; }
+        .pool-item .media-frame { min-height: 72px; aspect-ratio: 1 / 1; border-radius: 7px; }
+        .pool-item .media-badge, .pool-item .media-credit { display: none; }
+        .pool-item h3 { margin-bottom: 5px; font-size: 13px; }
+        .pool-item .button { margin-top: 8px; }
+        .review-status { display: inline-flex; padding: 3px 6px; border-radius: 5px; font-size: 10px; font-weight: 800; }
+        .review-status.approved { color: var(--teal); background: var(--teal-soft); }
+        .review-status.browse { color: var(--muted); background: #edf0ef; }
+
+        .drawer-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: flex-end; background: rgba(24, 35, 41, .36); }
+        .detail-drawer { width: min(510px, 100%); height: 100%; overflow: auto; padding: 22px; background: var(--surface); box-shadow: -20px 0 50px rgba(24, 35, 41, .16); animation: slide-in 180ms ease-out; }
+        @keyframes slide-in { from { transform: translateX(24px); opacity: .5; } to { transform: translateX(0); opacity: 1; } }
+        .drawer-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+        .drawer-kicker { color: var(--muted); font-size: 12px; }
+        .drawer-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 15px 0 4px; }
+        .drawer-title h2 { margin: 0; font-size: 28px; }
+        .drawer-title .icon-button { flex: 0 0 auto; }
+        .drawer-subtitle { margin-bottom: 14px; color: var(--muted); }
+        .drawer-section { padding: 16px 0; border-top: 1px solid var(--line); }
+        .drawer-section h3 { margin-bottom: 9px; font-size: 13px; }
+        .step-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: steps; }
+        .step-list li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; color: var(--muted); }
+        .step-list li::before { display: grid; width: 22px; height: 22px; place-items: center; border-radius: 6px; color: var(--teal); background: var(--teal-soft); counter-increment: steps; content: counter(steps); font-size: 11px; font-weight: 800; }
+        .drawer-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 0; }
+        .drawer-fact { padding: 10px; border-radius: 9px; background: var(--paper); }
+        .drawer-fact dt { color: var(--muted); font-size: 11px; }
+        .drawer-fact dd { margin: 3px 0 0; font-weight: 800; }
+        .drawer-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 18px; }
+        .drawer-disclaimer { margin: 15px 0 0; color: var(--muted); font-size: 11px; }
+
+        .prototype-switcher { position: fixed; right: 50%; bottom: 18px; z-index: 40; display: flex; align-items: center; gap: 9px; transform: translateX(50%); padding: 8px 10px; border: 1px solid #31444a; border-radius: 14px; color: #fff; background: #182329; box-shadow: 0 12px 30px rgba(24,35,41,.25); }
+        .switch-button { display: grid; width: 34px; height: 34px; place-items: center; border-color: #48636a; border-radius: 8px; color: #fff; background: #26373d; font-size: 20px; }
+        .switch-button:hover { border-color: #fff; color: #fff; }
+        .switch-label { min-width: 154px; text-align: center; }
+        .switch-label strong, .switch-label small { display: block; }
+        .switch-label small { color: #aec0c2; font-size: 10px; }
+
+        .toast { position: fixed; right: 24px; bottom: 86px; z-index: 50; max-width: 330px; padding: 11px 14px; border-radius: 9px; color: #fff; background: #182329; box-shadow: var(--shadow-small); opacity: 0; pointer-events: none; transform: translateY(8px); transition: 160ms ease; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        @media (max-width: 1120px) {
+            .exercise-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 840px) {
+            .prototype-shell { padding: 18px 14px 104px; }
+            .prototype-head { display: block; }
+            .head-metrics { justify-content: flex-start; margin-top: 16px; }
+            .workspace, .conversation-shell, .plan-shell { grid-template-columns: 1fr; }
+            .filter-rail { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+            .filter-rail > h2, .filter-note { grid-column: 1 / -1; }
+            .exercise-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .saved-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 520px) {
+            h1 { font-size: 36px; }
+            .filter-rail { grid-template-columns: 1fr; }
+            .exercise-grid, .pool-list, .saved-rail { grid-template-columns: 1fr; }
+            .content-toolbar { display: block; }
+            .toolbar-actions { justify-content: flex-start; margin-top: 10px; }
+            .mini-action { grid-template-columns: 72px minmax(0, 1fr); }
+            .workout-action { grid-template-columns: 26px 72px minmax(0, 1fr); }
+            .mini-action > .button { grid-column: 2; justify-self: start; }
+            .workout-action-controls { grid-column: 3; justify-content: flex-start; }
+            .pool-item { grid-template-columns: 26px 72px minmax(0, 1fr); }
+            .schedule-block { grid-template-columns: 42px minmax(0, 1fr); }
+            .detail-drawer { padding: 16px; }
+            .prototype-switcher { width: calc(100% - 28px); justify-content: space-between; }
+            .switch-label { min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+<main id="prototype" class="prototype-shell"></main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+    "use strict";
+
+    // 这是一次性的静态交互原型：状态只保存在内存，数据字段模拟健身动作数据集。
+    const demoSvg = (tone, figure) => "data:image/svg+xml," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+            <rect width="640" height="480" fill="${tone}"/>
+            <path d="M0 400h640v80H0z" fill="rgba(24,35,41,.12)"/>
+            <circle cx="${figure === "squat" ? 356 : 320}" cy="126" r="34" fill="#f7d4b5"/>
+            <path d="M291 177c18-25 51-29 73-4l28 65-32 16-18-34-8 74 76 54-24 33-87-60-4-97-32 79-47-6 5-30 38-6 31-82z" fill="#f8f9f5"/>
+            <path d="M323 278l-18 112 52 28-11 24-72-32 17-139z" fill="#ffffff"/>
+            <path d="M345 279l45 94 67 14-4 26-89-10-63-92z" fill="#e5b04c"/>
+            <text x="28" y="54" fill="rgba(255,255,255,.82)" font-family="Arial" font-size="20" font-weight="700">GYM VISUAL / DEMO MEDIA</text>
+        </svg>`);
+
+    const actions = [
+        { id: "squat", name: "徒手深蹲", english: "Bodyweight Squat", body: "腿部", equipment: "徒手", target: "股四头肌", pattern: "蹲", approved: true, media: demoSvg("#2e7770", "squat"), steps: ["双脚与肩同宽站立，脚尖自然朝外。", "髋部向后坐，同时屈膝下蹲，保持胸口打开。", "脚掌稳定发力站起，回到起始姿势。"] },
+        { id: "pushup", name: "标准俯卧撑", english: "Push-Up", body: "胸部", equipment: "徒手", target: "胸大肌", pattern: "推", approved: true, media: demoSvg("#b85d37", "pushup"), steps: ["双手略宽于肩，身体从头到脚保持一条线。", "屈肘让胸口接近地面，肩胛保持稳定。", "推地回到起始位，不塌腰或耸肩。"] },
+        { id: "db-press", name: "哑铃卧推", english: "Dumbbell Bench Press", body: "胸部", equipment: "哑铃", target: "胸大肌", pattern: "推", approved: true, media: demoSvg("#a85d48", "pushup"), steps: ["仰卧在凳上，双手持哑铃置于胸侧。", "向上推举哑铃，保持手腕稳定，肘部略收。", "控制哑铃下放至胸侧，避免肩部前顶。"] },
+        { id: "barbell-press", name: "杠铃卧推", english: "Barbell Bench Press", body: "胸部", equipment: "杠铃", target: "胸大肌", pattern: "推", approved: true, media: demoSvg("#5f739b", "pushup"), steps: ["仰卧并稳定肩胛，双手略宽于肩握住杠铃。", "将杠铃平稳推起，保持前臂接近垂直。", "控制杠铃下降至胸部舒适位置，再次推起。"] },
+        { id: "row", name: "哑铃俯身划船", english: "Dumbbell Row", body: "背部", equipment: "哑铃", target: "背阔肌", pattern: "拉", approved: true, media: demoSvg("#3f6d9e", "row"), steps: ["双手持哑铃，髋部后移，背部保持中立。", "肘部沿身体两侧向后拉，肩胛骨向内收。", "控制哑铃下放，避免借力摆动。"] },
+        { id: "glute", name: "臀桥", english: "Glute Bridge", body: "臀部", equipment: "徒手", target: "臀大肌", pattern: "髋主导", approved: true, media: demoSvg("#806f9b", "squat"), steps: ["仰卧屈膝，双脚踩地，脚跟靠近臀部。", "收紧腹部和臀部，抬起髋部至身体成直线。", "在顶端停顿后缓慢回落，不用腰部代偿。"] },
+        { id: "lunge", name: "反向箭步蹲", english: "Reverse Lunge", body: "腿部", equipment: "徒手", target: "臀腿", pattern: "单腿", approved: false, media: demoSvg("#c18a39", "squat"), steps: ["站立，双脚保持髋宽，核心收紧。", "一脚向后迈，前腿屈膝并保持脚掌稳定。", "前脚发力回到站立，再换另一侧。"] },
+        { id: "plank", name: "前臂平板支撑", english: "Forearm Plank", body: "核心", equipment: "徒手", target: "腹直肌", pattern: "稳定", approved: false, media: demoSvg("#577b86", "pushup"), steps: ["前臂贴地，肘部位于肩部正下方。", "收紧腹部和臀部，保持身体一条直线。", "保持自然呼吸，出现代偿或疼痛时停止。"] },
+        { id: "deadlift", name: "壶铃硬拉", english: "Kettlebell Deadlift", body: "臀部", equipment: "壶铃", target: "臀大肌", pattern: "髋主导", approved: false, media: "https://media.invalid.example/kettlebell-deadlift.gif", steps: ["壶铃放在双脚之间，脚掌踩稳。", "髋部后移，双手抓住壶铃并保持背部中立。", "推髋站起，壶铃靠近身体路径移动。"] },
+        { id: "press", name: "站姿哑铃推举", english: "Dumbbell Shoulder Press", body: "肩部", equipment: "哑铃", target: "三角肌", pattern: "推", approved: false, media: demoSvg("#4f8f7e", "pushup"), steps: ["哑铃置于肩旁，站姿稳定，膝盖不过度锁死。", "向上推举至手臂接近伸直，保持肋骨下收。", "控制下放，回到肩旁位置。"] },
+        { id: "calf", name: "站姿提踵", english: "Standing Calf Raise", body: "小腿", equipment: "徒手", target: "腓肠肌", pattern: "踝主导", approved: true, media: demoSvg("#94724f", "squat"), steps: ["站立并保持身体平衡，脚掌均匀受力。", "脚跟向上抬起，在最高处短暂停留。", "缓慢下放至脚跟接近地面。"] }
+    ];
+
+    const variants = [
+        { key: "a", name: "密集浏览", hint: "全量动作馆" },
+        { key: "b", name: "对话详情", hint: "消息内浮层" },
+        { key: "c", name: "计划整理", hint: "收藏与候选" }
+    ];
+    const state = {
+        variant: new URLSearchParams(location.search).get("variant")?.toLowerCase() || "a",
+        scope: "all",
+        body: "全部部位",
+        equipment: "全部器材",
+        target: "全部目标",
+        search: "",
+        favorites: new Set(["glute", "db-press"]),
+        drawerId: null,
+        drawerContext: "browse",
+        planPool: "candidate",
+        expandedWorkouts: new Set(["chest", "lower"]),
+        drag: null,
+        toastTimer: null,
+        searchTimer: null
+    };
+    if (!variants.some((variant) => variant.key === state.variant)) state.variant = "a";
+
+    const prototype = document.getElementById("prototype");
+    const toast = document.getElementById("toast");
+    const escapeHtml = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    const getAction = (id) => actions.find((action) => action.id === id);
+    const mediaHtml = (action, size) => `
+        <div class="media-frame ${size || ""}">
+            <img src="${escapeHtml(action.media)}" alt="${escapeHtml(action.name)} 动作示意图" onerror="this.hidden=true; this.parentElement.classList.add('is-broken')">
+            <div class="media-fallback"><strong>媒体暂不可用</strong><br>保留展示位，仍可查看动作文字信息</div>
+            <span class="media-badge">GIF</span>
+            <span class="media-credit">© Gym visual</span>
+        </div>`;
+    const favoriteHtml = (action) => `<button class="icon-button ${state.favorites.has(action.id) ? "is-favorite" : ""}" data-action="favorite" data-id="${action.id}" aria-label="${state.favorites.has(action.id) ? "取消收藏" : "收藏"} ${escapeHtml(action.name)}">${state.favorites.has(action.id) ? "★" : "☆"}</button>`;
+    const tagsHtml = (action) => `<div class="tag-row"><span class="tag teal">${escapeHtml(action.body)}</span><span class="tag blue">${escapeHtml(action.equipment)}</span><span class="tag orange">${escapeHtml(action.target)}</span></div>`;
+    const eligibilityHtml = (action) => action.approved ? `<span class="review-status approved">入门候选</span>` : `<span class="review-status browse">可浏览 / 可收藏</span>`;
+
+    function visibleActions() {
+        return actions.filter((action) => {
+            const text = `${action.name} ${action.english} ${action.body} ${action.equipment} ${action.target}`.toLowerCase();
+            const searchMatch = !state.search || text.includes(state.search.toLowerCase());
+            const bodyMatch = state.body === "全部部位" || action.body === state.body;
+            const equipmentMatch = state.equipment === "全部器材" || action.equipment === state.equipment;
+            const targetMatch = state.target === "全部目标" || action.target === state.target;
+            const scopeMatch = state.scope === "all" || action.approved;
+            return searchMatch && bodyMatch && equipmentMatch && targetMatch && scopeMatch;
+        });
+    }
+
+    function headerHtml(eyebrow, title, lede) {
+        return `<header class="prototype-head"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p class="lede">${lede}</p></div><div class="head-metrics"><span class="metric"><strong>1,324</strong>全量动作</span><span class="metric"><strong>20–40</strong>入门候选范围</span><span class="metric"><strong>${state.favorites.size}</strong>已收藏</span></div></header>`;
+    }
+
+    function filterRailHtml() {
+        const select = (label, key, options) => `<label class="filter-group"><span class="filter-label">${label}</span><select class="filter-control" data-filter="${key}">${options.map((option) => `<option ${state[key] === option ? "selected" : ""}>${option}</option>`).join("")}</select></label>`;
+        return `<aside class="filter-rail">
+            <h2>筛选动作</h2>
+            <label class="filter-group"><span class="filter-label">关键词</span><input class="filter-control" data-filter="search" value="${escapeHtml(state.search)}" placeholder="动作名称 / 肌群"></label>
+            ${select("训练部位", "body", ["全部部位", "腿部", "胸部", "背部", "臀部", "核心", "肩部", "小腿"])}
+            ${select("器材", "equipment", ["全部器材", "徒手", "哑铃", "杠铃", "壶铃"])}
+            ${select("目标肌群", "target", ["全部目标", "股四头肌", "胸大肌", "背阔肌", "臀大肌", "腹直肌", "三角肌", "腓肠肌", "臀腿"])}
+            <div class="scope-tabs"><button class="tab-button ${state.scope === "all" ? "active" : ""}" data-action="scope" data-scope="all">全量浏览</button><button class="tab-button ${state.scope === "reviewed" ? "active" : ""}" data-action="scope" data-scope="reviewed">入门候选</button></div>
+            <div class="filter-note">收藏表达你的偏好；入门候选由动作资料和安全规则筛选。两者可以同时存在，但收藏不会替代计划资格判断。</div>
+            <button class="button" data-action="clear-filters">清空筛选</button>
+        </aside>`;
+    }
+
+    function actionCardHtml(action) {
+        return `<article class="exercise-card"><button class="media-trigger" style="display:block;width:100%;padding:0;border:0;background:transparent;text-align:left" data-action="open" data-id="${action.id}" data-context="browse">${mediaHtml(action)}</button><div class="exercise-card-body"><div class="exercise-card-top"><div><h3>${escapeHtml(action.name)}</h3><div class="english-name">${escapeHtml(action.english)}</div></div>${favoriteHtml(action)}</div>${tagsHtml(action)}<div class="status-line">${eligibilityHtml(action)}<button class="button small" data-action="open" data-id="${action.id}" data-context="browse">详情</button></div></div></article>`;
+    }
+
+    function variantA() {
+        const list = visibleActions();
+        return `${headerHtml("动作馆 / 01", "把动作浏览做成一张可扫描的地图", "用紧凑卡片承载 1,324 条全量动作；收藏是用户入口，进入计划的候选提示只在需要时出现，详情通过右侧抽屉承接。")}
+            <section class="workspace"><div>${filterRailHtml()}</div><div class="content-column"><div class="content-toolbar"><div class="toolbar-copy">当前显示 <strong>${list.length}</strong> 条 · ${state.scope === "reviewed" ? "入门候选" : "全量浏览"}</div><div class="toolbar-actions"><button class="button soft" data-action="open" data-id="glute" data-context="browse">打开示例详情</button><button class="button" data-action="force-failure">查看失败媒体</button></div></div><div class="exercise-grid">${list.length ? list.map(actionCardHtml).join("") : `<div class="empty-state">没有匹配的动作，换一个筛选条件。</div>`}</div></div></section>`;
+    }
+
+    function miniActionHtml(action) {
+        return `<div class="mini-action">${mediaHtml(action, "mini")}<div><h3>${escapeHtml(action.name)}</h3>${tagsHtml(action)}<div class="status-line" style="margin-top:6px">${eligibilityHtml(action)}</div></div><div style="display:flex;gap:6px;align-items:center">${favoriteHtml(action)}<button class="button small" data-action="open" data-id="${action.id}" data-context="chat">查看详情</button></div></div>`;
+    }
+
+    function variantB() {
+        const recommended = [getAction("squat"), getAction("glute")];
+        const saved = actions.filter((action) => state.favorites.has(action.id));
+        return `${headerHtml("对话 / 02", "让动作详情贴着推荐出现", "消息气泡只承载一句解释和几个候选动作；GIF、步骤、器材和收藏状态集中放进同一层详情，不打断对话节奏。")}
+            <section class="conversation-shell"><div class="conversation-panel"><div class="conversation-top"><div><h2>训练建议</h2><div class="toolbar-copy">今天 · 初学者 · 无器材</div></div><span class="tag yellow">单次推荐</span></div><div class="conversation-list"><div class="message-row"><div class="avatar">A</div><div class="message-body"><div class="message-label">健康助手 · 刚刚</div><div class="message-bubble">如果你想从轻量开始，可以先选一个蹲类动作和一个髋主导动作。下面两项都来自动作资料库，你可以先收藏，再决定是否放进计划。</div><div class="recommendation-block"><div class="recommendation-title"><span>推荐动作</span><span class="toolbar-copy">2 项</span></div>${recommended.map(miniActionHtml).join("")}</div></div></div><div class="message-row user"><div class="avatar">我</div><div class="message-body"><div class="message-label" style="text-align:right">我 · 刚刚</div><div class="message-bubble">把徒手深蹲放进周三，并给我一个替代动作。</div></div></div><div class="message-row"><div class="avatar">A</div><div class="message-body"><div class="message-label">健康助手 · 刚刚</div><div class="message-bubble">可以。替代动作会从入门候选里优先查找；全量动作仍然可以打开详情和收藏。</div></div></div></div><form class="composer" onsubmit="return false"><input aria-label="对话输入" value="输入训练目标或替换要求" readonly><button class="button primary small" type="button" data-action="open" data-id="lunge" data-context="chat">查看替代</button></form></div><aside class="saved-rail"><section class="rail-panel"><h2>已收藏动作</h2><div class="saved-list">${saved.length ? saved.map((action) => `<div class="saved-item"><span class="dot"></span><button data-action="open" data-id="${action.id}" data-context="saved">${escapeHtml(action.name)}</button></div>`).join("") : `<div class="toolbar-copy">还没有收藏</div>`}</div></section><section class="rail-panel"><h2>当前会话</h2><div class="tag-row"><span class="tag teal">无器材</span><span class="tag blue">入门</span><span class="tag orange">周三</span></div><p class="toolbar-copy" style="margin:12px 0 0">收藏状态在浏览、对话和计划页保持一致；计划资格只在计划入口解释。</p></section></aside></section>`;
+    }
+
+    const workoutSets = [
+        {
+            id: "lower",
+            day: "周一",
+            title: "下肢基础套组",
+            focus: "腿部 + 臀部",
+            transitionMinutes: 2,
+            items: [
+                { id: "lower-1", actionId: "squat", sets: 3, reps: "8–12 次", rest: 90, workMinutes: 7 },
+                { id: "lower-2", actionId: "glute", sets: 2, reps: "10–12 次", rest: 60, workMinutes: 5 }
+            ]
+        },
+        {
+            id: "chest",
+            day: "周三",
+            title: "胸部力量套组",
+            focus: "胸部 + 推",
+            transitionMinutes: 2,
+            items: [
+                { id: "chest-1", actionId: "db-press", sets: 3, reps: "8–12 次", rest: 90, workMinutes: 7 },
+                { id: "chest-2", actionId: "barbell-press", sets: 3, reps: "6–10 次", rest: 120, workMinutes: 8 },
+                { id: "chest-3", actionId: "pushup", sets: 2, reps: "力竭前 2 次", rest: 60, workMinutes: 5 }
+            ]
+        },
+        {
+            id: "full-body",
+            day: "周五",
+            title: "全身收尾套组",
+            focus: "髋主导 + 核心",
+            transitionMinutes: 2,
+            items: [
+                { id: "full-body-1", actionId: "glute", sets: 3, reps: "10–12 次", rest: 90, workMinutes: 7 },
+                { id: "full-body-2", actionId: "plank", sets: 2, reps: "30–45 秒", rest: 60, workMinutes: 4 }
+            ]
+        }
+    ];
+
+    function getWorkout(id) {
+        return workoutSets.find((workout) => workout.id === id);
+    }
+
+    function workoutTotalMinutes(workout) {
+        const actionMinutes = workout.items.reduce((total, item) => total + item.workMinutes + ((item.sets - 1) * item.rest / 60), 0);
+        return Math.ceil(actionMinutes + Math.max(0, workout.items.length - 1) * workout.transitionMinutes);
+    }
+
+    function workoutItemHtml(workout, item) {
+        const action = getAction(item.actionId);
+        return `<article class="workout-action" draggable="true" data-drag-type="plan-action" data-action-id="${action.id}" data-workout="${workout.id}" data-item="${item.id}" data-drop-target="action"><span class="drag-handle" title="拖拽调整动作顺序" aria-label="拖拽调整动作顺序">⋮⋮</span>${mediaHtml(action, "workout")}<div><h3>${escapeHtml(action.name)}</h3><p>${item.sets} 组 × ${escapeHtml(item.reps)} · ${item.rest} 秒组间休息 · ${escapeHtml(action.target)}</p></div><div class="workout-action-controls"><button class="button small" data-action="open" data-id="${action.id}" data-context="plan">查看动作</button><button class="button small" data-action="adjust-volume" data-workout="${workout.id}" data-item="${item.id}">调参数</button><button class="button small" data-action="remove-action" data-workout="${workout.id}" data-item="${item.id}">移除</button></div></article>`;
+    }
+
+    function workoutSetHtml(workout) {
+        const expanded = state.expandedWorkouts.has(workout.id);
+        const totalMinutes = workoutTotalMinutes(workout);
+        return `<section class="workout-set ${expanded ? "" : "is-collapsed"}" data-drop-target="workout" data-workout="${workout.id}"><div class="workout-set-header"><div><div class="day-label"><strong>${escapeHtml(workout.title)}</strong><span>动作套组</span></div><p>${escapeHtml(workout.focus)} · ${workout.items.length} 个动作</p></div><div class="workout-set-summary"><span class="drag-handle" title="拖拽动作到此套组，松开后放置" aria-label="拖拽动作到此套组，松开后放置">↕</span><span class="tag yellow">约 ${totalMinutes} 分钟</span><button class="button small" data-action="toggle-workout" data-workout="${workout.id}">${expanded ? "收起动作" : "展开动作"}</button></div></div><div class="workout-set-summary"><strong>${totalMinutes} 分钟</strong><span>含动作时间、组间休息和动作切换</span></div>${expanded ? `<div class="workout-action-list">${workout.items.map((item) => workoutItemHtml(workout, item)).join("")}</div><div class="workout-set-footer"><span class="toolbar-copy"><span class="drag-handle" title="拖拽动作到此套组" aria-label="拖拽动作到此套组">↕</span> 将动作拖到这里加入</span></div>` : `<div class="workout-set-footer"><span class="toolbar-copy">拖入后展开；未放置离开会折叠</span></div>`}</section>`;
+    }
+
+    const scheduleDays = [
+        { id: "monday", label: "周一", meta: "3 个内容 · 工作日", blocks: [{ type: "meal", time: "08:00", title: "早餐", description: "高蛋白早餐 · 估算 20 分钟" }, { type: "workout", workoutId: "lower" }, { type: "rest", time: "13:00", title: "午休", description: "20–30 分钟" }] },
+        { id: "wednesday", label: "周三", meta: "3 个内容 · 训练日", blocks: [{ type: "meal", time: "12:30", title: "午餐", description: "训练日前补充碳水" }, { type: "workout", workoutId: "chest" }, { type: "meal", time: "20:30", title: "晚餐", description: "训练后晚餐 · 清淡" }] },
+        { id: "friday", label: "周五", meta: "2 个内容 · 训练日", blocks: [{ type: "workout", workoutId: "full-body" }, { type: "rest", time: "22:30", title: "睡前放松", description: "固定入睡时间" }] }
+    ];
+
+    function scheduleBlockHtml(block) {
+        if (block.type === "workout") {
+            const workout = getWorkout(block.workoutId);
+            return `<div class="schedule-block workout-slot"><div class="schedule-block-label"><span class="schedule-block-icon">训</span><span>训练</span></div><div class="schedule-block-content">${workoutSetHtml(workout)}</div></div>`;
+        }
+        const icon = block.type === "meal" ? "餐" : "休";
+        return `<div class="schedule-block ${block.type}"><div class="schedule-block-label"><span class="schedule-block-icon">${icon}</span><span>${block.type === "meal" ? "餐饮" : "作息"}</span></div><div class="schedule-block-content"><h3>${escapeHtml(block.time)} · ${escapeHtml(block.title)}</h3><p>${escapeHtml(block.description)}</p></div></div>`;
+    }
+
+    function scheduleDayHtml(day) {
+        return `<section class="schedule-day"><div class="schedule-day-header"><div><strong>${escapeHtml(day.label)}</strong><p>${escapeHtml(day.meta)}</p></div><span class="tag teal">${day.blocks.length} 个内容</span></div>${day.blocks.map(scheduleBlockHtml).join("")}</section>`;
+    }
+
+    function poolItemHtml(action) {
+        const draggable = action.approved ? "true" : "false";
+        return `<article class="pool-item" draggable="${draggable}" data-drag-type="pool-action" data-action-id="${action.id}">${action.approved ? `<span class="drag-handle" title="拖拽到训练套组" aria-label="拖拽到训练套组">↕</span>` : `<span class="drag-placeholder" aria-hidden="true"></span>`}${mediaHtml(action, "pool") }<div><h3>${escapeHtml(action.name)}</h3>${eligibilityHtml(action)}<button class="button small" data-action="open" data-id="${action.id}" data-context="pool">查看动作</button></div></article>`;
+    }
+
+    function variantC() {
+        const pool = state.planPool === "candidate" ? actions.filter((action) => action.approved) : state.planPool === "favorites" ? actions.filter((action) => state.favorites.has(action.id)) : actions;
+        const poolContent = pool.length ? pool.map(poolItemHtml).join("") : `<div class="empty-state">还没有收藏动作。先在全量浏览里收藏几项，再回到这里整理。</div>`;
+        return `${headerHtml("计划 / 03", "一套训练由几个动作组成", "每次训练以套组为单位生成；日期只是容器，训练、餐饮和午休都可以作为同一天的独立内容。把动作拖到套组里加入，拖动套组内动作调整顺序。")}
+            <section class="plan-shell"><div class="plan-column"><div class="plan-header"><div><h2>本周计划草稿</h2><p>START_LOW · 3 个训练日 · ${workoutSets.length} 套动作</p></div><span class="tag yellow">计划草稿</span></div>${scheduleDays.map(scheduleDayHtml).join("")}<div style="padding-top:14px"><button class="button primary" data-action="toast" data-message="套组草稿仍在本地，尚未激活">确认本周草稿</button></div></div><div class="pool-column"><div class="plan-header"><div><h2>动作池</h2><p>查看动作，或拖拽入计划套组</p></div><span class="tag teal">${pool.length} 项</span></div><div class="pool-tabs"><button class="tab-button ${state.planPool === "candidate" ? "active" : ""}" data-action="pool" data-pool="candidate">入门候选 · ${actions.filter((action) => action.approved).length}</button><button class="tab-button ${state.planPool === "all" ? "active" : ""}" data-action="pool" data-pool="all">全量浏览 · 1,324</button><button class="tab-button ${state.planPool === "favorites" ? "active" : ""}" data-action="pool" data-pool="favorites">收藏动作 · ${state.favorites.size}</button></div><div class="pool-list">${poolContent}</div></div></section>`;
+    }
+
+    function drawerHtml() {
+        if (!state.drawerId) return "";
+        const action = getAction(state.drawerId);
+        const planAllowed = action.approved;
+        return `<div class="drawer-backdrop" data-action="close"><aside class="detail-drawer" role="dialog" aria-modal="true" aria-label="${escapeHtml(action.name)}详情"><div class="drawer-top"><span class="drawer-kicker">动作详情 · ${state.drawerContext === "chat" ? "对话推荐" : state.drawerContext === "plan" ? "计划套组" : "动作资料"}</span><button class="icon-button" data-action="close" aria-label="关闭详情">×</button></div>${mediaHtml(action, "drawer") }<div class="drawer-title"><h2>${escapeHtml(action.name)}</h2>${favoriteHtml(action)}</div><p class="drawer-subtitle">${escapeHtml(action.english)}</p>${tagsHtml(action)}<div class="drawer-section"><h3>动作信息</h3><dl class="drawer-facts"><div class="drawer-fact"><dt>训练部位</dt><dd>${escapeHtml(action.body)}</dd></div><div class="drawer-fact"><dt>器材</dt><dd>${escapeHtml(action.equipment)}</dd></div><div class="drawer-fact"><dt>目标肌群</dt><dd>${escapeHtml(action.target)}</dd></div><div class="drawer-fact"><dt>动作模式</dt><dd>${escapeHtml(action.pattern)}</dd></div></dl></div><div class="drawer-section"><h3>中文步骤</h3><ol class="step-list">${action.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol></div><div class="drawer-section"><h3>进入计划</h3><p style="margin-bottom:0">${planAllowed ? `<span class="review-status approved">入门候选 · 可进入计划</span>` : `<span class="review-status browse">暂不作为入门候选</span><br><span class="drawer-kicker">仍可浏览和收藏；收藏只表达偏好，不改变计划资格。</span>`}</p></div><div class="drawer-actions"><button class="button" data-action="close">返回当前页面</button></div><p class="drawer-disclaimer">动作说明来自数据集展示字段；原型不对难度、禁忌或训练剂量作医疗判断。媒体署名保留在媒体展示位内。</p></aside></div>`;
+    }
+
+    function switcherHtml() {
+        const current = variants.find((variant) => variant.key === state.variant);
+        return `<nav class="prototype-switcher" aria-label="原型变体切换"><button class="switch-button" data-action="variant-prev" aria-label="上一个变体">‹</button><span class="switch-label"><strong>${current.key.toUpperCase()} · ${current.name}</strong><small>${current.hint} · ← → 切换</small></span><button class="switch-button" data-action="variant-next" aria-label="下一个变体">›</button></nav>`;
+    }
+
+    function render() {
+        const page = state.variant === "a" ? variantA() : state.variant === "b" ? variantB() : variantC();
+        prototype.innerHTML = page + drawerHtml() + switcherHtml();
+        document.title = `健身动作展示原型 · ${variants.find((variant) => variant.key === state.variant).name}`;
+    }
+
+    function setVariant(key) {
+        state.variant = key;
+        const url = new URL(location.href);
+        url.searchParams.set("variant", key);
+        history.replaceState({}, "", url);
+        state.drawerId = null;
+        render();
+    }
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    prototype.addEventListener("click", (event) => {
+        const target = event.target.closest("[data-action]");
+        if (!target) return;
+        const action = target.dataset.action;
+        if (action === "variant-prev" || action === "variant-next") {
+            const index = variants.findIndex((variant) => variant.key === state.variant);
+            const nextIndex = action === "variant-next" ? (index + 1) % variants.length : (index - 1 + variants.length) % variants.length;
+            setVariant(variants[nextIndex].key);
+        } else if (action === "open") {
+            state.drawerId = target.dataset.id;
+            state.drawerContext = target.dataset.context || "browse";
+            render();
+        } else if (action === "toggle-workout") {
+            const workoutId = target.dataset.workout;
+            state.expandedWorkouts.has(workoutId) ? state.expandedWorkouts.delete(workoutId) : state.expandedWorkouts.add(workoutId);
+            render();
+        } else if (action === "adjust-volume") {
+            const workout = getWorkout(target.dataset.workout);
+            const item = workout?.items.find((candidate) => candidate.id === target.dataset.item);
+            if (!item) return;
+            item.sets = item.sets === 3 ? 4 : item.sets === 4 ? 2 : 3;
+            item.rest = item.rest === 90 ? 120 : item.rest === 120 ? 60 : 90;
+            render();
+            showToast(`${getAction(item.actionId).name} 已调整为 ${item.sets} 组、${item.rest} 秒组间休息，套组总时长已更新`);
+        } else if (action === "remove-action") {
+            const workout = getWorkout(target.dataset.workout);
+            if (!workout || workout.items.length <= 1) {
+                showToast("每个动作套组至少保留一个动作");
+                return;
+            }
+            const index = workout.items.findIndex((candidate) => candidate.id === target.dataset.item);
+            if (index < 0) return;
+            const [removed] = workout.items.splice(index, 1);
+            render();
+            showToast(`${getAction(removed.actionId).name} 已从套组移除，套组总时长已更新`);
+        } else if (action === "close") {
+            if (target.classList.contains("drawer-backdrop") && event.target !== target) return;
+            state.drawerId = null;
+            render();
+        } else if (action === "favorite") {
+            const id = target.dataset.id;
+            state.favorites.has(id) ? state.favorites.delete(id) : state.favorites.add(id);
+            showToast(state.favorites.has(id) ? "已收藏，可在对话和计划页继续使用" : "已取消收藏");
+            render();
+        } else if (action === "scope") {
+            state.scope = target.dataset.scope;
+            render();
+        } else if (action === "pool") {
+            state.planPool = target.dataset.pool;
+            render();
+        } else if (action === "clear-filters") {
+            state.scope = "all"; state.body = "全部部位"; state.equipment = "全部器材"; state.target = "全部目标"; state.search = "";
+            render();
+        } else if (action === "force-failure") {
+            state.drawerId = "deadlift"; state.drawerContext = "browse"; render();
+            showToast("已打开媒体失败示例，展示位保持固定比例");
+        } else if (action === "toast") {
+            showToast(target.dataset.message || "已记录");
+        }
+    });
+
+    function clearDragStyles() {
+        prototype.querySelectorAll(".is-dragging, .is-drag-over").forEach((node) => node.classList.remove("is-dragging", "is-drag-over"));
+    }
+
+    function workoutIdForDropTarget(target) {
+        return target?.dataset.workout || target?.closest('[data-drop-target="workout"]')?.dataset.workout;
+    }
+
+    function scheduleAutoCollapse(workoutId) {
+        if (!state.drag?.autoExpandedWorkouts.has(workoutId)) return;
+        clearTimeout(state.drag.leaveTimer);
+        state.drag.leaveTimer = setTimeout(() => {
+            if (!state.drag || state.drag.dropped || state.drag.hoveredWorkoutId === workoutId) return;
+            state.expandedWorkouts.delete(workoutId);
+            state.drag.autoExpandedWorkouts.delete(workoutId);
+            render();
+        }, 60);
+    }
+
+    prototype.addEventListener("dragstart", (event) => {
+        const source = event.target.closest("[draggable=\"true\"]");
+        if (!source) return;
+        state.drag = {
+            type: source.dataset.dragType,
+            actionId: source.dataset.actionId,
+            workoutId: source.dataset.workout,
+            itemId: source.dataset.item,
+            autoExpandedWorkouts: new Set(),
+            hoveredWorkoutId: null,
+            leaveTimer: null,
+            dropped: false
+        };
+        event.dataTransfer.effectAllowed = source.dataset.dragType === "pool-action" ? "copy" : "move";
+        event.dataTransfer.setData("text/plain", JSON.stringify(state.drag));
+        source.classList.add("is-dragging");
+    });
+
+    function handleDragOver(event) {
+        const actionTarget = event.target.closest("[data-drop-target=\"action\"]");
+        const workoutTarget = event.target.closest("[data-drop-target=\"workout\"]");
+        const dropTarget = actionTarget || workoutTarget;
+        if (!dropTarget) return;
+        event.preventDefault();
+        const workoutId = workoutIdForDropTarget(dropTarget);
+        if (state.drag) {
+            state.drag.hoveredWorkoutId = workoutId;
+            clearTimeout(state.drag.leaveTimer);
+        }
+
+        if (workoutTarget && !state.expandedWorkouts.has(workoutId)) {
+            state.drag?.autoExpandedWorkouts.add(workoutId);
+            state.expandedWorkouts.add(workoutId);
+            render();
+            prototype.querySelector(`[data-drop-target="workout"][data-workout="${workoutId}"]`)?.classList.add("is-drag-over");
+            return;
+        }
+
+        event.dataTransfer.dropEffect = state.drag?.type === "pool-action" ? "copy" : "move";
+        prototype.querySelectorAll(".is-drag-over").forEach((node) => node.classList.remove("is-drag-over"));
+        dropTarget.classList.add("is-drag-over");
+    }
+
+    prototype.addEventListener("dragenter", handleDragOver);
+    prototype.addEventListener("dragover", handleDragOver);
+
+    prototype.addEventListener("dragleave", (event) => {
+        const dropTarget = event.target.closest("[data-drop-target=\"action\"], [data-drop-target=\"workout\"]");
+        if (!dropTarget) return;
+        const workoutSet = dropTarget.closest('[data-drop-target="workout"]');
+        if (event.relatedTarget && workoutSet?.contains(event.relatedTarget)) return;
+        dropTarget.classList.remove("is-drag-over");
+        const workoutId = workoutIdForDropTarget(dropTarget);
+        if (state.drag) {
+            state.drag.hoveredWorkoutId = null;
+            scheduleAutoCollapse(workoutId);
+        }
+    });
+
+    prototype.addEventListener("drop", (event) => {
+        const actionTarget = event.target.closest("[data-drop-target=\"action\"]");
+        const workoutTarget = event.target.closest("[data-drop-target=\"workout\"]");
+        const dropTarget = actionTarget || workoutTarget;
+        if (!dropTarget) return;
+        event.preventDefault();
+        const payload = state.drag || JSON.parse(event.dataTransfer.getData("text/plain") || "{}");
+        const targetWorkout = getWorkout(actionTarget?.dataset.workout || workoutTarget?.dataset.workout);
+        if (!targetWorkout || !payload.actionId) {
+            clearDragStyles();
+            return;
+        }
+
+        if (payload.type === "pool-action") {
+            const action = getAction(payload.actionId);
+            if (!action?.approved) {
+                showToast("这项动作可以浏览和收藏，但暂时不能拖入计划");
+                clearDragStyles();
+                return;
+            }
+            const newItem = { id: `${targetWorkout.id}-drag-${Date.now()}`, actionId: action.id, sets: 2, reps: "8–12 次", rest: 60, workMinutes: 5 };
+            const targetIndex = actionTarget ? targetWorkout.items.findIndex((item) => item.id === actionTarget.dataset.item) : -1;
+            if (targetIndex >= 0) targetWorkout.items.splice(targetIndex, 0, newItem);
+            else targetWorkout.items.push(newItem);
+            state.expandedWorkouts.add(targetWorkout.id);
+            state.drag && (state.drag.dropped = true);
+            render();
+            showToast(`${action.name} 已拖入${targetWorkout.title}，套组总时长已更新`);
+        } else if (payload.type === "plan-action") {
+            const sourceWorkout = getWorkout(payload.workoutId);
+            const sourceIndex = sourceWorkout?.items.findIndex((item) => item.id === payload.itemId);
+            if (!sourceWorkout || sourceIndex < 0) {
+                clearDragStyles();
+                return;
+            }
+            const [movedItem] = sourceWorkout.items.splice(sourceIndex, 1);
+            let targetIndex = actionTarget ? targetWorkout.items.findIndex((item) => item.id === actionTarget.dataset.item) : targetWorkout.items.length;
+            if (sourceWorkout === targetWorkout && targetIndex > sourceIndex) targetIndex -= 1;
+            targetWorkout.items.splice(Math.max(0, targetIndex), 0, movedItem);
+            state.expandedWorkouts.add(targetWorkout.id);
+            state.drag && (state.drag.dropped = true);
+            render();
+            showToast(`${getAction(movedItem.actionId).name} 已调整到${targetWorkout.title}，套组总时长已更新`);
+        }
+        state.drag = null;
+        clearDragStyles();
+    });
+
+    prototype.addEventListener("dragend", () => {
+        if (state.drag) {
+            clearTimeout(state.drag.leaveTimer);
+            if (!state.drag.dropped) {
+                state.drag.autoExpandedWorkouts.forEach((workoutId) => state.expandedWorkouts.delete(workoutId));
+                if (state.drag.autoExpandedWorkouts.size) render();
+            }
+        }
+        state.drag = null;
+        clearDragStyles();
+    });
+
+    prototype.addEventListener("input", (event) => {
+        const target = event.target.closest("[data-filter]");
+        if (!target) return;
+        state[target.dataset.filter] = target.value;
+        if (target.dataset.filter === "search") {
+            clearTimeout(state.searchTimer);
+            state.searchTimer = setTimeout(render, 180);
+        }
+    });
+    prototype.addEventListener("change", (event) => {
+        const target = event.target.closest("[data-filter]");
+        if (!target) return;
+        state[target.dataset.filter] = target.value;
+        render();
+    });
+    document.addEventListener("keydown", (event) => {
+        if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        const index = variants.findIndex((variant) => variant.key === state.variant);
+        const nextIndex = event.key === "ArrowRight" ? (index + 1) % variants.length : (index - 1 + variants.length) % variants.length;
+        setVariant(variants[nextIndex].key);
+    });
+    render();
+</script>
+</body>
+</html>
