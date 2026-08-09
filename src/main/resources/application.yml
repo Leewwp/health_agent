@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: harness-agent
+  datasource:
+    url: jdbc:mysql://localhost:3306/diet_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.diet.model
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080
+agentscope:
+  dashscope:
+    api-key: sk-ws-H.ERPLPHL.o5X8.MEQCIAGT4258D7-rLsafxDGz9TmQyxLY4YHrXucsGfG83V1nAiA8VnMO0THxXl-wIu8xzJq0pzDYnhO68cSp299TIK8WiA
+    base-url: https://ws-e9kih4e9np1x8tlc.cn-beijing.maas.aliyuncs.com
+diet:
+  llm:
+    main-model: qwen-max
+    light-model: qwen-turbo
+  session:
+    max-history-turns: 10
+logging:
+  level:
+    com.diet: INFO
