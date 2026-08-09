@@ -24,8 +24,8 @@
 | 领域编排 | [ADR-0008](../../docs/adr/0008-extend-meal-flow-with-domain-modules.md)、[issue 15](../../.scratch/health-agent/issues/15-multidomain-orchestration-boundaries.md) 定义三个模块和周计划组合器 | 只有 `DietOrchestratorService`，且直接注入 `MealSearchService`、`MealRankService`、`MealPlanService` 等餐食服务 | 未实现 |
 | 周计划生命周期 | [issue 16](../../.scratch/health-agent/issues/16-weekly-plan-lifecycle.md) 定义草稿/激活/归档/版本快照 | 没有计划聚合、DDL、Mapper、Controller 或激活/替换 API；现有 `MealPlanService` 只是按餐次挑餐 | 设计清楚，未实现 |
 | 风险分层 | [ADR-0006](../../docs/adr/0006-layered-health-risk-validation.md)、[issue 19](../../.scratch/health-agent/issues/19-health-risk-plan-validation.md) 定义候选前、组合时、LLM 后三层校验 | [RiskGuardService.java](../../src/main/java/com/diet/service/risk/RiskGuardService.java) 只有最终文本关键词扫描，且固定返回饮食文案 | 仅有旧版末端 Guard |
-| RAG/来源 | [ADR-0004](../../docs/adr/0004-rag-boundary.md)、[issue 10](../../.scratch/health-agent/issues/10-rag-design.md) 定义餐食混合召回和指南证据检索 | 没有 `EmbeddingClient`、`MealRetriever`、向量索引或指南检索器；现有检索是 MySQL `JSON_OVERLAPS` | 设计清楚，未实现 |
-| 动作展示 | [issue 03](../../.scratch/health-agent/issues/03-exercise-display-prototype.md) 已确定卡片、浮窗、收藏、白名单标记 | 前端只有饮食 hash 路由和餐食卡片，issue 仍是 `open`，没有原型文件/浏览器验收 | 交互方向有，交付物未完成 |
+| RAG/来源 | [ADR-0004](../../docs/adr/0004-rag-boundary.md)、[issue 10](../../.scratch/health-agent/issues/10-rag-design.md) 定义首版餐食混合召回，指南证据检索延期 | 没有 `EmbeddingClient`、`MealRetriever`、向量索引或指南检索器；现有检索是 MySQL `JSON_OVERLAPS` | 设计清楚，未实现 |
+| 动作展示 | [issue 03](../../.scratch/health-agent/issues/03-exercise-display-prototype.md) 已确定卡片、浮窗、收藏和计划资格标记 | 前端只有饮食 hash 路由和餐食卡片，issue 仍是 `open`，没有原型文件/浏览器验收 | 交互方向有，交付物未完成 |
 
 ## 与现有工作流的适配性
 
@@ -60,8 +60,8 @@
 ### 文档内部需要先冻结的事项
 
 - [map.md:40](../../.scratch/health-agent/map.md:40) 将 03 的交互决策列入 Decisions，同时保留原型文件和浏览器验收未完成状态；实现前应继续把“决策已定”和“交付物未完成”分开维护。
-- 餐食数据现已统一为：脚本默认生成 1,000 条离线候选池，issue 09 的最终 `meal_item` MVP 只从中导入 300～500 条，完成中文映射、标签补齐和人工抽检。
-- ADR-0004 与 issue 10 现已统一：餐食候选混合召回是核心 RAG，训练/作息指南证据检索是受控的来源引用增量，不参与数值或风险决策。
+- 餐食数据现已统一为：脚本默认生成 1,000 条离线候选池，issue 09 的最终 `meal_item` 只导入满足字段、图片许可和可访问性门槛的子集，数量不固定。
+- ADR-0004 与 issue 10 现已统一：首版只实现餐食候选混合召回，训练/作息指南证据检索延期，不参与数值或风险决策。
 - 多个 `resolved` issue 仍是原则而非可执行契约：issue 05 没有健身枚举映射种子，issue 16 没有最终 DDL/接口，issue 19/20 没有具体风险阈值和测试目标。可以保留设计决策状态，但实施前必须补齐 schema、接口、版本字段和验收样例。
 
 ### 高优先级
@@ -91,9 +91,9 @@
 1. 先处理凭证轮换和身份迁移，再扩展健康数据；保留旧餐食 API 的兼容映射，但不再信任客户端用户 ID。
 2. 定义外层 `HealthIntent`、`HealthSessionState` 和领域路由结果；把旧 `Intent`/七槽位作为餐食兼容层，而不是继续扩大它们。
 3. 将当前餐食链路整体包进 `MealModule`，先用回归场景证明饮食行为不变；同时移除“PERSONAL 为空就提前返回”的全局前置判断，使其只在餐食路由内生效。
-4. 先落健康档案、动作资源/审核白名单、作息事实表和对应 DTO，再实现 `ExerciseModule`、`RoutineModule`。资源候选和规则校验应先于响应 Agent。
+4. 先落健康档案、动作资源/`plan_ready` 元数据、作息事实表和对应 DTO，再实现 `ExerciseModule`、`RoutineModule`。资源候选和规则校验应先于响应 Agent。
 5. 实现 `WeeklyPlanComposer` 和计划聚合/版本表，先生成 DRAFT，经过确定性校验后才能激活；局部替换始终生成新版本。
-6. 最后接受控指南检索和餐食 hybrid RAG；为 embedding/API 失败保留结构化降级，并用固定查询集验证是否真的提升 Recall@K。
+6. 先实现餐食 hybrid RAG；为 embedding/API 失败保留结构化降级，并用固定查询集验证是否真的提升 Recall@K。指南证据检索留到后续阶段。
 7. 统一 map、issues 和脚本的状态/数量/首版范围后，再开始实现，避免开发中途因交付边界变化反复迁移数据库。
 
 ## GitHub 对照研究
@@ -116,7 +116,7 @@
 其 [WellnessPlanFacade.js](https://github.com/beyzadegirmenci/LifeSync/blob/main/backend/src/facades/WellnessPlanFacade.js) 统一处理 `diet`/`exercise` 计划生成，使用 [planPromptBuilder.js](https://github.com/beyzadegirmenci/LifeSync/blob/main/backend/src/utils/planPromptBuilder.js) 生成按日/周/月的结构化 JSON prompt，再由 [planValidator.js](https://github.com/beyzadegirmenci/LifeSync/blob/main/backend/src/utils/planValidator.js) 解析、校验、重试；`StrategyFactory` 还按 beginner/intermediate/advanced 选择策略。
 
 **适合借鉴：** 计划生成入口用 Facade，训练等级用策略对象，LLM 输出使用固定 schema、重试和显式 `planType`。
-**必须改进：** 该项目的 validator 会补齐/循环复制空单元，主要验证表格形状；exercise prompt 仍让 LLM 自由选择动作和训练内容，作息只有输入字段，没有本项目要求的事实表、风险分层和资源白名单。因此只能借鉴代码组织，不能把它的计划验证当作安全校验。
+**必须改进：** 该项目的 validator 会补齐/循环复制空单元，主要验证表格形状；exercise prompt 仍让 LLM 自由选择动作和训练内容，作息只有输入字段，没有本项目要求的事实表、风险分层和 `plan_ready` 资源资格。因此只能借鉴代码组织，不能把它的计划验证当作安全校验。
 
 ### 3. GymCoach：可借鉴训练计划的资源约束和人工确认
 
@@ -134,7 +134,7 @@
 README 和 [icd11_sleep.py](https://github.com/zobi-logs/Sleep_Specialist_Chat_Assistant/blob/main/icd11_sleep.py) 展示了“FAISS 检索睡眠资料 + LLM 回答 + 每次带来源”的最小闭环，并包含来源数据摄取脚本。
 
 **适合借鉴：** 事实回答要保留来源元数据，并在没有匹配资料时降级为信息不足，而不是由模型补写。
-**不适合照搬：** 该仓库规模小，依赖外部 PDF/FAISS，脚本中还把第三方 API 凭证写在源码里；本项目应坚持 issue 08/10 的结构化作息事实优先、受控指南证据检索只补引用。
+**不适合照搬：** 该仓库规模小，依赖外部 PDF/FAISS，脚本中还把第三方 API 凭证写在源码里；本项目首版应坚持 issue 08/10 的结构化作息事实和餐食混合召回边界，指南证据检索只作为后续扩展。
 
 ### 5. Healthcare Assistant：可借鉴按业务主题拆 Crew，但不宜复制其自由研究模式
 
@@ -155,7 +155,7 @@ GitHub 项目可以提供三类实现参考：
 2. 用 LifeSync 参考 Facade/策略/结构化计划输出的代码组织；
 3. 用 GymCoach 参考动作资源约束、严格 schema、草稿确认和局部调整；用 Sleep Specialist 参考来源引用。
 
-不要直接复制这些项目的“LLM 生成即计划”路径。对本项目而言，资源白名单、健康档案公式、风险规则、计划不变量和版本快照必须先于 LLM，LLM 只负责在已验证结果上做解释和表达。
+不要直接复制这些项目的“LLM 生成即计划”路径。对本项目而言，资源计划资格、健康档案公式、风险规则、计划不变量和版本快照必须先于 LLM，LLM 只负责在已验证结果上做解释和表达。
 
 ## 来源索引
 
