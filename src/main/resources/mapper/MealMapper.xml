@@ -9,6 +9,8 @@
         <result property="sourceType" column="source_type"/>
         <result property="ownerUserId" column="owner_user_id"/>
         <result property="name" column="name"/>
+        <result property="nameEn" column="name_en"/>
+        <result property="aliases" column="aliases"/>
         <result property="mealTime" column="meal_time"/>
         <result property="mood" column="mood"/>
         <result property="scene" column="scene"/>
@@ -16,6 +18,26 @@
         <result property="cuisine" column="cuisine"/>
         <result property="taste" column="taste"/>
         <result property="convenience" column="convenience"/>
+        <result property="description" column="description"/>
+        <result property="ingredientsJson" column="ingredients_json"/>
+        <result property="servingCount" column="serving_count"/>
+        <result property="servingSize" column="serving_size"/>
+        <result property="servingUnit" column="serving_unit"/>
+        <result property="caloriesKcal" column="calories_kcal"/>
+        <result property="proteinG" column="protein_g"/>
+        <result property="fatG" column="fat_g"/>
+        <result property="carbohydrateG" column="carbohydrate_g"/>
+        <result property="nutritionBasis" column="nutrition_basis"/>
+        <result property="nutritionEstimated" column="nutrition_estimated"/>
+        <result property="allergenJson" column="allergen_json"/>
+        <result property="allergenStatus" column="allergen_status"/>
+        <result property="reviewStatus" column="review_status"/>
+        <result property="sourceName" column="source_name"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="sourceVersion" column="source_version"/>
+        <result property="mediaUrl" column="media_url"/>
+        <result property="mediaStatus" column="media_status"/>
+        <result property="mediaCredit" column="media_credit"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
@@ -32,8 +54,43 @@
         cuisine,
         taste,
         convenience,
+        review_status,
         created_at,
         updated_at
+    </sql>
+
+    <sql id="BrowseMealColumns">
+        id,
+        name,
+        name_en,
+        aliases,
+        meal_time,
+        mood,
+        scene,
+        health_goal,
+        cuisine,
+        taste,
+        convenience,
+        description,
+        ingredients_json,
+        serving_count,
+        serving_size,
+        serving_unit,
+        calories_kcal,
+        protein_g,
+        fat_g,
+        carbohydrate_g,
+        nutrition_basis,
+        nutrition_estimated,
+        allergen_json,
+        allergen_status,
+        review_status,
+        source_name,
+        source_id,
+        source_version,
+        media_url,
+        media_status,
+        media_credit
     </sql>
 
     <insert id="insert"
@@ -129,6 +186,33 @@
         </where>
         ORDER BY updated_at DESC
         LIMIT #{limit}
+    </select>
+
+    <select id="browsePublicMeals" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+        ORDER BY id
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPublicMeals" resultType="int">
+        SELECT COUNT(1)
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+    </select>
+
+    <select id="findApprovedPublicMeals" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+        ORDER BY id
     </select>
 
 </mapper>

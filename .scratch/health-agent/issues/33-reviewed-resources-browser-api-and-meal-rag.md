@@ -1,7 +1,7 @@
 # 33 审核资源、浏览 API 与餐食 RAG
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Depends on: 30, 32
 
@@ -29,3 +29,10 @@
 ## Done when
 
 审核资源子集和重建报告可复现；接口返回分页、空数据、无图、来源和计划资格状态；结构化与 hybrid 都可运行且硬约束命中率为 100%。hybrid 没有可复现提升时只记录实验结论，不在项目说明中宣称效果提升。
+
+## 验收记录（2026-08-10）
+
+- ETL `scripts/build_reviewed_resources.py` 可重跑（重跑 git diff 为空），报告记录来源版本 + 输入 SHA-256 + 选入/排除原因；seed SQL 启动幂等导入（292 餐食/30 动作/15 事实）。
+- 浏览 API `/api/v1/health/meals`、`/exercises` 分页（size≤50 越界 400），无图/来源/plan_ready 状态透出。
+- RAG：hybrid 在结构化 top-10 池语义重排，embedding 不可用降级；固定查询集评估 Recall@3=0.393（结构化=hybrid，10/10 降级）、硬约束 1.000，见 docs/research/meal-rag-evaluation.md。
+- 待办（需真实 API key，不阻塞）：配置 DASHSCOPE_API_KEY 后执行 `--diet.embedding.generate-on-startup=true` 生成向量，重跑评估记录 hybrid 真实 Recall@3。

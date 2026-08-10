@@ -46,3 +46,6 @@ data/meal/processed/
 .env
 .env.*
 !.env.example
+
+# 动作原始数据集（可经 jsDelivr 重新下载，见 scripts/build_reviewed_resources.py）
+data/exercise/raw/exercises.json

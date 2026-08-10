@@ -1,0 +1,138 @@
+{
+  "queryCount" : 10,
+  "sourceMappingCount" : 292,
+  "structured" : {
+    "queries" : [ {
+      "queryId" : "q-breakfast-protein",
+      "recallAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "175340", "204451" ]
+    }, {
+      "queryId" : "q-dinner-low-carb",
+      "recallAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "128908", "283704" ]
+    }, {
+      "queryId" : "q-lunch-quick",
+      "recallAt3" : 0.058823529411764705,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "89922", "149292", "151221" ]
+    }, {
+      "queryId" : "q-vegan-meal",
+      "recallAt3" : 0.1875,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-curry",
+      "recallAt3" : 0.6,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-soup",
+      "recallAt3" : 0.6,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-seafood",
+      "recallAt3" : 0.1875,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-spicy",
+      "recallAt3" : 0.16666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-peanut-exclusion",
+      "recallAt3" : 0.04838709677419355,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "89922", "100900", "104206" ]
+    }, {
+      "queryId" : "q-fish-exclusion",
+      "recallAt3" : 0.08333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "88129", "100900", "104206" ]
+    } ],
+    "avgRecallAt3" : 0.3932210626185958,
+    "hardConstraintHitRate" : 1.0,
+    "degradedCount" : 0
+  },
+  "runAt" : "2026-08-10T19:38:15.929483",
+  "topK" : 3,
+  "hybrid" : {
+    "queries" : [ {
+      "queryId" : "q-breakfast-protein",
+      "recallAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "175340", "204451" ]
+    }, {
+      "queryId" : "q-dinner-low-carb",
+      "recallAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "128908", "283704" ]
+    }, {
+      "queryId" : "q-lunch-quick",
+      "recallAt3" : 0.058823529411764705,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "89922", "149292", "151221" ]
+    }, {
+      "queryId" : "q-vegan-meal",
+      "recallAt3" : 0.1875,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-curry",
+      "recallAt3" : 0.6,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-soup",
+      "recallAt3" : 0.6,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-seafood",
+      "recallAt3" : 0.1875,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-spicy",
+      "recallAt3" : 0.16666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-peanut-exclusion",
+      "recallAt3" : 0.04838709677419355,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "89922", "100900", "104206" ]
+    }, {
+      "queryId" : "q-fish-exclusion",
+      "recallAt3" : 0.08333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "88129", "100900", "104206" ]
+    } ],
+    "avgRecallAt3" : 0.3932210626185958,
+    "hardConstraintHitRate" : 1.0,
+    "degradedCount" : 10
+  }
+}
