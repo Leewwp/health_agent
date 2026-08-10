@@ -17,6 +17,7 @@ import lombok.experimental.Accessors;
 @NoArgsConstructor
 public class ChatRequest {
     private String sessionId;
+    private String requestId;
     private String message;
     private SourceMode sourceMode;
     private Map<String, Object> context;

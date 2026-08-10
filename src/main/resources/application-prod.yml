@@ -1,0 +1,20 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
+agentscope:
+  dashscope:
+    api-key: ${DASHSCOPE_API_KEY}
+
+diet:
+  security:
+    session-secret: ${DIET_SESSION_SECRET}
+    cookie-secure: true
+    allow-legacy-user-header: false
+    admin-protected: true
+    admin-token: ${ADMIN_TOKEN}

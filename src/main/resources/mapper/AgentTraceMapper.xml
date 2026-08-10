@@ -7,6 +7,7 @@
     <resultMap id="RequestTraceRowMap" type="com.diet.model.RequestTraceRow">
         <id property="id" column="id"/>
         <result property="traceId" column="trace_id"/>
+        <result property="requestId" column="request_id"/>
         <result property="sessionId" column="session_id"/>
         <result property="userId" column="user_id"/>
         <result property="status" column="status"/>
@@ -14,6 +15,7 @@
         <result property="durationMs" column="duration_ms"/>
         <result property="errorMessage" column="error_message"/>
         <result property="traceJson" column="trace_json"/>
+        <result property="responseJson" column="response_json"/>
         <result property="expectedIntent" column="expected_intent"/>
         <result property="expectedSlots" column="expected_slots"/>
         <result property="expectedClarifyAction" column="expected_clarify_action"/>
@@ -26,17 +28,18 @@
 
     <insert id="insert" parameterType="com.diet.model.RequestTraceRow">
         INSERT INTO diet_request_trace (
-        trace_id, session_id, user_id, status, event_count,
-        duration_ms, error_message, trace_json, created_at, updated_at
+        trace_id, request_id, session_id, user_id, status, event_count,
+        duration_ms, error_message, trace_json, response_json, created_at, updated_at
         ) VALUES (
-        #{traceId}, #{sessionId}, #{userId}, #{status}, #{eventCount},
-        #{durationMs}, #{errorMessage}, #{traceJson}, NOW(), NOW()
+        #{traceId}, #{requestId}, #{sessionId}, #{userId}, #{status}, #{eventCount},
+        #{durationMs}, #{errorMessage}, #{traceJson}, #{responseJson}, NOW(), NOW()
         )
     </insert>
 
-    <select id="findByTraceId" resultMap="RequestTraceRowMap">
+    <select id="findByRequestId" resultMap="RequestTraceRowMap">
         SELECT id,
         trace_id,
+        request_id,
         session_id,
         user_id,
         status,
@@ -44,6 +47,37 @@
         duration_ms,
         error_message,
         trace_json,
+        response_json,
+        expected_intent,
+        expected_slots,
+        expected_clarify_action,
+        labeled_by,
+        labeled_at,
+        label_note,
+        created_at,
+        updated_at
+        FROM diet_request_trace
+        WHERE user_id = #{userId}
+        AND request_id = #{requestId}
+        <if test="sessionId != null and sessionId != ''">
+            AND session_id = #{sessionId}
+        </if>
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findByTraceId" resultMap="RequestTraceRowMap">
+        SELECT id,
+        trace_id,
+        request_id,
+        session_id,
+        user_id,
+        status,
+        event_count,
+        duration_ms,
+        error_message,
+        trace_json,
+        response_json,
         expected_intent,
         expected_slots,
         expected_clarify_action,
@@ -61,6 +95,7 @@
     <select id="findBySessionId" resultMap="RequestTraceRowMap">
         SELECT id,
         trace_id,
+        request_id,
         session_id,
         user_id,
         status,
@@ -68,6 +103,7 @@
         duration_ms,
         error_message,
         trace_json,
+        response_json,
         expected_intent,
         expected_slots,
         expected_clarify_action,
@@ -86,6 +122,7 @@
     <select id="findByTimeRange" resultMap="RequestTraceRowMap">
         SELECT id,
         trace_id,
+        request_id,
         session_id,
         user_id,
         status,
@@ -93,6 +130,7 @@
         duration_ms,
         error_message,
         trace_json,
+        response_json,
         expected_intent,
         expected_slots,
         expected_clarify_action,

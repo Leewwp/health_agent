@@ -11,6 +11,12 @@ import java.util.List;
 public interface AgentTraceMapper {
     int insert(RequestTraceRow row);
 
+    RequestTraceRow findByRequestId(
+            @Param("userId") Long userId,
+            @Param("sessionId") String sessionId,
+            @Param("requestId") String requestId
+    );
+
     RequestTraceRow findByTraceId(@Param("userId") Long userId, @Param("traceId") String traceId);
 
     List<RequestTraceRow> findBySessionId(

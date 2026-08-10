@@ -9,7 +9,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,7 +28,7 @@ public class AgentTraceController {
 
     @GetMapping("/traces/{traceId}")
     public RequestTraceRow findByTraceId(
-            @RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId,
+            @RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
             @PathVariable String traceId
     ) {
         return agentTraceService.findByTraceId(userId, traceId);
@@ -36,7 +36,7 @@ public class AgentTraceController {
 
     @GetMapping("/sessions/{sessionId}/traces")
     public List<RequestTraceRow> findBySessionId(
-            @RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId,
+            @RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
             @PathVariable String sessionId,
             @RequestParam(value = "limit", required = false) Integer limit
     ) {
@@ -45,7 +45,7 @@ public class AgentTraceController {
 
     @GetMapping("/traces")
     public List<RequestTraceRow> findByTimeRange(
-            @RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId,
+            @RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startAt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endAt,
             @RequestParam(value = "onlyUnlabeled", required = false) Boolean onlyUnlabeled,
@@ -56,7 +56,7 @@ public class AgentTraceController {
 
     @PutMapping("/traces/{traceId}/label")
     public void updateLabel(
-            @RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId,
+            @RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
             @PathVariable String traceId,
             @RequestBody TraceLabelRequest request
     ) {

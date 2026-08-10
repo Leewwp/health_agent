@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Agent 链路追踪服务。
- * 通过 ThreadLocal {@link TraceScope} 收集一轮请求内的状态机事件和 Agent 调用，close 时写入 agent_traces 表。
+ * 通过 ThreadLocal {@link TraceScope} 收集一轮请求内的状态机事件和 Agent 调用，close 时写入 diet_request_trace 表。
  */
 @Service
 public class AgentTraceService {
@@ -40,7 +40,7 @@ public class AgentTraceService {
     /** 当前请求线程的 Trace 上下文，openTrace 设置、TraceScope#close 清除。 */
     private final ThreadLocal<TraceScope> currentScope = new ThreadLocal<>();
 
-    /** MyBatis Mapper，负责 agent_traces 表的 INSERT/SELECT。 */
+    /** MyBatis Mapper，负责 diet_request_trace 表的 INSERT/SELECT。 */
     private final AgentTraceMapper agentTraceMapper;
 
     /** Jackson 序列化工具，将 payload 和 trace_json 转为 JSON 字符串。 */
@@ -57,12 +57,25 @@ public class AgentTraceService {
      * 创建 TraceScope 并绑定到当前线程 ThreadLocal，供后续 recordEvent/callAgent 写入事件。
      */
     public TraceScope openTrace(String traceId, String sessionId, Long userId) {
+        return openTrace(traceId, sessionId, userId, null);
+    }
+
+    /** 开启带 requestId 的 Trace，requestId 用于幂等结果复用。 */
+    public TraceScope openTrace(String traceId, String sessionId, Long userId, String requestId) {
         // 创建 TraceScope 实例，持有 traceId/sessionId/userId 和事件列表
-        TraceScope scope = new TraceScope(traceId, sessionId, userId);
+        TraceScope scope = new TraceScope(traceId, sessionId, userId, requestId);
         // 将 scope 绑定到当前线程，record 方法通过 currentScope.get() 读取
         currentScope.set(scope);
         // 返回 scope 供 try-with-resources 在 finally 中 close
         return scope;
+    }
+
+    /** 查找已成功保存的幂等响应。 */
+    public RequestTraceRow findByRequestId(Long userId, String sessionId, String requestId) {
+        if (userId == null || requestId == null || requestId.isBlank()) {
+            return null;
+        }
+        return agentTraceMapper.findByRequestId(userId, sessionId, requestId);
     }
 
     /**
@@ -220,11 +233,12 @@ public class AgentTraceService {
         }
     }
 
-    /** 将 TraceScope 内累积的所有事件序列化为 JSON 并 INSERT 到 agent_traces 表。 */
+    /** 将 TraceScope 内累积的所有事件序列化为 JSON 并 INSERT 到 diet_request_trace 表。 */
     private void flushTrace(TraceScope scope) {
         // 构造数据库行对象 RequestTraceRow
         RequestTraceRow row = new RequestTraceRow();
         row.setTraceId(scope.traceId());           // 主键 traceId
+        row.setRequestId(scope.requestId());       // 幂等请求 ID
         row.setSessionId(scope.sessionId());       // 关联 sessionId
         row.setUserId(scope.userId());             // 关联 userId
         row.setStatus(scope.status());             // SUCCESS 或 FAILED
@@ -241,6 +255,7 @@ public class AgentTraceService {
         trace.put("events", scope.events());       // 全部 TraceEvent 列表
         // 将 trace Map 序列化为 JSON 字符串写入 trace_json 列
         row.setTraceJson(toTraceJson(trace));
+        row.setResponseJson(scope.responseJson());
         // 执行 INSERT
         agentTraceMapper.insert(row);
     }
@@ -341,6 +356,9 @@ public class AgentTraceService {
         /** 本轮 userId。 */
         private final Long userId;
 
+        /** 客户端幂等请求 ID。 */
+        private final String requestId;
+
         /** 事件序号计数器，线程安全自增。 */
         private final AtomicInteger stepOrder = new AtomicInteger(0);
 
@@ -360,14 +378,30 @@ public class AgentTraceService {
         private boolean closed;
 
         /** 私有构造，仅 AgentTraceService#openTrace 创建。 */
-        private TraceScope(String traceId, String sessionId, Long userId) {
+        private String responseJson;
+
+        private TraceScope(String traceId, String sessionId, Long userId, String requestId) {
             this.traceId = traceId;
             this.sessionId = sessionId;
             this.userId = userId;
+            this.requestId = requestId;
         }
         private String traceId() { return traceId; }
         private String sessionId() { return sessionId; }
         private Long userId() { return userId; }
+        private String requestId() { return requestId; }
+        private String responseJson() { return responseJson; }
+
+        /** 保存最终响应快照，重复 requestId 时直接返回该快照。 */
+        public void setResponse(Object response) {
+            this.responseJson = toTraceJson(response);
+        }
+
+        /** 放弃重复请求产生的空 Trace，不向数据库写入无意义记录。 */
+        public void discard() {
+            closed = true;
+            currentScope.remove();
+        }
 
         /** 返回下一个事件序号（先自增再返回）。 */
         private int nextStep() { return stepOrder.incrementAndGet(); }
@@ -397,7 +431,7 @@ public class AgentTraceService {
             }
             closed = true;
             try {
-                // 将 events 序列化并 INSERT agent_traces
+                // 将 events 序列化并 INSERT diet_request_trace
                 flushTrace(this);
             } catch (RuntimeException error) {
                 // 落库失败只打 warn，不影响主业务返回
