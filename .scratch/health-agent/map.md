@@ -65,7 +65,7 @@
 
 ## Not yet specified
 
-当前没有阻塞实现交接的未锐化决策。29 号 Java 21 基线和 31 号基础设施仍是开放实施任务；正式资源导入、重建报告和发布后的持续维护属于实施票据及后续运营事实，不再作为本地图上的决策雾。
+当前没有阻塞实现交接的未锐化决策。29 号 Java 21 基线已由提交 3547bc7 接纳并完成验收（POM `maven.compiler.release=21` + clean build + javap major 65 + `mvn test` 通过）；正式资源导入、重建报告和发布后的持续维护属于实施票据及后续运营事实，不再作为本地图上的决策雾。
 
 ## Implementation plan
 
@@ -74,7 +74,7 @@
 ## Implementation handoff
 
 - 正式规格：[健康 Agent MVP 正式规格](spec.md)，是实现阶段唯一真源。
-- 构建前置：[29 Java 21 构建基线核验](issues/29-java21-build-baseline.md)，保持开放直到 POM 修正进入提交并通过 clean build。
+- 构建前置：[29 Java 21 构建基线核验](issues/29-java21-build-baseline.md)，已完成（提交 3547bc7 接纳 POM 修正并通过 clean build，见票内验收记录）。
 - 面试适用性复核：[Agent MVP 面试适用性复核](../../docs/agent-mvp-suitability-review.md)。
 - 垂直实施入口：[31 MVP 基础设施与旧饮食兼容](issues/31-mvp-foundation-and-legacy-compat.md)、[32 Agent 运行接口与健康聊天垂直闭环](issues/32-agent-runtime-and-health-chat-vertical-slice.md)、[33 审核资源、浏览 API 与餐食 RAG](issues/33-reviewed-resources-browser-api-and-meal-rag.md)、[34 健康档案、周计划与风险校验](issues/34-health-profile-plan-and-risk.md)、[35 前端模块与用户页面](issues/35-frontend-modules-and-user-pages.md)、[36 核心验收、部署与运行手册](issues/36-core-acceptance-and-delivery.md)。
 - 当前状态：规格和文档完成；29/31/32 已通过验收（Java 21 基线、Flyway 双路径、基础设施冒烟、65 个自动化测试与 fixture 模式三品类闭环），达到"面试可演示"门槛；33 号已通过验收（ETL 可重跑、288 餐食/30 动作/15 事实审核子集、浏览 API、hybrid RAG 与降级、Recall@3 评估记录）。按 34 → 35 → 36 推进。

@@ -7,13 +7,13 @@ Multi-agent diet recommendation service (Spring Boot + AgentScope/DashScope + My
 - Java 21, Spring Boot 3.3.13, Maven (system `mvn`; no `mvnw` wrapper), MyBatis 3, Lombok, Hutool, MySQL 8.
 - Frontend is plain vanilla JS served from `src/main/resources/static/` (index.html + app.js/api.js/app.css). No Node/npm build step.
 - Build: `mvn -DskipTests compile` · Run: `mvn spring-boot:run` (port 8080).
-- There is **no test suite** (`src/test` does not exist). Verify with compile + run + curl against `http://localhost:8080`.
+- Test suite: JUnit 5 under `src/test/` (123 tests, all passing — run with `mvn test`). Includes unit tests for browse APIs, retrievers, recall evaluation, seed SQL validation and orchestrator seams.
 
 ## Run prerequisites
 
-- Local MySQL at `localhost:3306` (root/123456, per `application.yml`). `createDatabaseIfNotExist=true` creates only the empty DB — you must import `src/main/resources/db/diet_db.sql` (Navicat dump: schema + seed data for `diet_slot_option` and `meal_item`) before first run.
+- Local MySQL at `localhost:3306` (root/123456, per `application.yml`). `createDatabaseIfNotExist=true` creates only the empty DB — Flyway then migrates it automatically (`classpath:db/migration`, baseline-on-migrate with baseline-version 1): fresh DB gets the full schema via V1/V2/V3; a legacy DB imported from `src/main/resources/db/diet_db.sql` gets baselined at V1 and only the incremental migrations run. Startup also idempotently imports the reviewed seed (`db/seed/reviewed_resources.sql`, INSERT IGNORE via `ReviewedResourceSeeder`).
 - `agentscope.dashscope.api-key` in `application.yml` is the literal placeholder `请填入自己的apiKey`. Real LLM calls (intent/response/plan agents) fail until it's set or overridden (`-Dagentscope.dashscope.api-key=...` or env). LLM models: main `qwen-max`, light `qwen-turbo`.
-- HTTP requests need `X-User-Id` header (defaults to `1` in `DietChatController`). Frontend stores it in localStorage.
+- Legacy diet chain (`/api/v1/diet/**`) reads the `X-User-Id` header (defaults to `1` in `DietChatController`; frontend stores it in localStorage). The health chain (`/api/v1/health/**`) uses a server-issued HMAC anonymous Cookie via `AnonymousIdentityInterceptor` instead.
 
 ## Architecture
 
