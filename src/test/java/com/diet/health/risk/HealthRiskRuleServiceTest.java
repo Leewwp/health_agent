@@ -56,4 +56,36 @@ class HealthRiskRuleServiceTest {
         HealthRiskRuleService.RiskDecision decision = rules.assess("未满18岁怎么减脂", List.of());
         assertTrue(decision.blocked());
     }
+
+    // ---- 34 号：档案维度风险（候选前 Guard） ----
+
+    @Test
+    void 档案未满18岁BLOCK_PLAN() {
+        HealthRiskRuleService.RiskDecision decision = rules.assessProfile(17, true);
+        assertEquals(HealthRiskLevel.BLOCK_PLAN, decision.level());
+        assertTrue(decision.matchedFlags().contains("UNDERAGE"));
+        assertEquals(HealthRiskRuleService.UNDERAGE_COPY, decision.copy());
+    }
+
+    @Test
+    void 档案65岁以上生成训练计划BLOCK_PLAN() {
+        HealthRiskRuleService.RiskDecision decision = rules.assessProfile(70, true);
+        assertEquals(HealthRiskLevel.BLOCK_PLAN, decision.level());
+        assertTrue(decision.matchedFlags().contains("SENIOR_PLAN"));
+        assertEquals(HealthRiskRuleService.SENIOR_TRAINING_COPY, decision.copy());
+    }
+
+    @Test
+    void 档案65岁以上不含训练计划仅ADVISORY() {
+        HealthRiskRuleService.RiskDecision decision = rules.assessProfile(70, false);
+        assertEquals(HealthRiskLevel.ADVISORY, decision.level());
+        assertTrue(decision.matchedFlags().contains("SENIOR_PLAN"));
+    }
+
+    @Test
+    void 档案成年一般用户NORMAL() {
+        HealthRiskRuleService.RiskDecision decision = rules.assessProfile(30, true);
+        assertEquals(HealthRiskLevel.NORMAL, decision.level());
+        assertFalse(decision.blocked());
+    }
 }

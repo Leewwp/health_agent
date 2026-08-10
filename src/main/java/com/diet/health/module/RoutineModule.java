@@ -76,4 +76,9 @@ public class RoutineModule {
                 Map.of("category", List.of(fact.category()))
         );
     }
+
+    /** 全部作息事实 ID（供计划校验资源目录使用）。 */
+    public List<String> allFactIds() {
+        return SeedResources.ROUTINE_FACTS.stream().map(RoutineFact::factId).toList();
+    }
 }
