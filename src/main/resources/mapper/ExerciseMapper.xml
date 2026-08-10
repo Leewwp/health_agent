@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.ExerciseMapper">
+
+    <resultMap id="ExerciseItemRowMap" type="com.diet.model.ExerciseItemRow">
+        <id property="id" column="id"/>
+        <result property="sourceName" column="source_name"/>
+        <result property="sourceId" column="source_id"/>
+        <result property="sourceVersion" column="source_version"/>
+        <result property="name" column="name"/>
+        <result property="nameEn" column="name_en"/>
+        <result property="aliases" column="aliases"/>
+        <result property="category" column="category"/>
+        <result property="bodyPart" column="body_part"/>
+        <result property="targetMuscles" column="target_muscles"/>
+        <result property="secondaryMuscles" column="secondary_muscles"/>
+        <result property="equipment" column="equipment"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="movementPattern" column="movement_pattern"/>
+        <result property="riskTags" column="risk_tags"/>
+        <result property="alternativeGroup" column="alternative_group"/>
+        <result property="reviewStatus" column="review_status"/>
+        <result property="planReady" column="plan_ready"/>
+        <result property="instructionsZh" column="instructions_zh"/>
+        <result property="stepsJson" column="steps_json"/>
+        <result property="mediaState" column="media_state"/>
+        <result property="mediaCredit" column="media_credit"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="ExerciseColumns">
+        id,
+        source_name,
+        source_id,
+        source_version,
+        name,
+        name_en,
+        aliases,
+        category,
+        body_part,
+        target_muscles,
+        secondary_muscles,
+        equipment,
+        difficulty,
+        movement_pattern,
+        risk_tags,
+        alternative_group,
+        review_status,
+        plan_ready,
+        instructions_zh,
+        steps_json,
+        media_state,
+        media_credit
+    </sql>
+
+    <select id="browse" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE review_status = 'APPROVED'
+        ORDER BY id
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(1)
+        FROM exercise_item
+        WHERE review_status = 'APPROVED'
+    </select>
+
+</mapper>

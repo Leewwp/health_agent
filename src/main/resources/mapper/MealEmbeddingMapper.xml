@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.MealEmbeddingMapper">
+
+    <resultMap id="MealEmbeddingRowMap" type="com.diet.model.MealEmbeddingRow">
+        <id property="id" column="id"/>
+        <result property="mealId" column="meal_id"/>
+        <result property="model" column="model"/>
+        <result property="modelVersion" column="model_version"/>
+        <result property="dimension" column="dimension"/>
+        <result property="vector" column="vector"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findByMealIds" resultMap="MealEmbeddingRowMap">
+        SELECT id, meal_id, model, model_version, dimension, vector, created_at
+        FROM meal_item_embedding
+        WHERE meal_id IN
+        <foreach collection="mealIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND model = #{model}
+        AND model_version = #{modelVersion}
+    </select>
+
+    <insert id="upsert" parameterType="com.diet.model.MealEmbeddingRow">
+        INSERT INTO meal_item_embedding (meal_id, model, model_version, dimension, vector, created_at)
+        VALUES (#{mealId}, #{model}, #{modelVersion}, #{dimension}, #{vector}, NOW())
+        ON DUPLICATE KEY UPDATE
+        dimension = VALUES(dimension),
+        vector = VALUES(vector),
+        created_at = NOW()
+    </insert>
+
+</mapper>

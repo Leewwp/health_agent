@@ -1,0 +1,45 @@
+{
+  "etl": "scripts/build_reviewed_resources.py",
+  "generated_at": "2026-08-10",
+  "sources": {
+    "meals": {
+      "name": "foodcom-recipes-and-reviews-v2",
+      "version": "v2",
+      "input": {
+        "path": "data/meal/processed/healthy_recipes_1000.csv",
+        "sha256": "afbda6b7ef705634595ece80830dd707e86fa5d43bb3e7c3cc43714a50413646"
+      }
+    },
+    "exercises": {
+      "name": "gym-visual-exercises-dataset",
+      "version": "main-2026-08-10",
+      "input": {
+        "path": "data/exercise/raw/exercises.json",
+        "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d",
+        "download": "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/data/exercises.json"
+      }
+    }
+  },
+  "meals": {
+    "read": 1000,
+    "curated": 292,
+    "curated_found_in_pool": 292,
+    "included": 292,
+    "excluded": [
+      {
+        "reason": "curated_but_not_in_pool",
+        "count": 0
+      }
+    ]
+  },
+  "exercises": {
+    "read": 1324,
+    "curated": 30,
+    "included": 30,
+    "excluded": []
+  },
+  "facts": {
+    "read": 15,
+    "included": 15
+  }
+}

@@ -1,0 +1,31 @@
+source_id,name_zh,aliases,difficulty,movement_pattern,risk_tags,alternative_group
+0662,俯卧撑,"[""标准俯卧撑"",""push-up""]",入门,推,"[""手腕压力"",""肩部压力""]",g_chest_press
+0658,靠墙俯卧撑,"[""墙面俯卧撑""]",入门,推,"[""手腕压力""]",g_chest_press
+0279,下斜俯卧撑,"[""feet-elevated push-up""]",进阶,推,"[""手腕压力"",""肩部压力""]",g_chest_press
+0251,双杠臂屈伸,"[""dip""]",中级,推,"[""肩部压力"",""肘部压力""]",g_chest_press
+0652,引体向上,"[""正手引体"",""pull-up""]",进阶,拉,"[""肩部压力"",""肘部压力""]",g_back_row
+0651,中立握引体向上,"[""neutral grip pull-up""]",进阶,拉,"[""肩部压力""]",g_back_row
+0499,反向划船,"[""桌下划船"",""inverted row""]",中级,拉,"[""腰部压力""]",g_back_row
+0293,哑铃俯身划船,"[""单臂划船"",""dumbbell row""]",中级,拉,"[""腰部压力""]",g_back_row
+0970,弹力带辅助引体向上,"[""band assisted pull-up""]",中级,拉,"[""肩部压力""]",g_back_row
+1685,深蹲过头举,"[""squat to overhead reach""]",入门,蹲,"[""膝盖压力"",""肩部压力""]",g_squat
+2368,分腿蹲,"[""split squat""]",中级,蹲,"[""膝盖压力"",""平衡要求""]",g_squat
+1460,行走弓步蹲,"[""walking lunge""]",中级,蹲,"[""膝盖压力""]",g_squat
+1008,弹力带登阶,"[""band step-up""]",入门,蹲,"[""膝盖压力""]",g_squat
+0514,跳跃深蹲,"[""jump squat""]",进阶,蹲,"[""膝盖压力"",""冲击大""]",g_squat
+1009,弹力带直腿硬拉,"[""band stiff leg deadlift""]",中级,髋,"[""腰部压力"",""腘绳肌牵拉""]",g_hip_hinge
+1408,弹力带臀桥提髋,"[""band hip lift"",""臀桥""]",入门,髋,"[""腰部压力""]",g_hip_hinge
+1373,站姿提踵,"[""standing calf raise"",""小腿提踵""]",入门,踝,"[""踝关节压力""]",g_calf
+0999,弹力带单腿提踵,"[""band single leg calf raise""]",中级,踝,"[""踝关节压力"",""平衡要求""]",g_calf
+0276,死虫式,"[""dead bug""]",入门,核心,"[""腰部压力""]",g_core
+3544,侧平板支撑,"[""incline side plank""]",中级,核心,"[""手腕压力"",""肩部压力""]",g_core
+0464,平板支撑转体,"[""front plank with twist""]",中级,核心,"[""腰部压力""]",g_core
+0687,俄罗斯转体,"[""russian twist""]",中级,核心,"[""腰部压力""]",g_core
+1471,毛毛虫爬行,"[""inchworm""]",入门,核心,"[""腰部压力"",""肩部压力""]",g_core
+0630,登山者,"[""登山跑"",""mountain climber""]",中级,有氧,"[""手腕压力"",""冲击大""]",g_cardio
+1160,波比跳,"[""burpee""]",进阶,有氧,"[""膝盖压力"",""冲击大"",""手腕压力""]",g_cardio
+0814,臂屈伸,"[""三头肌臂屈伸"",""triceps dip""]",中级,推,"[""肩部压力"",""肘部压力""]",g_triceps
+0968,弹力带交替弯举,"[""band biceps curl""]",入门,拉,"[""肘部压力""]",g_biceps
+0997,弹力带肩推举,"[""band shoulder press""]",入门,推,"[""肩部压力"",""腰部压力""]",g_shoulder
+0978,弹力带前平举,"[""band front raise""]",入门,推,"[""肩部压力""]",g_shoulder
+0977,弹力带侧平举,"[""band lateral raise""]",入门,推,"[""肩部压力""]",g_shoulder

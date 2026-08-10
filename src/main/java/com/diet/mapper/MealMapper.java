@@ -35,6 +35,15 @@ public interface MealMapper {
             @Param("convenienceJson") String convenienceJson,
             @Param("limit") int limit
     );
+
+    /** 浏览页：审核通过的公共餐食，按 id 升序分页。 */
+    List<MealItemRow> browsePublicMeals(@Param("offset") int offset, @Param("size") int size);
+
+    /** 审核通过的公共餐食总数（浏览分页用）。 */
+    int countPublicMeals();
+
+    /** 全部审核通过的公共餐食（离线 Embedding 生成用）。 */
+    List<MealItemRow> findApprovedPublicMeals();
 }
 
 

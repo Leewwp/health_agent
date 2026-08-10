@@ -1,0 +1,16 @@
+topic,fact_zh,scope,source,source_version,ref_id
+睡眠时长,成年人（18–64 岁）建议每晚睡 7~9 小时,成人 18–64,美国国家睡眠基金会专家共识（Hirshkowitz 等，Sleep Health 2015）,2015,nsf-sleep-duration-adult
+睡眠时长,65 岁以上长者建议每晚睡 7~8 小时,老年人 65+,美国国家睡眠基金会专家共识（Hirshkowitz 等，Sleep Health 2015）,2015,nsf-sleep-duration-senior
+睡眠时长下限,健康成人应保证每晚至少 7 小时睡眠,成人 18+,美国睡眠医学会与睡眠研究学会联合共识（Sleep 2015）,2015,aasm-sleep-minimum
+睡眠时长,青少年（14~17 岁）建议每晚睡 8~10 小时,青少年 14–17,美国国家睡眠基金会专家共识（Hirshkowitz 等，Sleep Health 2015）,2015,nsf-sleep-duration-teen
+睡眠时长,《健康中国行动（2019—2030 年）》倡导成人每天平均睡眠 7~8 小时,全体成人（中国语境）,健康中国行动（2019—2030 年）,2019,health-china-sleep-7-8h
+咖啡因,咖啡因会影响入睡——建议睡前 6 小时左右就不再喝咖啡/浓茶,成人,Drake 等（J Clin Sleep Med 2013，双盲 RCT）,2013,caffeine-6h-cutoff
+屏幕蓝光,睡前 2~3 小时尽量不看手机/电脑亮屏，有助于入睡,成人,Harvard Health Publishing《Blue light has a dark side》,2024,blue-light-2-3h
+午睡时长,午睡以 20~30 分钟为宜，睡太久反而更累,成人,Sleep Foundation《Napping: Benefits and Tips》,2026,nap-20-30min
+午睡时段,午睡尽量安排在下午 3 点前，太晚会影响晚上入睡,成人,Sleep Foundation《Napping: Benefits and Tips》,2026,nap-before-3pm
+午睡上限风险,每天午睡超过 1 小时的人群，全因死亡与心血管病风险统计上更高（观察性研究，不代表因果）,成人（健康提示）,Wang 等（PLoS ONE 2024，21 项队列研究 meta）,2024,nap-over-1h-risk
+训练时段,科学研究未发现统一的「最佳锻炼时间」——晨练和晚间训练对健康与睡眠的效果没有显著差别,成人,Pajareya 等（Sleep and Breathing 2025，meta 分析）；WHO 身体活动指南,2025,training-time-no-best
+晚间训练,健康成年人睡前完成晚间锻炼不会破坏睡眠；中强度晚间训练甚至有助于改善睡眠,成人（健康、无失眠）,Yue 等（Nature and Science of Sleep 2022，网络 meta）,2022,evening-exercise-sleep
+晚间高强度,睡前的高强度训练可能减少快速眼动（REM）睡眠占比约 2%，睡眠不足人群应留意,成人（睡眠不足者）,Yue 等（Nature and Science of Sleep 2022，网络 meta）,2022,evening-high-intensity-rem
+身体活动,成人每周至少 150 分钟中等强度（或 75 分钟高强度）有氧活动；规律运动可改善成人睡眠,成人,WHO《Physical activity fact sheet》,2024,who-activity-150min
+作息规律,固定起床时间比固定入睡时间更能稳定生物钟，建议把起床时间作为作息锚点,成人,睡眠卫生指南（多来源共识）,2026,wake-regularity
