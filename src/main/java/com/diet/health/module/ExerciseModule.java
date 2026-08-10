@@ -1,0 +1,71 @@
+package com.diet.health.module;
+
+import com.diet.health.seed.SeedResources;
+import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 健身领域模块：从版本化种子动作中按槽位筛选、排序。
+ * 动作只要有基础字段即可浏览与单次推荐；plan_ready 是自动周计划资格（本票只透出标志）。
+ */
+@Service
+public class ExerciseModule {
+
+    /** 单次推荐返回上限。 */
+    private static final int RECOMMEND_LIMIT = 5;
+
+    public List<HealthResource> listAll() {
+        return SeedResources.EXERCISES;
+    }
+
+    /** 按槽位命中打分排序，返回最多 RECOMMEND_LIMIT 条（排除 excludeIds）。 */
+    public List<HealthResource> recommend(Map<String, List<String>> slots, List<Long> excludeIds, int limit) {
+        Set<String> exclude = new HashSet<>();
+        if (excludeIds != null) {
+            excludeIds.forEach(id -> exclude.add(String.valueOf(id)));
+        }
+        int safeLimit = limit > 0 ? Math.min(limit, RECOMMEND_LIMIT) : RECOMMEND_LIMIT;
+        List<Scored> scored = SeedResources.EXERCISES.stream()
+                .filter(item -> !exclude.contains(item.resourceId()))
+                .map(item -> new Scored(item, score(item, slots)))
+                .sorted(Comparator.comparingDouble(Scored::score).reversed())
+                .toList();
+        boolean anyMatched = scored.stream().anyMatch(item -> item.score() > 0);
+        return scored.stream()
+                .filter(item -> !anyMatched || item.score() > 0)
+                .limit(safeLimit)
+                .map(Scored::resource)
+                .toList();
+    }
+
+    /** 槽位命中比例：查询中命中的标签数 / 查询标签总数。 */
+    private double score(HealthResource item, Map<String, List<String>> query) {
+        if (query == null || query.isEmpty()) {
+            return 0.5;
+        }
+        double total = 0;
+        double hits = 0;
+        for (Map.Entry<String, List<String>> entry : query.entrySet()) {
+            List<String> values = entry.getValue();
+            if (values == null || values.isEmpty()) {
+                continue;
+            }
+            Set<String> itemTags = new HashSet<>(item.tags().getOrDefault(entry.getKey(), List.of()));
+            for (String value : values) {
+                total++;
+                if (itemTags.contains(value)) {
+                    hits++;
+                }
+            }
+        }
+        return total == 0 ? 0.5 : hits / total;
+    }
+
+    private record Scored(HealthResource resource, double score) {
+    }
+}

@@ -68,11 +68,14 @@ public class SessionStateService {
         }
         // 按 sessionId + userId 查 diet_sessions（校验归属）
         SessionRow row = sessionMapper.findById(sessionId, userId);
-        // 不存在则用请求的 sessionId 创建新行
+        // 不存在则用请求的 sessionId 创建新行；若已被其他用户占用，insert 主键冲突，返回参数错误而非 500
         if (row == null) {
-            SessionState state = SessionState.fresh(sessionId, userId, sourceMode);
-            insert(state);
-            return state;
+            try {
+                insert(SessionState.fresh(sessionId, userId, sourceMode));
+            } catch (org.springframework.dao.DuplicateKeyException error) {
+                throw new DietException("会话不存在或无权访问");
+            }
+            return SessionState.fresh(sessionId, userId, sourceMode);
         }
         // 存在则从 DB 行反序列化为 SessionState
         return fromRow(row, sourceMode);

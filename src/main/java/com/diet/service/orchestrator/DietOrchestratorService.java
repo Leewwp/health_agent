@@ -10,8 +10,6 @@ import com.diet.model.RiskGuardResult;
 import com.diet.enums.Intent;
 import com.diet.model.IntentResult;
 import com.diet.model.MealItem;
-import com.diet.model.MealRankRequest;
-import com.diet.model.MealSearchRequest;
 import com.diet.model.ChatRequest;
 import com.diet.model.ChatResponse;
 import com.diet.model.RecommendResult;
@@ -22,9 +20,7 @@ import com.diet.model.SessionState;
 import com.diet.model.SlotBundle;
 import com.diet.enums.SourceMode;
 import com.diet.service.clarify.ClarifyAgentService;
-import com.diet.service.meal.MealRankService;
-import com.diet.service.meal.MealSearchService;
-import com.diet.service.meal.MealService;
+import com.diet.health.module.MealModule;
 import com.diet.service.plan.MealPlanService;
 import com.diet.service.plan.PlanResponseAgentService;
 import com.diet.service.recommend.RecommendResponseAgentService;
@@ -32,6 +28,7 @@ import com.diet.service.session.SessionService;
 import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.util.ChatIdempotencySupport;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -86,16 +83,6 @@ public class DietOrchestratorService {
     private final ClarifyAgentService clarifyAgentService;
 
     /**
-     * 餐食检索服务，按 sourceMode + slots 从 DB 召回候选。
-     */
-    private final MealSearchService mealSearchService;
-
-    /**
-     * 餐食重排服务，对候选按槽位命中二次打分排序。
-     */
-    private final MealRankService mealRankService;
-
-    /**
      * 推荐应答 Agent 服务，一次 LLM 调用生成推荐理由 + 口语回复。
      */
     private final RecommendResponseAgentService recommendResponseAgentService;
@@ -111,9 +98,9 @@ public class DietOrchestratorService {
     private final PlanResponseAgentService planResponseAgentService;
 
     /**
-     * 餐食服务，用于 PERSONAL 模式空库前置检查。
+     * 餐食领域模块，封装检索 + 重排组合。
      */
-    private final MealService mealService;
+    private final MealModule mealModule;
 
     /**
      * 健康风险守卫，拦截医疗承诺/极端节食等高风险表述。
@@ -143,12 +130,10 @@ public class DietOrchestratorService {
             IntentReviseService intentReviseService,
             SlotMergeService slotMergeService,
             ClarifyAgentService clarifyAgentService,
-            MealSearchService mealSearchService,
-            MealRankService mealRankService,
+            MealModule mealModule,
             RecommendResponseAgentService recommendResponseAgentService,
             MealPlanService mealPlanService,
             PlanResponseAgentService planResponseAgentService,
-            MealService mealService,
             RiskGuardService riskGuardService,
             AgentTraceService agentTraceService,
             ObjectMapper objectMapper
@@ -159,12 +144,10 @@ public class DietOrchestratorService {
         this.intentReviseService = intentReviseService;                 // 注入意图矫正服务
         this.slotMergeService = slotMergeService;                       // 注入槽位合并服务
         this.clarifyAgentService = clarifyAgentService;                 // 注入澄清 Agent 服务
-        this.mealSearchService = mealSearchService;                     // 注入餐食检索服务
-        this.mealRankService = mealRankService;                         // 注入餐食重排服务
+        this.mealModule = mealModule;                                   // 注入餐食领域模块
         this.recommendResponseAgentService = recommendResponseAgentService; // 注入推荐应答 Agent 服务
         this.mealPlanService = mealPlanService;                         // 注入多餐规划服务
         this.planResponseAgentService = planResponseAgentService;       // 注入规划应答 Agent 服务
-        this.mealService = mealService;                                 // 注入餐食服务
         this.riskGuardService = riskGuardService;             // 注入健康守卫
         this.agentTraceService = agentTraceService;                     // 注入链路追踪服务
         this.objectMapper = objectMapper;                               // 注入 JSON 序列化工具
@@ -191,8 +174,8 @@ public class DietOrchestratorService {
 
         // 相同用户和 requestId 已有成功响应时直接复用，避免重复调用模型和写入消息。
         RequestTraceRow previous = agentTraceService.findByRequestId(userId, initialState.sessionId(), requestId);
-        if (previous != null && previous.getResponseJson() != null && !previous.getResponseJson().isBlank()) {
-            return restoreResponse(previous.getResponseJson());
+        if (ChatIdempotencySupport.hasSnapshot(previous)) {
+            return ChatIdempotencySupport.restore(objectMapper, previous.getResponseJson(), ChatResponse.class);
         }
 
         // 开启 Trace 上下文；try-with-resources 结束时 TraceScope#close 会将整轮事件写入 diet_request_trace 表
@@ -208,17 +191,15 @@ public class DietOrchestratorService {
                 synchronized (lock) {
                     // 第一个请求可能仍在锁内，重新查询以覆盖并发重复提交。
                     RequestTraceRow concurrentPrevious = agentTraceService.findByRequestId(userId, initialState.sessionId(), requestId);
-                    if (concurrentPrevious != null
-                            && concurrentPrevious.getResponseJson() != null
-                            && !concurrentPrevious.getResponseJson().isBlank()) {
+                    if (ChatIdempotencySupport.hasSnapshot(concurrentPrevious)) {
                         ignored.discard();
-                        return restoreResponse(concurrentPrevious.getResponseJson());
+                        return ChatIdempotencySupport.restore(objectMapper, concurrentPrevious.getResponseJson(), ChatResponse.class);
                     }
                     // 在锁内执行完整状态机，处理本轮用户输入
                     ChatResponse response = handleTurn(userId, request, traceId, initialState);
                     ignored.setResponse(response);
                     // Trace 事件：REQUEST_FINISHED | 阶段 HTTP | 输入=ChatRequest | 输出=ChatResponse | 耗时 ms
-                    agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, elapsedMs(startedAt));
+                    agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, ChatIdempotencySupport.elapsedMs(startedAt));
                     // 在释放会话锁前持久化响应，使紧随其后的重复请求可以复用结果。
                     ignored.close();
                     // 将最终响应返回给 Controller
@@ -245,14 +226,6 @@ public class DietOrchestratorService {
         return normalized;
     }
 
-    /** 从 Trace 中恢复已保存的响应。 */
-    private ChatResponse restoreResponse(String responseJson) {
-        try {
-            return objectMapper.readValue(responseJson, ChatResponse.class);
-        } catch (Exception error) {
-            throw new DietException("幂等响应恢复失败", error);
-        }
-    }
 
     /**
      * 在会话锁内执行完整状态机：记消息 → 前置校验 → 意图识别 → 路由分发。
@@ -269,15 +242,7 @@ public class DietOrchestratorService {
         // Trace 事件：USER_MESSAGE_RECORDED | 阶段 SESSION | 输入=用户原文 | 输出=sessionId+sourceMode
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", request.message(), Map.of("sessionId", sessionId, "sourceMode", sourceMode));
 
-        // PERSONAL 模式且用户尚未录入任何个人餐食时，提前返回引导文案，跳过后续检索
-        if (sourceMode == SourceMode.PERSONAL && !mealService.hasPersonalMeals(userId)) {
-            // 构造纯文本响应，提示用户先录入菜单
-            ResponseResult response = ResponseResult.textOnly("你还没有录入个人餐食数据。可以先添加几道常吃的食堂菜，再让我按你的饭堂菜单推荐。");
-            // Trace 事件：PERSONAL_LIBRARY_EMPTY | 阶段 ROUTE | 输入=userId | 输出=引导文案
-            agentTraceService.recordEvent("PERSONAL_LIBRARY_EMPTY", "ROUTE", Map.of("userId", userId), response);
-            // 走纯文本完成分支：保存状态 + 落库助手消息 + 返回 ChatResponse
-            return completeTextOnly(sessionId, traceId, state, Intent.MEAL_RECOMMENDATION, response);
-        }
+        // PERSONAL 空库不再全局提前返回：由 MealModule 在餐食模块内部处理（返回空候选，走 NO_MEAL_MATCHED 提示）。
 
         // 意图识别：调用 IntentAgent：传入 sessionId、userId、用户原文、历史槽位、最近 3 条对话摘要
         IntentResult rawIntent = intentAgentService.recognize(sessionId, userId, request.message(), state.slots(), sessionService.recentConversationTurns(sessionId, userId, 3));
@@ -507,15 +472,8 @@ public class DietOrchestratorService {
      * 完整推荐流水线：检索 → 重排 → LLM 生成理由与口语回复 → Guard 审查 → 持久化并返回。
      */
     private ChatResponse completeRecommendation(String sessionId, Long userId, String userInput, String traceId, SessionState state, List<Long> excludeMealIds) {
-        // 构造检索请求：sourceMode + userId + 当前 slots + excludeMealIds（检索层暂不使用 exclude，在 Rank 层过滤）
-        List<MealItem> candidates = mealSearchService.search(new MealSearchRequest(state.sourceMode(), userId, state.slots(), excludeMealIds));
-        // Trace 事件：MEAL_SEARCHED | 阶段 SEARCH | 输入=slots | 输出=候选数量+candidates 列表
-        agentTraceService.recordEvent("MEAL_SEARCHED", "SEARCH", state.slots(), Map.of("candidateCount", candidates.size(), "candidates", candidates));
-
-        // 构造排序请求：候选列表 + slots + excludeMealIds，返回 top10
-        List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, state.slots(), excludeMealIds));
-        // Trace 事件：MEAL_RANKED | 阶段 RANK | 输入=excludeMealIds | 输出=重排后数量+ranked 列表
-        agentTraceService.recordEvent("MEAL_RANKED", "RANK", Map.of("excludeMealIds", excludeMealIds), Map.of("rankedCount", ranked.size(), "ranked", ranked));
+        // 构造检索请求：sourceMode + userId + 当前 slots + excludeMealIds，封装在 MealModule 内检索并重排
+        List<MealItem> ranked = mealModule.searchAndRank(state.sourceMode(), userId, state.slots(), excludeMealIds);
 
         // 结果为空时，按 sourceMode 返回不同的空库提示文案
         if (ranked.isEmpty()) {
@@ -601,13 +559,6 @@ public class DietOrchestratorService {
 
         // 返回纯文本响应
         return chatResponse;
-    }
-
-    /**
-     * 将纳秒级开始时间戳转为毫秒耗时。
-     */
-    private long elapsedMs(long startedAt) {
-        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     /**

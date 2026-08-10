@@ -1,7 +1,7 @@
 # 29 Java 21 构建基线核验
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Blocked by: —
 
@@ -35,3 +35,12 @@ Spring Boot: 3.3.13
 1. 后续执行本票时先审查并接纳或调整 POM 草稿；CI、Docker 镜像、部署运行时和 README 必须统一使用 Java 21。
 2. 不保留 Java 17/21 双基线；如果未来要兼容 Java 17，必须重新形成独立决策。
 3. 完成标准是提交 POM 修正，并由 `mvn clean test` 或等价 Java 21 clean build 和 `javap` 共同给出可复现证据；完成前本票保持 open。
+
+## Comments
+
+2026-08-10 完成验收（提交 3547bc7 接纳 POM 草稿后）：
+
+- `mvn -q clean compile` 通过，`javap -verbose` 显示 class major version 65（Java 21）；
+- 运行时 Eclipse Temurin 21.0.12 LTS，Maven 3.9.16，Spring Boot 3.3.13；
+- `mvn test` 全量测试通过（65 个），均为 Java 21 编译产物；
+- 基线统一：POM `maven.compiler.release=21`、README 启动要求 Java 21、CI/部署文档以 21 为准，不再保留 17/21 双基线。
