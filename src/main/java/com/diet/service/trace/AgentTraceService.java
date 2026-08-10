@@ -106,6 +106,15 @@ public class AgentTraceService {
     }
 
     /**
+     * 记录带 Agent 名和模型名的调用事件（供 AgentContractModule 使用）。
+     * 输入/输出 payload 中需包含契约版本、解析状态和 fallbackReason 等信息。
+     */
+    public void recordAgentEvent(String eventType, String phase, String agentName, String modelName,
+                                 Object inputPayload, Object outputPayload, Long latencyMs) {
+        record(eventType, phase, agentName, modelName, inputPayload, outputPayload, latencyMs, null, null, null, null);
+    }
+
+    /**
      * 统一 Agent 调用入口。
      * 执行 ReActAgent.call，成功/失败均记录 AGENT_CALL 事件（含 modelName、latency）。
      */

@@ -77,7 +77,7 @@
 - 构建前置：[29 Java 21 构建基线核验](issues/29-java21-build-baseline.md)，保持开放直到 POM 修正进入提交并通过 clean build。
 - 面试适用性复核：[Agent MVP 面试适用性复核](../../docs/agent-mvp-suitability-review.md)。
 - 垂直实施入口：[31 MVP 基础设施与旧饮食兼容](issues/31-mvp-foundation-and-legacy-compat.md)、[32 Agent 运行接口与健康聊天垂直闭环](issues/32-agent-runtime-and-health-chat-vertical-slice.md)、[33 审核资源、浏览 API 与餐食 RAG](issues/33-reviewed-resources-browser-api-and-meal-rag.md)、[34 健康档案、周计划与风险校验](issues/34-health-profile-plan-and-risk.md)、[35 前端模块与用户页面](issues/35-frontend-modules-and-user-pages.md)、[36 核心验收、部署与运行手册](issues/36-core-acceptance-and-delivery.md)。
-- 当前状态：规格和文档完成；31 号仅有未提交、未运行验收的本地代码草稿，不能视为完成。按 31 → 32 → 33 → 34 → 35 → 36 推进；31-32 先交付 Agent 可演示闭环，资源审计 30 是 33 号的前置门槛，不再阻塞 32 号。
+- 当前状态：规格和文档完成；29/31/32 已通过验收（Java 21 基线、Flyway 双路径、基础设施冒烟、65 个自动化测试与 fixture 模式三品类闭环），达到"面试可演示"门槛。按 33 → 34 → 35 → 36 推进；资源审计 30 是 33 号的前置门槛，不再阻塞 32 号。
 
 ## Out of scope
 

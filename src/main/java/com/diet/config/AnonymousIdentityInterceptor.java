@@ -23,7 +23,6 @@ import java.util.Base64;
 public class AnonymousIdentityInterceptor implements HandlerInterceptor {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-    private static final long MAX_USER_ID = Long.MAX_VALUE;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -91,7 +90,7 @@ public class AnonymousIdentityInterceptor implements HandlerInterceptor {
         }
         try {
             long userId = Long.parseLong(parts[0]);
-            if (userId <= 0 || userId > MAX_USER_ID) {
+            if (userId <= 0) {
                 return null;
             }
             byte[] expected = sign(parts[0]);

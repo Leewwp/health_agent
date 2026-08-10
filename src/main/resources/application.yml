@@ -37,6 +37,12 @@ diet:
   llm:
     main-model: qwen-max
     light-model: qwen-turbo
+  agent:
+    # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
+    mode: agentscope
+    timeout-ms: 15000
+  prompt:
+    version: v1
   session:
     max-history-turns: 10
   security:

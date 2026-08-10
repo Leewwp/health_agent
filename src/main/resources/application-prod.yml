@@ -12,6 +12,9 @@ agentscope:
     api-key: ${DASHSCOPE_API_KEY}
 
 diet:
+  agent:
+    # 生产环境必须使用真实模型，禁止固定夹具
+    mode: agentscope
   security:
     session-secret: ${DIET_SESSION_SECRET}
     cookie-secure: true
