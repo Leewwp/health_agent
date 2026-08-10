@@ -9,9 +9,9 @@
 
 - 设计层面已经覆盖了饮食、健身、作息、综合周计划、健康档案、风险分层、受控 RAG、版本快照和模块边界。核心方向是 `domain + task + riskFlags + phase`，并将 `MealModule`、`ExerciseModule`、`RoutineModule` 与 `WeeklyPlanComposer` 分开，这与现有饮食状态机“可复用骨架、领域实现隔离”的目标一致。
 - 代码层面仍是饮食专用实现：`Intent` 只有饮食枚举，`SlotBundle` 只有 7 个饮食字段，`DietOrchestratorService` 的 579 行链路直接调用餐食检索/排序/餐食 Agent，数据库也只有餐食、会话、Trace 和反馈相关表。健身和作息请求目前不能获得各自的资源、槽位、澄清和响应结构。
-- 因此，当前状态应判断为：**规格已基本覆盖，实施尚未开始；直接继续在现有类上添加字段会与 ADR-0008 的模块边界冲突。**
+- 因此，当前状态应判断为：**规格已完成，31 号只有未提交、未运行验收的本地代码草稿；健康领域编排仍未实现，后续必须按 ADR-0008 的模块边界推进。**
 
-最需要先处理的两个风险：审计时发现 `application.yml` 中配置了非占位 DashScope key，且该文件已被 Git 跟踪；提交前已改为环境变量占位，但该 key 曾出现在工作区/历史中，仍需在 DashScope 侧轮换。另一个风险是设计票 12 已决定改用服务端匿名 Cookie，但现有所有用户接口仍信任可编辑的 `X-User-Id` 请求头。
+最需要先处理的两个风险：审计时发现 `application.yml` 中配置过非占位 DashScope key，该 key 曾出现在工作区/历史中，仍需在 DashScope 侧轮换。另一个风险是 31 号草稿尝试加入匿名 Cookie 和生产 Header 隔离，但尚未接纳、运行或验收，不能作为已提交能力继续叠加健康 API。
 
 ## 方案覆盖度
 
@@ -25,7 +25,7 @@
 | 周计划生命周期 | [issue 16](../../.scratch/health-agent/issues/16-weekly-plan-lifecycle.md) 定义草稿/激活/归档/版本快照 | 没有计划聚合、DDL、Mapper、Controller 或激活/替换 API；现有 `MealPlanService` 只是按餐次挑餐 | 设计清楚，未实现 |
 | 风险分层 | [ADR-0006](../../docs/adr/0006-layered-health-risk-validation.md)、[issue 19](../../.scratch/health-agent/issues/19-health-risk-plan-validation.md) 定义候选前、组合时、LLM 后三层校验 | [RiskGuardService.java](../../src/main/java/com/diet/service/risk/RiskGuardService.java) 只有最终文本关键词扫描，且固定返回饮食文案 | 仅有旧版末端 Guard |
 | RAG/来源 | [ADR-0004](../../docs/adr/0004-rag-boundary.md)、[issue 10](../../.scratch/health-agent/issues/10-rag-design.md) 定义首版餐食混合召回，指南证据检索延期 | 没有 `EmbeddingClient`、`MealRetriever`、向量索引或指南检索器；现有检索是 MySQL `JSON_OVERLAPS` | 设计清楚，未实现 |
-| 动作展示 | [issue 03](../../.scratch/health-agent/issues/03-exercise-display-prototype.md) 已确定卡片、浮窗、收藏和计划资格标记 | 前端只有饮食 hash 路由和餐食卡片，issue 仍是 `open`，没有原型文件/浏览器验收 | 交互方向有，交付物未完成 |
+| 动作展示与前端 IA | [issue 03](../../.scratch/health-agent/issues/03-exercise-display-prototype.md)、[issue 18](../../.scratch/health-agent/issues/18-frontend-module-information-architecture.md) 已确定卡片、详情抽屉、收藏、计划资格标记和原生模块边界 | 生产前端仍只有饮食 hash 路由和餐食卡片；原型与信息架构已完成 | 设计完成，生产实现未开始 |
 
 ## 与现有工作流的适配性
 
@@ -52,49 +52,58 @@
 1. 外层应从 `DietOrchestratorService` 演进为健康编排器，先得到 `domain/task/riskFlags`，再交给领域模块。`MealModule` 可以包住当前餐食检索、排序、餐食响应和多餐逻辑；健身和作息应有独立的输入/输出类型。
 2. `SlotBundle` 应保留为餐食模块内部类型，不应继续加 `trainingGoal`、`equipment`、`sleepTime` 等字段。建议使用 `MealSlots`、`ExerciseSlots`、`RoutineSlots`，综合计划只消费各模块产生的计划片段。
 3. `task=PLAN` 不能继续等同于当前 `MEAL_PLAN`。综合计划需要 `domain=COMPOSITE`，局部替换需要 `task=ADJUST`，并用资源类型/领域标识具体调整对象。
-4. `SourceMode` 是餐食库的概念，不应成为所有健康请求的共同必填项。当前 [DietOrchestratorService.java:176-179](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java:176) 会拒绝没有 `sourceMode` 的请求，新增健身/作息后应改为餐食模块或餐食请求的字段。
+4. `SourceMode` 是餐食库的概念，不应成为所有健康请求的共同必填项。当前 [DietOrchestratorService.java](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java#L176) 会拒绝没有 `sourceMode` 的请求，新增健身/作息后应改为餐食模块或餐食请求的字段。
 5. LLM 只能从候选动作、事实、计算结果和已通过校验的计划片段中生成解释。动作难度、风险、剂量、能量目标、来源和资源 ID 都应由规则/结构化数据决定。
+6. 现有业务服务直接获取 `AgentFactory`/`ReActAgent`，外部模型调用缺少可替换 seam。应定义小型 `AgentInvoker`，由 AgentScope 和固定夹具两个适配器实现；内部契约模块统一负责 Prompt/契约版本、解析、校验、Trace 和失败分类，使测试不依赖真实 DashScope。
 
 ## 具体冲突与遗漏
 
 ### 文档内部需要先冻结的事项
 
-- [map.md:40](../../.scratch/health-agent/map.md:40) 将 03 的交互决策列入 Decisions，同时保留原型文件和浏览器验收未完成状态；实现前应继续把“决策已定”和“交付物未完成”分开维护。
-- 餐食数据现已统一为：脚本默认生成 1,000 条离线候选池，issue 09 的最终 `meal_item` 只导入满足字段、图片许可和可访问性门槛的子集，数量不固定。
+- 03 和 18 已进入 Decisions so far；原型验收与前端信息架构已经完成，但生产前端实现仍属于后续实施切片。
+- 餐食数据现已统一为：脚本默认生成 1,000 条离线候选池，issue 09 的最终 `meal_item` 先导入满足字段、来源和安全门槛的审核子集；媒体不合格时清除外链并使用稳定无图状态，数量不作为验收门槛。
 - ADR-0004 与 issue 10 现已统一：首版只实现餐食候选混合召回，训练/作息指南证据检索延期，不参与数值或风险决策。
-- 多个 `resolved` issue 仍是原则而非可执行契约：issue 05 没有健身枚举映射种子，issue 16 没有最终 DDL/接口，issue 19/20 没有具体风险阈值和测试目标。可以保留设计决策状态，但实施前必须补齐 schema、接口、版本字段和验收样例。
+- 17、18、22-28 已将资源身份、前端交互、API、schema、量化目标、风险、Agent 降级和验收门槛收敛为实现契约；issue 05 的枚举 seed、issue 30 的资源审计缺口和实现期的最终字段/夹具已转入 31-36 号实施票据，不再是待决策项。
 
 ### 高优先级
 
-1. **密钥配置与部署决策冲突。** [application.yml:16-23](../../src/main/resources/application.yml:16) 审计时曾包含非占位 DashScope key；当前已改为环境变量注入，但该 key 曾进入工作区/历史，仍需在 DashScope 侧轮换。issue 21 明确要求 key 只通过部署环境注入。
-2. **身份方案与现有 API 冲突。** issue 12 和 ADR-0001 已决定服务端 HttpOnly Cookie 匿名身份，但 [DietChatController.java:33-41](../../src/main/java/com/diet/controller/chat/DietChatController.java:33) 以及餐食、反馈、Trace 等 Controller 仍接受 `X-User-Id`，默认值还是 `1`。在身份迁移完成前，新增健康档案/计划会把越权范围扩大到更敏感的数据。
-3. **个人餐食前置检查会拦截非餐食能力。** [DietOrchestratorService.java:226-234](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java:226) 在意图识别之前检查 `PERSONAL` 餐食库是否为空。用户即使只询问健身或作息，也会被引导去录入餐食；这是新增领域接入后会直接触发的流程冲突。
+1. **密钥配置与部署决策冲突。** [application.yml](../../src/main/resources/application.yml#L16) 审计时曾包含非占位 DashScope key；当前已改为环境变量注入，但该 key 曾进入工作区/历史，仍需在 DashScope 侧轮换。issue 21 明确要求 key 只通过部署环境注入。
+2. **身份迁移只有未验收草稿。** 31 号本地草稿尝试由 API 拦截器统一解析 HMAC HttpOnly Cookie，并保留开发 `X-User-Id` 调试回退；后续必须先审查和运行验证，不能把草稿状态写成已实现事实。
+3. **个人餐食前置检查会拦截非餐食能力。** [DietOrchestratorService.java](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java#L226) 在意图识别之前检查 `PERSONAL` 餐食库是否为空。用户即使只询问健身或作息，也会被引导去录入餐食；这是新增领域接入后会直接触发的流程冲突。
 
 ### 中高优先级
 
-4. **意图和提示词仍只理解饮食。** [intent.txt:1-25](../../src/main/resources/diet/prompts/intent.txt:1) 只列出 `MEAL_*`，并明确 slots 只能是七个餐食字段；[IntentAgentService.java:127-137](../../src/main/java/com/diet/service/intent/IntentAgentService.java:127) 也只解析这七个字段。即使 LLM 输出健身或作息字段，当前解析器也会丢弃。
-5. **澄清规则会把所有领域当成餐食。** [ClarifyRuleService.java:21-36](../../src/main/java/com/diet/service/clarify/ClarifyRuleService.java:21) 只要求 `mealTime` 和饮食 `healthGoal`，默认问题也是“这顿……”。健身应澄清部位/器材/训练目标，作息应澄清时间、时长和工作日约束，综合计划还要先补齐档案和硬约束。
-6. **会话持久化格式是餐食专用。** [SessionStateService.java:103-162](../../src/main/java/com/diet/service/session/SessionStateService.java:103) 固定读写七个字段和 `lastRecommendations` 餐食 ID 列表。它无法区分动作 ID、作息事实、计划片段、档案版本和风险标记；直接扩展 JSON 会导致语义混用和替换逻辑错误。
-7. **数据库和响应 DTO 没有新资源边界。** 当前 SQL 只有 `meal_item`、`diet_slot_option`、`diet_sessions`、`diet_messages`、`diet_request_trace`、`recommend_feedback`；[MealResponse.java:18-29](../../src/main/java/com/diet/model/MealResponse.java:18) 也只能表达餐食卡片。动作 GIF/步骤/审核状态、作息事实来源、健康档案版本、周计划快照都没有落点。
-8. **风险 Guard 仍是饮食关键词替换。** [RiskGuardService.java:22-56](../../src/main/java/com/diet/service/risk/RiskGuardService.java:22) 只扫描医疗/极端节食/绝对化/特殊人群关键词，命中后返回“饮食角度”的固定文案。它没有候选前过敏/伤病过滤、计划时序和恢复校验、作息冲突校验，也不能区分“拒绝具体计划”和“允许但提示”。
-9. **当前餐食规划不能升级为周计划。** [MealPlanService.java:37-101](../../src/main/java/com/diet/service/plan/MealPlanService.java:37) 只是将餐次拆开、每餐取一个餐食；[DietOrchestratorService.java:366-437](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java:366) 仍按 `MEAL_PLAN` 生成餐食响应。它没有七天日历、训练安排、作息时间、能量预算、激活/归档或局部替换版本。
+4. **意图和提示词仍只理解饮食。** [intent.txt](../../src/main/resources/diet/prompts/intent.txt#L1) 只列出 `MEAL_*`，并明确 slots 只能是七个餐食字段；[IntentAgentService.java](../../src/main/java/com/diet/service/intent/IntentAgentService.java#L127) 也只解析这七个字段。即使 LLM 输出健身或作息字段，当前解析器也会丢弃。
+5. **澄清规则会把所有领域当成餐食。** [ClarifyRuleService.java](../../src/main/java/com/diet/service/clarify/ClarifyRuleService.java#L21) 只要求 `mealTime` 和饮食 `healthGoal`，默认问题也是“这顿……”。健身应澄清部位/器材/训练目标，作息应澄清时间、时长和工作日约束，综合计划还要先补齐档案和硬约束。
+6. **会话持久化格式是餐食专用。** [SessionStateService.java](../../src/main/java/com/diet/service/session/SessionStateService.java#L103) 固定读写七个字段和 `lastRecommendations` 餐食 ID 列表。它无法区分动作 ID、作息事实、计划片段、档案版本和风险标记；直接扩展 JSON 会导致语义混用和替换逻辑错误。
+7. **数据库和响应 DTO 没有新资源边界。** 当前 SQL 只有 `meal_item`、`diet_slot_option`、`diet_sessions`、`diet_messages`、`diet_request_trace`、`recommend_feedback`；[MealResponse.java](../../src/main/java/com/diet/model/MealResponse.java#L18) 也只能表达餐食卡片。动作 GIF/步骤/审核状态、作息事实来源、健康档案版本、周计划快照都没有落点。
+8. **风险 Guard 仍是饮食关键词替换。** [RiskGuardService.java](../../src/main/java/com/diet/service/risk/RiskGuardService.java#L22) 只扫描医疗/极端节食/绝对化/特殊人群关键词，命中后返回“饮食角度”的固定文案。它没有候选前过敏/伤病过滤、计划时序和恢复校验、作息冲突校验，也不能区分“拒绝具体计划”和“允许但提示”。
+9. **当前餐食规划不能升级为周计划。** [MealPlanService.java](../../src/main/java/com/diet/service/plan/MealPlanService.java#L37) 只是将餐次拆开、每餐取一个餐食；[DietOrchestratorService.java](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java#L366) 仍按 `MEAL_PLAN` 生成餐食响应。它没有七天日历、训练安排、作息时间、能量预算、激活/归档或局部替换版本。
 
 ### 中优先级
 
 10. **RAG 仍停留在设计。** issue 10 已正确限制 RAG 的边界，但仓库没有 Embedding 依赖、检索接口、离线索引、引用 DTO 或降级实现。实现前不能把“有可靠信源”写成已有能力。
 11. **测试验收目标与仓库现实存在落差。** issue 20 要求多品类编排、计划不变量、风险规则和混合检索自动化测试，但 `src/test` 不存在。它是未来验收规格，不是当前质量保证；应先把接口和规则模块抽出来，再按风险优先级加测试。
-12. **部署方案包含尚未引入的组件。** issue 21/06 提到 Redis、Flyway、OpenAPI、Actuator 等后续能力；当前 `pom.xml` 只有 Spring Web、MyBatis、MySQL 和 AgentScope，没有 Redis/Flyway/Embedding/RAG 依赖。不要把部署设计当成现有运行时事实。
-13. **幂等规格尚未进入请求模型。** issue 06 要求按 `userId + sessionId + requestId` 去重并复用结果，但 [ChatRequest.java:18-22](../../src/main/java/com/diet/model/ChatRequest.java:18) 没有 `requestId`，当前 [DietOrchestratorService.java:127-129](../../src/main/java/com/diet/service/orchestrator/DietOrchestratorService.java:127) 的锁 Map 也没有容量或过期策略。新增周计划生成后，重复请求可能重复消耗 LLM 并生成多个草稿。
+12. **部署方案仍有未接纳的组件。** 31 号草稿包含 Flyway 和 Actuator，Redis、OpenAPI、Embedding/RAG 仍未引入。不要把工作区草稿或设计当成已提交运行时事实。
+13. **幂等只有未验收草稿。** 31 号草稿为 `ChatRequest` 和 `diet_request_trace` 增加了 `requestId`/响应快照；必须验证迁移唯一约束、并发重复提交、数据库异常和 Trace 保留策略后才能接纳。
 
 ## 推荐的落地顺序
 
-1. 先处理凭证轮换和身份迁移，再扩展健康数据；保留旧餐食 API 的兼容映射，但不再信任客户端用户 ID。
-2. 定义外层 `HealthIntent`、`HealthSessionState` 和领域路由结果；把旧 `Intent`/七槽位作为餐食兼容层，而不是继续扩大它们。
-3. 将当前餐食链路整体包进 `MealModule`，先用回归场景证明饮食行为不变；同时移除“PERSONAL 为空就提前返回”的全局前置判断，使其只在餐食路由内生效。
-4. 先落健康档案、动作资源/`plan_ready` 元数据、作息事实表和对应 DTO，再实现 `ExerciseModule`、`RoutineModule`。资源候选和规则校验应先于响应 Agent。
-5. 实现 `WeeklyPlanComposer` 和计划聚合/版本表，先生成 DRAFT，经过确定性校验后才能激活；局部替换始终生成新版本。
-6. 先实现餐食 hybrid RAG；为 embedding/API 失败保留结构化降级，并用固定查询集验证是否真的提升 Recall@K。指南证据检索留到后续阶段。
-7. 统一 map、issues 和脚本的状态/数量/首版范围后，再开始实现，避免开发中途因交付边界变化反复迁移数据库。
+1. 完成 31 号运行前置验证：导入旧库、执行 Flyway V2、启动 Actuator，并验证 Cookie、admin token、旧饮食接口和 requestId 幂等。
+2. 实现 32 号 `AgentInvoker`、角色契约、固定夹具和外层 `HealthIntent`/领域路由；使用版本化种子资源跑通 `MealModule`/`ExerciseModule`/`RoutineModule`，并移除全局餐食库前置判断。31-32 通过后形成可面试演示的 Agent 主流程。
+3. 按 30 号资源门槛完成 33 号审核资源子集、分页浏览 API 和餐食 hybrid RAG；媒体不合格时使用无图状态，资源和 RAG 不回头改写 32 号 Agent 契约。
+4. 实现 34 号健康档案、确定性量化目标、`WeeklyPlanComposer` 和计划聚合/版本表，先生成 DRAFT，经过确定性校验后才能激活；首版只支持已有项目的日期/时间移动和备注，资源替换延期。
+5. 实现 35 号前端模块和用户页面，完成桌面与移动端主流程的真实浏览器验收。
+6. 由 36 号汇总并从干净环境复现各阶段已经建立的自动化、接口/浏览器冒烟、部署检查和运行手册；不把核心测试首次推迟到 36 号。指南证据检索继续留到后续阶段。
+7. 以 `.scratch/health-agent/spec.md` 作为唯一实现真源，按 31-36 号票据顺序推进，所有新领域取舍先回到决策票，不在实现票中临时发明规则。
+
+## 本轮文档与规划审计（2026-08-10）
+
+本轮检查确认，现有 ADR、领域词汇、研究报告和实施计划已经覆盖主要方向；此前缺少的 API/DTO、DDL 与迁移顺序、量化目标公式、风险规则、Agent 降级契约、身份安全验收和发布证据矩阵，已由 22-28 号决策票收敛。
+
+因此已发布 `.scratch/health-agent/spec.md` 作为正式规格，并由 31-36 号票据拆分为基础设施、Agent 垂直闭环、审核资源/RAG、档案/计划/风险、前端和交付验收六个实施切片。17、18、22-28 和 30 号已完成，29 号 Java 21 基线保持开放；安全规则、Agent 能力和部署安全均按面试 MVP 最小实现控制范围。31-32 是面试可演示门槛，31-36 才是完整 MVP；资源正式导入受 30 号审计约束，但不再阻塞 32 号 Agent 主流程。
+
+另外确认两个容易被遗漏的交付状态：README 已按当前已提交饮食能力和未来健康规划分开说明；31 号工作区草稿曾通过源码级 `javac --release 21`，但本轮不提交开发代码，也没有完成标准 Maven、MySQL、Flyway、应用启动和接口验收，后续必须先独立审查。
 
 ## GitHub 对照研究
 
