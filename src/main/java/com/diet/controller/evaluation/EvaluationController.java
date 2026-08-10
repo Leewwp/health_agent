@@ -6,7 +6,7 @@ import com.diet.model.EvaluationRequest;
 import com.diet.service.evaluation.EvaluationService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,7 +21,7 @@ public class EvaluationController {
 
     @PostMapping
     public EvaluationReport evaluate(
-            @RequestHeader(value = DietConstants.USER_ID, defaultValue = "1") Long userId,
+            @RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
             @RequestBody EvaluationRequest request
     ) {
         return evaluationService.evaluate(userId, request);

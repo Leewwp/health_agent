@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class RequestTraceRow {
     private Long id;
     private String traceId;
+    private String requestId;
     private String sessionId;
     private Long userId;
     private String status;
@@ -15,6 +16,7 @@ public class RequestTraceRow {
     private Long durationMs;
     private String errorMessage;
     private String traceJson;
+    private String responseJson;
     private String expectedIntent;
     private String expectedSlots;
     private String expectedClarifyAction;

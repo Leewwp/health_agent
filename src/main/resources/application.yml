@@ -1,11 +1,19 @@
 spring:
   application:
-    name: harness-agent
+    name: health-agent
+  profiles:
+    default: dev
   datasource:
     url: jdbc:mysql://localhost:3306/diet_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
+    baseline-description: legacy diet schema
+    locations: classpath:db/migration
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.diet.model
@@ -13,6 +21,14 @@ mybatis:
     map-underscore-to-camel-case: true
 server:
   port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
 agentscope:
   dashscope:
     api-key: ${DASHSCOPE_API_KEY:请填入自己的apiKey}
@@ -23,6 +39,13 @@ diet:
     light-model: qwen-turbo
   session:
     max-history-turns: 10
+  security:
+    session-cookie-name: HEALTH_SESSION
+    session-secret: ${DIET_SESSION_SECRET:dev-only-change-me}
+    cookie-secure: false
+    allow-legacy-user-header: true
+    admin-protected: false
+    admin-token: ${ADMIN_TOKEN:}
 logging:
   level:
     com.diet: INFO

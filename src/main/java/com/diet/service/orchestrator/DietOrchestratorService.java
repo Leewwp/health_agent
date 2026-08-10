@@ -16,6 +16,7 @@ import com.diet.model.ChatRequest;
 import com.diet.model.ChatResponse;
 import com.diet.model.RecommendResult;
 import com.diet.model.ResponseResult;
+import com.diet.model.RequestTraceRow;
 import com.diet.enums.SessionPhase;
 import com.diet.model.SessionState;
 import com.diet.model.SlotBundle;
@@ -32,6 +33,7 @@ import com.diet.service.session.SessionStateService;
 import com.diet.service.slot.SlotMergeService;
 import com.diet.service.trace.AgentTraceService;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -119,9 +121,12 @@ public class DietOrchestratorService {
     private final RiskGuardService riskGuardService;
 
     /**
-     * 链路追踪服务，记录状态机事件和 Agent 调用到 agent_traces 表。
+     * 链路追踪服务，记录状态机事件和 Agent 调用到 diet_request_trace 表。
      */
     private final AgentTraceService agentTraceService;
+
+    /** 用于保存和恢复幂等响应快照。 */
+    private final ObjectMapper objectMapper;
 
     /**
      * 会话级锁 Map，key=sessionId，value=锁对象，保证同 session 串行写状态。
@@ -145,7 +150,8 @@ public class DietOrchestratorService {
             PlanResponseAgentService planResponseAgentService,
             MealService mealService,
             RiskGuardService riskGuardService,
-            AgentTraceService agentTraceService
+            AgentTraceService agentTraceService,
+            ObjectMapper objectMapper
     ) {
         this.sessionService = sessionService;                           // 注入消息落库服务
         this.sessionStateService = sessionStateService;                 // 注入会话状态服务
@@ -161,6 +167,7 @@ public class DietOrchestratorService {
         this.mealService = mealService;                                 // 注入餐食服务
         this.riskGuardService = riskGuardService;             // 注入健康守卫
         this.agentTraceService = agentTraceService;                     // 注入链路追踪服务
+        this.objectMapper = objectMapper;                               // 注入 JSON 序列化工具
     }
 
     /**
@@ -173,6 +180,7 @@ public class DietOrchestratorService {
         if (request == null || request.message() == null || request.message().isBlank()) {
             throw new DietException("用户问题不能为空");
         }
+        String requestId = normalizeRequestId(request.requestId());
         // 校验 sourceMode 必填（PERSONAL 个人库 / PUBLIC 公共库），否则无法检索
         if (request.sourceMode() == null) {
             throw new DietException("sourceMode 不能为空，请选择 PERSONAL 或 PUBLIC");
@@ -181,8 +189,14 @@ public class DietOrchestratorService {
         // 从 DB 加载已有会话状态，或按 sessionId/userId 创建新会话，得到 slots/phase/lastRecommendations 等
         SessionState initialState = sessionStateService.loadOrCreate(request.sessionId(), userId, request.sourceMode());
 
-        // 开启 Trace 上下文；try-with-resources 结束时 TraceScope#close 会将整轮事件写入 agent_traces 表
-        try (AgentTraceService.TraceScope ignored = agentTraceService.openTrace(traceId, initialState.sessionId(), userId)) {
+        // 相同用户和 requestId 已有成功响应时直接复用，避免重复调用模型和写入消息。
+        RequestTraceRow previous = agentTraceService.findByRequestId(userId, initialState.sessionId(), requestId);
+        if (previous != null && previous.getResponseJson() != null && !previous.getResponseJson().isBlank()) {
+            return restoreResponse(previous.getResponseJson());
+        }
+
+        // 开启 Trace 上下文；try-with-resources 结束时 TraceScope#close 会将整轮事件写入 diet_request_trace 表
+        try (AgentTraceService.TraceScope ignored = agentTraceService.openTrace(traceId, initialState.sessionId(), userId, requestId)) {
             try {
                 // 记录请求开始时间（纳秒），用于最后计算整轮耗时
                 long startedAt = System.nanoTime();
@@ -192,10 +206,21 @@ public class DietOrchestratorService {
                 // 获取或创建该 sessionId 对应的锁对象，保证同一 session 并发请求串行执行
                 Object lock = sessionLocks.computeIfAbsent(initialState.sessionId(), key -> new Object());
                 synchronized (lock) {
+                    // 第一个请求可能仍在锁内，重新查询以覆盖并发重复提交。
+                    RequestTraceRow concurrentPrevious = agentTraceService.findByRequestId(userId, initialState.sessionId(), requestId);
+                    if (concurrentPrevious != null
+                            && concurrentPrevious.getResponseJson() != null
+                            && !concurrentPrevious.getResponseJson().isBlank()) {
+                        ignored.discard();
+                        return restoreResponse(concurrentPrevious.getResponseJson());
+                    }
                     // 在锁内执行完整状态机，处理本轮用户输入
                     ChatResponse response = handleTurn(userId, request, traceId, initialState);
+                    ignored.setResponse(response);
                     // Trace 事件：REQUEST_FINISHED | 阶段 HTTP | 输入=ChatRequest | 输出=ChatResponse | 耗时 ms
                     agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, elapsedMs(startedAt));
+                    // 在释放会话锁前持久化响应，使紧随其后的重复请求可以复用结果。
+                    ignored.close();
                     // 将最终响应返回给 Controller
                     return response;
                 }
@@ -205,6 +230,27 @@ public class DietOrchestratorService {
                 // 继续向上抛出，由全局异常处理器返回错误响应
                 throw error;
             }
+        }
+    }
+
+    /** 旧饮食接口未携带 requestId 时生成内部幂等键；新接口由 Controller 负责强制要求。 */
+    private String normalizeRequestId(String requestId) {
+        if (requestId == null || requestId.isBlank()) {
+            return "legacy_" + UUID.randomUUID().toString().replace("-", "");
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 128) {
+            throw new DietException("requestId 长度不能超过 128 个字符");
+        }
+        return normalized;
+    }
+
+    /** 从 Trace 中恢复已保存的响应。 */
+    private ChatResponse restoreResponse(String responseJson) {
+        try {
+            return objectMapper.readValue(responseJson, ChatResponse.class);
+        } catch (Exception error) {
+            throw new DietException("幂等响应恢复失败", error);
         }
     }
 
