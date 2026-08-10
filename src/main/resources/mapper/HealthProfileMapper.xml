@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.HealthProfileMapper">
+
+    <resultMap id="HealthProfileRowMap" type="com.diet.model.HealthProfileRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="age" column="age"/>
+        <result property="sex" column="sex"/>
+        <result property="heightCm" column="height_cm"/>
+        <result property="weightKg" column="weight_kg"/>
+        <result property="activityLevel" column="activity_level"/>
+        <result property="goal" column="goal"/>
+        <result property="timezone" column="timezone"/>
+        <result property="calorieLow" column="calorie_low"/>
+        <result property="calorieHigh" column="calorie_high"/>
+        <result property="estimated" column="estimated"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="ProfileColumns">
+        id,
+        user_id,
+        age,
+        sex,
+        height_cm,
+        weight_kg,
+        activity_level,
+        goal,
+        timezone,
+        calorie_low,
+        calorie_high,
+        estimated,
+        version_no,
+        created_at,
+        updated_at
+    </sql>
+
+    <select id="findByUserId" resultMap="HealthProfileRowMap">
+        SELECT <include refid="ProfileColumns"/>
+        FROM health_profile
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO health_profile (
+            user_id, age, sex, height_cm, weight_kg, activity_level, goal, timezone,
+            calorie_low, calorie_high, estimated, version_no, created_at, updated_at
+        ) VALUES (
+            #{userId}, #{age}, #{sex}, #{heightCm}, #{weightKg}, #{activityLevel}, #{goal}, #{timezone},
+            #{calorieLow}, #{calorieHigh}, #{estimated}, #{versionNo}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="update">
+        UPDATE health_profile
+        SET age = #{age},
+            sex = #{sex},
+            height_cm = #{heightCm},
+            weight_kg = #{weightKg},
+            activity_level = #{activityLevel},
+            goal = #{goal},
+            timezone = #{timezone},
+            calorie_low = #{calorieLow},
+            calorie_high = #{calorieHigh},
+            estimated = #{estimated},
+            version_no = #{versionNo},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <resultMap id="HealthProfileVersionRowMap" type="com.diet.model.HealthProfileVersionRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="profileId" column="profile_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="snapshotJson" column="snapshot_json"/>
+        <result property="calorieLow" column="calorie_low"/>
+        <result property="calorieHigh" column="calorie_high"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO health_profile_version (
+            user_id, profile_id, version_no, snapshot_json, calorie_low, calorie_high, created_at
+        ) VALUES (
+            #{userId}, #{profileId}, #{versionNo}, #{snapshotJson}, #{calorieLow}, #{calorieHigh}, #{createdAt}
+        )
+    </insert>
+
+</mapper>

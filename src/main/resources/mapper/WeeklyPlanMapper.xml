@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.WeeklyPlanMapper">
+
+    <resultMap id="WeeklyPlanRowMap" type="com.diet.model.WeeklyPlanRow">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="status" column="status"/>
+        <result property="weekStart" column="week_start"/>
+        <result property="timezone" column="timezone"/>
+        <result property="profileVersionNo" column="profile_version_no"/>
+        <result property="calorieLow" column="calorie_low"/>
+        <result property="calorieHigh" column="calorie_high"/>
+        <result property="rulesVersion" column="rules_version"/>
+        <result property="validationLevel" column="validation_level"/>
+        <result property="validationJson" column="validation_json"/>
+        <result property="note" column="note"/>
+        <result property="sourceSessionId" column="source_session_id"/>
+        <result property="currentVersion" column="current_version"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="PlanColumns">
+        id,
+        user_id,
+        status,
+        week_start,
+        timezone,
+        profile_version_no,
+        calorie_low,
+        calorie_high,
+        rules_version,
+        validation_level,
+        validation_json,
+        note,
+        source_session_id,
+        current_version,
+        created_at,
+        updated_at
+    </sql>
+
+    <select id="findPlanById" resultMap="WeeklyPlanRowMap">
+        SELECT <include refid="PlanColumns"/>
+        FROM weekly_plan
+        WHERE id = #{id} AND user_id = #{userId}
+    </select>
+
+    <select id="findActiveByUser" resultMap="WeeklyPlanRowMap">
+        SELECT <include refid="PlanColumns"/>
+        FROM weekly_plan
+        WHERE user_id = #{userId} AND status = 'ACTIVE'
+        LIMIT 1
+    </select>
+
+    <select id="listPlans" resultMap="WeeklyPlanRowMap">
+        SELECT <include refid="PlanColumns"/>
+        FROM weekly_plan
+        WHERE user_id = #{userId}
+        ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'DRAFT' THEN 1 ELSE 2 END, updated_at DESC
+    </select>
+
+    <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO weekly_plan (
+            user_id, status, week_start, timezone, profile_version_no, calorie_low, calorie_high,
+            rules_version, validation_level, validation_json, note, source_session_id, current_version,
+            created_at, updated_at
+        ) VALUES (
+            #{userId}, #{status}, #{weekStart}, #{timezone}, #{profileVersionNo}, #{calorieLow}, #{calorieHigh},
+            #{rulesVersion}, #{validationLevel}, #{validationJson}, #{note}, #{sourceSessionId}, #{currentVersion},
+            #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="updatePlan">
+        UPDATE weekly_plan
+        SET status = #{status},
+            validation_level = #{validationLevel},
+            validation_json = #{validationJson},
+            note = #{note},
+            current_version = #{currentVersion},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <resultMap id="WeeklyPlanVersionRowMap" type="com.diet.model.WeeklyPlanVersionRow">
+        <id property="id" column="id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="profileVersionNo" column="profile_version_no"/>
+        <result property="profileSnapshotJson" column="profile_snapshot_json"/>
+        <result property="validationJson" column="validation_json"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO weekly_plan_version (
+            plan_id, version_no, profile_version_no, profile_snapshot_json, validation_json, created_at
+        ) VALUES (
+            #{planId}, #{versionNo}, #{profileVersionNo}, #{profileSnapshotJson}, #{validationJson}, #{createdAt}
+        )
+    </insert>
+
+    <resultMap id="WeeklyPlanItemRowMap" type="com.diet.model.WeeklyPlanItemRow">
+        <id property="id" column="id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="resourceType" column="resource_type"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="name" column="name"/>
+        <result property="localDate" column="local_date"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="note" column="note"/>
+        <result property="planParamsJson" column="plan_params_json"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findItems" resultMap="WeeklyPlanItemRowMap">
+        SELECT id, plan_id, version_no, resource_type, resource_id, name, local_date,
+               start_time, end_time, note, plan_params_json, created_at, updated_at
+        FROM weekly_plan_item
+        WHERE plan_id = #{planId} AND version_no = #{versionNo}
+        ORDER BY local_date, start_time
+    </select>
+
+    <select id="findItemById" resultMap="WeeklyPlanItemRowMap">
+        SELECT id, plan_id, version_no, resource_type, resource_id, name, local_date,
+               start_time, end_time, note, plan_params_json, created_at, updated_at
+        FROM weekly_plan_item
+        WHERE id = #{itemId}
+    </select>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO weekly_plan_item (
+            plan_id, version_no, resource_type, resource_id, name, local_date,
+            start_time, end_time, note, plan_params_json, created_at, updated_at
+        ) VALUES (
+            #{planId}, #{versionNo}, #{resourceType}, #{resourceId}, #{name}, #{localDate},
+            #{startTime}, #{endTime}, #{note}, #{planParamsJson}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateItemSchedule">
+        UPDATE weekly_plan_item
+        SET local_date = #{localDate},
+            start_time = #{startTime},
+            end_time = #{endTime},
+            note = #{note},
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

@@ -10,7 +10,8 @@ import java.util.List;
  * 健康风险规则服务（版本化小规则集，25 号契约落地）。
  * <p>
  * 三档等级 NORMAL / ADVISORY / BLOCK_PLAN，多规则取最高；
- * 所有文案固定在 Java 模板中。本票实现前置（候选前）校验，组合时与输出后校验由 34 号补齐。
+ * 所有文案固定在 Java 模板中。本票实现前置（候选前）校验与档案维度评估，
+ * 组合时与输出后校验由 34 号 PlanValidationService / PlanOutputGuard 补齐。
  */
 @Service
 public class HealthRiskRuleService {
@@ -23,6 +24,12 @@ public class HealthRiskRuleService {
 
     /** ADVISORY 固定文案。 */
     public static final String ADVISORY_COPY = "这些建议仅供参考，如有不适请及时咨询专业人士。";
+
+    /** 未满 18 岁固定文案（34 号，档案维度）。 */
+    public static final String UNDERAGE_COPY = "未满 18 岁不适合生成具体的训练和饮食计划，建议保持均衡饮食和规律作息。";
+
+    /** 65 岁以上具体训练计划固定文案（34 号，档案维度）。 */
+    public static final String SENIOR_TRAINING_COPY = "65 岁以上生成具体训练计划需要专业评估，当前建议先参考一般性健康建议。";
 
     /** 单条版本化规则。 */
     public record RiskRule(String flag, List<String> keywords, HealthRiskLevel level, String copy) {
@@ -70,5 +77,23 @@ public class HealthRiskRuleService {
             return new RiskDecision(HealthRiskLevel.NORMAL, matchedFlags, null);
         }
         return new RiskDecision(highest, matchedFlags, copy);
+    }
+
+    /**
+     * 档案维度风险评估（34 号，候选前 Guard）：
+     * 未满 18 岁一律 BLOCK_PLAN；65 岁以上生成具体训练计划 BLOCK_PLAN，
+     * 非训练计划只给 ADVISORY。
+     */
+    public RiskDecision assessProfile(int age, boolean trainingPlan) {
+        if (age < 18) {
+            return new RiskDecision(HealthRiskLevel.BLOCK_PLAN, List.of("UNDERAGE"), UNDERAGE_COPY);
+        }
+        if (age >= 65) {
+            if (trainingPlan) {
+                return new RiskDecision(HealthRiskLevel.BLOCK_PLAN, List.of("SENIOR_PLAN"), SENIOR_TRAINING_COPY);
+            }
+            return new RiskDecision(HealthRiskLevel.ADVISORY, List.of("SENIOR_PLAN"), ADVISORY_COPY);
+        }
+        return new RiskDecision(HealthRiskLevel.NORMAL, List.of(), null);
     }
 }

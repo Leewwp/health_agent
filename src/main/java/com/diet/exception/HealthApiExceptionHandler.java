@@ -4,13 +4,26 @@ import com.diet.constants.DietConstants;
 import com.diet.model.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/** 只为新健康 Controller 提供统一错误结构，保持旧饮食响应兼容。 */
+/** 只为新健康 Controller 提供统一错误结构（规格 6.5），保持旧饮食响应兼容。 */
 @RestControllerAdvice(basePackages = "com.diet.controller.health")
 public class HealthApiExceptionHandler {
+
+    @ExceptionHandler(HealthApiException.class)
+    public ResponseEntity<ApiErrorResponse> handleHealthApiException(HealthApiException error, HttpServletRequest request) {
+        HttpStatus status = switch (error.code()) {
+            case HealthApiException.CODE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case HealthApiException.CODE_RISK_BLOCKED, HealthApiException.CODE_CONFLICT -> HttpStatus.CONFLICT;
+            case HealthApiException.CODE_IDENTITY_INVALID -> HttpStatus.UNAUTHORIZED;
+            default -> HttpStatus.BAD_REQUEST;
+        };
+        return ResponseEntity.status(status)
+                .body(new ApiErrorResponse(error.code(), error.getMessage(), requestId(request), null));
+    }
 
     @ExceptionHandler(DietException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
