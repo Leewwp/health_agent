@@ -1,6 +1,7 @@
 package com.diet.health.module;
 
-import com.diet.health.seed.SeedResources;
+import com.diet.health.feedback.PreferenceService;
+import com.diet.health.resource.HealthResourceProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -10,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 健身领域模块：从版本化种子动作中按槽位筛选、排序。
+ * 健身领域模块：从统一审核资源 Provider（正式=数据库审核子集，fixture=内存种子）按槽位筛选、排序。
  * 动作只要有基础字段即可浏览与单次推荐；plan_ready 是自动周计划资格（本票只透出标志）。
  */
 @Service
@@ -19,8 +20,16 @@ public class ExerciseModule {
     /** 单次推荐返回上限。 */
     private static final int RECOMMEND_LIMIT = 5;
 
+    private final HealthResourceProvider resourceProvider;
+    private final PreferenceService preferenceService;
+
+    public ExerciseModule(HealthResourceProvider resourceProvider, PreferenceService preferenceService) {
+        this.resourceProvider = resourceProvider;
+        this.preferenceService = preferenceService;
+    }
+
     public List<HealthResource> listAll() {
-        return SeedResources.EXERCISES;
+        return resourceProvider.exercises();
     }
 
     /** 按槽位命中打分排序，返回最多 RECOMMEND_LIMIT 条（排除 excludeIds）。 */
@@ -30,16 +39,18 @@ public class ExerciseModule {
             excludeIds.forEach(id -> exclude.add(String.valueOf(id)));
         }
         int safeLimit = limit > 0 ? Math.min(limit, RECOMMEND_LIMIT) : RECOMMEND_LIMIT;
-        List<Scored> scored = SeedResources.EXERCISES.stream()
+        List<Scored> scored = resourceProvider.exercises().stream()
                 .filter(item -> !exclude.contains(item.resourceId()))
                 .map(item -> new Scored(item, score(item, slots)))
                 .sorted(Comparator.comparingDouble(Scored::score).reversed())
                 .toList();
         boolean anyMatched = scored.stream().anyMatch(item -> item.score() > 0);
-        return scored.stream()
+        List<HealthResource> ranked = scored.stream()
                 .filter(item -> !anyMatched || item.score() > 0)
-                .limit(safeLimit)
                 .map(Scored::resource)
+                .toList();
+        return preferenceService.applyPreference(ranked).stream()
+                .limit(safeLimit)
                 .toList();
     }
 

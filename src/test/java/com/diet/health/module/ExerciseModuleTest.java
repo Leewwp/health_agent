@@ -1,5 +1,8 @@
 package com.diet.health.module;
 
+import com.diet.health.feedback.PreferenceService;
+import com.diet.health.resource.SeedResourceProvider;
+import com.diet.mapper.FeedbackMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -9,11 +12,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
-/** 健身种子模块：筛选、排序、plan_ready 与无图状态。 */
+/** 健身种子模块：筛选、排序、plan_ready 与无图状态（fixture 模式 Provider）。 */
 class ExerciseModuleTest {
 
-    private final ExerciseModule module = new ExerciseModule();
+    private final ExerciseModule module = new ExerciseModule(
+            new SeedResourceProvider(), new PreferenceService(mock(FeedbackMapper.class)));
 
     @Test
     void 按部位筛选返回匹配动作() {

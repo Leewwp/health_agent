@@ -56,6 +56,12 @@ class ExerciseBrowseServiceTest {
     }
 
     @Test
+    void 极大page返回400而非负偏移或500() {
+        assertThrows(DietException.class, () -> service.browse(Integer.MAX_VALUE, 20), "page 溢出 int 范围应拒绝");
+        assertThrows(DietException.class, () -> service.browse(100_000_000, 50), "offset 超出数据库安全范围应拒绝");
+    }
+
+    @Test
     void 空数据返回空列表() {
         when(exerciseMapper.browse(0, 20)).thenReturn(List.of());
         when(exerciseMapper.count()).thenReturn(0);

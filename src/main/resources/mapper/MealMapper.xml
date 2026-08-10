@@ -215,4 +215,13 @@
         ORDER BY id
     </select>
 
+    <select id="findApprovedPublicById" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE id = #{id}
+        AND source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+    </select>
+
 </mapper>

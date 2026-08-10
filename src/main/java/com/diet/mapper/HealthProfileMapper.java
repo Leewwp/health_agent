@@ -12,6 +12,9 @@ public interface HealthProfileMapper {
     /** 按匿名身份查询当前档案。 */
     HealthProfileRow findByUserId(@Param("userId") Long userId);
 
+    /** 按匿名身份查询当前档案并锁定行（保存路径使用，避免并发版本号重复）。 */
+    HealthProfileRow findByUserIdForUpdate(@Param("userId") Long userId);
+
     /** 插入当前档案（新用户首份档案）。 */
     int insert(HealthProfileRow row);
 

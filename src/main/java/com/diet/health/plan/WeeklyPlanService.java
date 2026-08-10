@@ -3,10 +3,10 @@ package com.diet.health.plan;
 import com.diet.exception.HealthApiException;
 import com.diet.health.enums.PlanStatus;
 import com.diet.health.enums.PlanValidationLevel;
-import com.diet.health.module.ExerciseModule;
-import com.diet.health.module.RoutineModule;
+import com.diet.health.module.HealthResource;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.profile.HealthProfileService.HealthProfileView;
+import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.mapper.WeeklyPlanMapper;
 import com.diet.model.WeeklyPlanItemRow;
@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -50,8 +51,7 @@ public class WeeklyPlanService {
     private final WeeklyPlanComposerService composer;
     private final PlanValidationService validationService;
     private final WeeklyPlanMapper planMapper;
-    private final ExerciseModule exerciseModule;
-    private final RoutineModule routineModule;
+    private final HealthResourceProvider resourceProvider;
     private final HealthPlanResponseAgentService planResponseAgent;
     private final AgentTraceService agentTraceService;
     private final ObjectMapper objectMapper;
@@ -65,8 +65,7 @@ public class WeeklyPlanService {
             WeeklyPlanComposerService composer,
             PlanValidationService validationService,
             WeeklyPlanMapper planMapper,
-            ExerciseModule exerciseModule,
-            RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
             HealthPlanResponseAgentService planResponseAgent,
             AgentTraceService agentTraceService,
             ObjectMapper objectMapper
@@ -76,14 +75,14 @@ public class WeeklyPlanService {
         this.composer = composer;
         this.validationService = validationService;
         this.planMapper = planMapper;
-        this.exerciseModule = exerciseModule;
-        this.routineModule = routineModule;
+        this.resourceProvider = resourceProvider;
         this.planResponseAgent = planResponseAgent;
         this.agentTraceService = agentTraceService;
         this.objectMapper = objectMapper;
     }
 
     /** 生成周计划草稿：候选前 Guard → 组合 → 组合时校验 → 持久化（硬错误不落库）。 */
+    @Transactional
     public PlanView createDraft(Long userId, DraftPlanRequest request) {
         HealthProfileView profile = profileService.getProfile(userId);
         HealthRiskRuleService.RiskDecision profileRisk = riskRuleService.assessProfile(profile.age(), true);
@@ -122,7 +121,7 @@ public class WeeklyPlanService {
         plan.setCreatedAt(now);
         plan.setUpdatedAt(now);
         planMapper.insertPlan(plan);
-        insertVersion(plan, profile, result, now);
+        insertVersion(plan, profile, result, now, items);
         insertItems(plan, items, now);
 
         String explanation = explain(plan, profile, loadItemViews(plan));
@@ -152,9 +151,14 @@ public class WeeklyPlanService {
                 .toList();
     }
 
-    /** 激活：重新校验（OK 才允许），归档旧 ACTIVE，快照项目到新版本并刷新档案依据。 */
+    /**
+     * 激活：事务内行锁重读目标计划并重新校验 DRAFT/归属 → 锁定现有 ACTIVE →
+     * 归档旧 ACTIVE、快照版本与项目 → activatePlan 原子更新（status='DRAFT' 条件，影响 0 行抛冲突）。
+     * 行锁是正确性保障，userLocks synchronized 仅作为单实例应用层优化保留。
+     */
+    @Transactional
     public PlanView activate(Long userId, Long planId) {
-        WeeklyPlanRow plan = requirePlan(userId, planId);
+        WeeklyPlanRow plan = requirePlanForUpdate(userId, planId);
         if (plan.getStatus() == null || !PlanStatus.DRAFT.name().equals(plan.getStatus())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "只有 DRAFT 计划可以激活");
         }
@@ -167,7 +171,7 @@ public class WeeklyPlanService {
         }
         Object lock = userLocks.computeIfAbsent(userId, key -> new Object());
         synchronized (lock) {
-            WeeklyPlanRow active = planMapper.findActiveByUser(userId);
+            WeeklyPlanRow active = planMapper.findActiveByUserForUpdate(userId);
             if (active != null && !active.getId().equals(planId)) {
                 active.setStatus(PlanStatus.ARCHIVED.name());
                 active.setUpdatedAt(LocalDateTime.now());
@@ -175,14 +179,7 @@ public class WeeklyPlanService {
             }
             long newVersion = plan.getCurrentVersion() + 1;
             LocalDateTime now = LocalDateTime.now();
-            WeeklyPlanVersionRow version = new WeeklyPlanVersionRow();
-            version.setPlanId(plan.getId());
-            version.setVersionNo(newVersion);
-            version.setProfileVersionNo(profile.versionNo());
-            version.setProfileSnapshotJson(HealthProfileService.profileSnapshot(profile, objectMapper));
-            version.setValidationJson(toJson(ruleHitViews(result)));
-            version.setCreatedAt(now);
-            planMapper.insertVersion(version);
+            planMapper.insertVersion(buildVersion(plan, profile, result, now, items, newVersion));
             insertItems(plan, items, now, newVersion);
             plan.setStatus(PlanStatus.ACTIVE.name());
             plan.setCurrentVersion(newVersion);
@@ -192,13 +189,16 @@ public class WeeklyPlanService {
             plan.setValidationLevel(result.level().name());
             plan.setValidationJson(toJson(ruleHitViews(result)));
             plan.setUpdatedAt(now);
-            planMapper.updatePlan(plan);
+            if (planMapper.activatePlan(plan) == 0) {
+                throw new HealthApiException(HealthApiException.CODE_CONFLICT, "计划状态已变化，请刷新后重试");
+            }
         }
         String explanation = explain(plan, profile, loadItemViews(plan));
         return toView(plan, loadItemViews(plan), false, explanation);
     }
 
     /** 编辑：DRAFT 直接返回；ACTIVE 复制为新 DRAFT（规格 6.3）。 */
+    @Transactional
     public PlanView edit(Long userId, Long planId) {
         WeeklyPlanRow plan = requirePlan(userId, planId);
         if (PlanStatus.DRAFT.name().equals(plan.getStatus())) {
@@ -232,12 +232,13 @@ public class WeeklyPlanService {
         copy.setCreatedAt(now);
         copy.setUpdatedAt(now);
         planMapper.insertPlan(copy);
-        insertVersion(copy, profile, result, now);
+        insertVersion(copy, profile, result, now, items);
         insertItems(copy, items, now);
         return toView(copy, loadItemViews(copy), false, null);
     }
 
     /** PATCH 项目：只允许日期/时间/备注；硬错误拒绝变更不落库。 */
+    @Transactional
     public PlanView patchItem(Long userId, Long planId, Long itemId, PatchItemRequest patch) {
         WeeklyPlanRow plan = requirePlan(userId, planId);
         if (!PlanStatus.DRAFT.name().equals(plan.getStatus())) {
@@ -310,6 +311,15 @@ public class WeeklyPlanService {
         return plan;
     }
 
+    /** 激活专用查询：FOR UPDATE 行锁 + 归属校验（并发激活的串行化保障）。 */
+    private WeeklyPlanRow requirePlanForUpdate(Long userId, Long planId) {
+        WeeklyPlanRow plan = planMapper.findPlanByIdForUpdate(planId, userId);
+        if (plan == null) {
+            throw new HealthApiException(HealthApiException.CODE_NOT_FOUND, "计划不存在或无权访问");
+        }
+        return plan;
+    }
+
     private PlanValidationService.ProfileContext validationContext(HealthProfileView profile) {
         return new PlanValidationService.ProfileContext(profile.age(), profile.calorieLow(), profile.calorieHigh());
     }
@@ -318,29 +328,112 @@ public class WeeklyPlanService {
         return new PlanValidationService.ProfileContext(age, plan.getCalorieLow(), plan.getCalorieHigh());
     }
 
+    /** 资源目录：从统一审核资源 Provider 构建校验快照（动作资格 + 事实引用）。 */
     private PlanValidationService.ResourceCatalog resourceCatalog() {
-        Set<String> planReady = new HashSet<>();
         Set<String> knownExercises = new HashSet<>();
-        for (com.diet.health.module.HealthResource resource : exerciseModule.listAll()) {
+        Set<String> planReady = new HashSet<>();
+        for (HealthResource resource : resourceProvider.exercises()) {
             knownExercises.add(resource.resourceId());
             if (resource.planReady()) {
                 planReady.add(resource.resourceId());
             }
         }
         return new PlanValidationService.ResourceCatalog(
-                planReady, knownExercises, Set.copyOf(routineModule.allFactIds()));
+                planReady, knownExercises, Set.copyOf(resourceProvider.allFactIds()));
     }
 
     private void insertVersion(WeeklyPlanRow plan, HealthProfileView profile,
-                               PlanValidationService.ValidationResult result, LocalDateTime now) {
+                               PlanValidationService.ValidationResult result, LocalDateTime now,
+                               List<PlanItemDraft> items) {
+        planMapper.insertVersion(buildVersion(plan, profile, result, now, items, plan.getCurrentVersion()));
+    }
+
+    /**
+     * 构建不可变版本（42 号票）：档案快照 + 规则版本 + 来源会话 + 作息事实来源 + 资源快照一次落库。
+     * fact_sources_json / resource_snapshot_json 来自生成时的项目与 Provider，历史版本读取不依赖计划根。
+     */
+    private WeeklyPlanVersionRow buildVersion(WeeklyPlanRow plan, HealthProfileView profile,
+                                              PlanValidationService.ValidationResult result,
+                                              LocalDateTime now, List<PlanItemDraft> items, long versionNo) {
         WeeklyPlanVersionRow version = new WeeklyPlanVersionRow();
         version.setPlanId(plan.getId());
-        version.setVersionNo(plan.getCurrentVersion());
+        version.setVersionNo(versionNo);
         version.setProfileVersionNo(profile.versionNo());
         version.setProfileSnapshotJson(HealthProfileService.profileSnapshot(profile, objectMapper));
+        version.setRulesVersion(PlanValidationService.RULES_VERSION);
+        version.setSourceSessionId(plan.getSourceSessionId());
+        version.setFactSourcesJson(toJson(factSources(items)));
+        version.setResourceSnapshotJson(toJson(resourceSnapshot(items)));
         version.setValidationJson(toJson(ruleHitViews(result)));
         version.setCreatedAt(now);
-        planMapper.insertVersion(version);
+        return version;
+    }
+
+    /** 作息事实来源快照：ROUTINE 项目按 factId 解析结构化事实与来源（其他类型不参与）。 */
+    private List<Map<String, Object>> factSources(List<PlanItemDraft> items) {
+        List<Map<String, Object>> facts = new ArrayList<>();
+        for (PlanItemDraft item : items) {
+            if (!"ROUTINE".equals(item.resourceType())) {
+                continue;
+            }
+            resourceProvider.routineFactById(item.resourceId()).ifPresent(fact -> {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("factId", fact.factId());
+                entry.put("category", fact.category());
+                entry.put("sourceName", fact.sourceName());
+                entry.put("sourceDetail", fact.sourceDetail());
+                facts.add(entry);
+            });
+        }
+        return facts;
+    }
+
+    /**
+     * 资源快照：Provider 模式/资源版本（审核子集批次版本）+ 每项类型化资源的
+     * 来源、来源版本、审核状态、plan_ready 与生成时计划参数。
+     * reviewStatus 由 Provider 过滤保证：REVIEWED_DB 模式只暴露 APPROVED 资源，
+     * FIXTURE_SEED 模式为离线演示种子（SEED）。
+     */
+    private List<Map<String, Object>> resourceSnapshot(List<PlanItemDraft> items) {
+        List<Map<String, Object>> snapshots = new ArrayList<>();
+        for (PlanItemDraft item : items) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("resourceType", item.resourceType());
+            entry.put("resourceId", item.resourceId());
+            entry.put("name", item.name());
+            entry.put("sourceVersion", resourceProvider.resourceVersion());
+            entry.put("reviewStatus", "REVIEWED_DB".equals(resourceProvider.providerMode()) ? "APPROVED" : "SEED");
+            entry.put("planParams", item.planParams());
+            fillSource(entry, item);
+            snapshots.add(entry);
+        }
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("providerMode", resourceProvider.providerMode());
+        envelope.put("resourceVersion", resourceProvider.resourceVersion());
+        envelope.put("items", snapshots);
+        return List.of(envelope);
+    }
+
+    /** 资源来源字段：动作/餐食按类型化 ID 解析；作息事实按 factId 解析；解析失败时保留项目快照字段。 */
+    private void fillSource(Map<String, Object> entry, PlanItemDraft item) {
+        if ("EXERCISE".equals(item.resourceType())) {
+            resourceProvider.exerciseById(item.resourceId()).ifPresent(resource -> {
+                entry.put("sourceType", resource.sourceType());
+                entry.put("sourceName", resource.sourceName());
+                entry.put("planReady", resource.planReady());
+            });
+        } else if ("MEAL".equals(item.resourceType())) {
+            resourceProvider.mealById(item.resourceId()).ifPresent(resource -> {
+                entry.put("sourceType", resource.sourceType());
+                entry.put("sourceName", resource.sourceName());
+                entry.put("planReady", resource.planReady());
+            });
+        } else if ("ROUTINE".equals(item.resourceType())) {
+            resourceProvider.routineFactById(item.resourceId()).ifPresent(fact -> {
+                entry.put("sourceType", "STRUCTURED_FACT");
+                entry.put("sourceName", fact.sourceName());
+            });
+        }
     }
 
     private void insertItems(WeeklyPlanRow plan, List<PlanItemDraft> items, LocalDateTime now) {

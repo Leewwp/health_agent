@@ -41,6 +41,9 @@ diet:
     # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
     mode: agentscope
     timeout-ms: 15000
+  resource:
+    # reviewed=数据库审核子集（正式）；fixture=内存种子（离线演示/测试，prod 禁止）
+    mode: reviewed
   rag:
     # structured=只用结构化检索；hybrid=结构化+语义合并（embedding 失败自动降级）
     mode: hybrid

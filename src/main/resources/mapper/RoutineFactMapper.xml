@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.RoutineFactMapper">
+
+    <resultMap id="RoutineFactRowMap" type="com.diet.model.RoutineFactRow">
+        <id property="id" column="id"/>
+        <result property="topic" column="topic"/>
+        <result property="factZh" column="fact_zh"/>
+        <result property="scope" column="scope"/>
+        <result property="source" column="source"/>
+        <result property="sourceVersion" column="source_version"/>
+        <result property="refId" column="ref_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="RoutineFactColumns">
+        id,
+        topic,
+        fact_zh,
+        scope,
+        source,
+        source_version,
+        ref_id
+    </sql>
+
+    <select id="selectAll" resultMap="RoutineFactRowMap">
+        SELECT <include refid="RoutineFactColumns"/>
+        FROM routine_fact
+        ORDER BY id
+    </select>
+
+    <select id="selectByRefId" resultMap="RoutineFactRowMap">
+        SELECT <include refid="RoutineFactColumns"/>
+        FROM routine_fact
+        WHERE ref_id = #{refId}
+    </select>
+
+    <select id="selectByTopicLike" resultMap="RoutineFactRowMap">
+        SELECT <include refid="RoutineFactColumns"/>
+        FROM routine_fact
+        WHERE topic LIKE CONCAT('%', #{topic}, '%')
+        ORDER BY id
+    </select>
+
+</mapper>

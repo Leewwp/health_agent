@@ -77,7 +77,9 @@
 - 构建前置：[29 Java 21 构建基线核验](issues/29-java21-build-baseline.md)，已完成（提交 3547bc7 接纳 POM 修正并通过 clean build，见票内验收记录）。
 - 面试适用性复核：[Agent MVP 面试适用性复核](../../docs/agent-mvp-suitability-review.md)。
 - 垂直实施入口：[31 MVP 基础设施与旧饮食兼容](issues/31-mvp-foundation-and-legacy-compat.md)、[32 Agent 运行接口与健康聊天垂直闭环](issues/32-agent-runtime-and-health-chat-vertical-slice.md)、[33 审核资源、浏览 API 与餐食 RAG](issues/33-reviewed-resources-browser-api-and-meal-rag.md)、[34 健康档案、周计划与风险校验](issues/34-health-profile-plan-and-risk.md)、[35 前端模块与用户页面](issues/35-frontend-modules-and-user-pages.md)、[36 核心验收、部署与运行手册](issues/36-core-acceptance-and-delivery.md)。
-- 当前状态：规格和文档完成；29/31/32 已通过验收（Java 21 基线、Flyway 双路径、基础设施冒烟、65 个自动化测试与 fixture 模式三品类闭环），达到"面试可演示"门槛；33 号已通过验收（ETL 可重跑、288 餐食/30 动作/15 事实审核子集、浏览 API、hybrid RAG 与降级、Recall@3 评估记录）；34 号已通过验收（健康档案与能量区间、周计划生命周期与版本快照、三阶段 Guard、计划 API，全量 186 个自动化测试 + fixture 模式真实启动冒烟，见 34 号票验收记录）。按 35 → 36 推进。
+- 当前状态：规格和文档完成；29/31/32 已通过验收（Java 21 基线、Flyway 双路径、基础设施冒烟、65 个自动化测试与 fixture 模式三品类闭环），达到"面试可演示"门槛；33 号已通过验收（ETL 可重跑、292 餐食/30 动作/15 事实审核子集、浏览 API、hybrid RAG 与降级、Recall@3 评估记录）；34 号已通过验收（健康档案与能量区间、周计划生命周期与版本快照、三阶段 Guard、计划 API，全量 192 个自动化测试 + fixture 模式真实启动冒烟，见 34 号票验收记录）。
+- **交接审计修复批次（2026-08-10）**：34 号完成后对 HEAD 67cd909 做了完整 code review，修复方案已发布为 GitHub issue 39-45（Leewwp/health_agent），本地只维护地图索引，票内容以 GitHub 为准。实施顺序：#39 事务化与激活元数据持久化 → #40 统一正式资源 Provider → #41 类型化反馈迁移与健康反馈 API → #42 版本生成依据与 ACTIVE 不变量 → #43 聊天稳定性（默认会话/资源历史/作息查询/分页溢出）→ #44 风险规则目录与文档验收证据；#37（35 号前端）在 #40/#41 契约稳定后验收，#38（36 号总验收）作为最终门槛。
+- **审计批次进展（2026-08-11）**：#39-#44 主代码与自动化证据已全部落地：事务化 + 行锁 + 激活专用更新、双模式资源 Provider、V5 类型化反馈 + 健康反馈 API、V6 版本生成依据 + ACTIVE 生成列唯一约束、默认会话/ROUTINE 查询/分页 400、统一 RiskRuleCatalog；全量 269 个自动化测试通过（`mvn test`），V1-V6 迁移已在真实 MySQL 8.4 上验证（含重复 ACTIVE 清理、反馈/版本回填、唯一约束）。剩余：#44 中真实 DashScope 受约束冒烟与 39 号事务回滚的真实 MySQL 集成验证、#37 前端验收、#38 最终总验收（干净环境 + 浏览器流程 + 部署健康检查）。
 
 ## Out of scope
 

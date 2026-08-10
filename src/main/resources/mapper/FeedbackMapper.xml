@@ -9,17 +9,24 @@
         <result property="userId" column="user_id"/>
         <result property="sessionId" column="session_id"/>
         <result property="itemId" column="item_id"/>
+        <result property="resourceType" column="resource_type"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="planItemId" column="plan_item_id"/>
         <result property="action" column="action"/>
         <result property="rating" column="rating"/>
         <result property="reason" column="reason"/>
+        <result property="source" column="source"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
-    <insert id="insert">
+    <insert id="insertTyped">
         INSERT INTO recommend_feedback (
-        user_id, session_id, item_id, action, rating, reason, created_at
+        user_id, session_id, item_id, resource_type, resource_id, plan_id, plan_item_id,
+        action, rating, reason, source, created_at
         ) VALUES (
-        #{userId}, #{sessionId}, #{itemId}, #{action}, #{rating}, #{reason}, NOW()
+        #{userId}, #{sessionId}, #{itemId}, #{resourceType}, #{resourceId}, #{planId}, #{planItemId},
+        #{action}, #{rating}, #{reason}, #{source}, NOW()
         )
     </insert>
 
@@ -28,9 +35,14 @@
         user_id,
         session_id,
         item_id,
+        resource_type,
+        resource_id,
+        plan_id,
+        plan_item_id,
         action,
         rating,
         reason,
+        source,
         created_at
         FROM recommend_feedback
         WHERE user_id = #{userId}
@@ -48,6 +60,26 @@
             </otherwise>
         </choose>
         ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="findRecent" resultMap="FeedbackRowMap">
+        SELECT id,
+        user_id,
+        session_id,
+        item_id,
+        resource_type,
+        resource_id,
+        plan_id,
+        plan_item_id,
+        action,
+        rating,
+        reason,
+        source,
+        created_at
+        FROM recommend_feedback
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC, id DESC
+        LIMIT #{limit}
     </select>
 
 </mapper>

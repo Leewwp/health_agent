@@ -48,11 +48,26 @@
         WHERE id = #{id} AND user_id = #{userId}
     </select>
 
+    <select id="findPlanByIdForUpdate" resultMap="WeeklyPlanRowMap">
+        SELECT <include refid="PlanColumns"/>
+        FROM weekly_plan
+        WHERE id = #{id} AND user_id = #{userId}
+        FOR UPDATE
+    </select>
+
     <select id="findActiveByUser" resultMap="WeeklyPlanRowMap">
         SELECT <include refid="PlanColumns"/>
         FROM weekly_plan
         WHERE user_id = #{userId} AND status = 'ACTIVE'
         LIMIT 1
+    </select>
+
+    <select id="findActiveByUserForUpdate" resultMap="WeeklyPlanRowMap">
+        SELECT <include refid="PlanColumns"/>
+        FROM weekly_plan
+        WHERE user_id = #{userId} AND status = 'ACTIVE'
+        LIMIT 1
+        FOR UPDATE
     </select>
 
     <select id="listPlans" resultMap="WeeklyPlanRowMap">
@@ -85,21 +100,43 @@
         WHERE id = #{id}
     </update>
 
+    <update id="activatePlan">
+        UPDATE weekly_plan
+        SET status = 'ACTIVE',
+            current_version = #{currentVersion},
+            profile_version_no = #{profileVersionNo},
+            calorie_low = #{calorieLow},
+            calorie_high = #{calorieHigh},
+            rules_version = #{rulesVersion},
+            validation_level = #{validationLevel},
+            validation_json = #{validationJson},
+            updated_at = #{updatedAt}
+        WHERE id = #{id} AND user_id = #{userId} AND status = 'DRAFT'
+    </update>
+
     <resultMap id="WeeklyPlanVersionRowMap" type="com.diet.model.WeeklyPlanVersionRow">
         <id property="id" column="id"/>
         <result property="planId" column="plan_id"/>
         <result property="versionNo" column="version_no"/>
         <result property="profileVersionNo" column="profile_version_no"/>
         <result property="profileSnapshotJson" column="profile_snapshot_json"/>
+        <result property="rulesVersion" column="rules_version"/>
+        <result property="sourceSessionId" column="source_session_id"/>
+        <result property="factSourcesJson" column="fact_sources_json"/>
+        <result property="resourceSnapshotJson" column="resource_snapshot_json"/>
         <result property="validationJson" column="validation_json"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO weekly_plan_version (
-            plan_id, version_no, profile_version_no, profile_snapshot_json, validation_json, created_at
+            plan_id, version_no, profile_version_no, profile_snapshot_json,
+            rules_version, source_session_id, fact_sources_json, resource_snapshot_json,
+            validation_json, created_at
         ) VALUES (
-            #{planId}, #{versionNo}, #{profileVersionNo}, #{profileSnapshotJson}, #{validationJson}, #{createdAt}
+            #{planId}, #{versionNo}, #{profileVersionNo}, #{profileSnapshotJson},
+            #{rulesVersion}, #{sourceSessionId}, #{factSourcesJson}, #{resourceSnapshotJson},
+            #{validationJson}, #{createdAt}
         )
     </insert>
 

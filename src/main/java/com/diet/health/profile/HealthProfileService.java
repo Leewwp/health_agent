@@ -9,7 +9,9 @@ import com.diet.model.HealthProfileRow;
 import com.diet.model.HealthProfileVersionRow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -83,7 +85,13 @@ public class HealthProfileService {
         }
     }
 
-    /** 保存档案：校验 → 计算区间 → 递增版本 + 快照。 */
+    /**
+     * 保存档案：校验 → 计算区间 → 行锁 → 递增版本 + 快照 + insertVersion，全程事务。
+     * 已存在档案场景用 findByUserIdForUpdate 锁定行，避免并发下版本号重复；
+     * 首份档案场景由 V4 唯一索引 uk_health_profile_user 兜底：并发双写时输掉的一方
+     * 收到 DataIntegrityViolationException，重读后按冲突错误返回（选 b 方案，不改 schema）。
+     */
+    @Transactional
     public HealthProfileView saveProfile(Long userId, HealthProfileInput input) {
         validate(input);
         String timezone = input.timezone() == null || input.timezone().isBlank()
@@ -93,7 +101,7 @@ public class HealthProfileService {
                 input.activityLevel(), input.goal());
         String calcBasis = buildCalcBasis(input);
 
-        HealthProfileRow row = profileMapper.findByUserId(userId);
+        HealthProfileRow row = profileMapper.findByUserIdForUpdate(userId);
         LocalDateTime now = LocalDateTime.now();
         long versionNo = row == null ? 1 : row.getVersionNo() + 1;
         if (row == null) {
@@ -103,7 +111,12 @@ public class HealthProfileService {
         }
         apply(row, input, timezone, range, versionNo, now);
         if (row.getId() == null) {
-            profileMapper.insert(row);
+            try {
+                profileMapper.insert(row);
+            } catch (DataIntegrityViolationException conflict) {
+                // 首份档案并发：唯一索引保证只有一条 version 1，输掉竞争的请求重读后按冲突返回
+                throw new HealthApiException(HealthApiException.CODE_CONFLICT, "档案正在被其他请求保存，请重试");
+            }
         } else {
             profileMapper.update(row);
         }

@@ -6,16 +6,23 @@ import com.diet.health.enums.PlanStatus;
 import com.diet.health.enums.PlanValidationLevel;
 import com.diet.health.enums.ProfileGoal;
 import com.diet.health.enums.ProfileSex;
-import com.diet.health.module.ExerciseModule;
-import com.diet.health.module.RoutineModule;
+import com.diet.health.resource.DbReviewedResourceProvider;
+import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.SeedResourceProvider;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.mapper.AgentTraceMapper;
+import com.diet.mapper.ExerciseMapper;
+import com.diet.mapper.MealMapper;
+import com.diet.mapper.RoutineFactMapper;
 import com.diet.mapper.WeeklyPlanMapper;
+import com.diet.model.ExerciseItemRow;
+import com.diet.model.RoutineFactRow;
 import com.diet.model.WeeklyPlanItemRow;
 import com.diet.model.WeeklyPlanRow;
 import com.diet.model.WeeklyPlanVersionRow;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.util.JsonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,8 +30,12 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -61,9 +72,10 @@ class WeeklyPlanServiceTest {
                 new HealthPlanResponseAgentService.PlanExplanation("已生成周计划草稿。", List.of(), null));
         when(picker.pickForDay(any(Integer.class), any(Integer.class))).thenReturn(threeMeals());
         AgentTraceService trace = new AgentTraceService(mock(AgentTraceMapper.class), objectMapper);
-        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(new ExerciseModule(), picker);
+        HealthResourceProvider provider = new SeedResourceProvider();
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
         service = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
-                new PlanValidationService(), planMapper, new ExerciseModule(), new RoutineModule(),
+                new PlanValidationService(), planMapper, provider,
                 planAgent, trace, objectMapper);
     }
 
@@ -91,6 +103,43 @@ class WeeklyPlanServiceTest {
         assertEquals(1, planMapper.versions.size());
         assertEquals(31, planMapper.items.size());
         assertEquals(1L, planMapper.versions.get(0).getVersionNo());
+    }
+
+    @Test
+    void 版本快照携带完整生成依据() {
+        PlanView view = service.createDraft(1L, draftRequest());
+        WeeklyPlanVersionRow version = planMapper.versions.get(0);
+        assertEquals(PlanValidationService.RULES_VERSION, version.getRulesVersion(), "版本保存规则版本");
+        assertEquals("sess-1", version.getSourceSessionId(), "版本保存来源会话");
+        assertTrue(version.getProfileSnapshotJson() != null && !version.getProfileSnapshotJson().isBlank(),
+                "版本保存档案快照");
+        assertTrue(version.getValidationJson() != null && !version.getValidationJson().isBlank(),
+                "版本保存校验结果");
+
+        assertTrue(version.getFactSourcesJson() != null && version.getFactSourcesJson().contains("R1"),
+                "版本保存作息事实来源（含事实 ID）");
+        assertTrue(version.getFactSourcesJson().contains("sourceName"), "作息事实来源含来源引用");
+
+        assertTrue(version.getResourceSnapshotJson() != null && version.getResourceSnapshotJson().contains("providerMode"),
+                "版本保存资源快照 Provider 模式");
+        assertTrue(version.getResourceSnapshotJson().contains("FIXTURE_SEED"), "fixture 模式标识明确");
+        assertTrue(version.getResourceSnapshotJson().contains("resourceId"), "资源快照含类型化 ID");
+        assertTrue(version.getResourceSnapshotJson().contains("planParams"), "资源快照含生成时计划参数");
+        assertTrue(version.getResourceSnapshotJson().contains("sourceName"), "资源快照含来源");
+        assertTrue(version.getResourceSnapshotJson().contains("sourceVersion"), "资源快照含来源版本");
+        assertTrue(version.getResourceSnapshotJson().contains("reviewStatus"), "资源快照含审核状态");
+    }
+
+    @Test
+    void 激活版本同样携带完整生成依据() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        service.activate(1L, draft.id());
+        WeeklyPlanVersionRow version = planMapper.versions.get(1);
+        assertEquals(2L, version.getVersionNo());
+        assertEquals(PlanValidationService.RULES_VERSION, version.getRulesVersion());
+        assertEquals("sess-1", version.getSourceSessionId());
+        assertTrue(version.getFactSourcesJson().contains("R1"));
+        assertTrue(version.getResourceSnapshotJson().contains("FIXTURE_SEED"));
     }
 
     @Test
@@ -155,6 +204,111 @@ class WeeklyPlanServiceTest {
         service.activate(1L, draft.id());
         HealthApiException error = assertThrows(HealthApiException.class, () -> service.activate(1L, draft.id()));
         assertEquals(HealthApiException.CODE_CONFLICT, error.code());
+    }
+
+    @Test
+    void 激活使用行锁重读与激活专用更新() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanView active = service.activate(1L, draft.id());
+        assertEquals(PlanStatus.ACTIVE, active.status());
+        assertTrue(planMapper.findPlanByIdForUpdateCalls > 0, "激活必须用 FOR UPDATE 重读目标计划");
+        assertEquals(0, planMapper.findPlanByIdCalls, "激活路径不得用非锁定查询");
+        assertTrue(planMapper.findActiveByUserForUpdateCalls > 0, "激活必须锁定现有 ACTIVE");
+        assertEquals(1, planMapper.activatePlanCalls);
+        assertEquals(PlanStatus.ACTIVE.name(), planMapper.lastActivateArg.getStatus());
+        assertEquals(2L, planMapper.lastActivateArg.getCurrentVersion(), "激活写回新版本号");
+    }
+
+    @Test
+    void 激活专用更新携带档案依据与校验信息() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        service.activate(1L, draft.id());
+        assertEquals(1L, planMapper.lastActivateArg.getProfileVersionNo(), "激活刷新档案版本");
+        assertEquals(1200, planMapper.lastActivateArg.getCalorieLow());
+        assertEquals(1800, planMapper.lastActivateArg.getCalorieHigh());
+        assertEquals(PlanValidationService.RULES_VERSION, planMapper.lastActivateArg.getRulesVersion());
+        assertEquals(PlanValidationLevel.OK.name(), planMapper.lastActivateArg.getValidationLevel());
+        assertTrue(planMapper.lastActivateArg.getValidationJson() != null
+                        && !planMapper.lastActivateArg.getValidationJson().isBlank(),
+                "激活写回校验结果 JSON");
+        assertEquals(PlanStatus.ACTIVE.name(), planMapper.lastActivateArg.getStatus());
+    }
+
+    @Test
+    void 版本快照写入失败时activatePlan不被调用() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        planMapper.failInsertVersion = true;
+        assertThrows(IllegalStateException.class, () -> service.activate(1L, draft.id()));
+        assertEquals(0, planMapper.activatePlanCalls, "版本写入失败不得推进计划状态（回滚语义）");
+        assertEquals(PlanStatus.DRAFT.name(), planMapper.plans.get(0).getStatus(), "计划保持 DRAFT");
+    }
+
+    @Test
+    void 项目写入失败时草稿不落库() {
+        planMapper.failInsertItem = true;
+        assertThrows(IllegalStateException.class, () -> service.createDraft(1L, draftRequest()));
+        // 内存假 Mapper 不模拟事务回滚；"数据库无半成品"由 @Transactional 在真实事务中保证
+        // （真实 MySQL 迁移与事务验证在 38 号最终验收）。此处验证失败即中止、不再继续写入。
+        assertEquals(0, planMapper.items.size(), "项目写入失败即中止，不再继续写入");
+        assertEquals(1, planMapper.versions.size(), "计划与版本写入先于项目（调用顺序证据）");
+    }
+
+    @Test
+    void 激活归档旧ACTIVE更新失败时状态不推进() {
+        PlanView first = service.createDraft(1L, draftRequest());
+        service.activate(1L, first.id());
+        PlanView second = service.createDraft(1L, draftRequest());
+        planMapper.failUpdatePlan = true;
+        assertThrows(IllegalStateException.class, () -> service.activate(1L, second.id()));
+        assertEquals(1, planMapper.activatePlanCalls, "归档更新失败不得执行新的激活更新（回滚语义）");
+        assertEquals(PlanStatus.ACTIVE.name(), planMapper.plans.get(0).getStatus(), "旧 ACTIVE 保持 ACTIVE");
+        assertEquals(PlanStatus.DRAFT.name(), planMapper.plans.get(1).getStatus(), "目标计划保持 DRAFT");
+    }
+
+    @Test
+    void 激活状态已变化时activatePlan返回0抛CONFLICT() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        planMapper.onFindActiveForUpdate = () -> {
+            WeeklyPlanRow row = planMapper.plans.get(0);
+            row.setStatus(PlanStatus.ACTIVE.name());
+        };
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.activate(1L, draft.id()));
+        assertEquals(HealthApiException.CODE_CONFLICT, error.code());
+        assertEquals("计划状态已变化，请刷新后重试", error.getMessage());
+        assertEquals(0, planMapper.activatePlanAffectedRows, "冲突路径下激活更新影响 0 行");
+    }
+
+    @Test
+    void 并发激活同一草稿只有一个成功() throws Exception {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        int threads = 2;
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
+        for (int i = 0; i < threads; i++) {
+            new Thread(() -> {
+                try {
+                    start.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                try {
+                    service.activate(1L, draft.id());
+                    results.add("OK");
+                } catch (HealthApiException e) {
+                    results.add(e.code());
+                }
+                done.countDown();
+            }).start();
+        }
+        start.countDown();
+        assertTrue(done.await(10, TimeUnit.SECONDS), "并发激活应在限时内完成");
+        assertEquals(threads, results.size());
+        assertEquals(1, results.stream().filter("OK"::equals).count(), "同一草稿只能激活成功一次");
+        assertEquals(1, results.stream().filter(HealthApiException.CODE_CONFLICT::equals).count(),
+                "输掉竞争的请求得到冲突错误");
+        assertEquals(PlanStatus.ACTIVE.name(), planMapper.plans.get(0).getStatus());
     }
 
     @Test
@@ -298,26 +452,122 @@ class WeeklyPlanServiceTest {
         assertEquals(PlanValidationLevel.OK, view.validationLevel());
     }
 
-    /** 内存版 WeeklyPlanMapper。 */
+    @Test
+    void 数据库模式草稿全部引用审核子集资源() {
+        ExerciseMapper exerciseMapper = mock(ExerciseMapper.class);
+        MealMapper mealMapper = mock(MealMapper.class);
+        RoutineFactMapper factMapper = mock(RoutineFactMapper.class);
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of(
+                exerciseRow(101L, "chest", "[\"triceps\"]", "[\"triceps\", \"deltoids\", \"core\"]", "body weight", true),
+                exerciseRow(102L, "upper legs", "[\"quadriceps\"]", "[\"quadriceps\", \"hamstrings\", \"calves\"]", "body weight", true),
+                exerciseRow(103L, "back", "[\"biceps\"]", "[\"biceps\", \"forearms\"]", "band", false)
+        ));
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of());
+        when(factMapper.selectAll()).thenReturn(List.of(factRow("aasm-sleep-minimum", "睡眠时长下限"),
+                factRow("nsf-sleep-duration-adult", "睡眠时长")));
+        when(factMapper.selectByTopicLike(any())).thenAnswer(invocation -> List.of(factRow("aasm-sleep-minimum", "睡眠时长下限")));
+        HealthResourceProvider provider = new DbReviewedResourceProvider(
+                exerciseMapper, mealMapper, factMapper, new JsonService(objectMapper));
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
+        WeeklyPlanService dbService = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
+                new PlanValidationService(), planMapper, provider,
+                planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper), objectMapper);
+
+        PlanView view = dbService.createDraft(1L, draftRequest());
+
+        Set<String> seedIds = Set.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008", "R1", "R2", "R3", "R4", "R5");
+        assertTrue(view.items().stream().noneMatch(item -> seedIds.contains(item.resourceId())),
+                "数据库模式草稿不得引用种子 ID（9001-9008/R1-R5）");
+        PlanItemView sleep = view.items().stream().filter(item -> "ROUTINE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        assertEquals("aasm-sleep-minimum", sleep.resourceId(), "睡眠项目使用数据库事实 ref_id");
+        assertTrue(view.items().stream().filter(item -> "EXERCISE".equals(item.resourceType()))
+                        .allMatch(item -> provider.planReadyExerciseIds().contains(item.resourceId())),
+                "训练项目必须来自 plan_ready 审核动作");
+        assertTrue(view.items().stream().filter(item -> "ROUTINE".equals(item.resourceType()))
+                        .allMatch(item -> provider.allFactIds().contains(item.resourceId())),
+                "作息项目必须来自审核事实 ref_id");
+        assertEquals(PlanValidationLevel.OK, view.validationLevel());
+    }
+
+    private static ExerciseItemRow exerciseRow(Long id, String bodyPart, String target, String secondary,
+                                               String equipment, boolean planReady) {
+        ExerciseItemRow row = new ExerciseItemRow();
+        row.setId(id);
+        row.setName("动作" + id);
+        row.setSourceName("gym-visual-exercises-dataset");
+        row.setBodyPart(bodyPart);
+        row.setTargetMuscles(target);
+        row.setSecondaryMuscles(secondary);
+        row.setEquipment(equipment);
+        row.setDifficulty("入门");
+        row.setMovementPattern("推");
+        row.setPlanReady(planReady);
+        return row;
+    }
+
+    private static RoutineFactRow factRow(String refId, String topic) {
+        RoutineFactRow row = new RoutineFactRow();
+        row.setRefId(refId);
+        row.setTopic(topic);
+        row.setFactZh("事实内容");
+        row.setScope("成人 18+");
+        row.setSource("来源机构");
+        row.setSourceVersion("2015");
+        return row;
+    }
+
+    /** 内存版 WeeklyPlanMapper（方法同步，支持并发激活测试；含激活路径计数与钩子）。 */
     private static final class FakeWeeklyPlanMapper implements WeeklyPlanMapper {
         final List<WeeklyPlanRow> plans = new ArrayList<>();
         final List<WeeklyPlanVersionRow> versions = new ArrayList<>();
         final List<WeeklyPlanItemRow> items = new ArrayList<>();
+        int findPlanByIdCalls;
+        int findPlanByIdForUpdateCalls;
+        int findActiveByUserForUpdateCalls;
+        int activatePlanCalls;
+        int activatePlanAffectedRows;
+        WeeklyPlanRow lastActivateArg;
+        /** 测试钩子：insertVersion 抛异常（模拟 DB 故障）。 */
+        volatile boolean failInsertVersion = false;
+        /** 测试钩子：insertItem 抛异常（模拟 DB 故障，39 号票回滚语义）。 */
+        volatile boolean failInsertItem = false;
+        /** 测试钩子：updatePlan 抛异常（模拟 DB 故障，39 号票回滚语义）。 */
+        volatile boolean failUpdatePlan = false;
+        /** 测试钩子：在锁定现有 ACTIVE 后、activatePlan 前模拟其他事务已抢先提交。 */
+        volatile Runnable onFindActiveForUpdate;
 
         @Override
-        public WeeklyPlanRow findPlanById(Long id, Long userId) {
+        public synchronized WeeklyPlanRow findPlanById(Long id, Long userId) {
+            findPlanByIdCalls++;
             return plans.stream().filter(row -> row.getId().equals(id) && row.getUserId().equals(userId))
-                    .findFirst().orElse(null);
+                    .findFirst().map(WeeklyPlanServiceTest::copyPlan).orElse(null);
         }
 
         @Override
-        public WeeklyPlanRow findActiveByUser(Long userId) {
+        public synchronized WeeklyPlanRow findPlanByIdForUpdate(Long id, Long userId) {
+            findPlanByIdForUpdateCalls++;
+            return plans.stream().filter(row -> row.getId().equals(id) && row.getUserId().equals(userId))
+                    .findFirst().map(WeeklyPlanServiceTest::copyPlan).orElse(null);
+        }
+
+        @Override
+        public synchronized WeeklyPlanRow findActiveByUser(Long userId) {
             return plans.stream().filter(row -> row.getUserId().equals(userId) && "ACTIVE".equals(row.getStatus()))
-                    .findFirst().orElse(null);
+                    .findFirst().map(WeeklyPlanServiceTest::copyPlan).orElse(null);
         }
 
         @Override
-        public List<WeeklyPlanRow> listPlans(Long userId) {
+        public synchronized WeeklyPlanRow findActiveByUserForUpdate(Long userId) {
+            findActiveByUserForUpdateCalls++;
+            if (onFindActiveForUpdate != null) {
+                onFindActiveForUpdate.run();
+            }
+            return findActiveByUser(userId);
+        }
+
+        @Override
+        public synchronized List<WeeklyPlanRow> listPlans(Long userId) {
             return plans.stream().filter(row -> row.getUserId().equals(userId))
                     .sorted((a, b) -> {
                         int orderA = switch (a.getStatus()) {
@@ -335,14 +585,17 @@ class WeeklyPlanServiceTest {
         }
 
         @Override
-        public int insertPlan(WeeklyPlanRow row) {
+        public synchronized int insertPlan(WeeklyPlanRow row) {
             row.setId((long) plans.size() + 1);
             plans.add(row);
             return 1;
         }
 
         @Override
-        public int updatePlan(WeeklyPlanRow row) {
+        public synchronized int updatePlan(WeeklyPlanRow row) {
+            if (failUpdatePlan) {
+                throw new IllegalStateException("计划更新失败");
+            }
             for (int i = 0; i < plans.size(); i++) {
                 if (plans.get(i).getId().equals(row.getId())) {
                     plans.set(i, row);
@@ -353,33 +606,56 @@ class WeeklyPlanServiceTest {
         }
 
         @Override
-        public int insertVersion(WeeklyPlanVersionRow row) {
+        public synchronized int activatePlan(WeeklyPlanRow row) {
+            activatePlanCalls++;
+            lastActivateArg = row;
+            for (int i = 0; i < plans.size(); i++) {
+                if (plans.get(i).getId().equals(row.getId())
+                        && plans.get(i).getUserId().equals(row.getUserId())
+                        && "DRAFT".equals(plans.get(i).getStatus())) {
+                    plans.set(i, row);
+                    activatePlanAffectedRows = 1;
+                    return 1;
+                }
+            }
+            activatePlanAffectedRows = 0;
+            return 0;
+        }
+
+        @Override
+        public synchronized int insertVersion(WeeklyPlanVersionRow row) {
+            if (failInsertVersion) {
+                throw new IllegalStateException("版本快照写入失败");
+            }
             row.setId((long) versions.size() + 1);
             versions.add(row);
             return 1;
         }
 
         @Override
-        public List<WeeklyPlanItemRow> findItems(Long planId, Long versionNo) {
+        public synchronized List<WeeklyPlanItemRow> findItems(Long planId, Long versionNo) {
             return items.stream()
                     .filter(row -> row.getPlanId().equals(planId) && row.getVersionNo().equals(versionNo))
                     .toList();
         }
 
         @Override
-        public WeeklyPlanItemRow findItemById(Long itemId) {
+        public synchronized WeeklyPlanItemRow findItemById(Long itemId) {
             return items.stream().filter(row -> row.getId().equals(itemId)).findFirst().orElse(null);
         }
 
         @Override
-        public int insertItem(WeeklyPlanItemRow row) {
+        public synchronized int insertItem(WeeklyPlanItemRow row) {
+            if (failInsertItem) {
+                throw new IllegalStateException("项目写入失败");
+            }
             row.setId((long) items.size() + 1);
             items.add(row);
             return 1;
         }
 
         @Override
-        public int updateItemSchedule(WeeklyPlanItemRow row) {
+        public synchronized int updateItemSchedule(WeeklyPlanItemRow row) {
             for (int i = 0; i < items.size(); i++) {
                 if (items.get(i).getId().equals(row.getId())) {
                     items.set(i, row);
@@ -388,5 +664,27 @@ class WeeklyPlanServiceTest {
             }
             return 0;
         }
+    }
+
+    /** 复制计划行：模拟"已提交的数据库状态"与调用方持有的对象分离（否则服务层内存修改会污染行锁判定）。 */
+    private static WeeklyPlanRow copyPlan(WeeklyPlanRow row) {
+        WeeklyPlanRow copy = new WeeklyPlanRow();
+        copy.setId(row.getId());
+        copy.setUserId(row.getUserId());
+        copy.setStatus(row.getStatus());
+        copy.setWeekStart(row.getWeekStart());
+        copy.setTimezone(row.getTimezone());
+        copy.setProfileVersionNo(row.getProfileVersionNo());
+        copy.setCalorieLow(row.getCalorieLow());
+        copy.setCalorieHigh(row.getCalorieHigh());
+        copy.setRulesVersion(row.getRulesVersion());
+        copy.setValidationLevel(row.getValidationLevel());
+        copy.setValidationJson(row.getValidationJson());
+        copy.setNote(row.getNote());
+        copy.setSourceSessionId(row.getSourceSessionId());
+        copy.setCurrentVersion(row.getCurrentVersion());
+        copy.setCreatedAt(row.getCreatedAt());
+        copy.setUpdatedAt(row.getUpdatedAt());
+        return copy;
     }
 }
