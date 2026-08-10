@@ -28,7 +28,10 @@ import java.util.TreeMap;
 @Service
 public class PlanValidationService {
 
-    /** 组合时规则集版本（与 32 号风险规则版本独立演进）。 */
+    /**
+     * 组合时规则集版本（与 RiskRuleCatalog.RULES_VERSION 独立演进：目录管意图/关键词
+     * 风险规则，本常量管计划不变量校验规则，两者阶段不同，分别写入版本生成依据）。
+     */
     public static final String RULES_VERSION = "2026-08-10-plan-v1";
 
     /** 校验阶段名。 */

@@ -11,41 +11,54 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 健康会话状态读写服务，复用 diet_sessions 表。
  * slots 列存健康槽位 Map + _meta（domain/task/riskFlags），phase 列存健康阶段名，
- * last_recommendations 列存推荐资源 ID。与旧饮食会话互不读写对方的业务字段。
+ * last_recommendations 列存类型化资源引用 JSON。与旧饮食会话互不读写对方的业务字段。
  */
 @Service
 public class HealthSessionService {
 
-    private static final TypeReference<Map<String, List<String>>> SLOT_MAP = new TypeReference<>() {
-    };
-    private static final TypeReference<List<Long>> LONG_LIST = new TypeReference<>() {
-    };
     private static final TypeReference<List<PreferenceSignal>> SIGNAL_LIST = new TypeReference<>() {
     };
+    private static final TypeReference<Map<String, String>> REF_MAP = new TypeReference<>() {
+    };
+
+    /** 默认会话前缀（43 号票：HMAC 派生 ID，64 字符限制内）。 */
+    private static final String DEFAULT_SESSION_PREFIX = "sess_";
+    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final int DEFAULT_SESSION_HMAC_BYTES = 28;
 
     private final SessionMapper sessionMapper;
     private final ObjectMapper objectMapper;
+
+    @Value("${diet.security.session-secret:dev-only-change-me}")
+    private String sessionSecret;
 
     public HealthSessionService(SessionMapper sessionMapper, ObjectMapper objectMapper) {
         this.sessionMapper = sessionMapper;
         this.objectMapper = objectMapper;
     }
 
-    /** 加载或创建会话。 */
+    /**
+     * 加载或创建会话（43 号票）：缺省 sessionId 时按稳定匿名身份派生默认会话，
+     * 相同 userId 重复请求命中同一会话（幂等响应）；显式 sessionId 仍优先使用。
+     */
     public HealthSessionState loadOrCreate(String sessionId, Long userId) {
         if (sessionId == null || sessionId.isBlank()) {
-            return create(userId);
+            return loadOrCreate(defaultSessionId(userId), userId);
         }
         SessionRow row = sessionMapper.findById(sessionId, userId);
         if (row == null) {
@@ -60,19 +73,27 @@ public class HealthSessionService {
         return fromRow(row);
     }
 
+    /**
+     * 缺省会话 ID：HMAC(secret, "default-session:" + userId) 截断 28 字节转 hex。
+     * 稳定（同一匿名身份恒同）、不可被其他匿名身份猜测（密钥在服务端）、长度 61 ≤ 64。
+     */
+    private String defaultSessionId(Long userId) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
+            mac.init(new SecretKeySpec(sessionSecret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+            byte[] digest = mac.doFinal(("default-session:" + userId).getBytes(StandardCharsets.UTF_8));
+            return DEFAULT_SESSION_PREFIX + HexFormat.of().formatHex(digest, 0, DEFAULT_SESSION_HMAC_BYTES);
+        } catch (Exception error) {
+            throw new DietException("默认会话标识派生失败", error);
+        }
+    }
+
     /** 持久化会话状态（update 未命中时 insert）。 */
     public void save(HealthSessionState state) {
         int updated = sessionMapper.update(toRow(state));
         if (updated == 0) {
             insert(state);
         }
-    }
-
-    private HealthSessionState create(Long userId) {
-        String sessionId = "sess_" + UUID.randomUUID().toString().replace("-", "");
-        HealthSessionState state = HealthSessionState.fresh(sessionId, userId);
-        insert(state);
-        return state;
     }
 
     private void insert(HealthSessionState state) {
@@ -85,7 +106,7 @@ public class HealthSessionService {
         row.setUserId(state.userId());
         row.setPhase(state.phase() == null ? null : state.phase().name());
         row.setSlots(toSlotsJson(state));
-        row.setLastRecommendations(toJson(state.lastResourceIds()));
+        row.setLastRecommendations(toJson(state.lastResources()));
         return row;
     }
 
@@ -124,11 +145,40 @@ public class HealthSessionService {
                     parseEnum(meta.path("task").asText(null), HealthTask.class),
                     readStringList(meta.path("riskFlags")),
                     slots,
-                    readLongList(row.getLastRecommendations()),
+                    readResourceRefs(row.getLastRecommendations()),
                     readSignals(meta.path("preferenceSignals"))
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);
+        }
+    }
+
+    /**
+     * 读取 last_recommendations（43 号票）：新版为 {type,id} 对象数组；
+     * 旧版为数字数组，读取时按无类型遗留引用兼容（不丢数据、不崩溃）。
+     */
+    private List<SessionResourceRef> readResourceRefs(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode array = objectMapper.readTree(json);
+            List<SessionResourceRef> refs = new ArrayList<>();
+            if (array.isArray()) {
+                for (JsonNode node : array) {
+                    if (node.isObject()) {
+                        Map<String, String> map = objectMapper.convertValue(node, REF_MAP);
+                        if (map.get("id") != null && !map.get("id").isBlank()) {
+                            refs.add(new SessionResourceRef(map.get("type"), map.get("id")));
+                        }
+                    } else if (node.isNumber()) {
+                        refs.add(SessionResourceRef.legacy(node.asText()));
+                    }
+                }
+            }
+            return List.copyOf(refs);
+        } catch (Exception ignored) {
+            return List.of();
         }
     }
 
@@ -150,17 +200,6 @@ public class HealthSessionService {
             }
         });
         return result;
-    }
-
-    private List<Long> readLongList(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, LONG_LIST);
-        } catch (Exception ignored) {
-            return List.of();
-        }
     }
 
     private List<PreferenceSignal> readSignals(JsonNode node) {

@@ -15,8 +15,14 @@ public interface WeeklyPlanMapper {
     /** 按 id + 归属查询计划。 */
     WeeklyPlanRow findPlanById(@Param("id") Long id, @Param("userId") Long userId);
 
+    /** 按 id + 归属查询计划并锁定行（激活路径使用，串行化并发激活）。 */
+    WeeklyPlanRow findPlanByIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
+
     /** 某用户的 ACTIVE 计划（同一用户最多一份）。 */
     WeeklyPlanRow findActiveByUser(@Param("userId") Long userId);
+
+    /** 某用户的 ACTIVE 计划并锁定行（激活路径归档前使用）。 */
+    WeeklyPlanRow findActiveByUserForUpdate(@Param("userId") Long userId);
 
     /** 按用户列出全部计划（ACTIVE 优先，再 DRAFT，最后 ARCHIVED，按更新时间倒序）。 */
     List<WeeklyPlanRow> listPlans(@Param("userId") Long userId);
@@ -24,6 +30,9 @@ public interface WeeklyPlanMapper {
     int insertPlan(WeeklyPlanRow row);
 
     int updatePlan(WeeklyPlanRow row);
+
+    /** 激活专用更新：status='DRAFT' 条件保证原子性，影响 0 行说明状态已变化。 */
+    int activatePlan(WeeklyPlanRow row);
 
     int insertVersion(WeeklyPlanVersionRow row);
 

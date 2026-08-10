@@ -46,6 +46,13 @@
         WHERE user_id = #{userId}
     </select>
 
+    <select id="findByUserIdForUpdate" resultMap="HealthProfileRowMap">
+        SELECT <include refid="ProfileColumns"/>
+        FROM health_profile
+        WHERE user_id = #{userId}
+        FOR UPDATE
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO health_profile (
             user_id, age, sex, height_cm, weight_kg, activity_level, goal, timezone,

@@ -36,8 +36,12 @@ public class ExerciseBrowseService {
         if (size < 1 || size > MAX_PAGE_SIZE) {
             throw new DietException("size 必须在 1 到 " + MAX_PAGE_SIZE + " 之间");
         }
-        int offset = (page - 1) * size;
-        List<ExerciseItemRow> rows = exerciseMapper.browse(offset, size);
+        // 43 号票：long 计算 offset 防 int 溢出，超出数据库安全范围统一 400
+        long offset = (long) (page - 1) * size;
+        if (offset > Integer.MAX_VALUE) {
+            throw new DietException("page 超出安全范围");
+        }
+        List<ExerciseItemRow> rows = exerciseMapper.browse((int) offset, size);
         int total = exerciseMapper.count();
         List<ExerciseBrowseItem> items = rows.stream().map(this::toItem).toList();
         return PagedResponse.of(items, page, size, total);

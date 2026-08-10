@@ -70,4 +70,18 @@
         WHERE review_status = 'APPROVED'
     </select>
 
+    <select id="findAllApproved" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE review_status = 'APPROVED'
+        ORDER BY id
+    </select>
+
+    <select id="findById" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE id = #{id}
+        AND review_status = 'APPROVED'
+    </select>
+
 </mapper>

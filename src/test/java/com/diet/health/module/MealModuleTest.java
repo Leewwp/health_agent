@@ -1,11 +1,13 @@
 package com.diet.health.module;
 
 import com.diet.enums.SourceMode;
+import com.diet.health.feedback.PreferenceService;
 import com.diet.health.rag.MealRetrievalQuery;
 import com.diet.health.rag.MealRetriever;
 import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalMode;
 import com.diet.health.rag.RetrievalResult;
+import com.diet.mapper.FeedbackMapper;
 import com.diet.model.MealItem;
 import com.diet.model.SlotBundle;
 import com.diet.service.meal.MealRankService;
@@ -31,7 +33,8 @@ class MealModuleTest {
     private final MealSearchService search = mock(MealSearchService.class);
     private final MealRetriever retriever = mock(MealRetriever.class);
     private final AgentTraceService trace = mock(AgentTraceService.class);
-    private final MealModule module = new MealModule(search, new MealRankService(), trace, retriever);
+    private final MealModule module = new MealModule(
+            search, new MealRankService(), trace, retriever, new PreferenceService(mock(FeedbackMapper.class)));
 
     @Test
     void PERSONAL空库返回空候选不抛异常() {

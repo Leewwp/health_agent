@@ -15,4 +15,10 @@ public interface ExerciseMapper {
 
     /** 动作总数（浏览分页用）。 */
     int count();
+
+    /** 全部审核通过动作（Provider 用，与浏览同审核条件），按 id 升序。 */
+    List<ExerciseItemRow> findAllApproved();
+
+    /** 按主键查审核通过动作（反馈校验与组合器用）。 */
+    ExerciseItemRow findById(@Param("id") Long id);
 }

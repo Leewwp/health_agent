@@ -6,6 +6,7 @@ import com.diet.agent.loader.PromptLoader;
 import com.diet.health.TestSupport;
 import com.diet.health.clarify.HealthClarifyAgentService;
 import com.diet.health.clarify.HealthClarifyRuleService;
+import com.diet.health.feedback.PreferenceService;
 import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.intent.IntentRuleService;
@@ -17,9 +18,11 @@ import com.diet.health.module.HealthResource;
 import com.diet.health.module.MealModule;
 import com.diet.health.module.RoutineModule;
 import com.diet.health.recommend.HealthRecommendResponseService;
+import com.diet.health.resource.SeedResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.health.session.HealthSessionService;
 import com.diet.mapper.AgentTraceMapper;
+import com.diet.mapper.FeedbackMapper;
 import com.diet.mapper.SessionMapper;
 import com.diet.model.RequestTraceRow;
 import com.diet.model.SessionMessageRow;
@@ -32,6 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,6 +44,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -92,6 +97,7 @@ class HealthOrchestratorServiceTest {
     private final AgentTraceMapper traceMapper = mock(AgentTraceMapper.class);
     private final List<RequestTraceRow> insertedTraces = new ArrayList<>();
     private final FakeSessionMapper sessionMapper = new FakeSessionMapper();
+    private final PreferenceService preferenceService = new PreferenceService(mock(FeedbackMapper.class));
     private MealModule mealModule;
     private HealthOrchestratorService orchestrator;
 
@@ -115,6 +121,7 @@ class HealthOrchestratorServiceTest {
         AgentTraceService trace = new AgentTraceService(traceMapper, objectMapper);
         SessionService messageService = new SessionService(sessionMapper, new JsonService(objectMapper), 10);
         HealthSessionService sessionService = new HealthSessionService(sessionMapper, objectMapper);
+        ReflectionTestUtils.setField(sessionService, "sessionSecret", "test-secret");
         AgentContractModule contract = new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper), trace);
         HealthSlotDictionary dictionary = new HealthSlotDictionary(TestSupport.slotOptionService());
         HealthIntentAgentService intent = new HealthIntentAgentService(contract, new PromptLoader(), dictionary, new IntentRuleService(dictionary), "qwen-turbo", "v1", 1000);
@@ -129,7 +136,8 @@ class HealthOrchestratorServiceTest {
 
         orchestrator = new HealthOrchestratorService(
                 sessionService, messageService, intent, new HealthClarifyRuleService(), clarify,
-                new HealthRiskRuleService(), mealModule, new ExerciseModule(), new RoutineModule(),
+                new HealthRiskRuleService(), mealModule, new ExerciseModule(new SeedResourceProvider(), preferenceService),
+                new RoutineModule(new SeedResourceProvider()), new SeedResourceProvider(),
                 recommend, trace, objectMapper);
     }
 
@@ -168,7 +176,7 @@ class HealthOrchestratorServiceTest {
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertEquals("ROUTINE", response.domain().name());
         assertFalse(response.displayBlocks().isEmpty());
-        assertEquals("FACT", response.displayBlocks().get(0).resourceType());
+        assertEquals("ROUTINE", response.displayBlocks().get(0).resourceType());
         assertNotNull(response.displayBlocks().get(0).sourceName());
     }
 
@@ -242,6 +250,27 @@ class HealthOrchestratorServiceTest {
         assertEquals(first.speechText(), second.speechText());
         assertEquals(first.traceId(), second.traceId());
         assertEquals(tracesAfterFirst, insertedTraces.size(), "重复请求不应新增 Trace");
+    }
+
+    @Test
+    void 缺省sessionId重复requestId命中同一响应快照() {
+        String requestId = "no-session-dup-1";
+        HealthChatResponse first = orchestrator.healthChat(1L,
+                new HealthChatRequest(null, requestId, "想练胸", Map.of()));
+        HealthChatResponse second = orchestrator.healthChat(1L,
+                new HealthChatRequest(null, requestId, "想练胸", Map.of()));
+        assertEquals(first.sessionId(), second.sessionId(), "缺省会话按匿名身份稳定派生");
+        assertEquals(first.speechText(), second.speechText(), "幂等响应快照一致");
+        assertEquals(first.traceId(), second.traceId());
+    }
+
+    @Test
+    void 不同匿名身份缺省会话互不相同() {
+        HealthChatResponse one = orchestrator.healthChat(1L,
+                new HealthChatRequest(null, "no-session-a-1", "想练胸", Map.of()));
+        HealthChatResponse two = orchestrator.healthChat(2L,
+                new HealthChatRequest(null, "no-session-a-2", "想练胸", Map.of()));
+        assertNotEquals(one.sessionId(), two.sessionId());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.diet.health.module;
 
 import com.diet.enums.SourceMode;
+import com.diet.health.feedback.PreferenceService;
 import com.diet.health.rag.MealRetrievalQuery;
 import com.diet.health.rag.MealRetriever;
 import com.diet.health.rag.RetrievalItem;
@@ -34,14 +35,17 @@ public class MealModule {
     private final MealRankService mealRankService;
     private final AgentTraceService agentTraceService;
     private final MealRetriever mealRetriever;
+    private final PreferenceService preferenceService;
 
     public MealModule(MealSearchService mealSearchService, MealRankService mealRankService,
                       AgentTraceService agentTraceService,
-                      @Qualifier("mealRetriever") MealRetriever mealRetriever) {
+                      @Qualifier("mealRetriever") MealRetriever mealRetriever,
+                      PreferenceService preferenceService) {
         this.mealSearchService = mealSearchService;
         this.mealRankService = mealRankService;
         this.agentTraceService = agentTraceService;
         this.mealRetriever = mealRetriever;
+        this.preferenceService = preferenceService;
     }
 
     /** 旧饮食链路：检索 + 重排，返回最多 10 条候选，内部记录 MEAL_SEARCHED / MEAL_RANKED Trace 事件。 */
@@ -70,7 +74,7 @@ public class MealModule {
         traceDetail.put("candidateCount", result.items().size());
         traceDetail.put("candidates", result.items().stream().map(RetrievalItem::meal).toList());
         agentTraceService.recordEvent("MEAL_RETRIEVED", "RETRIEVE", healthSlots, traceDetail);
-        return result.items().stream()
+        List<HealthResource> resources = result.items().stream()
                 .map(item -> new HealthResource(
                         "MEAL",
                         String.valueOf(item.meal().id()),
@@ -82,6 +86,7 @@ public class MealModule {
                         slotsToTags(item.meal().slots())
                 ))
                 .toList();
+        return preferenceService.applyPreference(resources);
     }
 
     /** 旧链路使用的 7 维槽位（SlotBundle）→ 标签 Map。 */

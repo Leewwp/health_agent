@@ -44,6 +44,9 @@ public interface MealMapper {
 
     /** 全部审核通过的公共餐食（离线 Embedding 生成用）。 */
     List<MealItemRow> findApprovedPublicMeals();
+
+    /** 按主键查审核通过公共餐食（反馈校验与组合器用）。 */
+    MealItemRow findApprovedPublicById(@Param("id") Long id);
 }
 
 

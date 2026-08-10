@@ -176,6 +176,25 @@ DRAFT -> ACTIVE
 
 完成标准：用户侧只看到用户体验功能，开发测完整功能可用，媒体失败和空数据不会破坏布局。
 
+### M5：面试工程化后端增强（31-36 全部完成后启动）
+
+M5 不属于首版 MVP 门槛。它在现有健康 Agent 地图完成后使用独立 Wayfinder 地图推进，按
+`5 个开发日 + 1 个验收日 + 1 个缓冲日` 时间盒实施；目标是完成本地可运行的最小后端增强，
+不改变现有确定性编排、风险规则和旧饮食 API 兼容行为。
+
+- DashScope 同时提供现有 Agent 调用与 `text-embedding-v3` 向量生成；API key 只通过环境变量注入。供应商兼容性依据见 [LLM 供应商密钥与 AgentScope/Qdrant 兼容性研究](research/llm-provider-key-compatibility.md)；
+- 复用 AgentScope 1.0.11 依赖线，在项目中显式锁定 MCP Java SDK `0.17.0` 与 Qdrant Java Client `1.17.0`，本地镜像固定为 `qdrant/qdrant:v1.17.0`；不为本阶段升级 Spring Boot 或引入 Spring AI。版本依据和兼容风险见 [MCP + Qdrant Java 最小落地评估](research/mcp-qdrant-java-integration-fit.md)；
+- 定义小型 `VectorStore` seam，提供 Qdrant 生产适配器和内存测试适配器。MySQL 继续保存餐食事实和业务状态，Qdrant 只保存可按 `provider + model + dimension + version` 重建的向量索引；
+- 将餐食 hybrid 检索从“结构化候选池内语义重排”改为结构化召回与 Qdrant 向量召回的候选合并。审核状态、来源、过敏原和排除 ID 仍是确定性硬约束；Qdrant 或 Embedding 不可用时降级到结构化检索；
+- 在同一个 Spring Boot 应用中提供 MCP HTTP 入口，使用 `MCP_API_TOKEN` 做最小 Bearer 鉴权，只开放 `search_meals`、`get_meal_detail`、`get_routine_facts` 和 `calculate_targets` 四个公共只读或纯计算工具；
+- 建立版本化 YAML Skills Registry，首批登记 `meal-recommendation`、`routine-guidance` 和 `health-target-calculation`。每个 manifest 固定 `name/version/input_schema/output_schema/allowed_tools/risk_level`，并作为 MCP resources 提供读取；
+- Skills 只描述能力、Schema 和工具白名单，MCP 只复用既有领域模块；当前健康 Agent 不改成自主工具调用，也不通过 HTTP/MCP 回调自身；
+- 仅强化健康链路现有 `AgentContractModule` 的 Trace 脱敏和必要失败信息，不在本阶段迁移旧饮食链路的会话级 Agent 调用方式。
+
+实施顺序：第一天先完成依赖双冒烟，包括 Maven 编译与现有测试、MCP `initialize -> tools/list -> tools/call -> resources/read`、Qdrant collection 创建/upsert/过滤查询；通过后再用真实 DashScope key 生成向量并完成结构化/向量候选合并与降级，随后实现 MCP tools、Skills manifest/resources 和工具白名单，最后完成配置、核心测试和本地联调。任一阶段都必须保持 `mvn test` 可通过。
+
+完成标准：本地启动 MySQL 与 Qdrant 后，可通过环境变量启动 Spring Boot；真实 DashScope 向量能够完成一次 Qdrant hybrid 餐食查询；Qdrant 不可用时返回结构化结果；无效 MCP token 被拒绝，合法客户端可读取 Skill 并调用其白名单内工具；现有测试、Qdrant 合并/降级测试和 MCP 鉴权/Schema/白名单测试通过。
+
 ## 8. 必须补齐的文档交付物
 
 - 最终 DDL、迁移顺序和旧饮食表兼容策略；
@@ -186,3 +205,4 @@ DRAFT -> ACTIVE
 - 动作 `plan_ready` 字段和自动标准化规则；
 - RAG 固定查询集和 Recall@K 结果；
 - 部署、密钥轮换、备份、回滚和开发测/用户侧运行手册。
+- M5 启动后补充 Qdrant collection 版本与重建方式、MCP tool/Skill manifest 清单、本地启动命令和最小冒烟记录。

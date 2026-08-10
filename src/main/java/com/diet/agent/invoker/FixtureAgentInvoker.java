@@ -2,6 +2,7 @@ package com.diet.agent.invoker;
 
 import com.diet.agent.invoker.AgentInvoker.AgentInvocation;
 import com.diet.agent.invoker.AgentInvoker.AgentInvocationResult;
+import com.diet.health.risk.RiskRuleCatalog;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -118,23 +119,11 @@ public class FixtureAgentInvoker implements AgentInvoker {
         return intentJson("MEAL", "RECOMMEND", slots.toString());
     }
 
-    /** 按风险关键词返回对应 flag。 */
+    /** 按风险关键词返回对应 flag（44 号票：来自 RiskRuleCatalog 唯一事实来源，命中首个规则）。 */
     private static String riskFlag(String prompt) {
-        String[][] markers = {
-                {"PREGNANCY", "孕妇", "怀孕"},
-                {"UNDERAGE", "未成年", "未满18"},
-                {"ACUTE_SYMPTOMS", "胸痛", "胸闷", "眩晕", "心悸"},
-                {"TREATMENT", "治疗", "康复", "术后", "骨折"},
-                {"EATING_DISORDER", "绝食", "暴食"},
-                {"CHRONIC_CONDITION", "糖尿病", "高血压"},
-                {"SENIOR", "65岁", "老年"}
-        };
-        for (String[] marker : markers) {
-            if (containsAny(prompt, java.util.Arrays.copyOfRange(marker, 1, marker.length))) {
-                return marker[0];
-            }
-        }
-        return null;
+        return RiskRuleCatalog.firstMatch(prompt)
+                .map(RiskRuleCatalog.RiskRule::flag)
+                .orElse(null);
     }
 
     private static String intentJson(String domain, String task, String slotsJson) {

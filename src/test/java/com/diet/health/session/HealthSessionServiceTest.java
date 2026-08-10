@@ -8,18 +8,23 @@ import com.diet.mapper.SessionMapper;
 import com.diet.model.SessionRow;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 健康会话状态：复用 diet_sessions 的序列化往返与新建。 */
+/** 健康会话状态：复用 diet_sessions 的序列化往返、新建与 43 号票默认会话/类型化资源引用。 */
 class HealthSessionServiceTest {
 
     private final SessionMapper mapper = mock(SessionMapper.class);
@@ -43,12 +48,13 @@ class HealthSessionServiceTest {
         row.setId("sess_roundtrip");
         row.setUserId(7L);
         row.setPhase("RESPOND");
-        row.setLastRecommendations("[9001,9002]");
+        row.setLastRecommendations("[{\"type\":\"MEAL\",\"id\":\"5\"},{\"type\":\"ROUTINE\",\"id\":\"R1\"}]");
         when(mapper.findById(any(), any())).thenReturn(row);
 
         HealthSessionState state = service.loadOrCreate("sess_roundtrip", 7L);
         assertNull(state.domain());
-        assertEquals(List.of(9001L, 9002L), state.lastResourceIds());
+        assertEquals(List.of(new SessionResourceRef("MEAL", "5"), new SessionResourceRef("ROUTINE", "R1")),
+                state.lastResources());
         assertEquals(HealthPhase.RESPOND, state.phase());
 
         when(mapper.update(any())).thenReturn(1);
@@ -58,5 +64,46 @@ class HealthSessionServiceTest {
                 .withPreferenceSignals(List.of(new PreferenceSignal("EXERCISE", "9001", "LIKE")));
         service.save(saved);
         verify(mapper).update(any());
+    }
+
+    @Test
+    void 旧数字列表兼容读取为无类型遗留引用() {
+        SessionRow row = new SessionRow();
+        row.setId("sess_legacy");
+        row.setUserId(7L);
+        row.setPhase("START");
+        row.setLastRecommendations("[9001,9002]");
+        when(mapper.findById(any(), any())).thenReturn(row);
+
+        HealthSessionState state = service.loadOrCreate("sess_legacy", 7L);
+        assertEquals(List.of(SessionResourceRef.legacy("9001"), SessionResourceRef.legacy("9002")),
+                state.lastResources());
+    }
+
+    @Test
+    void 缺省会话按匿名身份稳定派生且互不可猜() {
+        when(mapper.findById(any(), any())).thenReturn(null);
+        ReflectionTestUtils.setField(service, "sessionSecret", "test-secret");
+
+        HealthSessionState first = service.loadOrCreate(null, 1L);
+        HealthSessionState second = service.loadOrCreate(null, 1L);
+        HealthSessionState other = service.loadOrCreate(null, 2L);
+
+        assertEquals(first.sessionId(), second.sessionId(), "同一匿名身份缺省会话必须稳定");
+        assertNotEquals(first.sessionId(), other.sessionId(), "不同匿名身份不得共享默认会话");
+        assertTrue(first.sessionId().startsWith("sess_"));
+        assertTrue(first.sessionId().length() <= 64, "默认会话 ID 必须在 64 字符限制内");
+
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(mapper, atLeast(2)).findById(captor.capture(), any());
+        assertEquals(List.of(first.sessionId(), first.sessionId(), other.sessionId()), captor.getAllValues(),
+                "默认会话查询必须使用同一稳定派生 ID");
+    }
+
+    @Test
+    void 显式sessionId优先于默认会话() {
+        when(mapper.findById("sess_explicit", 1L)).thenReturn(null);
+        HealthSessionState explicit = service.loadOrCreate("sess_explicit", 1L);
+        assertEquals("sess_explicit", explicit.sessionId());
     }
 }

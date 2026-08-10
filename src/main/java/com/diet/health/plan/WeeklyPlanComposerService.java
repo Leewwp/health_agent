@@ -1,7 +1,7 @@
 package com.diet.health.plan;
 
-import com.diet.health.module.ExerciseModule;
 import com.diet.health.module.HealthResource;
+import com.diet.health.resource.HealthResourceProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -16,12 +16,14 @@ import java.util.Map;
  * 一周按本地周一至周日落位作息、三餐与训练；训练只使用 plan_ready 动作，
  * 安排在周一/三/五且主训练部位不连续；餐食按日能量预算挑选。组合结果必须经过
  * PlanValidationService 校验后才能持久化或激活。
+ * 资源一律来自统一审核资源 Provider：作息项目按 topic 解析睡眠事实（不再硬编码种子 ID），
+ * 训练项目只用 plan_ready 动作；Provider 空库时跳过对应项目，仍可生成餐食计划。
  */
 @Service
 public class WeeklyPlanComposerService {
 
-    /** 固定作息：每日睡眠（来源 R1 事实，23:00-07:00）。 */
-    private static final String SLEEP_RESOURCE_ID = "R1";
+    /** 每日作息引用的睡眠事实主题（正式模式匹配审核子集 topic，fixture 模式匹配种子类别）。 */
+    private static final String SLEEP_FACT_TOPIC = "睡眠时长";
     private static final String SLEEP_NAME = "睡眠";
     private static final LocalTime SLEEP_START = LocalTime.of(23, 0);
     private static final LocalTime SLEEP_END = LocalTime.of(7, 0);
@@ -42,11 +44,11 @@ public class WeeklyPlanComposerService {
     private static final int TRAINING_SETS = 3;
     private static final int TRAINING_REPS = 12;
 
-    private final ExerciseModule exerciseModule;
+    private final HealthResourceProvider resourceProvider;
     private final MealPlanPicker mealPlanPicker;
 
-    public WeeklyPlanComposerService(ExerciseModule exerciseModule, MealPlanPicker mealPlanPicker) {
-        this.exerciseModule = exerciseModule;
+    public WeeklyPlanComposerService(HealthResourceProvider resourceProvider, MealPlanPicker mealPlanPicker) {
+        this.resourceProvider = resourceProvider;
         this.mealPlanPicker = mealPlanPicker;
     }
 
@@ -56,7 +58,7 @@ public class WeeklyPlanComposerService {
         List<PlanItemDraft> items = new ArrayList<>();
         for (int offset = 0; offset < 7; offset++) {
             LocalDate date = weekStart.plusDays(offset);
-            items.add(sleepItem(date));
+            sleepItem(date).ifPresent(items::add);
             for (MealPlanPicker.MealPick pick : mealPlanPicker.pickForDay(calorieLow, calorieHigh)) {
                 items.add(mealItem(date, pick));
             }
@@ -67,8 +69,11 @@ public class WeeklyPlanComposerService {
         return items;
     }
 
-    private PlanItemDraft sleepItem(LocalDate date) {
-        return new PlanItemDraft("ROUTINE", SLEEP_RESOURCE_ID, SLEEP_NAME, date, SLEEP_START, SLEEP_END, null, Map.of());
+    /** 每日作息：按 topic 解析睡眠事实引用（无事实时跳过，不阻塞计划生成）。 */
+    private java.util.Optional<PlanItemDraft> sleepItem(LocalDate date) {
+        return resourceProvider.routineFactByTopic(SLEEP_FACT_TOPIC)
+                .map(fact -> new PlanItemDraft("ROUTINE", fact.factId(), SLEEP_NAME, date,
+                        SLEEP_START, SLEEP_END, null, Map.of()));
     }
 
     private PlanItemDraft mealItem(LocalDate date, MealPlanPicker.MealPick pick) {
@@ -83,11 +88,9 @@ public class WeeklyPlanComposerService {
                 window.start(), window.end(), null, params);
     }
 
-    /** 训练日挑选：按主训练部位轮转，保证连续训练日部位不重复。 */
+    /** 训练日挑选：按主训练部位轮转，保证连续训练日部位不重复；无 plan_ready 动作时返回空。 */
     private List<PlanItemDraft> trainingItem(LocalDate date, String trainingFocus) {
-        List<HealthResource> planReady = exerciseModule.listAll().stream()
-                .filter(HealthResource::planReady)
-                .toList();
+        List<HealthResource> planReady = resourceProvider.planReadyExercises();
         if (planReady.isEmpty()) {
             return List.of();
         }

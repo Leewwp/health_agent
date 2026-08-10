@@ -2,6 +2,8 @@ package com.diet.health.plan;
 
 import com.diet.health.enums.HealthRiskLevel;
 import com.diet.health.enums.PlanValidationLevel;
+import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.SeedResourceProvider;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -9,6 +11,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,11 +29,13 @@ class PlanValidationServiceTest {
     private static final LocalDate MON = LocalDate.of(2026, 8, 17);
     private static final LocalDate TUE = MON.plusDays(1);
 
-    /** 目录：种子动作 9001-9008 全部 plan_ready；作息事实 R1-R5。 */
+    private static final HealthResourceProvider CATALOG_PROVIDER = new SeedResourceProvider();
+
+    /** 目录：从 fixture Provider 派生（种子动作 9001-9008 全部 plan_ready；作息事实 R1-R5）。 */
     private static final PlanValidationService.ResourceCatalog CATALOG = new PlanValidationService.ResourceCatalog(
-            Set.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008"),
-            Set.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008"),
-            Set.of("R1", "R2", "R3", "R4", "R5")
+            Set.copyOf(CATALOG_PROVIDER.planReadyExerciseIds()),
+            CATALOG_PROVIDER.exercises().stream().map(com.diet.health.module.HealthResource::resourceId).collect(Collectors.toSet()),
+            Set.copyOf(CATALOG_PROVIDER.allFactIds())
     );
 
     private static PlanItemDraft sleep(LocalDate date) {

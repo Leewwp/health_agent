@@ -2,6 +2,7 @@ package com.diet.health.intent;
 
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthTask;
+import com.diet.health.risk.RiskRuleCatalog;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -16,34 +17,8 @@ import java.util.Map;
 @Service
 public class IntentRuleService {
 
-    /** 风险关键词（与 HealthRiskRuleService 规则对齐的 flag 映射）。 */
-    private static final Map<String, String> RISK_KEYWORDS = Map.ofEntries(
-            Map.entry("孕妇", "PREGNANCY"),
-            Map.entry("怀孕", "PREGNANCY"),
-            Map.entry("哺乳", "PREGNANCY"),
-            Map.entry("未成年", "UNDERAGE"),
-            Map.entry("未满18", "UNDERAGE"),
-            Map.entry("胸痛", "ACUTE_SYMPTOMS"),
-            Map.entry("胸闷", "ACUTE_SYMPTOMS"),
-            Map.entry("眩晕", "ACUTE_SYMPTOMS"),
-            Map.entry("心悸", "ACUTE_SYMPTOMS"),
-            Map.entry("治疗", "TREATMENT"),
-            Map.entry("诊断", "TREATMENT"),
-            Map.entry("药物", "TREATMENT"),
-            Map.entry("康复", "TREATMENT"),
-            Map.entry("术后", "TREATMENT"),
-            Map.entry("骨折", "TREATMENT"),
-            Map.entry("绝食", "EATING_DISORDER"),
-            Map.entry("暴食", "EATING_DISORDER"),
-            Map.entry("催吐", "EATING_DISORDER"),
-            Map.entry("厌食", "EATING_DISORDER"),
-            Map.entry("糖尿病", "CHRONIC_CONDITION"),
-            Map.entry("高血压", "CHRONIC_CONDITION"),
-            Map.entry("心脏病", "CHRONIC_CONDITION"),
-            Map.entry("肾病", "CHRONIC_CONDITION"),
-            Map.entry("65岁", "SENIOR"),
-            Map.entry("老年", "SENIOR")
-    );
+    /** 风险关键词 → flag 映射（44 号票：来自 RiskRuleCatalog 唯一事实来源，不得复制规则语义）。 */
+    private static final Map<String, String> RISK_KEYWORDS = RiskRuleCatalog.keywordToFlag();
 
     /** 槽位字典，兜底槽位提取以字典为唯一来源。 */
     private final HealthSlotDictionary slotDictionary;

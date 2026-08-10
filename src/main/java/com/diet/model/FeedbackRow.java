@@ -10,8 +10,13 @@ public class FeedbackRow {
     private Long userId;
     private String sessionId;
     private Long itemId;
+    private String resourceType;
+    private String resourceId;
+    private Long planId;
+    private Long planItemId;
     private String action;
     private Integer rating;
     private String reason;
+    private String source;
     private LocalDateTime createdAt;
 }

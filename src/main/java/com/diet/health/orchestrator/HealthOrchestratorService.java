@@ -19,10 +19,11 @@ import com.diet.health.module.HealthResource;
 import com.diet.health.module.MealModule;
 import com.diet.health.module.RoutineModule;
 import com.diet.health.recommend.HealthRecommendResponseService;
+import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
-import com.diet.health.seed.SeedResources;
 import com.diet.health.session.HealthSessionService;
 import com.diet.health.session.HealthSessionState;
+import com.diet.health.session.SessionResourceRef;
 import com.diet.model.ConversationTurn;
 import com.diet.model.RequestTraceRow;
 import com.diet.service.session.SessionService;
@@ -58,6 +59,7 @@ public class HealthOrchestratorService {
     private final MealModule mealModule;
     private final ExerciseModule exerciseModule;
     private final RoutineModule routineModule;
+    private final HealthResourceProvider resourceProvider;
     private final HealthRecommendResponseService recommendResponseService;
     private final AgentTraceService agentTraceService;
     private final ObjectMapper objectMapper;
@@ -75,6 +77,7 @@ public class HealthOrchestratorService {
             MealModule mealModule,
             ExerciseModule exerciseModule,
             RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
             HealthRecommendResponseService recommendResponseService,
             AgentTraceService agentTraceService,
             ObjectMapper objectMapper
@@ -88,6 +91,7 @@ public class HealthOrchestratorService {
         this.mealModule = mealModule;
         this.exerciseModule = exerciseModule;
         this.routineModule = routineModule;
+        this.resourceProvider = resourceProvider;
         this.recommendResponseService = recommendResponseService;
         this.agentTraceService = agentTraceService;
         this.objectMapper = objectMapper;
@@ -177,7 +181,10 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, notice, traceId);
         }
 
-        List<Long> excludeIds = intent.task() == HealthTask.ADJUST ? state.lastResourceIds() : List.of();
+        // ADJUST 排除（43 号票）：只取 MEAL/EXERCISE 类型化引用，作息事实不参与排除
+        List<Long> excludeIds = intent.task() == HealthTask.ADJUST
+                ? state.excludeIdsFor(intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL")
+                : List.of();
         return handleRecommend(sessionId, traceId, state, intent, mergedSlots, excludeIds,
                 risk.matchedFlags(), advisoryCopy, userInput);
     }
@@ -199,9 +206,10 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, clarify, traceId);
         }
 
-        List<HealthResource> candidates = retrieve(domain, mergedSlots, excludeIds);
+        List<HealthResource> candidates = retrieve(domain, mergedSlots, excludeIds, userInput);
         agentTraceService.recordEvent("CANDIDATES_RETRIEVED", "RETRIEVE",
-                Map.of("domain", domain, "seedVersion", SeedResources.SEED_VERSION, "excludeIds", excludeIds),
+                Map.of("domain", domain, "providerMode", resourceProvider.providerMode(),
+                        "resourceVersion", resourceProvider.resourceVersion(), "excludeIds", excludeIds),
                 Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList()));
         if (candidates.isEmpty()) {
             HealthChatResponse empty = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
@@ -245,12 +253,13 @@ public class HealthOrchestratorService {
         return speechText + " " + advisoryCopy;
     }
 
-    /** 领域检索：餐食走旧链路，动作走种子筛选，作息走事实查询。 */
-    private List<HealthResource> retrieve(HealthDomain domain, Map<String, List<String>> slots, List<Long> excludeIds) {
+    /** 领域检索：餐食走旧链路，动作走 Provider 筛选，作息走事实查询（按用户输入关键词命中类别）。 */
+    private List<HealthResource> retrieve(HealthDomain domain, Map<String, List<String>> slots,
+                                          List<Long> excludeIds, String userInput) {
         return switch (domain) {
             case MEAL -> mealModule.recommendMeals(slots, excludeIds);
             case EXERCISE -> exerciseModule.recommend(slots, excludeIds, TOP_N);
-            case ROUTINE -> routineModule.lookup("", slots).stream()
+            case ROUTINE -> routineModule.lookup(userInput, slots).stream()
                     .map(routineModule::toResource)
                     .toList();
             default -> List.of();
@@ -267,7 +276,9 @@ public class HealthOrchestratorService {
                 .withSlots(mergedSlots)
                 .withPreferenceSignals(intent.preferenceSignals());
         if (response.responseType() == HealthResponseType.ANSWER) {
-            saved = saved.appendLastResourceIds(response.displayBlocks().stream().map(HealthDisplayBlock::resourceId).toList());
+            saved = saved.appendLastResources(response.displayBlocks().stream()
+                    .map(block -> new SessionResourceRef(block.resourceType(), block.resourceId()))
+                    .toList());
         }
         sessionService.save(saved);
         messageService.appendMessage(state.sessionId(), "assistant", response.speechText(), null, traceId);
