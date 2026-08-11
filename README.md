@@ -16,7 +16,7 @@
 - **健康档案与周计划**：Mifflin-St Jeor 能量区间、DRAFT/ACTIVE/ARCHIVED 生命周期、版本快照（档案/规则/会话/事实/资源生成依据）、`POST /api/v1/health/plan/**`、事务化写入 + 行锁 + 数据库级 ACTIVE 唯一约束；
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
 - **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实，媒体一律无图+保留署名）；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
-- **餐食 RAG**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 在结构化 top-10 池内做语义重排，embedding 不可用时自动降级；固定标注查询集对比 `Recall@3`/硬约束命中率/降级（见 `docs/research/meal-rag-evaluation.md`）；
+- **餐食 RAG（M5 #52 融合）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集对比 `Recall@3`/硬约束命中率/降级（见 `docs/research/meal-rag-evaluation.md`）；
 - **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V6 计划版本依据与 ACTIVE 约束）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
@@ -97,6 +97,25 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 - 鉴权结果经 transport context 传入工具 handler（`principal=mcp-client`）；
 - **该实现不是 MCP OAuth 2.1，也不声明最新规范全量合规**，仅用于本地演示与面试讲解。
 
+### 四个公共 MCP Tools 与 Skills Resources（M5 #47/#50）
+
+`/mcp` 只暴露四个只读或纯计算工具（M5 #47），handler 直接调用既有领域服务，不通过
+本应用 HTTP API 回调自身，也不产生任何业务写入：
+
+| 工具 | 作用 | 复用领域服务 |
+|---|---|---|
+| `search_meals` | 按健康槽位检索审核餐食（含硬约束与混合检索） | `MealModule.recommendMeals` |
+| `get_meal_detail` | 按资源 ID 查审核餐食详情 | `HealthResourceProvider.mealById` |
+| `get_routine_facts` | 按关键词查结构化作息事实 | `RoutineModule.lookup` |
+| `calculate_targets` | 确定性计算每日能量区间（不写档案） | `EnergyCalculator` |
+
+参数错误映射 `INVALID_PARAMS`，资源不存在映射 `RESOURCE_NOT_FOUND`，业务失败返回
+`isError` 结果。三个版本化技能 manifest（`skills/*.yaml`，固定
+`name/version/description/input_schema/output_schema/allowed_tools/risk_level` 字段）由
+Skills Registry 在启动时校验（Schema 可解析、`allowed_tools` 属于四工具 allowlist、
+name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `resources/read`
+暴露原始 YAML（M5 #50）；非法 manifest 直接拒绝启动。
+
 ## 配置注入
 
 | 环境变量 | 用途 | 默认 |
@@ -107,7 +126,10 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 | `ADMIN_TOKEN` | admin 调试入口 token | 空（dev 不启用保护） |
 | `DATABASE_URL/USERNAME/PASSWORD` | prod 数据源 | dev 用本地 root/123456 |
 | `DIET_VECTORSTORE_MODE` | 餐食向量索引模式（in-memory/qdrant） | `in-memory` |
+| `DIET_VECTORSTORE_INDEX_ON_STARTUP` | 启动时批量索引审核餐食向量到向量存储 | `false` |
 | `QDRANT_HOST/QDRANT_GRPC_PORT` | Qdrant gRPC 地址（qdrant 模式） | `localhost`/`6334` |
+| `MCP_API_TOKEN` | /mcp 端点 Bearer token（未配置 fail-closed） | 空 |
+| `MCP_ALLOWED_ORIGINS` | /mcp Origin allowlist（逗号分隔） | 空（不限制） |
 
 - **dev**（默认 profile）：允许 `X-User-Id` 回退、admin 不保护、Cookie 不强制 Secure；
 - **prod**（`--spring.profiles.active=prod`）：拒绝 `X-User-Id`、强制 `ADMIN_TOKEN` 保护、Cookie Secure；缺少 `DASHSCOPE_API_KEY/DIET_SESSION_SECRET/ADMIN_TOKEN` 时启动失败。
@@ -119,7 +141,7 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）与 Trace 脱敏。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 360 个测试（341 通过，16 个 MySQL 场景和 3 个 Qdrant 场景按环境门控跳过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 385 个测试（366 通过，16 个 MySQL 场景和 3 个 Qdrant 场景按环境门控跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -129,7 +151,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 357 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 360 个测试。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 382 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 385 个测试。
 
 ## 部署（Compose，spec 11）
 
