@@ -12,6 +12,9 @@ public interface SessionMapper {
 
     SessionRow findById(@Param("sessionId") String sessionId, @Param("userId") Long userId);
 
+    /** 按 id + 归属查询会话并锁定行（56 号票：并发默认会话竞态输方恢复时的最新已提交重读）。 */
+    SessionRow findByIdForUpdate(@Param("sessionId") String sessionId, @Param("userId") Long userId);
+
     int update(SessionRow row);
 
     int insertMessage(
