@@ -1,6 +1,8 @@
 package com.diet.health.resource;
 
+import com.diet.exception.DietException;
 import com.diet.health.module.HealthResource;
+import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
 import com.diet.mapper.ExerciseMapper;
 import com.diet.mapper.MealMapper;
@@ -160,6 +162,13 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     }
 
     @Override
+    public List<PlanMealCandidate> planMealCandidates() {
+        return mealMapper.findApprovedPublicMeals().stream()
+                .map(this::toMealCandidate)
+                .toList();
+    }
+
+    @Override
     public String providerMode() {
         return "REVIEWED_DB";
     }
@@ -215,6 +224,25 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
                 row.getMediaUrl(),
                 false,
                 tags
+        );
+    }
+
+    /** 餐食行 → 计划餐食候选：resourceId 为数据库主键，sortKey 为主键序；热量缺失保留 null 由挑选器降级。
+     *  餐次标签解析失败按空标签（全时段）降级，不因单行脏数据中断整个计划生成。 */
+    private PlanMealCandidate toMealCandidate(MealItemRow row) {
+        List<String> mealTimeTags = List.of();
+        try {
+            mealTimeTags = jsonService.fromJsonArray(row.getMealTime());
+        } catch (DietException ignored) {
+            // 畸形餐次 JSON 按空标签（全时段可用）降级，与热量缺失降级精神一致
+        }
+        return new PlanMealCandidate(
+                "MEAL",
+                String.valueOf(row.getId()),
+                row.getName(),
+                mealTimeTags,
+                row.getCaloriesKcal() == null ? null : row.getCaloriesKcal().intValue(),
+                row.getId()
         );
     }
 

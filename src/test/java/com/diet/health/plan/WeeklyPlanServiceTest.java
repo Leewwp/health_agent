@@ -19,6 +19,7 @@ import com.diet.mapper.MealMapper;
 import com.diet.mapper.RoutineFactMapper;
 import com.diet.mapper.WeeklyPlanMapper;
 import com.diet.model.ExerciseItemRow;
+import com.diet.model.MealItemRow;
 import com.diet.model.RoutineFactRow;
 import com.diet.model.WeeklyPlanItemRow;
 import com.diet.model.WeeklyPlanRow;
@@ -466,13 +467,18 @@ class WeeklyPlanServiceTest {
                 exerciseRow(102L, "upper legs", "[\"quadriceps\"]", "[\"quadriceps\", \"hamstrings\", \"calves\"]", "body weight", true),
                 exerciseRow(103L, "back", "[\"biceps\"]", "[\"biceps\", \"forearms\"]", "band", false)
         ));
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of());
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(
+                mealRow(1L, "燕麦牛奶粥", 320, "[\"早餐\"]"),
+                mealRow(2L, "鸡胸肉糙米饭", 750, "[\"午餐\"]"),
+                mealRow(3L, "鸡胸蔬菜沙拉", 450, "[\"晚餐\"]")
+        ));
         when(factMapper.selectAll()).thenReturn(List.of(factRow("aasm-sleep-minimum", "睡眠时长下限"),
                 factRow("nsf-sleep-duration-adult", "睡眠时长")));
         when(factMapper.selectByTopicLike(any())).thenAnswer(invocation -> List.of(factRow("aasm-sleep-minimum", "睡眠时长下限")));
         HealthResourceProvider provider = new DbReviewedResourceProvider(
                 exerciseMapper, mealMapper, factMapper, new JsonService(objectMapper));
-        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
+        MealPlanPicker realPicker = new MealPlanPicker(provider);
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, realPicker);
         HealthSessionService sessionService = mock(HealthSessionService.class);
         when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", 1L));
         WeeklyPlanService dbService = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
@@ -482,9 +488,17 @@ class WeeklyPlanServiceTest {
 
         PlanView view = dbService.createDraft(1L, draftRequest());
 
-        Set<String> seedIds = Set.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008", "R1", "R2", "R3", "R4", "R5");
+        Set<String> seedIds = Set.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008",
+                "R1", "R2", "R3", "R4", "R5", "M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8", "M9");
         assertTrue(view.items().stream().noneMatch(item -> seedIds.contains(item.resourceId())),
-                "数据库模式草稿不得引用种子 ID（9001-9008/R1-R5）");
+                "数据库模式草稿不得引用种子 ID（9001-9008/R1-R5/M1-M9）");
+        Set<String> candidateIds = provider.planMealCandidates().stream()
+                .map(candidate -> candidate.resourceId()).collect(java.util.stream.Collectors.toSet());
+        assertEquals(21, view.items().stream().filter(item -> "MEAL".equals(item.resourceType())).count(),
+                "数据库模式草稿应含 21 个餐食项目");
+        assertTrue(view.items().stream().filter(item -> "MEAL".equals(item.resourceType()))
+                        .allMatch(item -> candidateIds.contains(item.resourceId())),
+                "餐食项目必须来自 Provider 的审核候选集合");
         PlanItemView sleep = view.items().stream().filter(item -> "ROUTINE".equals(item.resourceType()))
                 .findFirst().orElseThrow();
         assertEquals("aasm-sleep-minimum", sleep.resourceId(), "睡眠项目使用数据库事实 ref_id");
@@ -495,6 +509,43 @@ class WeeklyPlanServiceTest {
                         .allMatch(item -> provider.allFactIds().contains(item.resourceId())),
                 "作息项目必须来自审核事实 ref_id");
         assertEquals(PlanValidationLevel.OK, view.validationLevel());
+    }
+
+    @Test
+    void fixture模式草稿餐食全部来自种子候选且快照来源可解析() {
+        HealthResourceProvider provider = new SeedResourceProvider();
+        MealPlanPicker realPicker = new MealPlanPicker(provider);
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, realPicker);
+        HealthSessionService sessionService = mock(HealthSessionService.class);
+        when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", 1L));
+        WeeklyPlanService seedService = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
+                new PlanValidationService(), planMapper, provider,
+                planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper),
+                sessionService, objectMapper);
+
+        PlanView view = seedService.createDraft(1L, draftRequest());
+
+        Set<String> candidateIds = provider.planMealCandidates().stream()
+                .map(candidate -> candidate.resourceId()).collect(java.util.stream.Collectors.toSet());
+        List<PlanItemView> meals = view.items().stream().filter(item -> "MEAL".equals(item.resourceType())).toList();
+        assertEquals(21, meals.size(), "fixture 模式草稿应含 21 个餐食项目");
+        assertTrue(meals.stream().allMatch(item -> candidateIds.contains(item.resourceId())),
+                "fixture 模式餐食必须全部来自种子候选 M1-M9，实际 " + meals.stream().map(PlanItemView::resourceId).toList());
+        assertTrue(meals.stream().allMatch(item -> item.resourceId().matches("M[1-9]")),
+                "fixture 模式餐食不得引用数据库主键 ID");
+        assertTrue(view.items().stream().allMatch(item -> item.resourceId().matches("M[1-9]|900[1-8]|R[1-5]")),
+                "fixture 模式整个计划不得引用审核子集资源");
+        assertEquals(PlanValidationLevel.OK, view.validationLevel(), "种子候选组合应落在档案预算区间");
+
+        WeeklyPlanVersionRow version = planMapper.versions.get(0);
+        assertTrue(version.getResourceSnapshotJson().contains("M1") || version.getResourceSnapshotJson().contains("M3"),
+                "资源快照必须含种子餐食资源 ID");
+        assertTrue(version.getResourceSnapshotJson().contains("演示餐食种子"),
+                "资源快照必须含餐食来源名称（mealById 可解析）");
+        for (PlanItemView meal : meals) {
+            assertTrue(provider.mealById(meal.resourceId()).isPresent(),
+                    "计划餐食 ID 必须可被 Provider 解析（反馈/快照同源），实际 " + meal.resourceId());
+        }
     }
 
     private static ExerciseItemRow exerciseRow(Long id, String bodyPart, String target, String secondary,
@@ -510,6 +561,16 @@ class WeeklyPlanServiceTest {
         row.setDifficulty("入门");
         row.setMovementPattern("推");
         row.setPlanReady(planReady);
+        return row;
+    }
+
+    private static MealItemRow mealRow(Long id, String name, int caloriesKcal, String mealTime) {
+        MealItemRow row = new MealItemRow();
+        row.setId(id);
+        row.setName(name);
+        row.setSourceType("PUBLIC");
+        row.setCaloriesKcal(java.math.BigDecimal.valueOf(caloriesKcal));
+        row.setMealTime(mealTime);
         return row;
     }
 

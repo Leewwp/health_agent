@@ -1,6 +1,7 @@
 package com.diet.health.resource;
 
 import com.diet.health.module.HealthResource;
+import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
 
 import java.util.List;
@@ -45,6 +46,13 @@ public interface HealthResourceProvider {
 
     /** 全部 plan_ready 动作资源 ID。 */
     List<String> planReadyExerciseIds();
+
+    /**
+     * 全部计划餐食候选（57 号票，周计划组合用）：正式模式为审核 APPROVED 公共餐食
+     * （按数据库主键序），fixture 模式为内存种子餐食（按种子列表序），两种模式候选集互斥。
+     * 候选只暴露类型化资源身份/名称/餐次/每份热量，不透出 Mapper 行对象；空表返回空集合。
+     */
+    List<PlanMealCandidate> planMealCandidates();
 
     /** Provider 模式标识：REVIEWED_DB=数据库审核子集；FIXTURE_SEED=内存种子。 */
     String providerMode();
