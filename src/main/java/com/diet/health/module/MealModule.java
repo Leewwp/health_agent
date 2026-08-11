@@ -2,10 +2,12 @@ package com.diet.health.module;
 
 import com.diet.enums.SourceMode;
 import com.diet.health.feedback.PreferenceService;
+import com.diet.health.rag.EmbeddingClient;
 import com.diet.health.rag.MealRetrievalQuery;
 import com.diet.health.rag.MealRetriever;
 import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalResult;
+import com.diet.health.vectorstore.VectorStoreIdentity;
 import com.diet.model.MealItem;
 import com.diet.model.MealRankRequest;
 import com.diet.model.MealSearchRequest;
@@ -36,16 +38,22 @@ public class MealModule {
     private final AgentTraceService agentTraceService;
     private final MealRetriever mealRetriever;
     private final PreferenceService preferenceService;
+    private final EmbeddingClient embeddingClient;
+    private final VectorStoreIdentity vectorStoreIdentity;
 
     public MealModule(MealSearchService mealSearchService, MealRankService mealRankService,
                       AgentTraceService agentTraceService,
                       @Qualifier("mealRetriever") MealRetriever mealRetriever,
-                      PreferenceService preferenceService) {
+                      PreferenceService preferenceService,
+                      EmbeddingClient embeddingClient,
+                      VectorStoreIdentity vectorStoreIdentity) {
         this.mealSearchService = mealSearchService;
         this.mealRankService = mealRankService;
         this.agentTraceService = agentTraceService;
         this.mealRetriever = mealRetriever;
         this.preferenceService = preferenceService;
+        this.embeddingClient = embeddingClient;
+        this.vectorStoreIdentity = vectorStoreIdentity;
     }
 
     /** 旧饮食链路：检索 + 重排，返回最多 10 条候选，内部记录 MEAL_SEARCHED / MEAL_RANKED Trace 事件。 */
@@ -71,6 +79,10 @@ public class MealModule {
         Map<String, Object> traceDetail = new LinkedHashMap<>();
         traceDetail.put("mode", result.mode().name());
         traceDetail.put("degradationReason", result.degradationReason());
+        traceDetail.put("vectorProvider", vectorStoreIdentity.provider());
+        traceDetail.put("vectorModel", embeddingClient.modelName());
+        traceDetail.put("vectorVersion", embeddingClient.modelVersion());
+        traceDetail.put("collection", vectorStoreIdentity.collectionName());
         traceDetail.put("candidateCount", result.items().size());
         traceDetail.put("candidates", result.items().stream().map(RetrievalItem::meal).toList());
         agentTraceService.recordEvent("MEAL_RETRIEVED", "RETRIEVE", healthSlots, traceDetail);

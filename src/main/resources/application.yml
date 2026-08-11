@@ -85,6 +85,15 @@ diet:
     allow-legacy-user-header: true
     admin-protected: false
     admin-token: ${ADMIN_TOKEN:}
+  mcp:
+    # MCP Streamable HTTP 端点（M5 #51）：/mcp 挂载传输与独立安全 Filter。
+    # api-token 未配置时端点 fail-closed 拒绝所有请求（无 MCP OAuth 2.1 声明）
+    endpoint: /mcp
+    api-token: ${MCP_API_TOKEN:}
+    # 逗号分隔的 Origin allowlist；为空表示本地演示不限制 Origin（生产须显式配置）
+    allowed-origins: ${MCP_ALLOWED_ORIGINS:}
+    # 缺失 Origin（curl/MCP Inspector/服务端调用）是否放行
+    allow-missing-origin: ${DIET_MCP_ALLOW_MISSING_ORIGIN:true}
 logging:
   level:
     com.diet: INFO
