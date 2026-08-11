@@ -205,6 +205,14 @@ button {
     margin-bottom: 14px;
 }
 
+.card-title > * {
+    min-width: 0;
+}
+
+.card-title > .inline-actions {
+    flex-shrink: 0;
+}
+
 .card-title h2,
 .card-title h3,
 .section h2,
@@ -222,6 +230,7 @@ button {
 .card-title p {
     margin: 6px 0 0;
     line-height: 1.55;
+    overflow-wrap: anywhere;
 }
 
 .stats {
@@ -253,6 +262,7 @@ button {
     border-radius: 999px;
     color: var(--text);
     background: #fff;
+    white-space: nowrap;
     transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
@@ -427,6 +437,7 @@ button {
 .chat-window {
     display: grid;
     grid-template-rows: auto minmax(420px, 1fr) auto;
+    min-width: 0;
     min-height: calc(100vh - 190px);
 }
 
@@ -469,6 +480,7 @@ button {
 .message-meta {
     color: var(--muted);
     font-size: 12px;
+    overflow-wrap: anywhere;
 }
 
 .composer {

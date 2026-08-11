@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,10 +34,16 @@ class QdrantGateSmokeTest {
 
     @Test
     void qdrantCreateUpsertFilterQueryAndCleanup() throws Exception {
-        QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(HOST, GRPC_PORT).build());
+        // 本地 Qdrant 6334 默认提供明文 gRPC；显式关闭 TLS，避免客户端默认 TLS 握手失败。
+        QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(HOST, GRPC_PORT, false).build());
+        boolean completed = false;
         try {
             qdrantCreateUpsertFilterQueryAndCleanup(client);
+            completed = true;
         } finally {
+            if (!completed) {
+                deleteCollectionIfExists(client);
+            }
             client.close();
         }
     }
@@ -73,10 +80,10 @@ class QdrantGateSmokeTest {
         List<Points.ScoredPoint> hits = client.searchAsync(
                         Points.SearchPoints.newBuilder()
                                 .setCollectionName(COLLECTION)
-                                .setVector(0, 0.11f)
-                                .setVector(1, 0.21f)
-                                .setVector(2, 0.31f)
-                                .setVector(3, 0.41f)
+                                .addVector(0.11f)
+                                .addVector(0.21f)
+                                .addVector(0.31f)
+                                .addVector(0.41f)
                                 .setFilter(Common.Filter.newBuilder()
                                         .addMust(Common.Condition.newBuilder().setField(
                                                 Common.FieldCondition.newBuilder()
@@ -93,13 +100,18 @@ class QdrantGateSmokeTest {
         // 4. 清理 collection
         client.deleteCollectionAsync(COLLECTION).get(15, TimeUnit.SECONDS);
 
-        // 清理后再查 collection 信息应抛异常（不存在），即清理生效
-        boolean gone = false;
+        assertFalse(client.collectionExistsAsync(COLLECTION).get(15, TimeUnit.SECONDS),
+                "collection 删除后应不存在");
+    }
+
+    /** 冒烟任一步失败时也清理固定名称 collection，保证后续可重复执行。 */
+    private void deleteCollectionIfExists(QdrantClient client) {
         try {
-            client.getCollectionInfoAsync(COLLECTION).get(15, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            gone = true;
+            if (client.collectionExistsAsync(COLLECTION).get(15, TimeUnit.SECONDS)) {
+                client.deleteCollectionAsync(COLLECTION).get(15, TimeUnit.SECONDS);
+            }
+        } catch (Exception ignored) {
+            // collection 不存在或 Qdrant 已不可用时无需覆盖原始测试失败
         }
-        assertTrue(gone, "collection 删除后查询应失败");
     }
 }

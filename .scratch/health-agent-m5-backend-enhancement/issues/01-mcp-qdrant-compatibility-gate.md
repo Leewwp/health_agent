@@ -1,7 +1,7 @@
 # P0 MCP 与 Qdrant 依赖兼容性闸门
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Priority: P0
 - Estimate: 0.5-1 天
@@ -23,3 +23,13 @@
 ## Done when
 
 编译和现有测试通过，MCP 与 Qdrant 双冒烟均有可复核结果；若任一技术不可兼容，票内给出明确停止条件，并在继续开发前收缩对应范围。
+
+## Answer
+
+2026-08-12 真实复核通过，M5 可继续：
+
+- Spring Boot 3.3.13、AgentScope 1.0.11、Java 21 保持不变；MCP `0.17.0`、Qdrant Client `1.17.0` 依赖树无冲突，`mvn -DskipTests compile` 通过。
+- MCP Servlet transport 的 `initialize -> tools/list -> tools/call -> resources/read` 冒烟真实通过。
+- Docker Hub 仍因 TLS handshake timeout 失败；从 DaoCloud 镜像代理取得同一 `qdrant/qdrant:v1.17.0` 镜像并本地重标记，镜像 digest 为 `sha256:f1c7272cdac52b38c1a0e89313922d940ba50afd90d593a1605dbbc214e66ffb`。
+- 初次真实运行发现原测试误用默认 TLS 连接明文 6334，以及用 `setVector(index, value)` 写空查询向量；已分别改为显式 `useTls=false` 和 `addVector(...)`。失败路径使用 `finally` 幂等清理 collection。
+- `QdrantGateSmokeTest` 已真实完成 collection 创建、upsert、payload filter 查询和删除；`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 最终 310 通过、0 失败、0 跳过。

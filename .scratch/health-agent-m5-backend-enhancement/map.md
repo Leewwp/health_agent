@@ -24,6 +24,8 @@
 
 <!-- 子票关闭后在这里追加“名称 + 链接 + 一句话结论”，不复制票内详情。 -->
 
+- [01 MCP 与 Qdrant 依赖兼容性闸门](issues/01-mcp-qdrant-compatibility-gate.md) — MCP 0.17.0 四步 Servlet 冒烟与 Qdrant 1.17.0 create/upsert/filter/delete 真实通过；修正明文 gRPC 与查询向量构造后，MySQL + Qdrant 全门控 310/0/0，02/04/07 前置解除。
+
 ## Not yet specified
 
 当前没有未锐化决策。范围、供应商、版本、最小安全边界、验收标准和实施依赖均已确认；开放内容都是可直接认领的实施任务。

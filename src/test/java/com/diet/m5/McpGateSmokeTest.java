@@ -13,6 +13,7 @@ import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.Tomcat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import reactor.core.scheduler.Schedulers;
 
 import java.nio.file.Files;
 import java.util.List;
@@ -41,6 +42,8 @@ class McpGateSmokeTest {
         if (server != null) {
             server.closeGracefully();
         }
+        // SDK 客户端使用 Reactor 全局调度器；测试结束时关闭，避免 Tomcat 报 WebApp 线程泄漏。
+        Schedulers.shutdownNow();
         if (tomcat != null) {
             tomcat.stop();
             tomcat.destroy();
