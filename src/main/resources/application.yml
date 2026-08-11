@@ -35,11 +35,11 @@ agentscope:
     base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
 diet:
   llm:
-    main-model: qwen-max
-    light-model: qwen-turbo
+    main-model: deepseek-v4-flash-0731
+    light-model: deepseek-v4-flash-0731
     # 聊天端点形态：false=agentscope 原生 DashScope 端点（默认）；true=OpenAI 兼容端点
     # （/chat/completions，适配只开放兼容端点的 DashScope 专属空间）
-    openai-compatible: false
+    openai-compatible: true
   agent:
     # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
     mode: agentscope
