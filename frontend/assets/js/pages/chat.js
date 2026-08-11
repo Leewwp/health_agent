@@ -34,8 +34,16 @@ const SLOT_LABELS = {
     convenience: "便利程度",
     bodyPart: "训练部位",
     equipment: "器材",
-    goal: "训练目标"
+    goal: "训练目标",
+    bodyParts: "训练部位",
+    trainingGoal: "训练目标",
+    difficulty: "难度"
 };
+
+/** 缺失槽位的中文标签；未知槽位名兜底为通用中文标签，不暴露内部字段名。 */
+function slotLabel(slot) {
+    return SLOT_LABELS[slot] || "其他偏好";
+}
 
 const state = {
     sessionId: getChatSessionId(),
@@ -116,7 +124,7 @@ function renderMessage(message) {
         renderResourceCard(block, { sessionId: state.sessionId || getOrCreateClientSessionId() })
     ).join("");
     const missingSlots = message.missingSlots && message.missingSlots.length
-        ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(SLOT_LABELS[slot] || slot)}</span>`).join("")}</div>`
+        ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
         : "";
     const metaParts = [];
     if (message.traceId) {

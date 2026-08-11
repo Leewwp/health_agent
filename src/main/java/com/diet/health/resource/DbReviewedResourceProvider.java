@@ -22,8 +22,8 @@ import java.util.Optional;
  * <p>
  * 资源身份：餐食与动作使用数据库自增主键字符串；作息事实使用冻结业务 ref_id。
  * 审核动作数据集的器材/部位/肌群为英文原始值，Provider 统一翻译为健身槽位中文词汇
- * （与 {@code HealthSlotDictionary} 对齐），保证聊天槽位打分与周计划部位轮转可用。
- * 空表时各方法返回空集合，不抛异常。
+ * （与 {@code HealthSlotDictionary} 对齐），未收录的原始值过滤掉、不透出英文，
+ * 保证聊天槽位打分与周计划部位轮转可用。空表时各方法返回空集合，不抛异常。
  */
 @Component
 public class DbReviewedResourceProvider implements HealthResourceProvider {
@@ -171,17 +171,17 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
 
     // ---------- 行 → 资源映射 ----------
 
-    /** 动作行 → 类型化资源：标签翻译为健身槽位中文词汇。 */
+    /** 动作行 → 类型化资源：标签翻译为健身槽位中文词汇（未收录原始值过滤，不透出英文）。 */
     private HealthResource toResource(ExerciseItemRow row) {
         List<String> bodyParts = new ArrayList<>();
-        addTranslated(bodyParts, row.getBodyPart());
-        jsonService.fromJsonArray(row.getTargetMuscles()).forEach(muscle -> addTranslated(bodyParts, muscle));
-        jsonService.fromJsonArray(row.getSecondaryMuscles()).forEach(muscle -> addTranslated(bodyParts, muscle));
+        addPartZh(bodyParts, row.getBodyPart());
+        jsonService.fromJsonArray(row.getTargetMuscles()).forEach(muscle -> addPartZh(bodyParts, muscle));
+        jsonService.fromJsonArray(row.getSecondaryMuscles()).forEach(muscle -> addPartZh(bodyParts, muscle));
         Map<String, List<String>> tags = new LinkedHashMap<>();
         tags.put("bodyParts", bodyParts.stream().distinct().toList());
-        tags.put("primaryBodyPart", List.of(translate(BODY_PART_ZH, row.getBodyPart())));
-        tags.put("equipment", List.of(translate(EQUIPMENT_ZH, row.getEquipment())));
-        tags.put("difficulty", List.of(row.getDifficulty()));
+        tags.put("primaryBodyPart", singleZh(toPartZh(row.getBodyPart())));
+        tags.put("equipment", singleZh(toEquipmentZh(row.getEquipment())));
+        tags.put("difficulty", singleZh(toDifficultyZh(row.getDifficulty())));
         tags.put("movementPattern", List.of(row.getMovementPattern()));
         tags.put("trainingGoal", List.of());
         return new HealthResource(
@@ -229,19 +229,51 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         );
     }
 
-    /** 英文数据集值 → 中文槽位值（未收录时原样透出，保证不丢数据）。 */
-    private String translate(Map<String, String> dictionary, String value) {
+    /**
+     * 数据集英文部位/肌群值 → 健身槽位中文值：body_part、靶肌、次肌统一走同一套归一规则
+     * （先查部位字典，再查肌群字典），保证同一原始值在 bodyParts 与 primaryBodyPart
+     * 两个字段归一结果一致；未收录的原始值返回空串并过滤，不透出英文，
+     * 保证输出值属于 {@code HealthSlotDictionary} 的健身槽位合法值集合。
+     */
+    private static String toPartZh(String value) {
         if (value == null) {
             return "";
         }
-        return dictionary.getOrDefault(value, value);
+        String zh = BODY_PART_ZH.get(value);
+        return zh != null ? zh : MUSCLE_ZH.getOrDefault(value, "");
     }
 
-    private void addTranslated(List<String> target, String value) {
+    private static void addPartZh(List<String> target, String value) {
         if (value == null || value.isBlank()) {
             return;
         }
-        target.add(translate(MUSCLE_ZH, value));
+        String zh = toPartZh(value);
+        if (!zh.isEmpty()) {
+            target.add(zh);
+        }
+    }
+
+    /** 数据集器材英文值 → 健身槽位中文值（未收录过滤，不透出英文）。 */
+    private static String toEquipmentZh(String value) {
+        return value == null ? "" : EQUIPMENT_ZH.getOrDefault(value, "");
+    }
+
+    /**
+     * 数据集难度 → 健身槽位合法难度：数据集只有「入门/中级/进阶」，槽位字典难度为
+     * 「入门/进阶/挑战」，中级归一到进阶，保证难度标签不泄漏字典外的非法值。
+     */
+    private static String toDifficultyZh(String value) {
+        return switch (value == null ? "" : value) {
+            case "入门" -> "入门";
+            case "中级", "进阶" -> "进阶";
+            case "挑战" -> "挑战";
+            default -> "";
+        };
+    }
+
+    /** 单个翻译值包装为标签列表；未收录为空列表，不透出英文原始值。 */
+    private static List<String> singleZh(String value) {
+        return value.isEmpty() ? List.of() : List.of(value);
     }
 
     /** 资源 ID 转主键，非法返回 null（空库/脏数据不抛异常）。 */
