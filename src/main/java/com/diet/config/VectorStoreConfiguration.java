@@ -23,16 +23,21 @@ public class VectorStoreConfiguration {
 
     private static final Logger log = LoggerFactory.getLogger(VectorStoreConfiguration.class);
 
+    /**
+     * collection 身份：默认与 diet.embedding.* 对齐（嵌入配置变更时自动跟随），
+     * 可显式覆盖；版本按 DashScopeEmbeddingClient.modelVersion 的 "v3-<dim>" 惯例。
+     */
     @Bean
     public VectorStoreIdentity vectorStoreIdentity(
             @Value("${diet.vectorstore.provider:dashscope}") String provider,
-            @Value("${diet.vectorstore.model:text-embedding-v3}") String model,
-            @Value("${diet.vectorstore.dimension:1024}") int dimension,
-            @Value("${diet.vectorstore.version:v3-1024}") String version) {
+            @Value("${diet.vectorstore.model:${diet.embedding.model:text-embedding-v3}}") String model,
+            @Value("${diet.vectorstore.dimension:${diet.embedding.dimensions:1024}}") int dimension,
+            @Value("${diet.vectorstore.version:v3-${diet.embedding.dimensions:1024}}") String version) {
         return new VectorStoreIdentity(provider, model, dimension, version);
     }
 
-    @Bean
+    /** destroyMethod=close：应用关闭时关闭 Qdrant client（gRPC 连接与线程池）。 */
+    @Bean(destroyMethod = "close")
     public VectorStore vectorStore(VectorStoreIdentity identity,
                                    @Value("${diet.vectorstore.mode:in-memory}") String mode,
                                    @Value("${diet.vectorstore.host:localhost}") String host,

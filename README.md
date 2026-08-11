@@ -60,6 +60,26 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.embedding.generate-on-st
 mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 ```
 
+### Qdrant 向量索引与重建（M5 #54）
+
+MySQL 始终是餐食事实的真相源；Qdrant 只是按 `provider + model + dimension + version`
+身份可重建的向量索引。启动 Compose（`docker compose up -d`）后 qdrant 服务（1.17.0）
+监听 REST 6333 / gRPC 6334，应用通过 gRPC 6334 访问。
+
+```bash
+# 把已生成的 meal_item_embedding 批量索引到 Qdrant（幂等，可重复执行）
+mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant --diet.vectorstore.index-on-startup=true"
+# 或经 Compose 环境变量启用（DIET_VECTORSTORE_MODE=qdrant 后 app 自动带 QDRANT_HOST=qdrant）
+```
+
+- collection 名由身份派生（如 `meal_dashscope_text-embedding-v3_1024_v3-1024`），距离 Cosine；
+  身份默认跟随 `diet.embedding.*`（`diet.vectorstore.model/dimension/version` 可显式覆盖）；
+- **重建方式**：先跑一次"生成向量"确保 `meal_item_embedding` 完整，再以上述命令索引；
+  embedding 模型/维度变更时身份自动换新 collection（或显式覆盖身份），
+  旧 collection 维度不匹配时 `ensureCollection` 返回 false 并降级为结构化检索，
+  `clear()` 按身份重建，索引时维度不一致的向量会被跳过；
+- Qdrant 不可用或 collection 缺失时，现有结构化/hybrid 检索自动降级，不损坏 MySQL 业务数据。
+
 ## 配置注入
 
 | 环境变量 | 用途 | 默认 |
@@ -69,6 +89,8 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 | `DIET_SESSION_SECRET` | 匿名 Cookie HMAC 密钥 | `dev-only-change-me` |
 | `ADMIN_TOKEN` | admin 调试入口 token | 空（dev 不启用保护） |
 | `DATABASE_URL/USERNAME/PASSWORD` | prod 数据源 | dev 用本地 root/123456 |
+| `DIET_VECTORSTORE_MODE` | 餐食向量索引模式（in-memory/qdrant） | `in-memory` |
+| `QDRANT_HOST/QDRANT_GRPC_PORT` | Qdrant gRPC 地址（qdrant 模式） | `localhost`/`6334` |
 
 - **dev**（默认 profile）：允许 `X-User-Id` 回退、admin 不保护、Cookie 不强制 Secure；
 - **prod**（`--spring.profiles.active=prod`）：拒绝 `X-User-Id`、强制 `ADMIN_TOKEN` 保护、Cookie Secure；缺少 `DASHSCOPE_API_KEY/DIET_SESSION_SECRET/ADMIN_TOKEN` 时启动失败。
@@ -80,7 +102,7 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 310 个测试（293 通过，16 个 MySQL 场景和 1 个 Qdrant 场景按环境门控跳过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟与 VectorStore 适配器。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 328 个测试（309 通过，16 个 MySQL 场景和 3 个 Qdrant 场景按环境门控跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -90,7 +112,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 309 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 310 个测试。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 325 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 328 个测试。
 
 ## 部署（Compose，spec 11）
 

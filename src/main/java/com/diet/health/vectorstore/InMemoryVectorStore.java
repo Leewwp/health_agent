@@ -31,6 +31,11 @@ public class InMemoryVectorStore implements VectorStore {
     }
 
     @Override
+    public int dimension() {
+        return identity.dimension();
+    }
+
+    @Override
     public boolean ensureCollection() {
         return true;
     }
@@ -44,7 +49,7 @@ public class InMemoryVectorStore implements VectorStore {
 
     @Override
     public synchronized List<VectorHit> search(float[] queryVector, VectorFilter filter, int limit) {
-        if (queryVector == null || queryVector.length == 0) {
+        if (queryVector == null || queryVector.length == 0 || limit <= 0) {
             return List.of();
         }
         Set<Long> exclude = new HashSet<>(filter.excludeMealIds() == null ? List.of() : filter.excludeMealIds());

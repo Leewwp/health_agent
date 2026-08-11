@@ -73,6 +73,20 @@ class VectorIndexingRunnerTest {
         assertEquals(List.of("花生"), point.payload().get("allergens"));
         assertEquals(List.of("APPROVED"), point.payload().get("review_status"));
         assertEquals(List.of("PUBLIC"), point.payload().get("source_type"));
+        assertEquals(List.of("v3-2"), point.payload().get("data_version"));
+    }
+
+    @Test
+    void 向量维度与身份不一致时跳过() {
+        MealItemRow meal = meal(1L, "[\"午餐\"]", null, null, "APPROVED", "PUBLIC");
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(meal));
+        // 身份维度 2，但向量是 3 维 → 必须跳过，防止混写错误 collection
+        when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
+                .thenReturn(List.of(row(1L, "v3-2", "[1.0,0.0,0.0]")));
+
+        runner.run(null);
+
+        assertTrue(store.upserted.isEmpty(), "维度不一致的向量不得入索引");
     }
 
     @Test

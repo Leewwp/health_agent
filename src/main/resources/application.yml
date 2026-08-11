@@ -62,6 +62,18 @@ diet:
     timeout-ms: 5000
     # 启动时是否离线生成餐食向量（需要真实 API key，默认关闭）
     generate-on-startup: false
+  vectorstore:
+    # in-memory=内存适配器（测试/离线演示，默认）；qdrant=真实 Qdrant（gRPC 明文）
+    mode: ${DIET_VECTORSTORE_MODE:in-memory}
+    host: ${QDRANT_HOST:localhost}
+    grpc-port: ${QDRANT_GRPC_PORT:6334}
+    use-tls: false
+    timeout-ms: 5000
+    # 启动时是否把 MySQL 审核餐食向量批量索引到向量存储（需要已生成 meal_item_embedding，默认关闭）
+    index-on-startup: false
+    # collection 身份（provider+model+dimension+version）：model/dimension 默认跟随
+    # diet.embedding.*（切换 embedding 模型/维度时自动换 collection 身份），可显式覆盖
+    provider: dashscope
   prompt:
     version: v1
   session:
