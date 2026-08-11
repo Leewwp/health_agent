@@ -67,6 +67,18 @@
             <artifactId>dashscope-sdk-java</artifactId>
             <version>2.22.9</version>
         </dependency>
+        <!-- MCP Java SDK 0.17.0（M5 闸门 #48 显式锁定；真实坐标为 io.modelcontextprotocol.sdk:mcp，非票面 io.modelcontextprotocol:sdk-mcp） -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
+            <version>0.17.0</version>
+        </dependency>
+        <!-- Qdrant Java Client 1.17.0（M5 闸门 #48 显式锁定；仅依赖锁定，未接入应用） -->
+        <dependency>
+            <groupId>io.qdrant</groupId>
+            <artifactId>client</artifactId>
+            <version>1.17.0</version>
+        </dependency>
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
