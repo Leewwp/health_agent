@@ -80,7 +80,42 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据。固定场景集在无 API key 下可复现（当前 269 个测试全部通过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据。固定场景集在无 API key 下可复现（当前 276 个测试全部通过）。
+
+### 真实 MySQL 集成测试（事务回滚与行锁）
+
+39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V6）上验证 saveProfile/createDraft/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致。需要本机 MySQL（root/123456，与 dev 配置一致）：
+
+```bash
+mvn test -Ditest.mysql=true
+```
+
+CI 的 MySQL 服务容器以同一账号启动，因此默认 CI 全量测试即包含该集成验证；本机不带该门控时跳过（不影响无环境依赖的 276 个单元测试）。
+
+## 部署（Compose，spec 11）
+
+单实例 Nginx + Spring Boot + MySQL，Nginx 托管 `frontend/` 并同源反代 `/api/`：
+
+```bash
+cp deploy/.env.example .env   # 填写 DIET_SESSION_SECRET / ADMIN_TOKEN 等
+docker compose up -d --build
+```
+
+打开 `http://localhost`。prod profile 强制真实模型与 admin token 保护，缺少必要环境变量时启动失败（特性）。
+
+### 备份与回退（spec 11）
+
+- **迁移前备份**：Flyway 迁移前执行 `mysqldump` 备份（Compose 场景：`docker compose exec -T mysql mysqldump -uroot -p diet_db > diet_db_$(date +%Y%m%d).sql`）；
+- **失败回退**：回退上一个应用镜像（`docker compose up -d` 使用上次镜像 tag）或前向修复，不执行破坏性自动回滚；
+- **健康检查**：`curl http://localhost/actuator/health`（Nginx 已反代该路径；后端直连为 `curl http://localhost:8080/actuator/health`）。
+
+## CI
+
+`.github/workflows/ci.yml`：Java 21（Temurin）编译 + MySQL 8.4 服务容器 + `mvn -Ditest.mysql=true test` 全量测试，失败自动上传 surefire 报告。
+
+## 完成证据
+
+[M0-M4 完成证据清单](docs/release-evidence.md) 汇总 28 号验收矩阵在 36 号总验收中的所有证据位置（自动化、浏览器、真实 DashScope 冒烟、Compose/CI、干净环境复现）。
 
 ## 冒烟示例
 
@@ -108,7 +143,7 @@ curl -X POST http://localhost:8080/api/v1/diet/chat -H 'Content-Type: applicatio
 - [Agent MVP 面试适用性复核](docs/agent-mvp-suitability-review.md)
 - [实施票据地图](.scratch/health-agent/map.md)
 
-两级门槛：31-33 号交付可测试、可降级、可追踪的三品类 Agent 垂直闭环与审核资源/浏览 API/餐食 RAG；34 号完成健康档案、周计划、风险 Guard 与计划 API；审计修复批次 39-44 号补齐事务化、统一资源 Provider、类型化反馈、版本生成依据、聊天稳定性与风险规则目录，均已有自动化证据。35 号前端与 36 号最终验收（真实 DashScope 冒烟、MySQL 迁移、浏览器流程）通过后才可称为完整健康 Agent MVP。
+两级门槛：31-33 号交付可测试、可降级、可追踪的三品类 Agent 垂直闭环与审核资源/浏览 API/餐食 RAG；34 号完成健康档案、周计划、风险 Guard 与计划 API；审计修复批次 39-44 号补齐事务化、统一资源 Provider、类型化反馈、版本生成依据、聊天稳定性与风险规则目录，均已有自动化证据。35 号前端与 36 号最终验收（真实 DashScope 冒烟、MySQL 迁移、浏览器流程、Compose/CI、干净环境复现）通过后即完整健康 Agent MVP，证据见 [M0-M4 完成证据清单](docs/release-evidence.md)。
 
 ## 边界
 
