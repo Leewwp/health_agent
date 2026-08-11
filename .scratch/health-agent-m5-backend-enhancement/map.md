@@ -25,6 +25,7 @@
 <!-- 子票关闭后在这里追加“名称 + 链接 + 一句话结论”，不复制票内详情。 -->
 
 - [01 MCP 与 Qdrant 依赖兼容性闸门](issues/01-mcp-qdrant-compatibility-gate.md) — MCP 0.17.0 四步 Servlet 冒烟与 Qdrant 1.17.0 create/upsert/filter/delete 真实通过；修正明文 gRPC 与查询向量构造后，MySQL + Qdrant 全门控 310/0/0，02/04/07 前置解除。
+- [02 Qdrant VectorStore、索引生命周期与 Compose](issues/02-qdrant-vector-store-and-indexing.md) — 小型 VectorStore seam 落地：身份（provider+model+dimension+version）派生 collection 名，Qdrant 生产适配器 + 内存测试适配器行为一致；幂等 upsert、must_not 过滤（排除 ID/过敏原）、clear 重建、client 生命周期；启动批量索引 runner；Compose 增加 qdrant 服务（REST 6333/gRPC 6334）。真实 Qdrant 集成测试通过，测试口径 310→327（门控跳过 17→19）。
 
 ## Not yet specified
 

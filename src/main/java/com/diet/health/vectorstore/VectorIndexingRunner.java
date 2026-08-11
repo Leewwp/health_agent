@@ -92,10 +92,17 @@ public class VectorIndexingRunner implements ApplicationRunner {
         }
 
         int indexed = 0;
+        int skipped = 0;
         List<VectorPoint> batch = new ArrayList<>(BATCH_SIZE);
         for (Long mealId : mealIds) {
             float[] vector = vectors.get(mealId);
             if (vector == null) {
+                continue;
+            }
+            // 维度漂移防护：与身份维度不一致的向量拒绝入索引（防止混写错误 collection）
+            if (vector.length != vectorStore.dimension()) {
+                skipped++;
+                log.warn("餐食 {} 向量维度 {} 与身份维度 {} 不一致，跳过索引", mealId, vector.length, vectorStore.dimension());
                 continue;
             }
             batch.add(new VectorPoint(mealId, vector, payload(mealById.get(mealId))));
@@ -104,8 +111,8 @@ public class VectorIndexingRunner implements ApplicationRunner {
             }
         }
         indexed += upsertBatch(batch);
-        log.info("餐食向量索引完成：{} / {} 条（collection {}，模型 {}）",
-                indexed, mealIds.size(), vectorStore.collectionName(), embeddingClient.modelName());
+        log.info("餐食向量索引完成：{} / {} 条（collection {}，模型 {}，维度跳过 {} 条）",
+                indexed, mealIds.size(), vectorStore.collectionName(), embeddingClient.modelName(), skipped);
     }
 
     private int upsertBatch(List<VectorPoint> batch) {
@@ -124,7 +131,7 @@ public class VectorIndexingRunner implements ApplicationRunner {
         }
     }
 
-    /** 检索所需 keyword payload：餐食槽位标签 + 过敏原；不携带餐食事实字段。 */
+    /** 检索所需 keyword payload：餐食槽位标签 + 过敏原 + 数据版本；不携带餐食事实字段。 */
     private Map<String, List<String>> payload(MealItemRow meal) {
         if (meal == null) {
             return Map.of();
@@ -135,6 +142,7 @@ public class VectorIndexingRunner implements ApplicationRunner {
         payload.put("allergens", jsonService.fromJsonArray(meal.getAllergenJson()));
         payload.put("review_status", List.of(meal.getReviewStatus()));
         payload.put("source_type", List.of(meal.getSourceType()));
+        payload.put("data_version", List.of(embeddingClient.modelVersion()));
         return payload;
     }
 

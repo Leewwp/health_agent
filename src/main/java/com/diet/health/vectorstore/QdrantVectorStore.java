@@ -44,6 +44,11 @@ public class QdrantVectorStore implements VectorStore {
     }
 
     @Override
+    public int dimension() {
+        return identity.dimension();
+    }
+
+    @Override
     public boolean ensureCollection() {
         String name = collectionName();
         try {
@@ -98,9 +103,13 @@ public class QdrantVectorStore implements VectorStore {
 
     @Override
     public List<VectorHit> search(float[] queryVector, VectorFilter filter, int limit) {
+        // 与 InMemoryVectorStore 语义一致：空向量/非正 limit 直接返回空，不触碰 Qdrant
+        if (queryVector == null || queryVector.length == 0 || limit <= 0) {
+            return List.of();
+        }
         Points.SearchPoints.Builder search = Points.SearchPoints.newBuilder()
                 .setCollectionName(collectionName())
-                .setLimit(Math.max(limit, 0));
+                .setLimit(limit);
         for (float v : queryVector) {
             search.addVector(v);
         }

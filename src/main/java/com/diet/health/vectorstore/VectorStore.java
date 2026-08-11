@@ -14,6 +14,9 @@ public interface VectorStore {
     /** collection 身份名：provider + model + dimension + version（决定重建目标）。 */
     String collectionName();
 
+    /** 身份维度（用于索引前向量长度校验）。 */
+    int dimension();
+
     /**
      * 检查/创建 collection（幂等）。Qdrant 不可达、维度与身份不匹配时返回 false，
      * 由调用方降级为结构化检索；不抛异常。
