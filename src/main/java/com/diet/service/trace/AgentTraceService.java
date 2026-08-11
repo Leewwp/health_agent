@@ -4,6 +4,7 @@ import com.diet.mapper.AgentTraceMapper;
 import com.diet.exception.DietException;
 import com.diet.model.TraceLabelRequest;
 import com.diet.model.RequestTraceRow;
+import com.diet.util.TraceRedactor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
@@ -218,8 +219,8 @@ public class AgentTraceService {
         if (scope == null) {
             return;
         }
-        // 将异常格式化为 "ClassName: message" 字符串，null 表示无异常
-        String errorMessage = error == null ? null : trim(error.getClass().getSimpleName() + ": " + error.getMessage());
+        // 将异常格式化为 "ClassName: message" 字符串，null 表示无异常；消息可能携带上游凭证，统一脱敏
+        String errorMessage = error == null ? null : TraceRedactor.redact(trim(error.getClass().getSimpleName() + ": " + error.getMessage()));
         // 构造 TraceEvent：stepOrder 自增，payload 序列化为 JSON 字符串
         scope.addEvent(new TraceEvent(
                 scope.nextStep(),           // 事件序号，从 1 递增
@@ -269,27 +270,27 @@ public class AgentTraceService {
         agentTraceMapper.insert(row);
     }
 
-    /** 将对象序列化为 JSON 字符串；失败时返回空 events 占位 JSON。 */
+    /** 将对象序列化为 JSON 字符串并脱敏；失败时返回空 events 占位 JSON。 */
     private String toTraceJson(Object payload) {
         try {
-            return objectMapper.writeValueAsString(payload);
+            return TraceRedactor.redact(objectMapper.writeValueAsString(payload));
         } catch (Exception ignored) {
             return "{\"events\":[]}";
         }
     }
 
-    /** 将 payload 对象转为可存储的字符串；String 直接 trim，其他对象 JSON 序列化。 */
+    /** 将 payload 对象转为可存储的字符串；String 直接 trim，其他对象 JSON 序列化。统一经 TraceRedactor 脱敏。 */
     private String toPayload(Object payload) {
         if (payload == null) {
             return null;
         }
         if (payload instanceof String text) {
-            return trim(text);
+            return TraceRedactor.redact(trim(text));
         }
         try {
-            return trim(objectMapper.writeValueAsString(payload));
+            return TraceRedactor.redact(trim(objectMapper.writeValueAsString(payload)));
         } catch (Exception ignored) {
-            return trim(String.valueOf(payload));
+            return TraceRedactor.redact(trim(String.valueOf(payload)));
         }
     }
 

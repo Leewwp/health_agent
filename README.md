@@ -80,6 +80,20 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
   `clear()` 按身份重建，索引时维度不一致的向量会被跳过；
 - Qdrant 不可用或 collection 缺失时，现有结构化/hybrid 检索自动降级，不损坏 MySQL 业务数据。
 
+### MCP Streamable HTTP 端点（M5 #51）
+
+应用在 `/mcp` 注册单一 MCP Streamable HTTP 端点（MCP Java SDK 0.17.0 servlet transport），
+供外部 MCP 客户端（Inspector/自定义客户端）发现与调用只读/纯计算工具（M5 #47 注册）。
+身份与 Origin 边界由独立 Filter 承担，与匿名 Cookie、可编辑用户头和管理 token 隔离：
+
+- 请求必须携带 `Authorization: Bearer <MCP_API_TOKEN>`，token 缺失/错误返回 401；
+  未配置 `MCP_API_TOKEN` 时端点 fail-closed 拒绝所有请求；
+- Origin 头存在时必须命中 `MCP_ALLOWED_ORIGINS`（逗号分隔）否则 403；空 allowlist 表示
+  本地演示不限制 Origin（生产建议显式配置）；缺失 Origin（curl/Inspector/服务端调用）
+  按 `DIET_MCP_ALLOW_MISSING_ORIGIN` 放行（默认 true）；
+- 鉴权结果经 transport context 传入工具 handler（`principal=mcp-client`）；
+- **该实现不是 MCP OAuth 2.1，也不声明最新规范全量合规**，仅用于本地演示与面试讲解。
+
 ## 配置注入
 
 | 环境变量 | 用途 | 默认 |

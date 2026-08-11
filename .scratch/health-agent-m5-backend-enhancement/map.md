@@ -25,6 +25,9 @@
 <!-- 子票关闭后在这里追加“名称 + 链接 + 一句话结论”，不复制票内详情。 -->
 
 - [01 MCP 与 Qdrant 依赖兼容性闸门](issues/01-mcp-qdrant-compatibility-gate.md) — MCP 0.17.0 四步 Servlet 冒烟与 Qdrant 1.17.0 create/upsert/filter/delete 真实通过；修正明文 gRPC 与查询向量构造后，MySQL + Qdrant 全门控 310/0/0，02/04/07 前置解除。
+- [02 Qdrant VectorStore、索引生命周期与 Compose](issues/02-qdrant-vector-store-and-indexing.md) — VectorStore 接口 + InMemory/Qdrant 双适配器（collection 身份 provider+model+dimension+version、Cosine、幂等 upsert、payload 过滤、ping/clear/close 生命周期），VectorIndexingRunner 启动幂等批量索引（失败告警不阻塞），Compose 含 qdrant/qdrant:v1.17.0，README 记录索引重建方式；17 个测试通过（Qdrant 真实集成测试按 itest.qdrant 门控）。
+- [04 MCP Streamable HTTP、Token 与 Origin 校验](issues/04-mcp-streamable-http-security.md) — /mcp 单一端点挂 Servlet transport，独立 McpSecurityFilter 校验 Bearer MCP_API_TOKEN（常量时间比较、未配置 fail-closed）与 Origin allowlist/缺失策略，鉴权经 transport context 传入工具 handler；18 个测试覆盖无/错 token 401、非法 Origin 403、合法 initialize、协议错误与 principal 传递。
+- [07 健康 Agent Trace 最小脱敏增强](issues/07-health-agent-trace-redaction.md) — TraceRedactor 在 AgentTraceService 持久化边界统一脱敏（API key/Bearer/授权头/Cookie/环境变量凭证/JSON 敏感键），MEAL_RETRIEVED 补记向量供应商/模型/版本/collection；测试证明凭证不进入 traceJson/responseJson/errorMessage，非敏感内容原样保留。
 - [02 Qdrant VectorStore、索引生命周期与 Compose](issues/02-qdrant-vector-store-and-indexing.md) — 小型 VectorStore seam 落地：身份（provider+model+dimension+version）派生 collection 名，Qdrant 生产适配器 + 内存测试适配器行为一致；幂等 upsert、must_not 过滤（排除 ID/过敏原）、clear 重建、client 生命周期；启动批量索引 runner；Compose 增加 qdrant 服务（REST 6333/gRPC 6334）。真实 Qdrant 集成测试通过，测试口径 310→327（门控跳过 17→19）。
 
 ## Not yet specified

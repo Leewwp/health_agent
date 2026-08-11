@@ -33,8 +33,12 @@ class MealModuleTest {
     private final MealSearchService search = mock(MealSearchService.class);
     private final MealRetriever retriever = mock(MealRetriever.class);
     private final AgentTraceService trace = mock(AgentTraceService.class);
+    private final com.diet.health.rag.EmbeddingClient embedding = mock(com.diet.health.rag.EmbeddingClient.class);
+    private final com.diet.health.vectorstore.VectorStoreIdentity identity =
+            new com.diet.health.vectorstore.VectorStoreIdentity("dashscope", "text-embedding-v3", 1024, "v3-1024");
     private final MealModule module = new MealModule(
-            search, new MealRankService(), trace, retriever, new PreferenceService(mock(FeedbackMapper.class)));
+            search, new MealRankService(), trace, retriever, new PreferenceService(mock(FeedbackMapper.class)),
+            embedding, identity);
 
     @Test
     void PERSONAL空库返回空候选不抛异常() {
@@ -82,9 +86,20 @@ class MealModuleTest {
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, "embedding_unavailable"));
+        when(embedding.modelName()).thenReturn("text-embedding-v3");
+        when(embedding.modelVersion()).thenReturn("v3-1024");
 
         module.recommendMeals(Map.of("mealTime", List.of("午餐")), List.of());
 
-        verify(trace).recordEvent(eq("MEAL_RETRIEVED"), eq("RETRIEVE"), any(), any());
+        ArgumentCaptor<Map<String, Object>> detailCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(trace).recordEvent(eq("MEAL_RETRIEVED"), eq("RETRIEVE"), any(), detailCaptor.capture());
+        Map<String, Object> detail = detailCaptor.getValue();
+        assertEquals("STRUCTURED", detail.get("mode"));
+        assertEquals("embedding_unavailable", detail.get("degradationReason"));
+        assertEquals("dashscope", detail.get("vectorProvider"));
+        assertEquals("text-embedding-v3", detail.get("vectorModel"));
+        assertEquals("v3-1024", detail.get("vectorVersion"));
+        assertEquals("meal_dashscope_text-embedding-v3_1024_v3-1024", detail.get("collection"));
+        assertEquals(1, detail.get("candidateCount"));
     }
 }
