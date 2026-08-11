@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>健康助手</title>
+    <link rel="stylesheet" href="./assets/css/app.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="topbar">
+        <a class="brand" href="#/chat" aria-label="回到健康助手首页">
+            <span class="brand-mark">健</span>
+            <span>
+                    <strong>健康助手</strong>
+                    <small>饮食 · 健身 · 作息</small>
+                </span>
+        </a>
+        <nav class="nav-links" aria-label="主导航">
+            <a href="#/chat" data-nav="/chat">聊天</a>
+            <a href="#/meals" data-nav="/meals">餐食</a>
+            <a href="#/exercises" data-nav="/exercises">动作</a>
+            <a href="#/plans" data-nav="/plans">我的计划</a>
+            <a href="#/profile" data-nav="/profile">健康档案</a>
+        </nav>
+    </header>
+
+    <main id="app" class="page" tabindex="-1"></main>
+</div>
+
+<div id="drawer-root" class="drawer-root" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="./assets/js/main.js"></script>
+</body>
+</html>
