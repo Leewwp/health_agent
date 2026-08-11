@@ -40,6 +40,24 @@ class TraceRedactorTest {
     }
 
     @Test
+    void bearer内嵌skKey不产生重复占位符() {
+        String redacted = TraceRedactor.redact("凭证 Bearer sk-abcdef1234567890abcdef1234567890 已过期");
+        assertTrue(!redacted.contains("sk-abcdef1234567890abcdef1234567890"), redacted);
+        assertTrue(redacted.contains("Bearer [REDACTED]"), redacted);
+        assertEquals(1, countOccurrences(redacted, "[REDACTED]"), "不应出现重复占位符：" + redacted);
+    }
+
+    private int countOccurrences(String text, String token) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(token, idx)) != -1) {
+            count++;
+            idx += token.length();
+        }
+        return count;
+    }
+
+    @Test
     void 授权头整行脱敏() {
         String redacted = TraceRedactor.redact("GET /api HTTP/1.1\nAuthorization: Basic dXNlcjpwYXNz\nCookie: session=abc123");
         assertTrue(!redacted.contains("Basic dXNlcjpwYXNz"), redacted);
