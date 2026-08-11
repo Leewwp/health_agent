@@ -80,7 +80,7 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据。固定场景集在无 API key 下可复现（当前 276 个测试全部通过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 310 个测试（293 通过，16 个 MySQL 场景和 1 个 Qdrant 场景按环境门控跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -90,7 +90,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此默认 CI 全量测试即包含该集成验证；本机不带该门控时跳过（不影响无环境依赖的 276 个单元测试）。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 309 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 310 个测试。
 
 ## 部署（Compose，spec 11）
 

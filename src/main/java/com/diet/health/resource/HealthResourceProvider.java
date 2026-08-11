@@ -12,7 +12,8 @@ import java.util.Optional;
  * <p>
  * 两种实现互斥，由 {@code diet.resource.mode} 选择：
  * REVIEWED_DB 读取数据库审核子集（餐食/动作用数据库稳定主键，作息事实用冻结业务 ref_id）；
- * FIXTURE_SEED 读取内存种子（9001-9008 / R1-R5），只用于离线演示与测试，禁止与审核资源混用。
+ * FIXTURE_SEED 读取内存种子（动作 9001-9008 / 作息 R1-R5 / 餐食 M1-M9），
+ * 只用于离线演示与测试，禁止与审核资源混用。
  * 返回集合一律为不可变拷贝，空库不得抛异常。
  */
 public interface HealthResourceProvider {
@@ -26,7 +27,7 @@ public interface HealthResourceProvider {
     /** 按资源 ID 查动作（正式模式为数据库主键，fixture 模式为种子 ID），无命中返回空。 */
     Optional<HealthResource> exerciseById(String resourceId);
 
-    /** 按资源 ID 查餐食（正式模式为数据库主键，fixture 模式无餐食返回空），无命中返回空。 */
+    /** 按资源 ID 查餐食（正式模式为数据库主键，fixture 模式为 M 前缀种子 ID），无命中返回空。 */
     Optional<HealthResource> mealById(String resourceId);
 
     /** 按事实标识查作息事实（正式模式为冻结 ref_id，fixture 模式为 R 前缀 ID），无命中返回空。 */

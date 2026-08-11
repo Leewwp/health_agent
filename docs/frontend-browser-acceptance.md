@@ -62,6 +62,7 @@
 
 - 验收环境：fixture 后端（`-Ddiet.agent.mode=fixture -Ddiet.rag.mode=structured`，端口 8092，使用 `diet_db` 正式库）+ 临时 Nginx 同源反代（端口 8093，`host.docker.internal:8092`）+ ego-browser 真实 Chromium；桌面 1710×983 与移动端 390×844 两种视口。
 - 聊天页健身澄清：URL `http://localhost:8093/#/chat`，发送“推荐全身训练”→ 后端返回 CLARIFY（“你今天想练哪个部位？”），缺失槽位 chip 显示中文“训练部位”，不暴露 `bodyParts`/`trainingGoal` 内部字段名；桌面与移动视口均通过；浏览器控制台无 error/warning。
+- 2026-08-12 复核补证：同一 URL 和交互在 1710×983、390×844 重新通过；复核时发现长 sessionId 会把移动端 Grid 撑到 667px，已补 `min-width: 0`、长标识换行和按钮单行约束，最终 `scrollWidth=clientWidth=390`。截图：[桌面](evidence/issue-58-chat-desktop.png) / [移动端](evidence/issue-58-chat-mobile.png)。
 - 周计划链路归一验证：同一匿名身份 PUT 健康档案（175cm/70kg/轻活动/维持 → 能量区间 2150-2400）→ POST `/api/v1/health/plans/drafts` 生成草稿（planId 15），EXERCISE 项目 params.bodyPart 为 Provider 归一后的中文值（“胸”/“核心”/“背”），无英文原始值泄漏；餐食/动作/作息快照同源。
 - 说明：`cardio → 全身` 归一与“全身”召回登山者/波比跳由 `DbReviewedResourceProviderTest`（真实 seed 行 0630）与 `ExerciseModuleTest` 断言覆盖；fixture 意图 Agent 关键词不含“全身”，聊天路径无法在 fixture 模式触达“全身”推荐，故该断言落在单元层。
 - 清理：验收后停止 8092 fixture 后端与 8093 nginx 容器；8090 用户实例与正式库未受影响。
