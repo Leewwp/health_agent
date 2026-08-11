@@ -114,15 +114,16 @@ public class QdrantVectorStore implements VectorStore {
             search.addVector(v);
         }
         Common.Filter.Builder qdrantFilter = Common.Filter.newBuilder();
-        if (filter.excludeMealIds() != null && !filter.excludeMealIds().isEmpty()) {
+        VectorFilter safeFilter = filter == null ? VectorFilter.none() : filter;
+        if (safeFilter.excludeMealIds() != null && !safeFilter.excludeMealIds().isEmpty()) {
             Common.HasIdCondition.Builder hasId = Common.HasIdCondition.newBuilder();
-            for (Long id : filter.excludeMealIds()) {
+            for (Long id : safeFilter.excludeMealIds()) {
                 hasId.addHasId(Common.PointId.newBuilder().setNum(id));
             }
             qdrantFilter.addMustNot(Common.Condition.newBuilder().setHasId(hasId));
         }
-        if (filter.allergenTags() != null) {
-            for (String allergen : filter.allergenTags()) {
+        if (safeFilter.allergenTags() != null) {
+            for (String allergen : safeFilter.allergenTags()) {
                 qdrantFilter.addMustNot(Common.Condition.newBuilder().setField(
                         Common.FieldCondition.newBuilder()
                                 .setKey("allergens")

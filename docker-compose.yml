@@ -56,6 +56,8 @@ services:
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?DASHSCOPE_API_KEY 必填（真实 key，占位符会被校验拒绝），请复制 deploy/.env.example 为 .env}
       DIET_SESSION_SECRET: ${DIET_SESSION_SECRET:?DIET_SESSION_SECRET 必填，请复制 deploy/.env.example 为 .env}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?ADMIN_TOKEN 必填，请复制 deploy/.env.example 为 .env}
+      MCP_API_TOKEN: ${MCP_API_TOKEN:-}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       DIET_VECTORSTORE_MODE: ${DIET_VECTORSTORE_MODE:-in-memory}
       QDRANT_HOST: qdrant
       QDRANT_GRPC_PORT: "6334"

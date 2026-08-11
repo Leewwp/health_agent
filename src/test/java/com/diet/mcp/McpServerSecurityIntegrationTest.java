@@ -53,13 +53,7 @@ class McpServerSecurityIntegrationTest {
         McpSecurityFilter filter = new McpSecurityFilter(TOKEN,
                 McpSecurityFilter.parseAllowlist("http://localhost:5173"), true);
         HttpServletStreamableServerTransportProvider provider = HttpServletStreamableServerTransportProvider.builder()
-                .contextExtractor(request -> {
-                    Object principal = request.getAttribute(McpSecurityFilter.PRINCIPAL_ATTRIBUTE);
-                    return principal == null
-                            ? io.modelcontextprotocol.common.McpTransportContext.EMPTY
-                            : io.modelcontextprotocol.common.McpTransportContext.create(
-                            java.util.Map.of("principal", String.valueOf(principal)));
-                })
+                .contextExtractor(McpSecurityFilter::extractTransportContext)
                 .build();
         server = McpServer.sync(provider)
                 .serverInfo("health-agent-mcp", "0.1.0")

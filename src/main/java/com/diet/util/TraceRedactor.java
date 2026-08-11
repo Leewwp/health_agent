@@ -50,8 +50,9 @@ public final class TraceRedactor {
         result = AUTH_HEADER.matcher(result).replaceAll(Matcher.quoteReplacement(REDACTED));
         result = ENV_ASSIGN.matcher(result).replaceAll(m -> m.group(1) + "=" + REDACTED);
         result = JSON_SENSITIVE_VALUE.matcher(result).replaceAll(m -> "\"" + m.group(1) + "\":\"" + REDACTED + "\"");
-        result = API_KEY.matcher(result).replaceAll(Matcher.quoteReplacement("sk-" + REDACTED));
+        // 先脱敏 Bearer（会吞掉整段 token），再脱敏残留的独立 sk- 前缀 key，避免重复占位符
         result = BEARER.matcher(result).replaceAll(Matcher.quoteReplacement("Bearer " + REDACTED));
+        result = API_KEY.matcher(result).replaceAll(Matcher.quoteReplacement("sk-" + REDACTED));
         return result;
     }
 }

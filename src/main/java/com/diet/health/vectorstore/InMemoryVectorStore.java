@@ -52,8 +52,9 @@ public class InMemoryVectorStore implements VectorStore {
         if (queryVector == null || queryVector.length == 0 || limit <= 0) {
             return List.of();
         }
-        Set<Long> exclude = new HashSet<>(filter.excludeMealIds() == null ? List.of() : filter.excludeMealIds());
-        Set<String> allergens = new HashSet<>(filter.allergenTags() == null ? List.of() : filter.allergenTags());
+        VectorFilter safeFilter = filter == null ? VectorFilter.none() : filter;
+        Set<Long> exclude = new HashSet<>(safeFilter.excludeMealIds() == null ? List.of() : safeFilter.excludeMealIds());
+        Set<String> allergens = new HashSet<>(safeFilter.allergenTags() == null ? List.of() : safeFilter.allergenTags());
 
         List<VectorHit> hits = new ArrayList<>();
         for (VectorPoint point : points.values()) {
@@ -67,7 +68,7 @@ public class InMemoryVectorStore implements VectorStore {
             hits.add(new VectorHit(point.mealId(), score));
         }
         hits.sort(Comparator.comparingDouble(VectorHit::score).reversed());
-        return hits.stream().limit(Math.max(limit, 0)).toList();
+        return hits.stream().limit(limit).toList();
     }
 
     private boolean containsAllergen(VectorPoint point, Set<String> allergens) {

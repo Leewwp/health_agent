@@ -91,6 +91,9 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 - Origin 头存在时必须命中 `MCP_ALLOWED_ORIGINS`（逗号分隔）否则 403；空 allowlist 表示
   本地演示不限制 Origin（生产建议显式配置）；缺失 Origin（curl/Inspector/服务端调用）
   按 `DIET_MCP_ALLOW_MISSING_ORIGIN` 放行（默认 true）；
+- DNS rebinding 风险的主缓解是 **Bearer token 强制鉴权**（非 Cookie 凭据，跨站页面无法
+  携带或读取），Origin 校验是纵深防御：生产部署请配置 allowlist 并把
+  `DIET_MCP_ALLOW_MISSING_ORIGIN` 设为 false；
 - 鉴权结果经 transport context 传入工具 handler（`principal=mcp-client`）；
 - **该实现不是 MCP OAuth 2.1，也不声明最新规范全量合规**，仅用于本地演示与面试讲解。
 
@@ -116,7 +119,7 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟与 VectorStore 适配器。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 328 个测试（309 通过，16 个 MySQL 场景和 3 个 Qdrant 场景按环境门控跳过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）与 Trace 脱敏。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 360 个测试（341 通过，16 个 MySQL 场景和 3 个 Qdrant 场景按环境门控跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -126,7 +129,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 325 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 328 个测试。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 16 个 MySQL 集成场景；本机启用该门控时结果为 357 通过、仅 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 360 个测试。
 
 ## 部署（Compose，spec 11）
 
