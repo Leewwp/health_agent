@@ -1,7 +1,7 @@
 # 35 前端模块与用户页面
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Depends on: 32, 33, 34
 
@@ -25,3 +25,7 @@
 ## Done when
 
 聊天详情、动作筛选/收藏、计划编辑/激活三条桌面流程通过；移动端无横向溢出；媒体失败和慢接口不破坏布局；详情抽屉在不同资源入口保持一致。
+
+## Answer
+
+已完成 `frontend/` 原生 ES Modules 迁移、Nginx 同源反代和桌面端/`390×844` 移动端真实浏览器验收。验收证据见 `docs/frontend-browser-acceptance.md`，GitHub 对应实施票已关闭。

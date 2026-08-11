@@ -1,7 +1,7 @@
 # 36 核心验收、部署与运行手册
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Depends on: 31, 32, 33, 34, 35
 
@@ -24,3 +24,7 @@
 ## Done when
 
 28 号发布证据矩阵所有条目都有自动化、接口、浏览器或部署证据；项目能按 README 从干净环境启动；完成结果和残余缺口可复核。
+
+## Answer
+
+已完成 M0-M4 验收、干净库启动、真实 DashScope/浏览器流程、MySQL 事务集成测试、Compose/CI 和运行文档。证据见 `docs/release-evidence.md`；GitHub CI 全绿，对应实施票已关闭。
