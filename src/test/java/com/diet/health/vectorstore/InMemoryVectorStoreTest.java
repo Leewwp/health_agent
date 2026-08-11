@@ -83,6 +83,39 @@ class InMemoryVectorStoreTest {
     }
 
     @Test
+    void 审核状态must过滤() {
+        store.upsert(List.of(
+                point(1L, new float[]{1f, 0f}, Map.of("review_status", List.of("APPROVED"))),
+                point(2L, new float[]{0.9f, 0.1f}, Map.of("review_status", List.of("PENDING")))));
+
+        List<VectorHit> hits = store.search(new float[]{1f, 0f},
+                new VectorFilter(List.of(), List.of(), "APPROVED", null), 10);
+        assertEquals(1, hits.size());
+        assertEquals(1L, hits.getFirst().mealId());
+    }
+
+    @Test
+    void 来源类型must过滤() {
+        store.upsert(List.of(
+                point(1L, new float[]{1f, 0f}, Map.of("source_type", List.of("PUBLIC"))),
+                point(2L, new float[]{0.9f, 0.1f}, Map.of("source_type", List.of("PERSONAL")))));
+
+        List<VectorHit> hits = store.search(new float[]{1f, 0f},
+                new VectorFilter(List.of(), List.of(), null, "PUBLIC"), 10);
+        assertEquals(1, hits.size());
+        assertEquals(1L, hits.getFirst().mealId());
+    }
+
+    @Test
+    void 缺payload关键字时不满足must条件() {
+        store.upsert(List.of(point(1L, new float[]{1f, 0f})));
+
+        List<VectorHit> hits = store.search(new float[]{1f, 0f},
+                new VectorFilter(List.of(), List.of(), "APPROVED", null), 10);
+        assertTrue(hits.isEmpty(), "无 review_status payload 的点必须被 must 条件过滤");
+    }
+
+    @Test
     void 空向量query不产生命中() {
         store.upsert(List.of(point(1L, new float[]{1f, 0f})));
 

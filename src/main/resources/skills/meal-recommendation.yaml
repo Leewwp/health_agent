@@ -1,0 +1,39 @@
+# 技能清单：餐食推荐（M5 #50）
+# 只描述能力与调用边界，不含 Prompt、密钥或自主工具编排。
+name: meal-recommendation
+version: 1.0.0
+description: 按健康槽位检索审核通过的公共餐食，返回类型化候选列表
+input_schema:
+  type: object
+  required:
+    - slots
+  properties:
+    slots:
+      type: object
+      description: 健康槽位（mealTime/mood/scene/healthGoal/cuisine/taste/convenience/allergen 等）
+    text:
+      type: string
+      description: 嵌入语义文本
+    excludeIds:
+      type: array
+      items:
+        type: integer
+    limit:
+      type: integer
+      maximum: 10
+output_schema:
+  type: object
+  required:
+    - meals
+    - count
+  properties:
+    meals:
+      type: array
+      items:
+        type: object
+    count:
+      type: integer
+allowed_tools:
+  - search_meals
+  - get_meal_detail
+risk_level: low

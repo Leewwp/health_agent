@@ -47,6 +47,9 @@ public interface MealMapper {
 
     /** 按主键查审核通过公共餐食（反馈校验与组合器用）。 */
     MealItemRow findApprovedPublicById(@Param("id") Long id);
+
+    /** 按主键批量查审核通过公共餐食（hybrid 向量命中的 MySQL 二次校验用），按 id 升序。 */
+    List<MealItemRow> findApprovedPublicByIds(@Param("ids") List<Long> ids);
 }
 
 

@@ -1,0 +1,57 @@
+# 技能清单：健康目标计算（M5 #50）
+# 只描述能力与调用边界，不含 Prompt、密钥或自主工具编排。
+name: health-target-calculation
+version: 1.0.0
+description: 按健康档案参数确定性计算每日能量区间（kcal 估算值，不写入档案）
+input_schema:
+  type: object
+  required:
+    - age
+    - heightCm
+    - weightKg
+    - activityLevel
+    - goal
+  properties:
+    age:
+      type: integer
+      minimum: 18
+      maximum: 100
+    sex:
+      type: string
+      enum:
+        - MALE
+        - FEMALE
+    heightCm:
+      type: number
+    weightKg:
+      type: number
+    activityLevel:
+      type: string
+      enum:
+        - SEDENTARY
+        - LIGHT
+        - MODERATE
+    goal:
+      type: string
+      enum:
+        - MAINTAIN
+        - LOSE
+        - GAIN
+output_schema:
+  type: object
+  required:
+    - lowKcal
+    - highKcal
+    - estimated
+  properties:
+    lowKcal:
+      type: integer
+    highKcal:
+      type: integer
+    estimated:
+      type: boolean
+    calcBasis:
+      type: string
+allowed_tools:
+  - calculate_targets
+risk_level: low
