@@ -5,14 +5,14 @@ Multi-agent diet recommendation service (Spring Boot + AgentScope/DashScope + My
 ## Stack & commands
 
 - Java 21, Spring Boot 3.3.13, Maven (system `mvn`; no `mvnw` wrapper), MyBatis 3, Lombok, Hutool, MySQL 8.
-- Frontend is plain vanilla JS served from `src/main/resources/static/` (index.html + app.js/api.js/app.css). No Node/npm build step.
+- Frontend is plain vanilla JS ES Modules under `frontend/` (router/api/store/ui/pages/admin modules, hash routing; `frontend/assets` + `frontend/index.html`). No Node/npm build step — served by Nginx (`deploy/nginx.conf` local, `deploy/nginx.compose.conf` for Compose) as same-origin reverse proxy for `/api/` and `/actuator/health`. The old `src/main/resources/static/` copy is deleted.
 - Build: `mvn -DskipTests compile` · Run: `mvn spring-boot:run` (port 8080).
-- Test suite: JUnit 5 under `src/test/` (269 tests, all passing — run with `mvn test`). Includes unit tests for browse APIs, retrievers, recall evaluation, seed SQL/migration validation, transaction/row-lock plan invariants, typed feedback, resource providers and orchestrator seams.
+- Test suite: JUnit 5 under `src/test/` — `mvn test` runs 276 unit tests; `mvn test -Ditest.mysql=true` adds 10 real-MySQL integration tests (`MysqlTransactionIntegrationTest`, needs local MySQL root/123456; Maven rewrites the CLI flag to system property `itest.mysql`). CI (`.github/workflows/ci.yml`) runs the full 286 with a MySQL 8.4 service container. Includes unit tests for browse APIs, retrievers, recall evaluation, seed SQL/migration validation, transaction/row-lock plan invariants, typed feedback, resource providers and orchestrator seams.
 
 ## Run prerequisites
 
 - Local MySQL at `localhost:3306` (root/123456, per `application.yml`). `createDatabaseIfNotExist=true` creates only the empty DB — Flyway then migrates it automatically (`classpath:db/migration`, baseline-on-migrate with baseline-version 1): fresh DB gets the full schema via V1..V6 (legacy baseline, requestId idempotency, reviewed resources, health profile/plan, typed feedback, plan version provenance + ACTIVE constraint); a legacy DB imported from `src/main/resources/db/diet_db.sql` gets baselined at V1 and only the incremental migrations run. Startup also idempotently imports the reviewed seed (`db/seed/reviewed_resources.sql`, INSERT IGNORE via `ReviewedResourceSeeder`): 292 meals, 30 plan_ready exercises, 15 routine facts.
-- `agentscope.dashscope.api-key` in `application.yml` is the literal placeholder `请填入自己的apiKey`. Real LLM calls (intent/response/plan agents) fail until it's set or overridden (`-Dagentscope.dashscope.api-key=...` or env). LLM models: main `qwen-max`, light `qwen-turbo`.
+- `agentscope.dashscope.api-key` in `application.yml` is the literal placeholder `请填入自己的apiKey`. Real LLM calls (intent/response/plan agents) fail until it's set or overridden (`-Dagentscope.dashscope.api-key=...` or env). LLM models are configured via `diet.llm.main-model` / `diet.llm.light-model` (defaults `qwen-max`/`qwen-turbo`; the interview MaaS space uses `qwen3.8-max`/`qwen3.7-flash` + embedding `qwen3.7-text-embedding` overrides). `diet.llm.openai-compatible=true` switches chat to the OpenAI-compatible endpoint (`OpenAiCompatibleChatModel`, needed for MaaS spaces that expose only `/compatible-mode/v1`); embedding base-url is independent (`diet.embedding.base-url`, native `/api/v1` for MaaS spaces).
 - Legacy diet chain (`/api/v1/diet/**`) reads the `X-User-Id` header (defaults to `1` in `DietChatController`; frontend stores it in localStorage). The health chain (`/api/v1/health/**`) uses a server-issued HMAC anonymous Cookie via `AnonymousIdentityInterceptor` instead.
 
 ## Architecture
@@ -28,14 +28,15 @@ Multi-agent diet recommendation service (Spring Boot + AgentScope/DashScope + My
 ## Gotchas
 
 - Trace code (javadoc/comments) says "agent_traces 表" but the real table is `diet_request_trace` (see `AgentTraceMapper.xml`). Do not create an `agent_traces` table.
-- This directory is inside the large backup git repo rooted at `/Users/pp/Desktop/file` (remote `Leewwp/backup`). `git` commands here see the entire parent tree — never `git add .`; stage only `code/project/health-agent/...` paths. The `groupproject-team_9` remote belongs to a different project, ignore it.
+- This repo's git root is `health-agent/` itself, remote `origin` = `Leewwp/health_agent` (main 与 origin 同步). 上级目录 `/Users/pp/Desktop/file` 仍是另一个备份 git 仓库（remote `Leewwp/backup`）——不要在该目录执行本仓库的 git 操作。`groupproject-team_9` remote 属于另一个项目，忽略。
+- Deployment: `docker compose up -d --build` (mysql 8.4 + app multi-stage JRE 21 + nginx same-origin proxy, prod profile requires `DASHSCOPE_API_KEY`/`DIET_SESSION_SECRET`/`ADMIN_TOKEN` per `deploy/.env.example`). CI runs on push/PR to `main`; acceptance evidence checklist lives in `docs/release-evidence.md` (M0-M4).
 - Per the parent rules at `/Users/pp/Desktop/file/code/AGENTS.md`: UI changes must be verified in a real browser against the running app, with the URL, interactions, and result reported.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues and specs live as local markdown files under `.scratch/` in this repo. See `docs/agents/issue-tracker.md`.
+Issues and specs live as local markdown files under `.scratch/` in this repo (tracker at `https://github.com/Leewwp/health_agent/issues` for the 39-45 审计批次；`.scratch/health-agent/map.md` 维护索引与状态). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
