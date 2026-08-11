@@ -1,6 +1,8 @@
 package com.diet.health.resource;
 
+import com.diet.health.TestSupport;
 import com.diet.health.browse.ExerciseBrowseService;
+import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.module.HealthResource;
 import com.diet.health.module.RoutineFact;
 import com.diet.health.model.ExerciseBrowseItem;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -148,6 +151,73 @@ class DbReviewedResourceProviderTest {
     void provider模式与资源版本标识明确() {
         assertEquals("REVIEWED_DB", provider.providerMode());
         assertEquals("reviewed-2026-08-10-v1", provider.resourceVersion());
+    }
+
+    @Test
+    void cardio动作在两个字段均归一为全身且不泄漏英文() {
+        // 数据集 0630「登山者」：body_part=cardio，靶肌/次肌 core、shoulders、triceps
+        ExerciseItemRow row = exerciseRow(630L, "cardio",
+                "[\"core\"]", "[\"core\", \"shoulders\", \"triceps\"]", "body weight");
+        row.setName("登山者");
+        row.setSourceId("0630");
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of(row));
+        HealthResource item = provider.exercises().get(0);
+
+        assertTrue(item.tags().get("bodyParts").contains("全身"), "bodyParts 必须含「全身」");
+        assertFalse(item.tags().get("bodyParts").contains("cardio"), "bodyParts 不得泄漏英文 cardio");
+        assertEquals(List.of("全身"), item.tags().get("primaryBodyPart"), "primaryBodyPart 与 bodyParts 归一一致");
+        assertEquals(List.of("徒手"), item.tags().get("equipment"));
+        assertEquals(List.of("入门"), item.tags().get("difficulty"));
+    }
+
+    @Test
+    void 数据集全部body_part原始值归一中文且健身槽位输出全部合法() {
+        Map<String, String> bodyPartToZh = Map.of(
+                "chest", "胸",
+                "waist", "核心",
+                "back", "背",
+                "upper legs", "腿",
+                "lower legs", "腿",
+                "upper arms", "手臂",
+                "shoulders", "肩",
+                "cardio", "全身");
+        Map<String, List<String>> legal = new HealthSlotDictionary(TestSupport.slotOptionService()).legalValues();
+        for (Map.Entry<String, String> entry : bodyPartToZh.entrySet()) {
+            ExerciseItemRow row = exerciseRow(100L, entry.getKey(),
+                    "[\"triceps\"]", "[\"triceps\", \"core\"]", "body weight");
+            row.setSourceId("raw-" + entry.getKey());
+            when(exerciseMapper.findAllApproved()).thenReturn(List.of(row));
+            HealthResource item = provider.exercises().get(0);
+
+            assertEquals(List.of(entry.getValue()), item.tags().get("primaryBodyPart"),
+                    entry.getKey() + " 的 primaryBodyPart 应归一为 " + entry.getValue());
+            assertFalse(item.tags().get("bodyParts").isEmpty(), entry.getKey() + " 的 bodyParts 不应为空");
+            assertFalse(String.join(",", item.tags().get("bodyParts")).matches(".*[a-zA-Z].*"),
+                    entry.getKey() + " 的 bodyParts 不得泄漏英文原始值: " + item.tags().get("bodyParts"));
+
+            for (String slot : List.of("bodyParts", "equipment", "difficulty")) {
+                for (String value : item.tags().get(slot)) {
+                    assertTrue(legal.get(slot).contains(value),
+                            entry.getKey() + " 输出非法健身槽位值 " + slot + "=" + value);
+                }
+            }
+        }
+    }
+
+    @Test
+    void 未收录原始值过滤不透出英文() {
+        ExerciseItemRow row = exerciseRow(200L, "forehead",
+                "[\"unknown muscle\"]", "[]", "treadmill");
+        row.setDifficulty("极限");
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of(row));
+        HealthResource item = provider.exercises().get(0);
+
+        assertEquals(List.of(), item.tags().get("bodyParts"), "未收录部位/肌群应过滤，不透出英文");
+        assertEquals(List.of(), item.tags().get("primaryBodyPart"));
+        assertEquals(List.of(), item.tags().get("equipment"), "未收录器材应过滤，不透出英文");
+        assertEquals(List.of(), item.tags().get("difficulty"), "未收录难度应过滤");
+        assertTrue(item.tags().values().stream().flatMap(List::stream).noneMatch(v -> v.matches(".*[a-zA-Z].*")),
+                "对外资源不得含英文原始值: " + item.tags());
     }
 
     // ---- 测试数据 ----
