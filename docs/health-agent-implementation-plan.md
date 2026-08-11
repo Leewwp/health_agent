@@ -182,6 +182,10 @@ M5 不属于首版 MVP 门槛。它在现有健康 Agent 地图完成后使用�
 `5 个开发日 + 1 个验收日 + 1 个缓冲日` 时间盒实施；目标是完成本地可运行的最小后端增强，
 不改变现有确定性编排、风险规则和旧饮食 API 兼容行为。
 
+实施跟踪以 [M5 本地 Wayfinder 地图](../.scratch/health-agent-m5-backend-enhancement/map.md) 和
+[GitHub M5 Wayfinder 地图](https://github.com/Leewwp/health_agent/issues/46) 为入口；开放任务、认领状态和
+原生阻塞关系以 GitHub 子票为准，本地票保存相同范围与验收口径。
+
 - DashScope 同时提供现有 Agent 调用与 `text-embedding-v3` 向量生成；API key 只通过环境变量注入。供应商兼容性依据见 [LLM 供应商密钥与 AgentScope/Qdrant 兼容性研究](research/llm-provider-key-compatibility.md)；
 - 复用 AgentScope 1.0.11 依赖线，在项目中显式锁定 MCP Java SDK `0.17.0` 与 Qdrant Java Client `1.17.0`，本地镜像固定为 `qdrant/qdrant:v1.17.0`；不为本阶段升级 Spring Boot 或引入 Spring AI。版本依据和兼容风险见 [MCP + Qdrant Java 最小落地评估](research/mcp-qdrant-java-integration-fit.md)；
 - 定义小型 `VectorStore` seam，提供 Qdrant 生产适配器和内存测试适配器。MySQL 继续保存餐食事实和业务状态，Qdrant 只保存可按 `provider + model + dimension + version` 重建的向量索引；
