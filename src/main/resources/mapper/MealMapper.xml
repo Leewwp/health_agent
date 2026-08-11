@@ -224,4 +224,15 @@
         AND review_status = 'APPROVED'
     </select>
 
+    <select id="findApprovedPublicByIds" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+        AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY id
+    </select>
+
 </mapper>

@@ -1,0 +1,28 @@
+# 技能清单：作息指导（M5 #50）
+# 只描述能力与调用边界，不含 Prompt、密钥或自主工具编排。
+name: routine-guidance
+version: 1.0.0
+description: 按关键词查询结构化作息事实（睡眠/咖啡因/午睡/训练时段）与来源引用
+input_schema:
+  type: object
+  required:
+    - keyword
+  properties:
+    keyword:
+      type: string
+      description: 作息关键词
+output_schema:
+  type: object
+  required:
+    - facts
+    - count
+  properties:
+    facts:
+      type: array
+      items:
+        type: object
+    count:
+      type: integer
+allowed_tools:
+  - get_routine_facts
+risk_level: low

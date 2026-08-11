@@ -69,11 +69,17 @@ public class MealModule {
 
     /** 健康链路：走 MealRetriever（hybrid/结构化），转为类型化资源并记录检索模式 Trace。 */
     public List<HealthResource> recommendMeals(Map<String, List<String>> healthSlots, List<Long> excludeIds) {
+        return recommendMeals(healthSlots, excludeIds, "");
+    }
+
+    /** 健康链路（可携带显式嵌入文本，M5 #47 MCP search_meals 用；为空时内部用槽位文本兜底）。 */
+    public List<HealthResource> recommendMeals(Map<String, List<String>> healthSlots, List<Long> excludeIds,
+                                               String text) {
         MealRetrievalQuery query = new MealRetrievalQuery(
                 healthSlots,
                 excludeIds,
                 healthSlots.getOrDefault("allergen", List.of()),
-                ""
+                text
         );
         RetrievalResult result = mealRetriever.retrieve(query, RECOMMEND_LIMIT);
         Map<String, Object> traceDetail = new LinkedHashMap<>();

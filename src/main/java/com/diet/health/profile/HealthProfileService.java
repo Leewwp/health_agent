@@ -200,8 +200,8 @@ public class HealthProfileService {
         return new HealthApiException(HealthApiException.CODE_BAD_REQUEST, message);
     }
 
-    /** 计算依据固定文案：公式、活动系数、目标调整、舍入与估算标记。 */
-    private String buildCalcBasis(HealthProfileInput input) {
+    /** 计算依据固定文案：公式、活动系数、目标调整、舍入与估算标记（MCP calculate_targets 复用，保证单一事实源）。 */
+    public static String buildCalcBasis(HealthProfileInput input) {
         String goalDesc = switch (input.goal()) {
             case MAINTAIN -> "维持目标调整 ±5%";
             case LOSE -> "减脂目标调整 -5%~-15%";

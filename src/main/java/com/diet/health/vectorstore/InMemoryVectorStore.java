@@ -64,6 +64,12 @@ public class InMemoryVectorStore implements VectorStore {
             if (containsAllergen(point, allergens)) {
                 continue;
             }
+            if (!matchesKeyword(point, VectorFilter.KEY_REVIEW_STATUS, safeFilter.reviewStatus())) {
+                continue;
+            }
+            if (!matchesKeyword(point, VectorFilter.KEY_SOURCE_TYPE, safeFilter.sourceType())) {
+                continue;
+            }
             double score = VectorSimilarity.cosine(queryVector, point.vector());
             hits.add(new VectorHit(point.mealId(), score));
         }
@@ -71,11 +77,20 @@ public class InMemoryVectorStore implements VectorStore {
         return hits.stream().limit(limit).toList();
     }
 
+    /** payload 指定 key 的值列表是否精确包含期望关键字；期望为 null 时不做约束。 */
+    private boolean matchesKeyword(VectorPoint point, String key, String expected) {
+        if (expected == null) {
+            return true;
+        }
+        List<String> values = point.payload() == null ? List.of() : point.payload().get(key);
+        return values != null && values.contains(expected);
+    }
+
     private boolean containsAllergen(VectorPoint point, Set<String> allergens) {
         if (allergens.isEmpty()) {
             return false;
         }
-        List<String> pointAllergens = point.payload() == null ? List.of() : point.payload().get("allergens");
+        List<String> pointAllergens = point.payload() == null ? List.of() : point.payload().get(VectorFilter.KEY_ALLERGENS);
         if (pointAllergens == null) {
             return false;
         }

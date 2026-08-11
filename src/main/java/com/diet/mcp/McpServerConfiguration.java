@@ -1,5 +1,8 @@
 package com.diet.mcp;
 
+import com.diet.mcp.tool.McpToolSpec;
+import com.diet.skills.SkillResources;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.HttpServletStreamableServerTransportProvider;
@@ -13,6 +16,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 /**
  * MCP Streamable HTTP 端点装配（M5 #51）。
@@ -54,13 +59,28 @@ public class McpServerConfiguration {
     }
 
     @Bean
-    public McpSyncServer mcpServer(HttpServletStreamableServerTransportProvider provider) {
-        mcpServer = McpServer.sync(provider)
+    public McpSyncServer mcpServer(HttpServletStreamableServerTransportProvider provider,
+                                   List<McpToolSpec> tools,
+                                   SkillResources skillResources) {
+        McpSyncServer server = McpServer.sync(provider)
                 .serverInfo("health-agent-mcp", "0.1.0")
-                .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
+                .capabilities(McpSchema.ServerCapabilities.builder()
+                        .tools(true)
+                        .resources(true, false)
+                        .build())
                 .build();
-        log.info("MCP Streamable HTTP server 已装配（serverInfo=health-agent-mcp 0.1.0）");
-        return mcpServer;
+        for (McpToolSpec tool : tools) {
+            server.addTool(tool.specification());
+            log.info("MCP 工具已注册：{}", tool.name());
+        }
+        for (McpServerFeatures.SyncResourceSpecification resource : skillResources.specifications()) {
+            server.addResource(resource);
+            log.info("MCP 资源已注册：{}", resource.resource().uri());
+        }
+        log.info("MCP Streamable HTTP server 已装配（serverInfo=health-agent-mcp 0.1.0，工具 {} 个，资源 {} 个）",
+                tools.size(), skillResources.specifications().size());
+        mcpServer = server;
+        return server;
     }
 
     @Bean

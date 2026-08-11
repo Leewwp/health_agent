@@ -126,9 +126,21 @@ public class QdrantVectorStore implements VectorStore {
             for (String allergen : safeFilter.allergenTags()) {
                 qdrantFilter.addMustNot(Common.Condition.newBuilder().setField(
                         Common.FieldCondition.newBuilder()
-                                .setKey("allergens")
+                                .setKey(VectorFilter.KEY_ALLERGENS)
                                 .setMatch(Common.Match.newBuilder().setKeyword(allergen))));
             }
+        }
+        if (safeFilter.reviewStatus() != null) {
+            qdrantFilter.addMust(Common.Condition.newBuilder().setField(
+                    Common.FieldCondition.newBuilder()
+                            .setKey(VectorFilter.KEY_REVIEW_STATUS)
+                            .setMatch(Common.Match.newBuilder().setKeyword(safeFilter.reviewStatus()))));
+        }
+        if (safeFilter.sourceType() != null) {
+            qdrantFilter.addMust(Common.Condition.newBuilder().setField(
+                    Common.FieldCondition.newBuilder()
+                            .setKey(VectorFilter.KEY_SOURCE_TYPE)
+                            .setMatch(Common.Match.newBuilder().setKeyword(safeFilter.sourceType()))));
         }
         search.setFilter(qdrantFilter);
 

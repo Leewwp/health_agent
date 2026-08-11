@@ -61,6 +61,17 @@ class QdrantVectorStoreIntegrationTest {
         List<VectorHit> after = store.search(new float[]{1f, 0f}, new VectorFilter(List.of(), List.of("花生")), 10);
         assertEquals(2, after.size(), "重复 upsert 同 ID 不应产生重复 point");
 
+        // M5 #52：审核状态/来源 must 过滤（其余点无这些 payload key，Qdrant 按缺失字段不匹配处理）
+        store.upsert(List.of(
+                point(104L, new float[]{1f, 0f},
+                        Map.of("review_status", List.of("APPROVED"), "source_type", List.of("PUBLIC"))),
+                point(105L, new float[]{0.9f, 0.1f},
+                        Map.of("review_status", List.of("PENDING"), "source_type", List.of("PUBLIC")))));
+        List<VectorHit> approved = store.search(new float[]{1f, 0f},
+                new VectorFilter(List.of(), List.of(), "APPROVED", "PUBLIC"), 10);
+        assertEquals(1, approved.size(), "review_status/source_type must 过滤后只剩 104");
+        assertEquals(104L, approved.get(0).mealId());
+
         store.clear();
         assertTrue(store.search(new float[]{1f, 0f}, VectorFilter.none(), 10).isEmpty(), "clear 后应无命中");
     }
