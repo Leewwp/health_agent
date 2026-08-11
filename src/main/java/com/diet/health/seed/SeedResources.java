@@ -1,6 +1,7 @@
 package com.diet.health.seed;
 
 import com.diet.health.module.HealthResource;
+import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
 
 import java.util.List;
@@ -38,6 +39,23 @@ public final class SeedResources {
             new RoutineFact("R5", "作息规律", "固定起床时间比固定入睡时间更能稳定生物钟", "睡眠卫生指南", "wake-regularity")
     );
 
+    /**
+     * 餐食候选种子（57 号票，ID M1-M9）：覆盖早/午/晚三餐并含每份热量，
+     * 供周计划组合在离线演示与测试下使用；与审核餐食（数据库主键）互斥，
+     * 数量小、固定、可离线复现。sortKey 为种子列表序（1-9）。
+     */
+    public static final List<PlanMealCandidate> MEAL_CANDIDATES = List.of(
+            meal(1, "M1", "燕麦牛奶粥", 320, List.of("早餐")),
+            meal(2, "M2", "全麦鸡蛋三明治", 450, List.of("早餐")),
+            meal(3, "M3", "牛肉青菜面", 650, List.of("早餐", "午餐")),
+            meal(4, "M4", "鸡胸肉糙米饭", 750, List.of("午餐")),
+            meal(5, "M5", "清蒸鲈鱼套餐", 600, List.of("午餐", "晚餐")),
+            meal(6, "M6", "番茄牛肉意面", 900, List.of("午餐")),
+            meal(7, "M7", "鸡胸蔬菜沙拉", 450, List.of("晚餐")),
+            meal(8, "M8", "白灼虾仁西兰花", 550, List.of("晚餐")),
+            meal(9, "M9", "南瓜小米粥配凉菜", 350, List.of("晚餐"))
+    );
+
     private SeedResources() {
     }
 
@@ -60,5 +78,9 @@ public final class SeedResources {
                         "movementPattern", List.of(movementPattern)
                 )
         );
+    }
+
+    private static PlanMealCandidate meal(long sortKey, String id, String name, int caloriesKcal, List<String> mealTimeTags) {
+        return new PlanMealCandidate("MEAL", id, name, mealTimeTags, caloriesKcal, sortKey);
     }
 }

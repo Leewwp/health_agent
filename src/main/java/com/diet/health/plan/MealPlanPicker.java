@@ -1,7 +1,7 @@
 package com.diet.health.plan;
 
-import com.diet.mapper.MealMapper;
-import com.diet.model.MealItemRow;
+import com.diet.health.module.PlanMealCandidate;
+import com.diet.health.resource.HealthResourceProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -12,9 +12,11 @@ import java.util.Set;
 /**
  * 餐食计划挑选器（34 号）：为组合器按日能量预算确定性挑选三餐。
  * <p>
- * 从审核通过的公共餐食（有热量口径）中按餐次标签分组，全局搜索使日总热量
- * 落在预算区间内的早/午/晚组合（优先接近预算中点）；无达标组合时回退
- * 30%/40%/30% 就近选择，空库或热量缺失时返回空，不阻塞结构化组合。
+ * 57 号票起候选统一来自健康资源 Provider（不直接依赖 MealMapper）：从 Provider 的
+ * 计划餐食候选中按餐次标签分组，全局搜索使日总热量落在预算区间内的早/午/晚组合
+ * （优先接近预算中点）；无达标组合时回退 30%/40%/30% 就近选择，空候选或热量缺失时
+ * 返回空，不阻塞结构化组合。确定性排序以候选 sortKey 为准（正式模式为主键序，
+ * fixture 模式为种子列表序），REVIEWED_DB 与改造前行为一致。
  * 38 号验收发现：单餐各自就近可能让总和掉出区间导致 WARNING 无法激活。
  */
 @Service
@@ -24,21 +26,21 @@ public class MealPlanPicker {
     private static final int[] SLOT_SHARE_PERCENT = {30, 40, 30};
     private static final String[] SLOT_NAMES = {"早餐", "午餐", "晚餐"};
 
-    private final MealMapper mealMapper;
+    private final HealthResourceProvider resourceProvider;
 
-    public MealPlanPicker(MealMapper mealMapper) {
-        this.mealMapper = mealMapper;
+    public MealPlanPicker(HealthResourceProvider resourceProvider) {
+        this.resourceProvider = resourceProvider;
     }
 
     /** 挑选结果：资源标识 + 展示名 + 每份热量。 */
     public record MealPick(String resourceId, String name, int caloriesKcal, String mealTime) {
     }
 
-    /** 为一天挑选最多三餐（早餐/午餐/晚餐），空库或全无热量时返回空列表。 */
+    /** 为一天挑选最多三餐（早餐/午餐/晚餐），空候选或全无热量时返回空列表。 */
     public List<MealPick> pickForDay(int budgetLow, int budgetHigh) {
-        List<MealItemRow> pool = mealMapper.findApprovedPublicMeals().stream()
-                .filter(row -> row.getCaloriesKcal() != null)
-                .sorted(Comparator.comparing(MealItemRow::getId))
+        List<PlanMealCandidate> pool = resourceProvider.planMealCandidates().stream()
+                .filter(candidate -> candidate.caloriesKcal() != null)
+                .sorted(Comparator.comparingLong(PlanMealCandidate::sortKey))
                 .toList();
         if (pool.isEmpty()) {
             return List.of();
@@ -47,24 +49,24 @@ public class MealPlanPicker {
         int high = Math.max(budgetLow, budgetHigh);
         int mid = (low + high) / 2;
 
-        List<MealItemRow> breakfastPool = candidates(pool, "早餐");
-        List<MealItemRow> lunchPool = candidates(pool, "午餐");
-        List<MealItemRow> dinnerPool = candidates(pool, "晚餐");
+        List<PlanMealCandidate> breakfastPool = candidates(pool, "早餐");
+        List<PlanMealCandidate> lunchPool = candidates(pool, "午餐");
+        List<PlanMealCandidate> dinnerPool = candidates(pool, "晚餐");
         if (breakfastPool.isEmpty() || lunchPool.isEmpty() || dinnerPool.isEmpty()) {
             return fallbackPick(pool, mid);
         }
 
-        // 全局搜索：优先找总热量落入预算区间的组合，其次接近预算中点（并列取 id 最小）
-        for (MealItemRow breakfast : breakfastPool) {
-            for (MealItemRow dinner : dinnerPool) {
-                if (dinner.getId().equals(breakfast.getId())) {
+        // 全局搜索：优先找总热量落入预算区间的组合，其次接近预算中点（并列取 sortKey 最小）
+        for (PlanMealCandidate breakfast : breakfastPool) {
+            for (PlanMealCandidate dinner : dinnerPool) {
+                if (dinner.resourceId().equals(breakfast.resourceId())) {
                     continue;
                 }
-                int needLow = low - breakfast.getCaloriesKcal().intValue() - dinner.getCaloriesKcal().intValue();
-                int needHigh = high - breakfast.getCaloriesKcal().intValue() - dinner.getCaloriesKcal().intValue();
-                MealItemRow lunch = nearestInRange(lunchPool, needLow, needHigh,
-                        mid - breakfast.getCaloriesKcal().intValue() - dinner.getCaloriesKcal().intValue(),
-                        Set.of(breakfast.getId(), dinner.getId()));
+                int needLow = low - breakfast.caloriesKcal() - dinner.caloriesKcal();
+                int needHigh = high - breakfast.caloriesKcal() - dinner.caloriesKcal();
+                PlanMealCandidate lunch = nearestInRange(lunchPool, needLow, needHigh,
+                        mid - breakfast.caloriesKcal() - dinner.caloriesKcal(),
+                        Set.of(breakfast.resourceId(), dinner.resourceId()));
                 if (lunch != null) {
                     List<MealPick> picks = new ArrayList<>();
                     picks.add(toPick(breakfast, SLOT_NAMES[0]));
@@ -79,40 +81,36 @@ public class MealPlanPicker {
     }
 
     /** 餐次候选：标签含指定餐次，或未打餐次标签（视为全时段可用）。 */
-    private List<MealItemRow> candidates(List<MealItemRow> pool, String slotName) {
+    private List<PlanMealCandidate> candidates(List<PlanMealCandidate> pool, String slotName) {
         return pool.stream()
-                .filter(row -> mealTimeContains(row, slotName))
+                .filter(candidate -> mealTimeContains(candidate, slotName))
                 .toList();
     }
 
-    private boolean mealTimeContains(MealItemRow row, String slotName) {
-        String raw = row.getMealTime();
-        if (raw == null || raw.isBlank()) {
-            return true;
-        }
-        return raw.contains("\"" + slotName + "\"");
+    private boolean mealTimeContains(PlanMealCandidate candidate, String slotName) {
+        return candidate.mealTimeTags().isEmpty() || candidate.mealTimeTags().contains(slotName);
     }
 
-    /** 在 [needLow, needHigh] 热量区间内挑热量最接近理想值的一餐（未选过、id 最小优先）。 */
-    private MealItemRow nearestInRange(List<MealItemRow> pool, int needLow, int needHigh,
-                                       int ideal, Set<Long> usedIds) {
+    /** 在 [needLow, needHigh] 热量区间内挑热量最接近理想值的一餐（未选过、sortKey 最小优先）。 */
+    private PlanMealCandidate nearestInRange(List<PlanMealCandidate> pool, int needLow, int needHigh,
+                                             int ideal, Set<String> usedIds) {
         return pool.stream()
-                .filter(row -> !usedIds.contains(row.getId()))
-                .filter(row -> row.getCaloriesKcal().intValue() >= needLow
-                        && row.getCaloriesKcal().intValue() <= needHigh)
+                .filter(candidate -> !usedIds.contains(candidate.resourceId()))
+                .filter(candidate -> candidate.caloriesKcal() >= needLow
+                        && candidate.caloriesKcal() <= needHigh)
                 .min(Comparator
-                        .comparingInt((MealItemRow row) -> Math.abs(row.getCaloriesKcal().intValue() - ideal))
-                        .thenComparing(MealItemRow::getId))
+                        .comparingInt((PlanMealCandidate candidate) -> Math.abs(candidate.caloriesKcal() - ideal))
+                        .thenComparingLong(PlanMealCandidate::sortKey))
                 .orElse(null);
     }
 
     /** 回退：按预算中点 30%/40%/30% 就近选三餐（不重复）。 */
-    private List<MealPick> fallbackPick(List<MealItemRow> pool, int mid) {
-        List<MealItemRow> remaining = new ArrayList<>(pool);
+    private List<MealPick> fallbackPick(List<PlanMealCandidate> pool, int mid) {
+        List<PlanMealCandidate> remaining = new ArrayList<>(pool);
         List<MealPick> picks = new ArrayList<>();
         for (int i = 0; i < SLOT_NAMES.length; i++) {
             int target = mid * SLOT_SHARE_PERCENT[i] / 100;
-            MealItemRow best = nearestTo(remaining, target);
+            PlanMealCandidate best = nearestTo(remaining, target);
             if (best == null) {
                 continue;
             }
@@ -122,21 +120,21 @@ public class MealPlanPicker {
         return picks;
     }
 
-    private MealPick toPick(MealItemRow row, String slotName) {
+    private MealPick toPick(PlanMealCandidate candidate, String slotName) {
         return new MealPick(
-                String.valueOf(row.getId()),
-                row.getName(),
-                row.getCaloriesKcal().intValue(),
+                candidate.resourceId(),
+                candidate.name(),
+                candidate.caloriesKcal(),
                 slotName
         );
     }
 
-    /** 热量最接近目标的一餐（并列取 id 较小者，保持确定性）。 */
-    private MealItemRow nearestTo(List<MealItemRow> pool, int target) {
+    /** 热量最接近目标的一餐（并列取 sortKey 较小者，保持确定性）。 */
+    private PlanMealCandidate nearestTo(List<PlanMealCandidate> pool, int target) {
         return pool.stream()
                 .min(Comparator
-                        .comparingInt((MealItemRow row) -> Math.abs(row.getCaloriesKcal().intValue() - target))
-                        .thenComparing(MealItemRow::getId))
+                        .comparingInt((PlanMealCandidate candidate) -> Math.abs(candidate.caloriesKcal() - target))
+                        .thenComparingLong(PlanMealCandidate::sortKey))
                 .orElse(null);
     }
 }

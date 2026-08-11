@@ -4,6 +4,7 @@ import com.diet.health.TestSupport;
 import com.diet.health.browse.ExerciseBrowseService;
 import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.module.HealthResource;
+import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
@@ -66,6 +67,46 @@ class DbReviewedResourceProviderTest {
         assertEquals("MEAL", meal.resourceType());
         assertEquals("5", meal.resourceId());
         assertTrue(provider.mealById("9999").isEmpty());
+    }
+
+    @Test
+    void 计划餐食候选与浏览公共餐食同源且按主键序() {
+        List<MealItemRow> rows = mealRows(5);
+        rows.get(0).setCaloriesKcal(java.math.BigDecimal.valueOf(320));
+        rows.get(1).setCaloriesKcal(java.math.BigDecimal.valueOf(750));
+        rows.get(2).setCaloriesKcal(java.math.BigDecimal.valueOf(450));
+        rows.get(3).setCaloriesKcal(java.math.BigDecimal.valueOf(600));
+        rows.get(4).setCaloriesKcal(java.math.BigDecimal.valueOf(900));
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(rows);
+
+        List<PlanMealCandidate> candidates = provider.planMealCandidates();
+        assertEquals(List.of("1", "2", "3", "4", "5"), candidates.stream().map(PlanMealCandidate::resourceId).toList());
+        assertEquals(List.of(1L, 2L, 3L, 4L, 5L), candidates.stream().map(PlanMealCandidate::sortKey).toList(),
+                "sortKey 必须与数据库主键序一致（挑选确定性依据）");
+        assertEquals(List.of(320, 750, 450, 600, 900),
+                candidates.stream().map(PlanMealCandidate::caloriesKcal).toList());
+        assertEquals(List.of("午餐"), candidates.get(1).mealTimeTags(), "餐次标签从 meal_time JSON 解析");
+        assertTrue(candidates.stream().allMatch(candidate -> "MEAL".equals(candidate.resourceType())));
+    }
+
+    @Test
+    void 计划餐食候选无热量口径保留null且空库返回空() {
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(mealRows(1).get(0)));
+        assertTrue(provider.planMealCandidates().get(0).caloriesKcal() == null,
+                "热量缺失保留 null，由挑选器按既有降级策略过滤");
+
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of());
+        assertTrue(provider.planMealCandidates().isEmpty(), "空库返回空集合不抛异常");
+    }
+
+    @Test
+    void 畸形餐次JSON按空标签全时段降级不抛异常() {
+        MealItemRow row = mealRows(1).get(0);
+        row.setMealTime("[not-json");
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(row));
+        PlanMealCandidate candidate = provider.planMealCandidates().get(0);
+        assertTrue(candidate.mealTimeTags().isEmpty(),
+                "畸形餐次 JSON 按空标签（全时段可用）降级，不因单行脏数据中断计划生成");
     }
 
     @Test
