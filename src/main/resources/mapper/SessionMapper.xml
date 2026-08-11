@@ -33,17 +33,29 @@
     </insert>
 
     <select id="findById" resultMap="SessionRowMap">
-        SELECT id,
+        SELECT <include refid="SessionColumns"/>
+        FROM diet_sessions
+        WHERE id = #{sessionId}
+        AND user_id = #{userId}
+    </select>
+
+    <select id="findByIdForUpdate" resultMap="SessionRowMap">
+        SELECT <include refid="SessionColumns"/>
+        FROM diet_sessions
+        WHERE id = #{sessionId}
+        AND user_id = #{userId}
+        FOR UPDATE
+    </select>
+
+    <sql id="SessionColumns">
+        id,
         user_id,
         phase,
         slots,
         last_recommendations,
         created_at,
         updated_at
-        FROM diet_sessions
-        WHERE id = #{sessionId}
-        AND user_id = #{userId}
-    </select>
+    </sql>
 
     <update id="update" parameterType="com.diet.model.SessionRow">
         UPDATE diet_sessions

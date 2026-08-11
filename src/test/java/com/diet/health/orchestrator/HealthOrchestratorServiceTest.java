@@ -77,6 +77,11 @@ class HealthOrchestratorServiceTest {
         }
 
         @Override
+        public SessionRow findByIdForUpdate(String sessionId, Long userId) {
+            return rows.get(sessionId);
+        }
+
+        @Override
         public int update(SessionRow row) {
             rows.put(row.getId(), row);
             return 1;

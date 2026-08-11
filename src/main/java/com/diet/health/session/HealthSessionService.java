@@ -62,10 +62,18 @@ public class HealthSessionService {
         }
         SessionRow row = sessionMapper.findById(sessionId, userId);
         if (row == null) {
-            // sessionId 已存在但归属其他匿名用户时，insert 会主键冲突，按"无权访问"返回参数错误而非 500
+            // 并发首次创建（56 号票）：同一匿名身份的并发首请求同时 insert 同一默认会话，
+            // 输方主键冲突属于合法竞态，用锁定读（FOR UPDATE）重读最新已提交数据恢复已有会话。
+            // 普通读在 REPEATABLE READ 事务快照下可能看不到赢方已提交的行，锁定读始终读最新版本；
+            // autocommit 下锁随语句释放，但不影响"读最新已提交"这一恢复语义。
+            // 若仍未命中，说明 sessionId 被其他用户占用，保持"无权访问"拒绝语义。
             try {
                 insert(HealthSessionState.fresh(sessionId, userId));
             } catch (org.springframework.dao.DuplicateKeyException error) {
+                SessionRow concurrent = sessionMapper.findByIdForUpdate(sessionId, userId);
+                if (concurrent != null) {
+                    return fromRow(concurrent);
+                }
                 throw new DietException("会话不存在或无权访问");
             }
             return HealthSessionState.fresh(sessionId, userId);

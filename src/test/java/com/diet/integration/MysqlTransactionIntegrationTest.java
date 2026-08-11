@@ -1,5 +1,6 @@
 package com.diet.integration;
 
+import com.diet.exception.DietException;
 import com.diet.health.plan.DraftPlanRequest;
 import com.diet.health.plan.HealthPlanResponseAgentService;
 import com.diet.health.plan.PlanValidationService;
@@ -10,6 +11,7 @@ import com.diet.health.profile.HealthProfileService;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.health.session.HealthSessionService;
+import com.diet.health.session.HealthSessionState;
 import com.diet.mapper.HealthProfileMapper;
 import com.diet.mapper.WeeklyPlanMapper;
 import com.diet.model.WeeklyPlanItemRow;
@@ -30,8 +32,11 @@ import org.springframework.transaction.interceptor.TransactionInterceptor;
 
 import javax.sql.DataSource;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -314,6 +319,81 @@ class MysqlTransactionIntegrationTest {
         assertEquals(2L, second.versionNo());
         assertEquals(2, count("health_profile_version", "user_id", USER), "两版快照全部落库");
         assertEquals(1, count("health_profile", "user_id", USER), "当前档案只有一份");
+    }
+
+    // ---------- 56 号票：并发首次创建默认会话幂等恢复 ----------
+
+    @Test
+    void 并发首次创建默认会话均成功且返回同一会话() throws Exception {
+        int threads = 2;
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        List<HealthSessionState> results = Collections.synchronizedList(new ArrayList<>());
+        AtomicInteger failures = new AtomicInteger();
+        for (int i = 0; i < threads; i++) {
+            new Thread(() -> {
+                try {
+                    start.await();
+                    results.add(sessionService.loadOrCreate(null, USER));
+                } catch (Exception error) {
+                    failures.incrementAndGet();
+                } finally {
+                    done.countDown();
+                }
+            }).start();
+        }
+        start.countDown();
+        assertTrue(done.await(20, TimeUnit.SECONDS), "并发首次创建应在限时内完成");
+        assertEquals(0, failures.get(), "并发首次创建默认会话不得误报无权访问");
+        assertEquals(2, results.size());
+        assertEquals(1, results.stream().map(HealthSessionState::sessionId).distinct().count(),
+                "双方必须返回同一默认会话");
+        assertEquals(1, count("diet_sessions", "user_id", USER), "默认会话只能落库一条");
+    }
+
+    @Test
+    void 显式sessionId被其他用户占用时仍拒绝() {
+        long owner = 880002L;
+        long other = 880003L;
+        String sessionId = "sess_itest_cross_user";
+        sessionService.loadOrCreate(sessionId, owner);
+        DietException error = assertThrows(DietException.class,
+                () -> sessionService.loadOrCreate(sessionId, other));
+        assertEquals("会话不存在或无权访问", error.getMessage());
+        assertEquals(1, count("diet_sessions", "user_id", owner), "占用者的会话不被破坏");
+    }
+
+    @Test
+    void 并发首次创建周计划草稿时默认会话竞态自动恢复() throws Exception {
+        saveProfile();
+        int threads = 2;
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threads);
+        ConcurrentLinkedQueue<PlanView> plans = new ConcurrentLinkedQueue<>();
+        AtomicInteger failures = new AtomicInteger();
+        for (int i = 0; i < threads; i++) {
+            WeeklyPlanService instance = planService(realPlanMapper);
+            new Thread(() -> {
+                try {
+                    start.await();
+                    plans.add(instance.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null)));
+                } catch (Exception error) {
+                    failures.incrementAndGet();
+                } finally {
+                    done.countDown();
+                }
+            }).start();
+        }
+        start.countDown();
+        assertTrue(done.await(20, TimeUnit.SECONDS), "并发建草稿应在限时内完成");
+        assertEquals(0, failures.get(), "周计划并发首次创建不得因默认会话竞态失败");
+        assertEquals(2, plans.size());
+        assertEquals(2, countWhereStatus("weekly_plan", "user_id", USER, "DRAFT"), "两份草稿均落库");
+        Integer distinctSources = jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT source_session_id) FROM weekly_plan WHERE user_id = ?",
+                Integer.class, USER);
+        assertEquals(1, distinctSources, "两份草稿必须引用同一来源会话");
+        assertEquals(1, count("diet_sessions", "user_id", USER), "默认会话只能落库一条");
     }
 
     // ---------- 28 号矩阵：MySQL 不可用有固定结果 ----------

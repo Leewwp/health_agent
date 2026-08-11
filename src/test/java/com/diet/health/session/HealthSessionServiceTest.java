@@ -1,5 +1,6 @@
 package com.diet.health.session;
 
+import com.diet.exception.DietException;
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
@@ -9,18 +10,27 @@ import com.diet.model.SessionRow;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -105,5 +115,71 @@ class HealthSessionServiceTest {
         when(mapper.findById("sess_explicit", 1L)).thenReturn(null);
         HealthSessionState explicit = service.loadOrCreate("sess_explicit", 1L);
         assertEquals("sess_explicit", explicit.sessionId());
+    }
+
+    @Test
+    void 并发首次创建默认会话时输方重读恢复且双方sessionId一致() throws Exception {
+        ReflectionTestUtils.setField(service, "sessionSecret", "test-secret");
+        // 竞态模拟（56 号票）：初始查询一律未命中；两个线程在 insert 处会合，
+        // 赢方写入成功，输方抛 DuplicateKeyException，随后用 findByIdForUpdate 重读恢复。
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch allInInsert = new CountDownLatch(2);
+        AtomicBoolean winner = new AtomicBoolean();
+        SessionRow[] stored = new SessionRow[1];
+        when(mapper.findById(any(), any())).thenAnswer(invocation -> {
+            synchronized (stored) {
+                return stored[0];
+            }
+        });
+        when(mapper.findByIdForUpdate(any(), any())).thenAnswer(invocation -> {
+            synchronized (stored) {
+                return stored[0];
+            }
+        });
+        when(mapper.insert(any())).thenAnswer(invocation -> {
+            SessionRow row = invocation.getArgument(0);
+            allInInsert.countDown();
+            if (!allInInsert.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("并发栅栏超时");
+            }
+            synchronized (stored) {
+                if (!winner.getAndSet(true)) {
+                    stored[0] = row;
+                    return 1;
+                }
+                throw new DuplicateKeyException("Duplicate entry '" + row.getId() + "' for key 'PRIMARY'");
+            }
+        });
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<HealthSessionState> first = pool.submit(() -> {
+                start.await();
+                return service.loadOrCreate(null, 1L);
+            });
+            Future<HealthSessionState> second = pool.submit(() -> {
+                start.await();
+                return service.loadOrCreate(null, 1L);
+            });
+            start.countDown();
+            HealthSessionState a = first.get(5, TimeUnit.SECONDS);
+            HealthSessionState b = second.get(5, TimeUnit.SECONDS);
+            assertEquals(a.sessionId(), b.sessionId(), "并发首次创建必须返回同一默认会话");
+            verify(mapper, times(2)).insert(any());
+            verify(mapper, times(1)).findByIdForUpdate(any(), any());
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void 显式sessionId被其他用户占有时仍拒绝() {
+        when(mapper.findById(any(), any())).thenReturn(null);
+        when(mapper.findByIdForUpdate(any(), any())).thenReturn(null);
+        when(mapper.insert(any()))
+                .thenThrow(new DuplicateKeyException("Duplicate entry 'sess_owned' for key 'PRIMARY'"));
+        DietException error = assertThrows(DietException.class,
+                () -> service.loadOrCreate("sess_owned", 2L));
+        assertEquals("会话不存在或无权访问", error.getMessage());
     }
 }
