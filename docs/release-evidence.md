@@ -51,7 +51,7 @@
 | Compose 部署拓扑 | **本次新增** `docker-compose.yml`（mysql 8.4 + app + nginx 同源反代）+ `Dockerfile`（多阶段 Java 21）+ `deploy/nginx.compose.conf` + `deploy/.env.example` |
 | 健康检查 | `/actuator/health`（`management.endpoints.web.exposure` 已暴露）；Compose 中 MySQL healthcheck |
 | 失败样例固定结果 | 非法 JSON/API key 缺失/候选为空/重复 requestId/Cookie 篡改/admin 未授权 均由契约与降级测试覆盖；Embedding 不可用降级见 RAG 记录；**MySQL 不可用**：连接快速失败且错误类型确定（`DataAccessResourceFailureException`），见 `MysqlTransactionIntegrationTest`；媒体 404 前端兜底已实现（待真实媒体 URL 复验） |
-| 干净环境复现 | `mvn clean test`（本机全量 286 个测试通过：276 单元 + 10 集成）；CI 从干净环境复现 |
+| 干净环境复现 | `mvn clean test`（本机全量 286 个测试通过：276 单元 + 10 集成）；CI 从干净环境复现（GitHub Actions run 31469690191，push 51ebbf3 全绿，日志确认 `MysqlTransactionIntegrationTest` 10 用例真实执行、Skipped 0） |
 
 ## 面试可演示门槛 vs 完整 MVP 门槛
 
