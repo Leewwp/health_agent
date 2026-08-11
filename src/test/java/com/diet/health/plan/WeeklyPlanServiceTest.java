@@ -11,6 +11,8 @@ import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.resource.SeedResourceProvider;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.risk.HealthRiskRuleService;
+import com.diet.health.session.HealthSessionService;
+import com.diet.health.session.HealthSessionState;
 import com.diet.mapper.AgentTraceMapper;
 import com.diet.mapper.ExerciseMapper;
 import com.diet.mapper.MealMapper;
@@ -74,9 +76,11 @@ class WeeklyPlanServiceTest {
         AgentTraceService trace = new AgentTraceService(mock(AgentTraceMapper.class), objectMapper);
         HealthResourceProvider provider = new SeedResourceProvider();
         WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
+        HealthSessionService sessionService = mock(HealthSessionService.class);
+        when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", 1L));
         service = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
                 new PlanValidationService(), planMapper, provider,
-                planAgent, trace, objectMapper);
+                planAgent, trace, sessionService, objectMapper);
     }
 
     private static List<MealPlanPicker.MealPick> threeMeals() {
@@ -469,9 +473,12 @@ class WeeklyPlanServiceTest {
         HealthResourceProvider provider = new DbReviewedResourceProvider(
                 exerciseMapper, mealMapper, factMapper, new JsonService(objectMapper));
         WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
+        HealthSessionService sessionService = mock(HealthSessionService.class);
+        when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", 1L));
         WeeklyPlanService dbService = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
                 new PlanValidationService(), planMapper, provider,
-                planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper), objectMapper);
+                planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper),
+                sessionService, objectMapper);
 
         PlanView view = dbService.createDraft(1L, draftRequest());
 

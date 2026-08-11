@@ -33,12 +33,16 @@ public class DashScopeEmbeddingClient implements EmbeddingClient {
     public DashScopeEmbeddingClient(
             @Value("${agentscope.dashscope.api-key:}") String apiKey,
             @Value("${agentscope.dashscope.base-url:}") String baseUrl,
+            @Value("${diet.embedding.base-url:}") String embeddingBaseUrl,
             @Value("${diet.embedding.model:text-embedding-v3}") String model,
             @Value("${diet.embedding.dimensions:1024}") int dimensions,
             @Value("${diet.embedding.timeout-ms:5000}") long timeoutMs
     ) {
         this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
+        // embedding 走 dashscope-sdk-java 原生协议（/services/... 路径），与聊天（OpenAI 兼容端点）的
+        // base-url 未必一致；未单独配置时回退到 agentscope.dashscope.base-url 保持原行为
+        this.baseUrl = (embeddingBaseUrl == null || embeddingBaseUrl.isBlank())
+                ? baseUrl : embeddingBaseUrl;
         this.model = model;
         this.dimensions = dimensions;
         this.timeout = Duration.ofMillis(timeoutMs);

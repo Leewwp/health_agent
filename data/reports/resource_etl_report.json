@@ -1,45 +1,54 @@
 {
-  "etl": "scripts/build_reviewed_resources.py",
-  "generated_at": "2026-08-10",
-  "sources": {
-    "meals": {
-      "name": "foodcom-recipes-and-reviews-v2",
-      "version": "v2",
-      "input": {
-        "path": "data/meal/processed/healthy_recipes_1000.csv",
-        "sha256": "afbda6b7ef705634595ece80830dd707e86fa5d43bb3e7c3cc43714a50413646"
-      }
-    },
-    "exercises": {
-      "name": "gym-visual-exercises-dataset",
-      "version": "main-2026-08-10",
-      "input": {
-        "path": "data/exercise/raw/exercises.json",
-        "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d",
-        "download": "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/data/exercises.json"
-      }
-    }
-  },
+ "etl": "scripts/build_reviewed_resources.py",
+ "generated_at": "2026-08-11",
+ "sources": {
   "meals": {
-    "read": 1000,
-    "curated": 292,
-    "curated_found_in_pool": 292,
-    "included": 292,
-    "excluded": [
-      {
-        "reason": "curated_but_not_in_pool",
-        "count": 0
-      }
-    ]
+   "name": "foodcom-recipes-and-reviews-v2",
+   "version": "v2",
+   "input": {
+    "path": "data/meal/processed/healthy_recipes_1000.csv",
+    "sha256": "afbda6b7ef705634595ece80830dd707e86fa5d43bb3e7c3cc43714a50413646"
+   }
   },
   "exercises": {
-    "read": 1324,
-    "curated": 30,
-    "included": 30,
-    "excluded": []
-  },
-  "facts": {
-    "read": 15,
-    "included": 15
+   "name": "gym-visual-exercises-dataset",
+   "version": "main-2026-08-10",
+   "input": {
+    "path": "data/exercise/raw/exercises.json",
+    "sha256": "656634224b8977b99a6d765470ee123260d4979715eaa4e7c0b7c8bb0d79f93d",
+    "download": "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/data/exercises.json"
+   }
   }
+ },
+ "meals": {
+  "read": 1000,
+  "curated": 295,
+  "curated_found_in_pool": 292,
+  "included": 295,
+  "excluded": [
+   {
+    "reason": "curated_but_not_in_pool",
+    "count": 0
+   }
+  ]
+ },
+ "exercises": {
+  "read": 1324,
+  "curated": 30,
+  "included": 30,
+  "excluded": []
+ },
+ "facts": {
+  "read": 15,
+  "included": 15
+ },
+ "notes": [
+  {
+   "date": "2026-08-11",
+   "type": "manual_addition",
+   "count": 3,
+   "reason": "38 号验收发现：审核子集缺乏高热量主菜（原最大 995 kcal，无重复限制下日上限 2364 kcal），无法组合出 2400-2500 kcal 的达标周计划导致激活死锁；补充 3 道 1117-1119 kcal 午餐/晚餐主菜（source_id 307525/96740/198328），字段口径与既有 foodcom_source_value 一致，标签为高蛋白/咸鲜/奶香。",
+   "source": "foodcom-recipes-and-reviews-v2"
+  }
+ ]
 }

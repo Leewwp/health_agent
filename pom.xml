@@ -61,6 +61,12 @@
             <artifactId>agentscope-spring-boot-starter</artifactId>
             <version>1.0.11</version>
         </dependency>
+        <!-- agentscope 聚合 jar 未传递其 DashScope 适配所需的 dashscope-sdk-java（agentscope-core 1.0.11 声明 2.22.9），显式补齐以支持真实 DashScope 模式 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>dashscope-sdk-java</artifactId>
+            <version>2.22.9</version>
+        </dependency>
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
