@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
  */
 class DbReviewedResourceProviderTest {
 
-    private static final int APPROVED_MEALS = 292;
+    private static final int APPROVED_MEALS = 295;
     private static final int APPROVED_EXERCISES = 30;
     private static final int ROUTINE_FACTS = 15;
 
