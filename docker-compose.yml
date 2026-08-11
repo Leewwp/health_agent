@@ -59,6 +59,8 @@ services:
       MCP_API_TOKEN: ${MCP_API_TOKEN:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       DIET_VECTORSTORE_MODE: ${DIET_VECTORSTORE_MODE:-in-memory}
+      # qdrant 模式下是否在启动时把 MySQL 审核餐食向量批量索引到 Qdrant（需要已生成 meal_item_embedding）
+      DIET_VECTORSTORE_INDEX_ON_STARTUP: ${DIET_VECTORSTORE_INDEX_ON_STARTUP:-false}
       QDRANT_HOST: qdrant
       QDRANT_GRPC_PORT: "6334"
     restart: unless-stopped
