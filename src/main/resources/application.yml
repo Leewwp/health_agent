@@ -37,6 +37,9 @@ diet:
   llm:
     main-model: qwen-max
     light-model: qwen-turbo
+    # 聊天端点形态：false=agentscope 原生 DashScope 端点（默认）；true=OpenAI 兼容端点
+    # （/chat/completions，适配只开放兼容端点的 DashScope 专属空间）
+    openai-compatible: false
   agent:
     # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
     mode: agentscope
@@ -51,6 +54,9 @@ diet:
     eval-run: false
     eval-report-path: data/reports/rag_evaluation.json
   embedding:
+    # 可独立覆盖的 embedding 端点；DashScope 专属空间的原生与 OpenAI 兼容 base-url 不同（原生 /api/v1），
+    # 留空时回退 agentscope.dashscope.base-url
+    base-url: ${DASHSCOPE_EMBEDDING_BASE_URL:}
     model: text-embedding-v3
     dimensions: 1024
     timeout-ms: 5000

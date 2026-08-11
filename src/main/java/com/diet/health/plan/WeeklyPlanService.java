@@ -8,6 +8,8 @@ import com.diet.health.profile.HealthProfileService;
 import com.diet.health.profile.HealthProfileService.HealthProfileView;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
+import com.diet.health.session.HealthSessionService;
+import com.diet.health.session.HealthSessionState;
 import com.diet.mapper.WeeklyPlanMapper;
 import com.diet.model.WeeklyPlanItemRow;
 import com.diet.model.WeeklyPlanRow;
@@ -54,6 +56,7 @@ public class WeeklyPlanService {
     private final HealthResourceProvider resourceProvider;
     private final HealthPlanResponseAgentService planResponseAgent;
     private final AgentTraceService agentTraceService;
+    private final HealthSessionService sessionService;
     private final ObjectMapper objectMapper;
 
     /** 用户级锁，保证同用户激活/归档串行（单实例实现，规格 27 号）。 */
@@ -68,6 +71,7 @@ public class WeeklyPlanService {
             HealthResourceProvider resourceProvider,
             HealthPlanResponseAgentService planResponseAgent,
             AgentTraceService agentTraceService,
+            HealthSessionService sessionService,
             ObjectMapper objectMapper
     ) {
         this.profileService = profileService;
@@ -78,6 +82,7 @@ public class WeeklyPlanService {
         this.resourceProvider = resourceProvider;
         this.planResponseAgent = planResponseAgent;
         this.agentTraceService = agentTraceService;
+        this.sessionService = sessionService;
         this.objectMapper = objectMapper;
     }
 
@@ -96,6 +101,9 @@ public class WeeklyPlanService {
         if (weekStart.getDayOfWeek() != DayOfWeek.MONDAY) {
             throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "周起始日期必须是周一");
         }
+        // 缺省 sessionId 按匿名身份 HMAC 派生稳定默认会话（43 号票），版本生成依据落库
+        HealthSessionState session = sessionService.loadOrCreate(
+                request == null ? null : request.sessionId(), userId);
         List<PlanItemDraft> items = composer.compose(profile.calorieLow(), profile.calorieHigh(), weekStart,
                 timezone, request == null ? null : request.trainingFocus());
         PlanValidationService.ValidationResult result = validationService.validate(
@@ -115,7 +123,7 @@ public class WeeklyPlanService {
         plan.setRulesVersion(PlanValidationService.RULES_VERSION);
         plan.setValidationLevel(result.level().name());
         plan.setValidationJson(toJson(ruleHitViews(result)));
-        plan.setSourceSessionId(request == null ? null : request.sessionId());
+        plan.setSourceSessionId(session.sessionId());
         plan.setCurrentVersion(1L);
         LocalDateTime now = LocalDateTime.now();
         plan.setCreatedAt(now);

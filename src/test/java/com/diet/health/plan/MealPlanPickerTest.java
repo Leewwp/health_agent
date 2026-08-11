@@ -22,10 +22,17 @@ class MealPlanPickerTest {
     private final MealPlanPicker picker = new MealPlanPicker(mealMapper);
 
     private MealItemRow meal(long id, String name, int kcal) {
+        return meal(id, name, kcal, null);
+    }
+
+    private MealItemRow meal(long id, String name, int kcal, String mealTime) {
         MealItemRow row = new MealItemRow();
         row.setId(id);
         row.setName(name);
         row.setCaloriesKcal(BigDecimal.valueOf(kcal));
+        if (mealTime != null) {
+            row.setMealTime("[\"" + mealTime + "\"]");
+        }
         return row;
     }
 
@@ -49,6 +56,54 @@ class MealPlanPickerTest {
     void 空库返回空列表() {
         when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of());
         assertTrue(picker.pickForDay(1200, 1800).isEmpty());
+    }
+
+    @Test
+    void 午餐优先保证日总热量落入预算区间() {
+        // 早餐/晚餐就近各取 30% 档后总和 1525；若午餐仍按 40% 就近选 995 则总和 2520 超上限
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(
+                meal(1, "清淡早餐", 725, "早餐"),
+                meal(2, "高热量午餐", 995, "午餐"),
+                meal(3, "中等午餐", 900, "午餐"),
+                meal(4, "低热量晚餐", 644, "晚餐"),
+                meal(5, "标准晚餐", 800, "晚餐")
+        ));
+        List<MealPlanPicker.MealPick> picks = picker.pickForDay(2400, 2500);
+        assertEquals(3, picks.size());
+        int sum = picks.stream().mapToInt(MealPlanPicker.MealPick::caloriesKcal).sum();
+        assertTrue(sum >= 2400 && sum <= 2500, "日总热量应落在预算区间，实际 " + sum);
+        assertEquals("午餐", picks.get(1).mealTime());
+    }
+
+    @Test
+    void 无达标候选时回退就近选择不返回空() {
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(
+                meal(1, "早餐", 200, "早餐"),
+                meal(2, "午餐", 300, "午餐"),
+                meal(3, "晚餐", 400, "晚餐")
+        ));
+        List<MealPlanPicker.MealPick> picks = picker.pickForDay(1200, 1800);
+        assertEquals(3, picks.size(), "无达标候选也不得返回空");
+    }
+
+    @Test
+    void 跨槽位调整组合使日总热量落入预算区间() {
+        // 早餐档只有 725（早餐），午餐/晚餐均可选 995；725+995+995=2715 超上限，
+        // 需把早餐换成 492 的高蛋白加餐（同样带早餐标签）组合成 995+995+492=2482
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(
+                meal(1, "花生酱油炒饭", 725, "早餐"),
+                meal(2, "高蛋白奶酪杯", 492, "早餐"),
+                meal(3, "鹰嘴豆丸意面", 995, "午餐"),
+                meal(4, "鸡肉丸意面", 995, "晚餐"),
+                meal(5, "切达鸡肉砂锅", 644, "晚餐")
+        ));
+        List<MealPlanPicker.MealPick> picks = picker.pickForDay(2400, 2500);
+        assertEquals(3, picks.size());
+        int sum = picks.stream().mapToInt(MealPlanPicker.MealPick::caloriesKcal).sum();
+        assertTrue(sum >= 2400 && sum <= 2500, "跨槽位调整后日总热量应落在预算区间，实际 " + sum);
+        assertEquals(List.of("早餐", "午餐", "晚餐"), picks.stream().map(MealPlanPicker.MealPick::mealTime).toList());
+        long distinctIds = picks.stream().map(MealPlanPicker.MealPick::resourceId).distinct().count();
+        assertEquals(3, distinctIds, "三餐不得重复");
     }
 
     @Test

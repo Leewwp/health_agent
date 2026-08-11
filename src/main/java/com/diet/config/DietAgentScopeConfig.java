@@ -1,5 +1,6 @@
 package com.diet.config;
 
+import com.diet.agent.llm.OpenAiCompatibleChatModel;
 import io.agentscope.core.model.DashScopeChatModel;
 import io.agentscope.core.model.Model;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,12 +29,26 @@ public class DietAgentScopeConfig {
     @Value("${diet.llm.light-model:qwen-turbo}")
     private String lightModelName;
 
+    /** 真实调用超时（毫秒），OpenAI 兼容模型使用。 */
+    @Value("${diet.agent.timeout-ms:15000}")
+    private long timeoutMs;
+
+    /**
+     * 聊天端点形态：false=agentscope 原生 DashScope 端点（默认）；
+     * true=OpenAI 兼容端点（/chat/completions，适配只开放兼容端点的专属空间）。
+     */
+    @Value("${diet.llm.openai-compatible:false}")
+    private boolean openAiCompatible;
+
     /**
      * 主模型 Bean。
      * RecommendResponseAgent 会优先使用该模型。
      */
     @Bean("DietMainChatModel")
     public Model DietMainChatModel() {
+        if (openAiCompatible) {
+            return new OpenAiCompatibleChatModel(apiKey, baseUrl, mainModelName, timeoutMs);
+        }
         return DashScopeChatModel.builder()
                 .apiKey(apiKey)
                 .modelName(mainModelName)
@@ -47,6 +62,9 @@ public class DietAgentScopeConfig {
      */
     @Bean("DietLightChatModel")
     public Model DietLightChatModel() {
+        if (openAiCompatible) {
+            return new OpenAiCompatibleChatModel(apiKey, baseUrl, lightModelName, timeoutMs);
+        }
         return DashScopeChatModel.builder()
                 .apiKey(apiKey)
                 .modelName(lightModelName)
