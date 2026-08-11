@@ -16,11 +16,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 审核资源种子数据校验（33 号票）。
+ * 审核资源种子数据校验（33 号票；精确数量契约见 59 号票）。
  * <p>
  * 校验对象是 ETL 生成的 {@code src/main/resources/db/seed/reviewed_resources.sql}：
- * 数量区间、必填字段、槽位 JSON、营养估算标记、过敏原状态、来源版本、
- * 无外链媒体（media_url 必须为 NULL）与 plan_ready 元数据完整性。
+ * 精确发布基线（295 道 APPROVED 公共餐食 / 30 个 APPROVED 且 plan_ready 动作 /
+ * 15 条业务 refId 唯一的作息事实）、必填字段、槽位 JSON、营养估算标记、
+ * 过敏原状态、来源版本、无外链媒体（media_url 必须为 NULL）与 plan_ready 元数据完整性。
+ * <p>
+ * 295/30/15 是发布契约，禁止静默漂移：有意调整基线时必须同步 seed、ETL 报告
+ * 与 README/AGENTS/规格证据，否则不允许上线。
  * 数据不满足本测试时，说明 ETL 或人工审核数据有缺口，不允许上线。
  */
 class ReviewedResourceSeedValidatorTest {
@@ -48,11 +52,23 @@ class ReviewedResourceSeedValidatorTest {
     // ---- 餐食 ----
 
     @Test
-    void 餐食数量在100到300之间() throws IOException {
+    void 餐食数量为精确发布基线295条() throws IOException {
         List<List<String>> meals = table(parseSeed(), "meal_item");
         assertNotNull(meals, "缺少 meal_item 段");
-        assertTrue(meals.size() >= 100, "餐食数量 < 100，实际 " + meals.size());
-        assertTrue(meals.size() <= 300, "餐食数量 > 300，实际 " + meals.size());
+        assertEquals(295, meals.size(),
+                "餐食发布基线为 295 条（发布契约，不允许静默漂移；有意调整须同步 seed、ETL 报告与规格证据），实际 "
+                        + meals.size());
+    }
+
+    @Test
+    void 每行餐食均为APPROVED公共资源() throws IOException {
+        for (List<String> row : table(parseSeed(), "meal_item")) {
+            assertEquals("PUBLIC", cell(row, 0),
+                    "公共餐食库要求 source_type=PUBLIC（与 browsePublicMeals 语义一致）: " + row);
+            assertEquals("NULL", cell(row, 1),
+                    "公共餐食要求 owner_user_id 为 NULL（非用户私有）: " + row);
+            assertEquals("APPROVED", cell(row, 25), "审核状态必须 APPROVED: " + row);
+        }
     }
 
     @Test
@@ -127,11 +143,12 @@ class ReviewedResourceSeedValidatorTest {
     // ---- 动作 ----
 
     @Test
-    void 动作数量在20到40之间() throws IOException {
+    void 动作数量为精确发布基线30条() throws IOException {
         List<List<String>> exercises = table(parseSeed(), "exercise_item");
         assertNotNull(exercises, "缺少 exercise_item 段");
-        assertTrue(exercises.size() >= 20, "动作数量 < 20，实际 " + exercises.size());
-        assertTrue(exercises.size() <= 40, "动作数量 > 40，实际 " + exercises.size());
+        assertEquals(30, exercises.size(),
+                "动作发布基线为 30 个（发布契约，不允许静默漂移；有意调整须同步 seed、ETL 报告与规格证据），实际 "
+                        + exercises.size());
     }
 
     @Test
@@ -183,11 +200,12 @@ class ReviewedResourceSeedValidatorTest {
     // ---- 作息事实 ----
 
     @Test
-    void 作息事实数量在10到20之间且字段齐全() throws IOException {
+    void 作息事实数量为精确发布基线15条且字段齐全refId唯一() throws IOException {
         List<List<String>> facts = table(parseSeed(), "routine_fact");
         assertNotNull(facts, "缺少 routine_fact 段");
-        assertTrue(facts.size() >= 10, "事实数量 < 10，实际 " + facts.size());
-        assertTrue(facts.size() <= 20, "事实数量 > 20，实际 " + facts.size());
+        assertEquals(15, facts.size(),
+                "作息事实发布基线为 15 条（发布契约，不允许静默漂移；有意调整须同步 seed、ETL 报告与规格证据），实际 "
+                        + facts.size());
         List<String> refIds = new ArrayList<>();
         for (List<String> row : facts) {
             for (int i = 0; i <= 5; i++) {
