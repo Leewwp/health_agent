@@ -25,7 +25,7 @@
 
 | 条目 | 证据 |
 |---|---|
-| 审核子集（292 餐食/30 动作/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder` 幂等导入；`DbReviewedResourceProviderTest` |
+| 审核子集（295 餐食/30 动作/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder` 幂等导入；`DbReviewedResourceProviderTest` |
 | 浏览 API 分页边界 | `health/browse` 测试（page 超上限返回 400、size≤50）；浏览器验收第 2/3 节 |
 | hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集 Recall@3 评估见 `docs/research/meal-rag-evaluation.md` |
 | 真实 key 下 RAG 对比 | 2026-08-11 真实 DashScope 冒烟：292+3 餐食向量真实生成，hybrid Recall@3=0.385 vs structured=0.380，硬约束 100%、零降级，提升幅度小如实记录（未宣称明显提升） |

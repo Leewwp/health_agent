@@ -15,7 +15,7 @@
 - **风险规则**：单一版本化 `RiskRuleCatalog`（唯一事实来源），`NORMAL/ADVISORY/BLOCK_PLAN` 三档与固定中文文案，三阶段 Guard（候选前/组合时/输出后）；
 - **健康档案与周计划**：Mifflin-St Jeor 能量区间、DRAFT/ACTIVE/ARCHIVED 生命周期、版本快照（档案/规则/会话/事实/资源生成依据）、`POST /api/v1/health/plan/**`、事务化写入 + 行锁 + 数据库级 ACTIVE 唯一约束；
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
-- **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（292 条餐食、30 个 plan_ready 动作、15 条作息事实，媒体一律无图+保留署名）；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
+- **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实，媒体一律无图+保留署名）；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
 - **餐食 RAG**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 在结构化 top-10 池内做语义重排，embedding 不可用时自动降级；固定标注查询集对比 `Recall@3`/硬约束命中率/降级（见 `docs/research/meal-rag-evaluation.md`）；
 - **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V6 计划版本依据与 ACTIVE 约束）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
