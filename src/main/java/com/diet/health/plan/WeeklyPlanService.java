@@ -48,6 +48,9 @@ public class WeeklyPlanService {
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final int MAX_PLAN_ITEMS = 500;
 
+    /** 项目日期越界文案（60 号票：合法日期仅为本地周一至周日闭区间）。 */
+    private static final String ITEM_DATE_OUT_OF_WEEK_COPY = "计划项目日期超出本周范围（本地周一至周日）";
+
     private final HealthProfileService profileService;
     private final HealthRiskRuleService riskRuleService;
     private final WeeklyPlanComposerService composer;
@@ -102,6 +105,7 @@ public class WeeklyPlanService {
                 request == null ? null : request.sessionId(), userId);
         List<PlanItemDraft> items = composer.compose(profile.calorieLow(), profile.calorieHigh(), weekStart,
                 timezone, request == null ? null : request.trainingFocus());
+        requireItemsInWeek(items, weekStart);
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
         if (result.blocked()) {
@@ -168,6 +172,7 @@ public class WeeklyPlanService {
         }
         HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> items = loadDrafts(plan);
+        requireItemsInWeek(items, plan.getWeekStart());
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
         if (!result.activatable()) {
@@ -214,6 +219,7 @@ public class WeeklyPlanService {
         }
         HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> items = loadDrafts(plan);
+        requireItemsInWeek(items, plan.getWeekStart());
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
         if (result.blocked()) {
@@ -275,6 +281,7 @@ public class WeeklyPlanService {
         for (WeeklyPlanItemRow row : planMapper.findItems(plan.getId(), plan.getCurrentVersion())) {
             allItems.add(row.getId().equals(itemId) ? toDraft(updated) : toDraft(row));
         }
+        requireItemsInWeek(allItems, plan.getWeekStart());
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(plan, profile.age()), allItems, resourceCatalog());
         if (result.blocked()) {
@@ -320,6 +327,22 @@ public class WeeklyPlanService {
             throw blocked(risk.copy());
         }
         return profile;
+    }
+
+    /**
+     * 统一时间/日期不变量 Guard（60 号票）：周计划合法项目日期仅为
+     * [weekStart, weekStart+6]（本地周一至周日）闭区间，越界为稳定参数错误（BAD_REQUEST）。
+     * 所有计划写入口在持久化前调用，任何越界项目都不得落库或激活。
+     */
+    private void requireItemsInWeek(List<PlanItemDraft> items, LocalDate weekStart) {
+        LocalDate weekEnd = weekStart.plusDays(6);
+        for (PlanItemDraft item : items) {
+            if (item.localDate() != null
+                    && (item.localDate().isBefore(weekStart) || item.localDate().isAfter(weekEnd))) {
+                throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST,
+                        ITEM_DATE_OUT_OF_WEEK_COPY + "：" + item.localDate());
+            }
+        }
     }
 
     private WeeklyPlanRow requirePlan(Long userId, Long planId) {

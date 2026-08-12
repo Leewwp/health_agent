@@ -31,8 +31,10 @@ public class PlanValidationService {
     /**
      * 组合时规则集版本（与 RiskRuleCatalog.RULES_VERSION 独立演进：目录管意图/关键词
      * 风险规则，本常量管计划不变量校验规则，两者阶段不同，分别写入版本生成依据）。
+     * v2（60 号票）：SCHEDULE_OVERLAP 改为按真实日期比较（跨午夜结束段归属次日），
+     * 新增 INVALID_TIME_RANGE 零时长规则；旧版命中记录不再代表当前语义。
      */
-    public static final String RULES_VERSION = "2026-08-10-plan-v1";
+    public static final String RULES_VERSION = "2026-08-12-plan-v2";
 
     /** 校验阶段名。 */
     public static final String STAGE_COMPOSE = "COMPOSE";
@@ -45,6 +47,9 @@ public class PlanValidationService {
 
     /** 时间冲突文案。 */
     public static final String SCHEDULE_OVERLAP_COPY = "作息与训练时间存在冲突，请调整后再保存。";
+
+    /** 非法时间文案（60 号票：start=end 零时长不解释为 24 小时）。 */
+    public static final String INVALID_TIME_RANGE_COPY = "项目开始时间与结束时间相同，请调整后再保存。";
 
     /** 训练部位连续两天文案。 */
     public static final String BODY_PART_CONSECUTIVE_COPY = "同一主要训练部位不宜连续两天安排，请错开训练部位。";
@@ -127,28 +132,44 @@ public class PlanValidationService {
         return items != null && items.stream().anyMatch(PlanItemDraft::isExercise);
     }
 
-    /** 作息与训练（含作息之间）同一天时间不得重叠；餐食不参与冲突校验（规格 8.2）。 */
+    /**
+     * 作息与训练（含作息之间）时间不得重叠；餐食不参与冲突校验（规格 8.2）。
+     * <p>
+     * 60 号票冻结语义：跨午夜区间 [date start, date+1 end) 的结束段归属真实次日——
+     * 不再把两段都留在开始日期桶（旧实现同时产生假阳性与假阴性）。
+     * 周日跨周一的结束段落在 weekStart+7 的桶中：该桶只可能有周日项目的结束段
+     * （项目日期被写入 Guard 限制在本周内），因此只校验周日项目之间的真实重叠，
+     * 不会跨计划读取下周一项目。endTime==startTime 为非法零时长（HARD_ERROR），
+     * 不解释为 24 小时；缺失单侧时间不参与（可选字段契约）。
+     */
     private List<RuleHit> checkScheduleOverlap(List<PlanItemDraft> items) {
-        Map<LocalDate, List<PlanItemDraft>> byDay = new TreeMap<>();
+        Map<LocalDate, List<Interval>> byDay = new TreeMap<>();
+        List<RuleHit> hits = new ArrayList<>();
         for (PlanItemDraft item : items) {
-            if ((item.isRoutine() || item.isExercise()) && item.startTime() != null && item.endTime() != null) {
-                byDay.computeIfAbsent(item.localDate(), key -> new ArrayList<>()).add(item);
+            if (!(item.isRoutine() || item.isExercise())
+                    || item.startTime() == null || item.endTime() == null) {
+                continue;
+            }
+            if (item.startTime().equals(item.endTime())) {
+                hits.add(hit("INVALID_TIME_RANGE", HealthRiskLevel.BLOCK_PLAN, INVALID_TIME_RANGE_COPY,
+                        "item=" + item.name() + ", date=" + (item.localDate() == null ? "?" : item.localDate())
+                                + ", start=end=" + item.startTime()));
+                continue;
+            }
+            int start = item.startTime().toSecondOfDay() / 60;
+            int end = item.endTime().toSecondOfDay() / 60;
+            if (end > start) {
+                byDay.computeIfAbsent(item.localDate(), key -> new ArrayList<>()).add(new Interval(item, start, end));
+            } else {
+                // 跨午夜区间拆两段：[start, 24:00) 归属当日，[00:00, end) 归属真实次日
+                byDay.computeIfAbsent(item.localDate(), key -> new ArrayList<>()).add(new Interval(item, start, 24 * 60));
+                byDay.computeIfAbsent(item.localDate().plusDays(1), key -> new ArrayList<>())
+                        .add(new Interval(item, 0, end));
             }
         }
-        List<RuleHit> hits = new ArrayList<>();
-        for (Map.Entry<LocalDate, List<PlanItemDraft>> entry : byDay.entrySet()) {
-            List<Interval> intervals = new ArrayList<>();
-            for (PlanItemDraft item : entry.getValue()) {
-                int start = item.startTime().toSecondOfDay() / 60;
-                int end = item.endTime().toSecondOfDay() / 60;
-                if (end > start) {
-                    intervals.add(new Interval(item, start, end));
-                } else {
-                    // 跨午夜区间拆成两段：[start, 24:00) 与 [00:00, end)
-                    intervals.add(new Interval(item, start, 24 * 60));
-                    intervals.add(new Interval(item, 0, end));
-                }
-            }
+        for (Map.Entry<LocalDate, List<Interval>> entry : byDay.entrySet()) {
+            LocalDate date = entry.getKey();
+            List<Interval> intervals = entry.getValue();
             for (int i = 0; i < intervals.size(); i++) {
                 for (int j = i + 1; j < intervals.size(); j++) {
                     Interval a = intervals.get(i);
@@ -158,7 +179,7 @@ public class PlanValidationService {
                     }
                     if (Math.max(a.start(), b.start()) < Math.min(a.end(), b.end())) {
                         hits.add(hit("SCHEDULE_OVERLAP", HealthRiskLevel.BLOCK_PLAN, SCHEDULE_OVERLAP_COPY,
-                                "date=" + entry.getKey() + ", " + a.item().name() + " " + a.item().startTime() + "-"
+                                "date=" + date + ", " + a.item().name() + " " + a.item().startTime() + "-"
                                         + a.item().endTime() + " 与 " + b.item().name() + " " + b.item().startTime() + "-"
                                         + b.item().endTime()));
                     }
@@ -168,7 +189,7 @@ public class PlanValidationService {
         return hits;
     }
 
-    /** 分钟级时间区间（跨午夜已拆段）。 */
+    /** 分钟级时间区间（跨午夜已拆段；date 由分桶键承载，detail 记录真实瞬间）。 */
     private record Interval(PlanItemDraft item, int start, int end) {
     }
 

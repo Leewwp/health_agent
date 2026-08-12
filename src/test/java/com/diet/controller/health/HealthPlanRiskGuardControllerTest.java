@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -145,6 +146,68 @@ class HealthPlanRiskGuardControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
         assertEquals(0, profileMapper.profiles.size(), "非法组合拒绝后档案不得落库");
+    }
+
+    // ---- 60 号票：PATCH 时间/日期不变量在 HTTP 层生效 ----
+
+    @Test
+    void PATCH项目到周范围外被HTTP400拒绝且不落库() throws Exception {
+        mockMvc.perform(put("/api/v1/health/profile")
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/health/plans/drafts")
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"weekStart\":\"2026-08-17\"}"))
+                .andExpect(status().isOk());
+        Long exerciseId = planMapper.items.stream()
+                .filter(item -> "EXERCISE".equals(item.getResourceType()))
+                .findFirst().orElseThrow().getId();
+        Long planId = planMapper.plans.get(0).getId();
+
+        mockMvc.perform(patch("/api/v1/health/plans/" + planId + "/items/" + exerciseId)
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"localDate\":\"2026-08-24\",\"startTime\":\"20:00\",\"endTime\":\"21:00\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("超出本周范围")));
+
+        WeeklyPlanItemRow row = planMapper.items.stream()
+                .filter(item -> item.getId().equals(exerciseId)).findFirst().orElseThrow();
+        assertEquals(java.time.LocalDate.of(2026, 8, 17), row.getLocalDate(), "越界 PATCH 不得落库");
+        assertEquals(java.time.LocalTime.of(19, 30), row.getStartTime(), "越界 PATCH 不得落库");
+    }
+
+    @Test
+    void PATCH零时长区间被HTTP409RISK_BLOCKED拒绝且不落库() throws Exception {
+        mockMvc.perform(put("/api/v1/health/profile")
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/health/plans/drafts")
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"weekStart\":\"2026-08-17\"}"))
+                .andExpect(status().isOk());
+        Long exerciseId = planMapper.items.stream()
+                .filter(item -> "EXERCISE".equals(item.getResourceType()))
+                .findFirst().orElseThrow().getId();
+        Long planId = planMapper.plans.get(0).getId();
+
+        mockMvc.perform(patch("/api/v1/health/plans/" + planId + "/items/" + exerciseId)
+                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startTime\":\"20:00\",\"endTime\":\"20:00\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RISK_BLOCKED"))
+                .andExpect(jsonPath("$.message").value(PlanValidationService.INVALID_TIME_RANGE_COPY));
+
+        WeeklyPlanItemRow row = planMapper.items.stream()
+                .filter(item -> item.getId().equals(exerciseId)).findFirst().orElseThrow();
+        assertEquals(java.time.LocalTime.of(19, 30), row.getStartTime(), "零时长修改不得落库");
+        assertEquals(java.time.LocalTime.of(21, 0), row.getEndTime(), "零时长修改不得落库");
     }
 
     // ---------- 内存版 Mapper ----------

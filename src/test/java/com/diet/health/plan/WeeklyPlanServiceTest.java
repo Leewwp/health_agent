@@ -437,6 +437,149 @@ class WeeklyPlanServiceTest {
         assertEquals(LocalTime.of(19, 30), row.getStartTime(), "冲突修改不得落库");
     }
 
+    // ---- 60 号票：跨午夜与七天边界时间不变量 ----
+
+    @Test
+    void PATCH项目到周范围外为参数错误且不落库() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanItemView exercise = draft.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        HealthApiException beforeWeek = assertThrows(HealthApiException.class, () -> service.patchItem(1L, draft.id(),
+                exercise.id(), new PatchItemRequest(MON.minusDays(1), LocalTime.of(20, 0), LocalTime.of(21, 0), "上周日")));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, beforeWeek.code());
+        assertTrue(beforeWeek.getMessage().contains("超出本周范围"), beforeWeek.getMessage());
+        HealthApiException afterWeek = assertThrows(HealthApiException.class, () -> service.patchItem(1L, draft.id(),
+                exercise.id(), new PatchItemRequest(MON.plusDays(7), LocalTime.of(20, 0), LocalTime.of(21, 0), "下周一")));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, afterWeek.code());
+        assertTrue(afterWeek.getMessage().contains("超出本周范围"), afterWeek.getMessage());
+        WeeklyPlanItemRow row = planMapper.items.stream()
+                .filter(item -> item.getId().equals(exercise.id())).findFirst().orElseThrow();
+        assertEquals(MON, row.getLocalDate(), "越界 PATCH 不得落库");
+        assertEquals(LocalTime.of(19, 30), row.getStartTime(), "越界 PATCH 不得落库");
+        assertEquals("DRAFT", planMapper.plans.get(0).getStatus(), "越界 PATCH 不影响计划状态");
+    }
+
+    @Test
+    void PATCH项目到周边界内日期合法() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanItemView exercise = draft.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        PlanView atStart = service.patchItem(1L, draft.id(), exercise.id(),
+                new PatchItemRequest(MON, LocalTime.of(8, 0), LocalTime.of(9, 0), "移到周一早"));
+        assertEquals(MON, atStart.items().stream().filter(item -> item.id().equals(exercise.id()))
+                .findFirst().orElseThrow().localDate());
+        PlanView atEnd = service.patchItem(1L, draft.id(), exercise.id(),
+                new PatchItemRequest(MON.plusDays(6), LocalTime.of(8, 0), LocalTime.of(9, 0), "移到周日早"));
+        assertEquals(MON.plusDays(6), atEnd.items().stream().filter(item -> item.id().equals(exercise.id()))
+                .findFirst().orElseThrow().localDate());
+        assertEquals(PlanValidationLevel.OK, atEnd.validationLevel());
+    }
+
+    @Test
+    void PATCH零时长区间被硬错误拒绝且不落库() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanItemView exercise = draft.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.patchItem(1L, draft.id(),
+                exercise.id(), new PatchItemRequest(null, LocalTime.of(20, 0), LocalTime.of(20, 0), "零时长")));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(PlanValidationService.INVALID_TIME_RANGE_COPY, error.getMessage());
+        WeeklyPlanItemRow row = planMapper.items.stream()
+                .filter(item -> item.getId().equals(exercise.id())).findFirst().orElseThrow();
+        assertEquals(LocalTime.of(19, 30), row.getStartTime(), "零时长修改不得落库");
+        assertEquals(LocalTime.of(21, 0), row.getEndTime(), "零时长修改不得落库");
+    }
+
+    @Test
+    void PATCH造成跨午夜冲突被拒绝且不落库() {
+        // 训练挪到周二 06:00-07:00：与周一 23:00 开始跨到周二早 7 点的睡眠重叠
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanItemView exercise = draft.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.patchItem(1L, draft.id(),
+                exercise.id(), new PatchItemRequest(MON.plusDays(1), LocalTime.of(6, 0), LocalTime.of(7, 0), "早起训练")));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(PlanValidationService.SCHEDULE_OVERLAP_COPY, error.getMessage());
+        WeeklyPlanItemRow row = planMapper.items.stream()
+                .filter(item -> item.getId().equals(exercise.id())).findFirst().orElseThrow();
+        assertEquals(LocalTime.of(19, 30), row.getStartTime(), "跨午夜冲突修改不得落库");
+    }
+
+    @Test
+    void 激活时跨午夜冲突被重新校验阻断() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        WeeklyPlanItemRow exercise = planMapper.items.stream()
+                .filter(item -> "EXERCISE".equals(item.getResourceType()))
+                .filter(item -> item.getLocalDate().equals(MON))
+                .findFirst().orElseThrow();
+        exercise.setLocalDate(MON.plusDays(1));
+        exercise.setStartTime(LocalTime.of(6, 0));
+        exercise.setEndTime(LocalTime.of(7, 0));
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.activate(1L, draft.id()));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(PlanValidationService.SCHEDULE_OVERLAP_COPY, error.getMessage());
+        assertEquals(1, planMapper.versions.size(), "冲突阻断不得新增版本快照");
+        assertEquals(PlanStatus.DRAFT.name(), planMapper.plans.get(0).getStatus(), "计划保持 DRAFT");
+    }
+
+    @Test
+    void 激活时项目日期越界被参数错误拒绝() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        WeeklyPlanItemRow exercise = planMapper.items.stream()
+                .filter(item -> "EXERCISE".equals(item.getResourceType()))
+                .filter(item -> item.getLocalDate().equals(MON))
+                .findFirst().orElseThrow();
+        exercise.setLocalDate(MON.plusDays(7));
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.activate(1L, draft.id()));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("超出本周范围"), error.getMessage());
+        assertEquals(1, planMapper.versions.size(), "越界阻断不得新增版本快照");
+        assertEquals(PlanStatus.DRAFT.name(), planMapper.plans.get(0).getStatus(), "计划保持 DRAFT");
+    }
+
+    @Test
+    void createDraft时组合结果含越界项目被参数错误拒绝且不落库() {
+        // 组合器保证项目在本周内，此 Guard 是纵深防御：任何来源的越界项目都不得落库
+        WeeklyPlanComposerService composer = mock(WeeklyPlanComposerService.class);
+        when(composer.compose(any(Integer.class), any(Integer.class), any(LocalDate.class), any(String.class), any()))
+                .thenReturn(List.of(new PlanItemDraft("EXERCISE", "9001", "越界动作", MON.plusDays(7),
+                        LocalTime.of(20, 0), LocalTime.of(21, 0), null, Map.of("bodyPart", "胸"))));
+        HealthSessionService sessionService = mock(HealthSessionService.class);
+        when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", 1L));
+        WeeklyPlanService mockedService = new WeeklyPlanService(profileService, new HealthRiskRuleService(), composer,
+                new PlanValidationService(), planMapper, new SeedResourceProvider(),
+                planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper),
+                sessionService, objectMapper);
+
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> mockedService.createDraft(1L, draftRequest()));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("超出本周范围"), error.getMessage());
+        assertEquals(0, planMapper.plans.size(), "越界草稿不得持久化计划");
+        assertEquals(0, planMapper.versions.size(), "越界草稿不得持久化版本");
+        assertEquals(0, planMapper.items.size(), "越界草稿不得持久化项目");
+    }
+
+    @Test
+    void 编辑ACTIVE时项目越界被参数错误拒绝且不复制新草稿() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanView active = service.activate(1L, draft.id());
+        WeeklyPlanItemRow exercise = planMapper.items.stream()
+                .filter(item -> "EXERCISE".equals(item.getResourceType()))
+                .filter(item -> item.getVersionNo() == 2)
+                .findFirst().orElseThrow();
+        exercise.setLocalDate(MON.minusDays(1));
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.edit(1L, active.id()));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("超出本周范围"), error.getMessage());
+        assertEquals(1, planMapper.plans.size(), "越界 ACTIVE 复制不得生成新草稿");
+        assertEquals(62, planMapper.items.size(), "越界 ACTIVE 复制不得复制项目");
+    }
+
     @Test
     void PATCH不可修改ACTIVE计划() {
         PlanView draft = service.createDraft(1L, draftRequest());
