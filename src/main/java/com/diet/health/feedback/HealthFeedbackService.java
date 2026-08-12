@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import java.util.Set;
 
 /**
- * 健康反馈服务（41 号票）：
- * action 白名单（LIKE/DISLIKE/FAVORITE/ADOPT）；资源类型白名单 MEAL/EXERCISE，
+ * 健康反馈服务（41 号票 + #65）：
+ * action 白名单（LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT）；资源类型白名单 MEAL/EXERCISE，
  * 作息事实不参与偏好；资源存在性经 HealthResourceProvider 校验；planId/planItemId
  * 参照周计划 PATCH 的归属 + 当前版本校验，跨用户与资源不匹配一律明确报错且不写入。
  */
@@ -24,6 +24,7 @@ public class HealthFeedbackService {
             FeedbackConstants.ACTION_LIKE,
             FeedbackConstants.ACTION_DISLIKE,
             FeedbackConstants.ACTION_FAVORITE,
+            FeedbackConstants.ACTION_UNFAVORITE,
             FeedbackConstants.ACTION_ADOPT
     );
     private static final Set<String> RESOURCE_TYPES = Set.of(
@@ -49,7 +50,7 @@ public class HealthFeedbackService {
         String action = request.action();
         if (action == null || !ACTIONS.contains(action)) {
             throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST,
-                    "反馈 action 必须为 LIKE/DISLIKE/FAVORITE/ADOPT");
+                    "反馈 action 必须为 LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT");
         }
         String resourceType = normalize(request.resourceType());
         String resourceId = normalize(request.resourceId());
