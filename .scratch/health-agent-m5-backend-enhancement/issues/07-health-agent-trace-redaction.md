@@ -1,7 +1,7 @@
 # P1 健康 Agent Trace 最小脱敏增强
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Priority: P1
 - Estimate: 0.5 天
@@ -24,3 +24,13 @@
 ## Done when
 
 演示 Trace 能说明使用了结构化/向量召回或发生了降级，且自动化测试证明常见凭证和授权信息不会进入响应或持久化 Trace。
+
+## Answer
+
+2026-08-12 完成（提交 fc194fb，含 fafe01f 回归修复）：
+
+- `TraceRedactor` 在 `AgentTraceService` 持久化边界统一脱敏：API key、Bearer、授权头、Cookie、环境变量凭证和 JSON 敏感键，先 Bearer 后 sk- 消除重复占位符。
+- `MEAL_RETRIEVED` 事件补记向量供应商/模型/版本/collection，演示 Trace 可说明结构化/向量召回或降级原因。
+- 只强化健康链路现有 AgentContractModule 与 Trace 持久化边界，保持 `diet_request_trace` 表，不迁移旧饮食链路、不建设可观测性平台。
+- 回归测试证明凭证不进入 traceJson/responseJson/errorMessage，非敏感内容原样保留。
+
