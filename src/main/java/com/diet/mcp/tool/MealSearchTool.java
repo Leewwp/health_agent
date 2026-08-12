@@ -46,7 +46,20 @@ public class MealSearchTool implements McpToolSpec {
         return McpToolSupport.tool(NAME,
                 "按健康槽位检索审核通过的公共餐食（只读，走与健康聊天相同的硬约束与检索规则）",
                 properties, List.of("slots"),
+                outputSchema(),
                 this::handle);
+    }
+
+    /** 输出契约（#63）：meals 数组 + count；meals 元素为资源标识/名称/来源/标签封闭对象。 */
+    private static Map<String, Object> outputSchema() {
+        Map<String, Object> meal = McpToolSupport.objectType(Map.of(
+                "resourceId", McpToolSupport.stringType(),
+                "name", McpToolSupport.stringType(),
+                "sourceType", McpToolSupport.stringType(),
+                "tags", McpToolSupport.stringListTagsType()), List.of("resourceId", "name", "tags"));
+        return McpToolSupport.objectType(Map.of(
+                "meals", McpToolSupport.arrayType(meal),
+                "count", McpToolSupport.integerType()), List.of("meals", "count"));
     }
 
     private McpSchema.CallToolResult handle(Map<String, Object> args) {

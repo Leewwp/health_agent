@@ -39,7 +39,19 @@ public class MealDetailTool implements McpToolSpec {
         return McpToolSupport.tool(NAME,
                 "按资源 ID 查询审核通过的餐食详情（只读）",
                 properties, List.of("mealId"),
+                outputSchema(),
                 this::handle);
+    }
+
+    /** 输出契约（#63）：餐食详情封闭对象，不泄露内部字段。 */
+    private static Map<String, Object> outputSchema() {
+        return McpToolSupport.objectType(Map.of(
+                "resourceId", McpToolSupport.stringType(),
+                "name", McpToolSupport.stringType(),
+                "sourceType", McpToolSupport.stringType(),
+                "sourceName", McpToolSupport.stringType(),
+                "tags", McpToolSupport.stringListTagsType()),
+                List.of("resourceId", "name", "sourceType", "sourceName", "tags"));
     }
 
     private McpSchema.CallToolResult handle(Map<String, Object> args) {

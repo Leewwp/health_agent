@@ -48,7 +48,18 @@ public class CalculateTargetsTool implements McpToolSpec {
         return McpToolSupport.tool(NAME,
                 "按健康档案参数确定性计算每日能量区间（kcal，估算值，不写入档案）",
                 properties, List.of("age", "heightCm", "weightKg", "activityLevel", "goal"),
+                outputSchema(),
                 this::handle);
+    }
+
+    /** 输出契约（#63）：能量区间 + 估算标记 + 计算依据封闭对象。 */
+    private static Map<String, Object> outputSchema() {
+        return McpToolSupport.objectType(Map.of(
+                "lowKcal", McpToolSupport.numberType(),
+                "highKcal", McpToolSupport.numberType(),
+                "estimated", McpToolSupport.booleanType(),
+                "calcBasis", McpToolSupport.stringType()),
+                List.of("lowKcal", "highKcal", "estimated", "calcBasis"));
     }
 
     private McpSchema.CallToolResult handle(Map<String, Object> args) {

@@ -79,6 +79,17 @@
             <artifactId>client</artifactId>
             <version>1.17.0</version>
         </dependency>
+        <!-- networknt JSON Schema 校验器 2.0.0（#63 显式锁定）：MCP SDK 0.17.0 的 mcp-json-jackson2
+             声明 2.0.0 并在服务端对 structuredContent 做运行时校验，调用
+             SchemaRegistry.getSchema(com.fasterxml.jackson.databind.JsonNode)（Jackson 2）；
+             agentscope 1.0.11 经 jsonschema-module-jackson 传递带入 Jackson 3 系的 3.0.1
+             （getSchema 参数为 tools.jackson.databind.JsonNode），最近者优先覆盖 SDK 声明，
+             运行时抛 NoSuchMethodError。显式声明 2.0.0 固定为 classpath 实际版本。 -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>2.0.0</version>
+        </dependency>
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
