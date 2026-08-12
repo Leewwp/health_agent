@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * MCP Streamable HTTP 端点装配（M5 #51）。
@@ -41,11 +42,21 @@ public class McpServerConfiguration {
     public McpSecurityFilter mcpSecurityFilter(
             @Value("${diet.mcp.api-token:}") String apiToken,
             @Value("${diet.mcp.allowed-origins:}") String allowedOrigins,
-            @Value("${diet.mcp.allow-missing-origin:true}") boolean allowMissingOrigin) {
+            @Value("${diet.mcp.allow-missing-origin:false}") boolean allowMissingOrigin) {
+        // #61：占位 token、空白条目、非法 Origin URI 在启动阶段拒绝（fail-closed 前置校验）
+        McpConfigValidator.validateForStartup(apiToken, allowedOrigins);
         if (apiToken == null || apiToken.isBlank()) {
             log.warn("MCP_API_TOKEN 未配置：MCP 端点将拒绝所有请求（fail-closed）");
-        } else if (!McpSecurityFilter.parseAllowlist(allowedOrigins).isEmpty()) {
-            log.info("MCP 端点启用 Origin allowlist：{}", allowedOrigins);
+        } else {
+            Set<String> allowlist = McpSecurityFilter.parseAllowlist(allowedOrigins);
+            if (allowlist.isEmpty()) {
+                log.warn("MCP_API_TOKEN 已配置但 MCP_ALLOWED_ORIGINS 为空：非空 Origin 的请求将全部被拒绝（fail-closed）");
+            } else {
+                log.info("MCP 端点启用 Origin allowlist：{}", allowlist);
+            }
+            if (allowMissingOrigin) {
+                log.warn("MCP 缺失 Origin 被显式放行（allow-missing-origin=true）：只适合受控服务端/CLI 客户端，生产请评估风险");
+            }
         }
         return new McpSecurityFilter(apiToken, McpSecurityFilter.parseAllowlist(allowedOrigins), allowMissingOrigin);
     }

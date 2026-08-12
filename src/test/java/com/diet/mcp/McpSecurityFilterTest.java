@@ -9,9 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.Set;
+
 /**
- * McpSecurityFilter 单元测试（M5 #51）：token 缺失/错误/合法、Origin allowlist、
- * 缺失 Origin 策略与鉴权结果写入请求属性。
+ * McpSecurityFilter 单元测试（M5 #51 + #61 fail-closed）：token 缺失/错误/合法、
+ * Origin allowlist 精确命中、空 allowlist 拒绝任意非空 Origin、缺失 Origin 策略
+ * 与鉴权结果写入请求属性。
  */
 class McpSecurityFilterTest {
 
@@ -97,12 +100,56 @@ class McpSecurityFilterTest {
     }
 
     @Test
-    void 空allowlist不限制origin() throws Exception {
+    void 空allowlist拒绝任意非空origin() throws Exception {
+        // #61：空 allowlist 不再表达“任意来源”，非空 Origin 必须精确命中规范化 allowlist
         McpSecurityFilter filter = new McpSecurityFilter(TOKEN, McpSecurityFilter.parseAllowlist(""), true);
         MockHttpServletRequest req = request("Bearer " + TOKEN);
         req.addHeader("Origin", "http://anywhere.example");
         MockHttpServletResponse response = doFilter(filter, req);
-        assertEquals(200, response.getStatus(), "空 allowlist 表示本地演示不限制 Origin");
+        assertEquals(403, response.getStatus(), "空 allowlist + 非空 Origin 必须 fail-closed");
+    }
+
+    @Test
+    void scheme主机端口任一不同均拒绝() throws Exception {
+        McpSecurityFilter filter = new McpSecurityFilter(TOKEN,
+                McpSecurityFilter.parseAllowlist("https://demo.health.example:8443"), true);
+        for (String evil : new String[]{
+                "http://demo.health.example:8443",
+                "https://evil.health.example:8443",
+                "https://demo.health.example:8444",
+                "https://demo.health.example"
+        }) {
+            MockHttpServletRequest req = request("Bearer " + TOKEN);
+            req.addHeader("Origin", evil);
+            assertEquals(403, doFilter(filter, req).getStatus(), "Origin 必须精确命中: " + evil);
+        }
+    }
+
+    @Test
+    void 前后缀欺骗与大小写空白异常拒绝() throws Exception {
+        McpSecurityFilter filter = new McpSecurityFilter(TOKEN,
+                McpSecurityFilter.parseAllowlist("https://demo.health.example"), true);
+        for (String evil : new String[]{
+                "https://demo.health.example.evil.com",
+                "https://evildemo.health.example",
+                "https://demo.health.example/extra",
+                "HTTPS://demo.health.example",
+                " https://demo.health.example "
+        }) {
+            MockHttpServletRequest req = request("Bearer " + TOKEN);
+            req.addHeader("Origin", evil);
+            assertEquals(403, doFilter(filter, req).getStatus(), "非精确命中必须拒绝: [" + evil + "]");
+        }
+    }
+
+    @Test
+    void 重复Origin头拒绝() throws Exception {
+        McpSecurityFilter filter = new McpSecurityFilter(TOKEN,
+                McpSecurityFilter.parseAllowlist("https://demo.health.example"), true);
+        MockHttpServletRequest req = request("Bearer " + TOKEN);
+        req.addHeader("Origin", "https://demo.health.example");
+        req.addHeader("Origin", "https://evil.example.com");
+        assertEquals(403, doFilter(filter, req).getStatus(), "重复 Origin 头必须拒绝");
     }
 
     @Test
@@ -111,6 +158,15 @@ class McpSecurityFilterTest {
         assertEquals(200, doFilter(allowMissing, request("Bearer " + TOKEN)).getStatus());
 
         McpSecurityFilter rejectMissing = new McpSecurityFilter(TOKEN, McpSecurityFilter.parseAllowlist("http://localhost:5173"), false);
-        assertEquals(403, doFilter(rejectMissing, request("Bearer " + TOKEN)).getStatus());
+        assertEquals(403, doFilter(rejectMissing, request("Bearer " + TOKEN)).getStatus(), "缺失 Origin 默认 fail-closed");
+    }
+
+    @Test
+    void 缺失origin且allowlist为空时按显式策略() throws Exception {
+        // 空 allowlist + 缺失 Origin：只放行显式 allowMissingOrigin=true 的受控客户端
+        assertEquals(200, doFilter(new McpSecurityFilter(TOKEN, Set.of(), true),
+                request("Bearer " + TOKEN)).getStatus());
+        assertEquals(403, doFilter(new McpSecurityFilter(TOKEN, Set.of(), false),
+                request("Bearer " + TOKEN)).getStatus());
     }
 }

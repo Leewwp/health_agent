@@ -13,8 +13,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -95,12 +97,23 @@ public class McpSecurityFilter implements Filter {
     }
 
     private boolean isAllowedOrigin(HttpServletRequest request) {
-        String origin = request.getHeader("Origin");
-        if (origin == null || origin.isBlank()) {
+        List<String> origins = new java.util.ArrayList<>();
+        java.util.Enumeration<String> headerValues = request.getHeaders("Origin");
+        while (headerValues.hasMoreElements()) {
+            origins.add(headerValues.nextElement());
+        }
+        if (origins.isEmpty() || origins.stream().allMatch(String::isBlank)) {
             return allowMissingOrigin;
         }
-        String trimmed = origin.trim();
-        return allowedOrigins.isEmpty() || allowedOrigins.contains(trimmed);
+        // #61：空 allowlist 不得表达“任意来源”；非空 Origin 必须精确命中规范化 allowlist。
+        // 不做请求侧 trim——真实代理会先剥离 OWS，客户端侧带空白属于异常输入，一律拒绝
+        if (allowedOrigins.isEmpty()) {
+            return false;
+        }
+        if (origins.size() > 1) {
+            return false;
+        }
+        return allowedOrigins.contains(origins.get(0));
     }
 
     private void writeError(HttpServletResponse response, int status, String message) throws IOException {

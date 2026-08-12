@@ -88,12 +88,15 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--diet.vectorstore.mode=qdrant 
 
 - 请求必须携带 `Authorization: Bearer <MCP_API_TOKEN>`，token 缺失/错误返回 401；
   未配置 `MCP_API_TOKEN` 时端点 fail-closed 拒绝所有请求；
-- Origin 头存在时必须命中 `MCP_ALLOWED_ORIGINS`（逗号分隔）否则 403；空 allowlist 表示
-  本地演示不限制 Origin（生产建议显式配置）；缺失 Origin（curl/Inspector/服务端调用）
-  按 `DIET_MCP_ALLOW_MISSING_ORIGIN` 放行（默认 true）；
+- Origin 头存在时必须**精确命中** `MCP_ALLOWED_ORIGINS`（逗号分隔，scheme/host/port 全等）
+  否则 403（#61 fail-closed：空 allowlist 不再表示任意来源，重复/前缀欺骗/大小写异常一律拒绝）；
+  缺失 Origin（curl/Inspector/受控服务端客户端）按 `DIET_MCP_ALLOW_MISSING_ORIGIN` 放行
+  （#61 默认 false；dev profile 在 application-dev.yml 显式放行本地 Inspector 流程）；
+- prod 启用 MCP token 时必须显式配置 `MCP_ALLOWED_ORIGINS`，否则启动失败；
+  占位 token、空白条目与非法 Origin URI 在任何 profile 启动阶段直接拒绝；
 - DNS rebinding 风险的主缓解是 **Bearer token 强制鉴权**（非 Cookie 凭据，跨站页面无法
-  携带或读取），Origin 校验是纵深防御：生产部署请配置 allowlist 并把
-  `DIET_MCP_ALLOW_MISSING_ORIGIN` 设为 false；
+  携带或读取），Origin 校验是纵深防御：生产部署请配置 allowlist 并保持
+  `DIET_MCP_ALLOW_MISSING_ORIGIN=false`；
 - 鉴权结果经 transport context 传入工具 handler（`principal=mcp-client`）；
 - **该实现不是 MCP OAuth 2.1，也不声明最新规范全量合规**，仅用于本地演示与面试讲解。
 
@@ -129,7 +132,8 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 | `DIET_VECTORSTORE_INDEX_ON_STARTUP` | 启动时批量索引审核餐食向量到向量存储 | `false` |
 | `QDRANT_HOST/QDRANT_GRPC_PORT` | Qdrant gRPC 地址（qdrant 模式） | `localhost`/`6334` |
 | `MCP_API_TOKEN` | /mcp 端点 Bearer token（未配置 fail-closed） | 空 |
-| `MCP_ALLOWED_ORIGINS` | /mcp Origin allowlist（逗号分隔） | 空（不限制） |
+| `MCP_ALLOWED_ORIGINS` | /mcp Origin allowlist（逗号分隔；#61 空 allowlist + 非空 Origin 一律 403，prod 启用 token 时必须配置） | 空 |
+| `DIET_MCP_ALLOW_MISSING_ORIGIN` | 缺失 Origin 是否放行（#61 默认 false fail-closed；dev 显式 true 保留 Inspector 流程） | `false` |
 
 - **dev**（默认 profile）：允许 `X-User-Id` 回退、admin 不保护、Cookie 不强制 Secure；
 - **prod**（`--spring.profiles.active=prod`）：拒绝 `X-User-Id`、强制 `ADMIN_TOKEN` 保护、Cookie Secure；缺少 `DASHSCOPE_API_KEY/DIET_SESSION_SECRET/ADMIN_TOKEN` 时启动失败。
