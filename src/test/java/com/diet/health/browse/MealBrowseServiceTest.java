@@ -3,14 +3,13 @@ package com.diet.health.browse;
 import com.diet.exception.DietException;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
-import com.diet.mapper.MealMapper;
-import com.diet.model.MealItemRow;
-import com.diet.util.JsonService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.diet.health.reader.meal.ReviewedMeal;
+import com.diet.health.reader.meal.ReviewedMealReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,19 +21,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 餐食浏览服务测试（33 号票）。
- * 接缝：MealBrowseService + mock MealMapper。验证分页参数校验、偏移计算、
- * 空数据、字段映射（营养估算标记、过敏原、槽位标签、媒体与来源状态）。
+ * 餐食浏览服务测试（33 号票；#69 迁移到审核读取模块 seam）。
+ * 接缝：MealBrowseService + mock ReviewedMealReader（方案 B，浏览用例层不接触 Mapper 行对象）。
+ * 验证分页参数校验、偏移计算、空数据与读取模型字段透传。
  */
 class MealBrowseServiceTest {
 
-    private MealMapper mealMapper;
+    private ReviewedMealReader reviewedMealReader;
     private MealBrowseService service;
 
     @BeforeEach
     void setUp() {
-        mealMapper = mock(MealMapper.class);
-        service = new MealBrowseService(mealMapper, new JsonService(new ObjectMapper()));
+        reviewedMealReader = mock(ReviewedMealReader.class);
+        service = new MealBrowseService(reviewedMealReader);
     }
 
     @Test
@@ -52,8 +51,8 @@ class MealBrowseServiceTest {
 
     @Test
     void 边界值50与1都合法() {
-        when(mealMapper.browsePublicMeals(0, 50)).thenReturn(List.of());
-        when(mealMapper.countPublicMeals()).thenReturn(0);
+        when(reviewedMealReader.browse(0, 50)).thenReturn(List.of());
+        when(reviewedMealReader.countPublic()).thenReturn(0);
         PagedResponse<MealBrowseItem> response = service.browse(1, 50);
         assertEquals(50, response.size());
         assertEquals(1, response.page());
@@ -62,9 +61,9 @@ class MealBrowseServiceTest {
     @Test
     void 分页偏移按page计算() {
         service.browse(2, 20);
-        verify(mealMapper).browsePublicMeals(20, 20);
+        verify(reviewedMealReader).browse(20, 20);
         service.browse(3, 15);
-        verify(mealMapper).browsePublicMeals(30, 15);
+        verify(reviewedMealReader).browse(30, 15);
     }
 
     @Test
@@ -76,15 +75,15 @@ class MealBrowseServiceTest {
 
     @Test
     void 安全范围内极大page仍正常计算偏移() {
-        when(mealMapper.browsePublicMeals(199_999_980, 20)).thenReturn(List.of());
-        when(mealMapper.countPublicMeals()).thenReturn(0);
+        when(reviewedMealReader.browse(199_999_980, 20)).thenReturn(List.of());
+        when(reviewedMealReader.countPublic()).thenReturn(0);
         service.browse(10_000_000, 20);
     }
 
     @Test
     void 空数据返回空列表和total0() {
-        when(mealMapper.browsePublicMeals(0, 20)).thenReturn(List.of());
-        when(mealMapper.countPublicMeals()).thenReturn(0);
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of());
+        when(reviewedMealReader.countPublic()).thenReturn(0);
         PagedResponse<MealBrowseItem> response = service.browse(1, 20);
         assertTrue(response.items().isEmpty());
         assertEquals(0, response.total());
@@ -93,8 +92,8 @@ class MealBrowseServiceTest {
 
     @Test
     void 分页总数与总页数正确() {
-        when(mealMapper.browsePublicMeals(0, 20)).thenReturn(List.of(row()));
-        when(mealMapper.countPublicMeals()).thenReturn(45);
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of(meal()));
+        when(reviewedMealReader.countPublic()).thenReturn(45);
         PagedResponse<MealBrowseItem> response = service.browse(1, 20);
         assertEquals(45, response.total());
         assertEquals(3, response.totalPages());
@@ -102,8 +101,8 @@ class MealBrowseServiceTest {
 
     @Test
     void 字段映射完整_营养估算与过敏原状态透出() {
-        when(mealMapper.browsePublicMeals(0, 20)).thenReturn(List.of(row()));
-        when(mealMapper.countPublicMeals()).thenReturn(1);
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of(meal()));
+        when(reviewedMealReader.countPublic()).thenReturn(1);
         MealBrowseItem item = service.browse(1, 20).items().get(0);
 
         assertEquals(100L, item.id());
@@ -127,8 +126,8 @@ class MealBrowseServiceTest {
 
     @Test
     void 槽位标签映射为七维map() {
-        when(mealMapper.browsePublicMeals(0, 20)).thenReturn(List.of(row()));
-        when(mealMapper.countPublicMeals()).thenReturn(1);
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of(meal()));
+        when(reviewedMealReader.countPublic()).thenReturn(1);
         Map<String, List<String>> tags = service.browse(1, 20).items().get(0).tags();
 
         assertEquals(List.of("早餐", "午餐"), tags.get("mealTime"));
@@ -140,51 +139,36 @@ class MealBrowseServiceTest {
         assertTrue(tags.containsKey("convenience"));
     }
 
-    @Test
-    void 空JSON字段映射为空集合() {
-        when(mealMapper.browsePublicMeals(0, 20)).thenReturn(List.of(row()));
-        when(mealMapper.countPublicMeals()).thenReturn(1);
-        MealBrowseItem item = service.browse(1, 20).items().get(0);
-        assertTrue(item.tags().get("mood").isEmpty());
-        assertTrue(item.tags().get("scene").isEmpty());
-        assertTrue(item.tags().get("convenience").isEmpty());
-        assertEquals(List.of("番茄", "鸡蛋", "面条"), item.ingredients());
-    }
-
-    private MealItemRow row() {
-        MealItemRow row = new MealItemRow();
-        row.setId(100L);
-        row.setSourceType("PUBLIC");
-        row.setName("番茄鸡蛋面");
-        row.setNameEn("Tomato Egg Noodles");
-        row.setAliases("[\"番茄面\"]");
-        row.setMealTime("[\"早餐\",\"午餐\"]");
-        row.setMood("[]");
-        row.setScene("[]");
-        row.setHealthGoal("[\"高蛋白\"]");
-        row.setCuisine("[\"中式\"]");
-        row.setTaste("[\"鲜\"]");
-        row.setConvenience("[]");
-        row.setDescription("清爽家常面");
-        row.setIngredientsJson("[\"番茄\",\"鸡蛋\",\"面条\"]");
-        row.setServingCount(4);
-        row.setServingSize(new BigDecimal("1.00"));
-        row.setServingUnit("份");
-        row.setCaloriesKcal(new BigDecimal("245.00"));
-        row.setProteinG(new BigDecimal("12.00"));
-        row.setFatG(new BigDecimal("8.00"));
-        row.setCarbohydrateG(new BigDecimal("30.00"));
-        row.setNutritionBasis("foodcom_source_value");
-        row.setNutritionEstimated(true);
-        row.setAllergenJson("[\"鸡蛋\"]");
-        row.setAllergenStatus("REVIEWED");
-        row.setReviewStatus("APPROVED");
-        row.setSourceName("foodcom-recipes-and-reviews-v2");
-        row.setSourceId("317010");
-        row.setSourceVersion("v2");
-        row.setMediaUrl(null);
-        row.setMediaStatus("NONE");
-        row.setMediaCredit(null);
-        return row;
+    private ReviewedMeal meal() {
+        Map<String, List<String>> tags = new LinkedHashMap<>();
+        tags.put("mealTime", List.of("早餐", "午餐"));
+        tags.put("mood", List.of());
+        tags.put("scene", List.of());
+        tags.put("healthGoal", List.of("高蛋白"));
+        tags.put("cuisine", List.of("中式"));
+        tags.put("taste", List.of("鲜"));
+        tags.put("convenience", List.of());
+        return new ReviewedMeal(
+                100L,
+                "番茄鸡蛋面",
+                "Tomato Egg Noodles",
+                List.of("番茄面"),
+                tags,
+                "清爽家常面",
+                List.of("番茄", "鸡蛋", "面条"),
+                new ReviewedMeal.Serving(4, new BigDecimal("1.00"), "份"),
+                new ReviewedMeal.Nutrition(
+                        new BigDecimal("245.00"), new BigDecimal("12.00"), new BigDecimal("8.00"),
+                        new BigDecimal("30.00"), "foodcom_source_value", true),
+                List.of("鸡蛋"),
+                "REVIEWED",
+                "APPROVED",
+                "NONE",
+                null,
+                "foodcom-recipes-and-reviews-v2",
+                "317010",
+                "v2",
+                "PUBLIC"
+        );
     }
 }

@@ -7,12 +7,15 @@ import com.diet.health.rag.MealRetriever;
 import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalMode;
 import com.diet.health.rag.RetrievalResult;
+import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.seed.SeedResources;
 import com.diet.mapper.FeedbackMapper;
 import com.diet.model.MealItem;
 import com.diet.model.SlotBundle;
 import com.diet.service.meal.MealRankService;
 import com.diet.service.meal.MealSearchService;
 import com.diet.service.trace.AgentTraceService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -22,12 +25,17 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 餐食模块：旧链路 searchAndRank 保持；健康链路走 MealRetriever seam。 */
+/**
+ * 餐食模块：旧链路 searchAndRank 保持；健康链路 REVIEWED_DB 走 MealRetriever seam，
+ * FIXTURE_SEED 走种子确定性路径（#69：完全绕过 MealRetriever/EmbeddingClient/审核读取模块）。
+ */
 class MealModuleTest {
 
     private final MealSearchService search = mock(MealSearchService.class);
@@ -36,9 +44,16 @@ class MealModuleTest {
     private final com.diet.health.rag.EmbeddingClient embedding = mock(com.diet.health.rag.EmbeddingClient.class);
     private final com.diet.health.vectorstore.VectorStoreIdentity identity =
             new com.diet.health.vectorstore.VectorStoreIdentity("dashscope", "text-embedding-v3", 1024, "v3-1024");
-    private final MealModule module = new MealModule(
-            search, new MealRankService(), trace, retriever, new PreferenceService(mock(FeedbackMapper.class)),
-            embedding, identity);
+    private final HealthResourceProvider provider = mock(HealthResourceProvider.class);
+    private final PreferenceService preference = new PreferenceService(mock(FeedbackMapper.class));
+
+    private MealModule module;
+
+    @BeforeEach
+    void setUp() {
+        module = new MealModule(search, new MealRankService(), trace, retriever, preference,
+                embedding, identity, provider);
+    }
 
     @Test
     void PERSONAL空库返回空候选不抛异常() {
@@ -49,6 +64,7 @@ class MealModuleTest {
 
     @Test
     void 健康链路经检索器映射为类型化资源() {
+        when(provider.providerMode()).thenReturn("REVIEWED_DB");
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼",
                 new SlotBundle(List.of("午餐"), List.of(), List.of(), List.of("清淡"), List.of(), List.of(), List.of()), 0.9);
         RetrievalResult result = new RetrievalResult(
@@ -68,11 +84,12 @@ class MealModuleTest {
 
     @Test
     void 检索查询携带排除ID和过敏原约束() {
+        when(provider.providerMode()).thenReturn("REVIEWED_DB");
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, null));
 
-        module.recommendMeals(Map.of("mealTime", List.of("午餐"), "allergen", List.of("花生")), List.of(3L));
+        module.recommendMeals(Map.of("mealTime", List.of("午餐"), "allergen", List.of("花生")), List.of("3"));
 
         ArgumentCaptor<MealRetrievalQuery> captor = ArgumentCaptor.forClass(MealRetrievalQuery.class);
         verify(retriever).retrieve(captor.capture(), eq(10));
@@ -83,6 +100,7 @@ class MealModuleTest {
 
     @Test
     void 检索结果记录MEAL_RETRIEVED模式与降级原因Trace() {
+        when(provider.providerMode()).thenReturn("REVIEWED_DB");
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, "embedding_unavailable"));
@@ -101,5 +119,87 @@ class MealModuleTest {
         assertEquals("v3-1024", detail.get("vectorVersion"));
         assertEquals("meal_dashscope_text-embedding-v3_1024_v3-1024", detail.get("collection"));
         assertEquals(1, detail.get("candidateCount"));
+    }
+
+    @Test
+    void fixture模式走种子路径且检索器零调用() {
+        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("早餐"), "healthGoal", List.of("增肌")), List.of());
+
+        verify(retriever, never()).retrieve(any(), anyInt());
+        verify(embedding, never()).embed(any());
+        assertEquals(3, resources.size(), "M1/M2/M3 带早餐标签的种子候选按 sortKey 序返回");
+        assertEquals("M1", resources.get(0).resourceId(), "fixture ID 保持 M1-M9 原样，不强转 Long");
+        assertTrue(resources.get(0).name().contains("燕麦"));
+    }
+
+    @Test
+    void fixture模式排除ID原样生效() {
+        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("早餐")), List.of("M1", "M2"));
+
+        assertEquals(1, resources.size());
+        assertEquals("M3", resources.get(0).resourceId(), "M3 同时带午餐标签，早餐查询仍命中");
+        verify(retriever, never()).retrieve(any(), anyInt());
+    }
+
+    @Test
+    void fixture模式无匹配餐次时确定性回退全部候选() {
+        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("夜宵")), List.of());
+
+        assertEquals(9, resources.size(), "无餐次命中时回退全部 M1-M9（确定性降级）");
+    }
+
+    @Test
+    void fixture模式Trace记录FIXTURE模式与无向量collection() {
+        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
+
+        module.recommendMeals(Map.of("mealTime", List.of("午餐")), List.of());
+
+        ArgumentCaptor<Map<String, Object>> detailCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(trace).recordEvent(eq("MEAL_RETRIEVED"), eq("RETRIEVE"), any(), detailCaptor.capture());
+        Map<String, Object> detail = detailCaptor.getValue();
+        assertEquals("FIXTURE_SEED", detail.get("mode"));
+        assertEquals(null, detail.get("collection"), "fixture 无向量 collection");
+        assertEquals(null, detail.get("vectorModel"));
+        assertEquals(4, detail.get("candidateCount"), "M3/M4/M5/M6 带午餐标签");
+    }
+
+    @Test
+    void fixture模式空候选返回空列表() {
+        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.planMealCandidates()).thenReturn(List.of());
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("早餐")), List.of());
+
+        assertTrue(resources.isEmpty());
+        verify(retriever, never()).retrieve(any(), anyInt());
+    }
+
+    @Test
+    void reviewed非数值排除ID忽略且不抛异常() {
+        when(provider.providerMode()).thenReturn("REVIEWED_DB");
+        MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
+        when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
+                List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, null));
+
+        module.recommendMeals(Map.of("mealTime", List.of("午餐")), List.of("M1", "9001", "abc", "5"));
+
+        ArgumentCaptor<MealRetrievalQuery> captor = ArgumentCaptor.forClass(MealRetrievalQuery.class);
+        verify(retriever).retrieve(captor.capture(), eq(10));
+        assertEquals(List.of(9001L, 5L), captor.getValue().excludeIds(),
+                "非数值/跨模式 ID（M1/abc）显式忽略，数值 ID 正常进入 reviewed 查询");
     }
 }

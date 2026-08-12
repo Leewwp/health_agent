@@ -3,9 +3,8 @@ package com.diet.health.browse;
 import com.diet.exception.DietException;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
-import com.diet.mapper.ExerciseMapper;
-import com.diet.model.ExerciseItemRow;
-import com.diet.util.JsonService;
+import com.diet.health.reader.exercise.ReviewedExercise;
+import com.diet.health.reader.exercise.ReviewedExerciseReader;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +13,8 @@ import java.util.List;
  * 动作浏览服务（规格 6.2）。
  * 只暴露审核通过（review_status=APPROVED）的动作；分页参数：page≥1、1≤size≤50。
  * 媒体状态与署名原样透出（无图状态 + Gym visual 署名）。
+ * 用户槽位字段（部位/器材/难度/肌群）已由读取模块归一为健身槽位中文词汇。
+ * 数据读取经 {@link ReviewedExerciseReader}（方案 B），本层不接触 Mapper 行对象。
  */
 @Service
 public class ExerciseBrowseService {
@@ -21,12 +22,10 @@ public class ExerciseBrowseService {
     /** size 上限（规格 6.2）。 */
     static final int MAX_PAGE_SIZE = 50;
 
-    private final ExerciseMapper exerciseMapper;
-    private final JsonService jsonService;
+    private final ReviewedExerciseReader reviewedExerciseReader;
 
-    public ExerciseBrowseService(ExerciseMapper exerciseMapper, JsonService jsonService) {
-        this.exerciseMapper = exerciseMapper;
-        this.jsonService = jsonService;
+    public ExerciseBrowseService(ReviewedExerciseReader reviewedExerciseReader) {
+        this.reviewedExerciseReader = reviewedExerciseReader;
     }
 
     public PagedResponse<ExerciseBrowseItem> browse(int page, int size) {
@@ -41,36 +40,37 @@ public class ExerciseBrowseService {
         if (offset > Integer.MAX_VALUE) {
             throw new DietException("page 超出安全范围");
         }
-        List<ExerciseItemRow> rows = exerciseMapper.browse((int) offset, size);
-        int total = exerciseMapper.count();
-        List<ExerciseBrowseItem> items = rows.stream().map(this::toItem).toList();
+        List<ReviewedExercise> exercises = reviewedExerciseReader.browse((int) offset, size);
+        int total = reviewedExerciseReader.count();
+        List<ExerciseBrowseItem> items = exercises.stream().map(ExerciseBrowseService::toItem).toList();
         return PagedResponse.of(items, page, size, total);
     }
 
-    private ExerciseBrowseItem toItem(ExerciseItemRow row) {
+    /** 读取模型 → 浏览条目（浏览用例层透传）。 */
+    private static ExerciseBrowseItem toItem(ReviewedExercise exercise) {
         return new ExerciseBrowseItem(
-                row.getId(),
-                row.getName(),
-                row.getNameEn(),
-                jsonService.fromJsonArray(row.getAliases()),
-                row.getCategory(),
-                row.getBodyPart(),
-                jsonService.fromJsonArray(row.getTargetMuscles()),
-                jsonService.fromJsonArray(row.getSecondaryMuscles()),
-                row.getEquipment(),
-                row.getDifficulty(),
-                row.getMovementPattern(),
-                jsonService.fromJsonArray(row.getRiskTags()),
-                row.getAlternativeGroup(),
-                row.getReviewStatus(),
-                Boolean.TRUE.equals(row.getPlanReady()),
-                row.getInstructionsZh(),
-                jsonService.fromJsonArray(row.getStepsJson()),
-                row.getMediaState(),
-                row.getMediaCredit(),
-                row.getSourceName(),
-                row.getSourceId(),
-                row.getSourceVersion()
+                exercise.id(),
+                exercise.name(),
+                exercise.nameEn(),
+                exercise.aliases(),
+                exercise.category(),
+                exercise.bodyPart(),
+                exercise.targetMuscles(),
+                exercise.secondaryMuscles(),
+                exercise.equipment(),
+                exercise.difficulty(),
+                exercise.movementPattern(),
+                exercise.riskTags(),
+                exercise.alternativeGroup(),
+                exercise.reviewStatus(),
+                exercise.planReady(),
+                exercise.instructionsZh(),
+                exercise.steps(),
+                exercise.mediaState(),
+                exercise.mediaCredit(),
+                exercise.sourceName(),
+                exercise.sourceId(),
+                exercise.sourceVersion()
         );
     }
 }

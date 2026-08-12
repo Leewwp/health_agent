@@ -32,12 +32,9 @@ public class ExerciseModule {
         return resourceProvider.exercises();
     }
 
-    /** 按槽位命中打分排序，返回最多 RECOMMEND_LIMIT 条（排除 excludeIds）。 */
-    public List<HealthResource> recommend(Map<String, List<String>> slots, List<Long> excludeIds, int limit) {
-        Set<String> exclude = new HashSet<>();
-        if (excludeIds != null) {
-            excludeIds.forEach(id -> exclude.add(String.valueOf(id)));
-        }
+    /** 按槽位命中打分排序，返回最多 RECOMMEND_LIMIT 条（排除 excludeIds，类型化字符串 resourceId）。 */
+    public List<HealthResource> recommend(Map<String, List<String>> slots, List<String> excludeIds, int limit) {
+        Set<String> exclude = new HashSet<>(excludeIds == null ? List.of() : excludeIds);
         int safeLimit = limit > 0 ? Math.min(limit, RECOMMEND_LIMIT) : RECOMMEND_LIMIT;
         List<Scored> scored = resourceProvider.exercises().stream()
                 .filter(item -> !exclude.contains(item.resourceId()))
