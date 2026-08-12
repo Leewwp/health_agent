@@ -4,6 +4,7 @@ import com.diet.exception.DietException;
 import com.diet.health.module.HealthResource;
 import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
+import com.diet.health.reader.exercise.ExerciseVocabulary;
 import com.diet.mapper.ExerciseMapper;
 import com.diet.mapper.MealMapper;
 import com.diet.mapper.RoutineFactMapper;
@@ -23,56 +24,15 @@ import java.util.Optional;
  * 数据库审核子集 Provider（正式模式）：读 exercise_item / meal_item / routine_fact 三张审核表。
  * <p>
  * 资源身份：餐食与动作使用数据库自增主键字符串；作息事实使用冻结业务 ref_id。
- * 审核动作数据集的器材/部位/肌群为英文原始值，Provider 统一翻译为健身槽位中文词汇
- * （与 {@code HealthSlotDictionary} 对齐），未收录的原始值过滤掉、不透出英文，
- * 保证聊天槽位打分与周计划部位轮转可用。空表时各方法返回空集合，不抛异常。
+ * 动作槽位词汇统一经 {@link ExerciseVocabulary} 归一（与浏览读取模块共用同一套规则），
+ * 未收录的原始值过滤掉、不透出英文，保证聊天槽位打分与周计划部位轮转可用。
+ * 空表时各方法返回空集合，不抛异常。
  */
 @Component
 public class DbReviewedResourceProvider implements HealthResourceProvider {
 
     /** 审核子集批次版本（与 reviewed_resources.sql 生成批次同日）。 */
     static final String RESOURCE_VERSION = "reviewed-2026-08-10-v1";
-
-    /** 数据集器材英文值 → 健身槽位中文值。 */
-    private static final Map<String, String> EQUIPMENT_ZH = Map.of(
-            "body weight", "徒手",
-            "dumbbell", "哑铃",
-            "band", "弹力带"
-    );
-
-    /** 数据集部位英文值 → 健身槽位中文值。 */
-    private static final Map<String, String> BODY_PART_ZH = Map.of(
-            "chest", "胸",
-            "waist", "核心",
-            "back", "背",
-            "upper legs", "腿",
-            "lower legs", "腿",
-            "upper arms", "手臂",
-            "shoulders", "肩",
-            "cardio", "全身"
-    );
-
-    /** 数据集肌群英文值 → 健身槽位中文值。 */
-    private static final Map<String, String> MUSCLE_ZH = Map.ofEntries(
-            Map.entry("chest", "胸"),
-            Map.entry("triceps", "手臂"),
-            Map.entry("biceps", "手臂"),
-            Map.entry("forearms", "手臂"),
-            Map.entry("shoulders", "肩"),
-            Map.entry("deltoids", "肩"),
-            Map.entry("traps", "背"),
-            Map.entry("upper back", "背"),
-            Map.entry("quadriceps", "腿"),
-            Map.entry("hamstrings", "腿"),
-            Map.entry("calves", "腿"),
-            Map.entry("ankles", "腿"),
-            Map.entry("feet", "腿"),
-            Map.entry("core", "核心"),
-            Map.entry("obliques", "核心"),
-            Map.entry("hip flexors", "核心"),
-            Map.entry("lower back", "核心"),
-            Map.entry("glutes", "臀")
-    );
 
     private final ExerciseMapper exerciseMapper;
     private final MealMapper mealMapper;
@@ -180,7 +140,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
 
     // ---------- 行 → 资源映射 ----------
 
-    /** 动作行 → 类型化资源：标签翻译为健身槽位中文词汇（未收录原始值过滤，不透出英文）。 */
+    /** 动作行 → 类型化资源：标签经共享词汇模块归一为健身槽位中文词汇（未收录原始值过滤，不透出英文）。 */
     private HealthResource toResource(ExerciseItemRow row) {
         List<String> bodyParts = new ArrayList<>();
         addPartZh(bodyParts, row.getBodyPart());
@@ -188,9 +148,9 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         jsonService.fromJsonArray(row.getSecondaryMuscles()).forEach(muscle -> addPartZh(bodyParts, muscle));
         Map<String, List<String>> tags = new LinkedHashMap<>();
         tags.put("bodyParts", bodyParts.stream().distinct().toList());
-        tags.put("primaryBodyPart", singleZh(toPartZh(row.getBodyPart())));
-        tags.put("equipment", singleZh(toEquipmentZh(row.getEquipment())));
-        tags.put("difficulty", singleZh(toDifficultyZh(row.getDifficulty())));
+        tags.put("primaryBodyPart", singleZh(ExerciseVocabulary.partZh(row.getBodyPart())));
+        tags.put("equipment", singleZh(ExerciseVocabulary.equipmentZh(row.getEquipment())));
+        tags.put("difficulty", singleZh(ExerciseVocabulary.difficultyZh(row.getDifficulty())));
         tags.put("movementPattern", List.of(row.getMovementPattern()));
         tags.put("trainingGoal", List.of());
         return new HealthResource(
@@ -258,17 +218,12 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     }
 
     /**
-     * 数据集英文部位/肌群值 → 健身槽位中文值：body_part、靶肌、次肌统一走同一套归一规则
-     * （先查部位字典，再查肌群字典），保证同一原始值在 bodyParts 与 primaryBodyPart
-     * 两个字段归一结果一致；未收录的原始值返回空串并过滤，不透出英文，
-     * 保证输出值属于 {@code HealthSlotDictionary} 的健身槽位合法值集合。
+     * 数据集英文部位/肌群值 → 健身槽位中文值：统一经共享词汇模块归一
+     * （先查部位字典，再查肌群字典），保证与浏览读取模型同口径；
+     * 未收录的原始值返回空串并过滤，不透出英文，输出值属于健身槽位合法中文集合。
      */
     private static String toPartZh(String value) {
-        if (value == null) {
-            return "";
-        }
-        String zh = BODY_PART_ZH.get(value);
-        return zh != null ? zh : MUSCLE_ZH.getOrDefault(value, "");
+        return ExerciseVocabulary.partZh(value);
     }
 
     private static void addPartZh(List<String> target, String value) {
@@ -283,20 +238,12 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
 
     /** 数据集器材英文值 → 健身槽位中文值（未收录过滤，不透出英文）。 */
     private static String toEquipmentZh(String value) {
-        return value == null ? "" : EQUIPMENT_ZH.getOrDefault(value, "");
+        return ExerciseVocabulary.equipmentZh(value);
     }
 
-    /**
-     * 数据集难度 → 健身槽位合法难度：数据集只有「入门/中级/进阶」，槽位字典难度为
-     * 「入门/进阶/挑战」，中级归一到进阶，保证难度标签不泄漏字典外的非法值。
-     */
+    /** 数据集难度 → 健身槽位合法难度（未收录返回空串）。 */
     private static String toDifficultyZh(String value) {
-        return switch (value == null ? "" : value) {
-            case "入门" -> "入门";
-            case "中级", "进阶" -> "进阶";
-            case "挑战" -> "挑战";
-            default -> "";
-        };
+        return ExerciseVocabulary.difficultyZh(value);
     }
 
     /** 单个翻译值包装为标签列表；未收录为空列表，不透出英文原始值。 */
