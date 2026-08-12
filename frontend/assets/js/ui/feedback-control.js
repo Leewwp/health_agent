@@ -90,9 +90,15 @@ function contextFromButton(button) {
 
 async function handleAction(resourceType, resourceId, action, button) {
     if (action === "FAVORITE") {
-        const resourceKey = `${resourceType}:${resourceId}`;
+        // #65：按目标收藏状态发送 FAVORITE/UNFAVORITE，取消收藏不再是重复 FAVORITE
+        const currentlyFavorite = isFavorite(resourceType, resourceId);
         await toggleFavorite(resourceType, resourceId, () =>
-            sendFeedback({ resourceType, resourceId, action: "FAVORITE", ...contextFromButton(button) })
+            sendFeedback({
+                resourceType,
+                resourceId,
+                action: currentlyFavorite ? "UNFAVORITE" : "FAVORITE",
+                ...contextFromButton(button)
+            })
         );
         showToast(isFavorite(resourceType, resourceId) ? "已收藏" : "已取消收藏");
         return;

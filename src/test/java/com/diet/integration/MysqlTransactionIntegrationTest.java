@@ -1,6 +1,8 @@
 package com.diet.integration;
 
+import com.diet.constants.DietConstants;
 import com.diet.exception.DietException;
+import com.diet.health.model.HealthFeedbackRequest;
 import com.diet.health.plan.DraftPlanRequest;
 import com.diet.health.plan.HealthPlanResponseAgentService;
 import com.diet.health.plan.PlanValidationService;
@@ -26,21 +28,24 @@ import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
-
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.sql.DataSource;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -93,6 +98,12 @@ class MysqlTransactionIntegrationTest {
     private HealthSessionService sessionService;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private com.diet.mapper.FeedbackMapper realFeedbackMapper;
+    @Autowired
+    private com.diet.health.feedback.HealthFeedbackService feedbackService;
+    @Autowired
+    private com.diet.health.feedback.PreferenceService preferenceService;
 
     private JdbcTemplate jdbc;
 
@@ -104,6 +115,7 @@ class MysqlTransactionIntegrationTest {
         jdbc.update("DELETE FROM health_profile WHERE user_id >= 880000");
         jdbc.update("DELETE FROM diet_sessions WHERE user_id >= 880000");
         jdbc.update("DELETE FROM diet_request_trace WHERE user_id >= 880000");
+        jdbc.update("DELETE FROM recommend_feedback WHERE user_id >= 880000");
     }
 
     // ---------- 工具 ----------
@@ -421,6 +433,74 @@ class MysqlTransactionIntegrationTest {
                 Integer.class, USER);
         assertEquals(1, distinctSources, "两份草稿必须引用同一来源会话");
         assertEquals(1, count("diet_sessions", "user_id", USER), "默认会话只能落库一条");
+    }
+
+    // ---------- #65：反馈完整序列经真实 findRecent 折叠与 100 条窗口 ----------
+
+    @Test
+    void 反馈完整序列经真实findRecent折叠成两维状态() {
+        // EXERCISE:9001：DISLIKE -> FAVORITE -> UNFAVORITE = 未收藏 + NEUTRAL
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-a", "EXERCISE", "9001", "DISLIKE", null, null, null, null, null));
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-b", "EXERCISE", "9001", "FAVORITE", null, null, null, null, null));
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-c", "EXERCISE", "9001", "UNFAVORITE", null, null, null, null, null));
+        // MEAL:M1：DISLIKE -> FAVORITE -> LIKE -> UNFAVORITE = 未收藏 + POSITIVE
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-d", "MEAL", "M1", "DISLIKE", null, null, null, null, null));
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-e", "MEAL", "M1", "FAVORITE", null, null, null, null, null));
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-f", "MEAL", "M1", "LIKE", null, null, null, null, null));
+        feedbackService.save(USER, new HealthFeedbackRequest("sess-65-g", "MEAL", "M1", "UNFAVORITE", null, null, null, null, null));
+
+        List<com.diet.model.FeedbackRow> recent = realFeedbackMapper.findRecent(USER, 100);
+        assertEquals(7, recent.size(), "UNFAVORITE 必须真实持久化");
+        // findRecent 按 created_at DESC, id DESC：同秒插入时按 id DESC 保证最新在前；
+        // 逆序展开必为严格时序（同秒内 id 逆序还原），避免跨秒边界导致的位置漂移
+        assertEquals(List.of("DISLIKE", "FAVORITE", "UNFAVORITE", "DISLIKE", "FAVORITE", "LIKE", "UNFAVORITE"),
+                recent.stream().map(com.diet.model.FeedbackRow::getAction).toList().reversed(),
+                "逆序展开必须与提交序列完全一致（最新在前，同秒按 id DESC）");
+
+        assertEquals(Set.of(), preferenceService.favoriteKeysFor(USER),
+                "两个序列的最终收藏状态都必须为 false");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(DietConstants.USER_ID_ATTRIBUTE, USER);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        try {
+            List<com.diet.health.module.HealthResource> result = preferenceService.applyPreference(
+                    List.of(
+                            new com.diet.health.module.HealthResource("MEAL", "M1", "a", "PUBLIC", "s", null, false, java.util.Map.of()),
+                            new com.diet.health.module.HealthResource("EXERCISE", "9001", "b", "PUBLIC", "s", null, true, java.util.Map.of()),
+                            new com.diet.health.module.HealthResource("MEAL", "M3", "c", "PUBLIC", "s", null, false, java.util.Map.of())));
+            assertEquals(List.of("MEAL:M1", "EXERCISE:9001", "MEAL:M3"), result.stream()
+                            .map(item -> item.resourceType() + ":" + item.resourceId()).toList(),
+                    "MEAL:M1 保持 POSITIVE 提升置前，EXERCISE:9001 为 NEUTRAL 不排除也不提升且顺序稳定");
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
+    }
+
+    @Test
+    void findRecent只返回最近100条且折叠不越窗() {
+        // 105 条事件：第 101-105 条（最旧）不得参与偏好聚合
+        for (int i = 0; i < 105; i++) {
+            jdbc.update("INSERT INTO recommend_feedback (user_id, session_id, item_id, resource_type, resource_id,"
+                            + " plan_id, plan_item_id, action, rating, reason, source, created_at)"
+                            + " VALUES (?, ?, NULL, 'MEAL', ?, NULL, NULL, 'DISLIKE', NULL, NULL, 'HEALTH_CHAT', ?)",
+                    USER, "sess-65-window-" + i, "M" + (1 + (i % 9)), java.sql.Timestamp.valueOf(LocalDateTime.now()));
+        }
+        List<com.diet.model.FeedbackRow> recent = realFeedbackMapper.findRecent(USER, 100);
+        assertEquals(100, recent.size(), "全局读取窗口只能取最近 100 条");
+        assertEquals(105, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM recommend_feedback WHERE user_id = ?", Integer.class, USER));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(DietConstants.USER_ID_ATTRIBUTE, USER);
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+        try {
+            List<com.diet.health.module.HealthResource> result = preferenceService.applyPreference(
+                    List.of(new com.diet.health.module.HealthResource("MEAL", "M1", "a", "PUBLIC", "s", null, false, java.util.Map.of())));
+            assertTrue(result.isEmpty(), "窗口内 100 条全部是 DISLIKE，M1 必须被排除");
+        } finally {
+            RequestContextHolder.resetRequestAttributes();
+        }
     }
 
     // ---------- 28 号矩阵：MySQL 不可用有固定结果 ----------

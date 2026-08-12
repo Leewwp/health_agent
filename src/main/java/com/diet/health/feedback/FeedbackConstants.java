@@ -1,11 +1,12 @@
 package com.diet.health.feedback;
 
-/** 类型化反馈常量（41 号票）：action 白名单、资源类型与来源标识。 */
+/** 类型化反馈常量（41 号票 + #65）：action 白名单、资源类型与来源标识。 */
 public final class FeedbackConstants {
 
     public static final String ACTION_LIKE = "LIKE";
     public static final String ACTION_DISLIKE = "DISLIKE";
     public static final String ACTION_FAVORITE = "FAVORITE";
+    public static final String ACTION_UNFAVORITE = "UNFAVORITE";
     public static final String ACTION_ADOPT = "ADOPT";
 
     public static final String RESOURCE_TYPE_MEAL = "MEAL";

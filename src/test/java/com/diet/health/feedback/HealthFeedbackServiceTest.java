@@ -87,10 +87,36 @@ class HealthFeedbackServiceTest {
     }
 
     @Test
+    void UNFAVORITE动作被接受并持久化() {
+        when(provider.exerciseById("9001")).thenReturn(Optional.of(EXERCISE_9001));
+        service.save(1L, new HealthFeedbackRequest("sess-1", "EXERCISE", "9001", "UNFAVORITE",
+                null, null, null, null, null));
+
+        verify(feedbackMapper).insertTyped(
+                eq(1L), eq("sess-1"), eq(null),
+                eq("EXERCISE"), eq("9001"),
+                eq(null), eq(null),
+                eq("UNFAVORITE"), eq(null), eq(null),
+                eq("HEALTH_CHAT"));
+    }
+
+    @Test
+    void 五种action全部在白名单内() {
+        when(provider.mealById("5")).thenReturn(Optional.of(MEAL_5));
+        for (String action : List.of("LIKE", "DISLIKE", "FAVORITE", "UNFAVORITE", "ADOPT")) {
+            service.save(1L, new HealthFeedbackRequest("sess-1", "MEAL", "5", action, null, null, null, null, null));
+        }
+        verify(feedbackMapper, org.mockito.Mockito.times(5)).insertTyped(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void action白名单外拒绝且不写入() {
         HealthApiException error = assertThrows(HealthApiException.class, () -> service.save(1L,
                 new HealthFeedbackRequest("sess-1", "MEAL", "5", "THUMBS_UP", null, null, null, null, null)));
         assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT"),
+                "错误文案必须列出五种 action: " + error.getMessage());
         verify(feedbackMapper, never()).insertTyped(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
