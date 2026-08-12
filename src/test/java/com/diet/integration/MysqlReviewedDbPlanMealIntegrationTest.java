@@ -1,8 +1,10 @@
 package com.diet.integration;
 
+import com.diet.exception.HealthApiException;
 import com.diet.health.enums.PlanValidationLevel;
 import com.diet.health.plan.DraftPlanRequest;
 import com.diet.health.plan.HealthPlanResponseAgentService;
+import com.diet.health.plan.PatchItemRequest;
 import com.diet.health.plan.PlanValidationService;
 import com.diet.health.plan.PlanView;
 import com.diet.health.plan.WeeklyPlanComposerService;
@@ -29,6 +31,7 @@ import org.springframework.transaction.interceptor.TransactionInterceptor;
 
 import javax.sql.DataSource;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -219,5 +223,45 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         assertTrue(resourceProvider.mealById(mealId).isPresent(), "反馈校验必须能解析计划餐食: " + mealId);
         Long dbId = jdbc.queryForObject("SELECT id FROM meal_item WHERE id = ?", Long.class, Long.parseLong(mealId));
         assertEquals(Long.parseLong(mealId), dbId, "计划餐食 ID 必须直接对应 meal_item 主键（浏览/推荐同库）");
+    }
+
+    // ---- 60 号票：时间/日期不变量失败不产生半成品 ----
+
+    @Test
+    void 时间不变量失败不产生新版本或半成品项目() {
+        saveProfile();
+        PlanView plan = planService().createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        com.diet.health.plan.PlanItemView exercise = plan.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .filter(item -> item.localDate().equals(MON))
+                .findFirst().orElseThrow();
+
+        // 1) 日期越界：稳定参数错误，回滚且不落库
+        HealthApiException outOfRange = assertThrows(HealthApiException.class, () -> planService().patchItem(USER,
+                plan.id(), exercise.id(),
+                new PatchItemRequest(MON.plusDays(7), LocalTime.of(20, 0), LocalTime.of(21, 0), "越界到次周一")));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, outOfRange.code());
+
+        // 2) 跨午夜冲突（挪到周二早晨与前一晚跨午夜睡眠重叠）：HARD_ERROR，回滚且不落库
+        HealthApiException overlap = assertThrows(HealthApiException.class, () -> planService().patchItem(USER,
+                plan.id(), exercise.id(),
+                new PatchItemRequest(MON.plusDays(1), LocalTime.of(6, 0), LocalTime.of(7, 0), "早起训练")));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, overlap.code());
+
+        // 3) 数据库无半成品：项目保持原日期/时间，版本数与计划状态不变
+        Map<String, Object> row = jdbc.queryForMap(
+                "SELECT DATE_FORMAT(local_date, '%Y-%m-%d') AS d, TIME_FORMAT(start_time, '%H:%i') AS s,"
+                        + " TIME_FORMAT(end_time, '%H:%i') AS e FROM weekly_plan_item WHERE id = ?",
+                exercise.id());
+        assertEquals(MON.toString(), String.valueOf(row.get("d")), "失败 PATCH 不得改动项目日期");
+        assertEquals("19:30", String.valueOf(row.get("s")), "失败 PATCH 不得改动开始时间");
+        assertEquals("21:00", String.valueOf(row.get("e")), "失败 PATCH 不得改动结束时间");
+        Integer versionCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM weekly_plan_version v JOIN weekly_plan p ON p.id = v.plan_id"
+                        + " WHERE p.user_id = ?",
+                Integer.class, USER);
+        assertEquals(1, versionCount, "失败路径不得新增版本快照");
+        String status = jdbc.queryForObject("SELECT status FROM weekly_plan WHERE user_id = ?", String.class, USER);
+        assertEquals("DRAFT", status, "计划保持 DRAFT 未激活");
     }
 }
