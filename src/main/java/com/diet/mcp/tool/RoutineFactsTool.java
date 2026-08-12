@@ -40,7 +40,21 @@ public class RoutineFactsTool implements McpToolSpec {
         return McpToolSupport.tool(NAME,
                 "按关键词查询结构化作息事实与来源引用（只读，最多 3 条）",
                 properties, List.of("keyword"),
+                outputSchema(),
                 this::handle);
+    }
+
+    /** 输出契约（#63）：facts 数组 + count；事实元素含来源引用，无内部字段。 */
+    private static Map<String, Object> outputSchema() {
+        Map<String, Object> fact = McpToolSupport.objectType(Map.of(
+                "factId", McpToolSupport.stringType(),
+                "category", McpToolSupport.stringType(),
+                "fact", McpToolSupport.stringType(),
+                "sourceName", McpToolSupport.stringType(),
+                "sourceDetail", McpToolSupport.stringType()), List.of("factId", "category", "fact"));
+        return McpToolSupport.objectType(Map.of(
+                "facts", McpToolSupport.arrayType(fact),
+                "count", McpToolSupport.integerType()), List.of("facts", "count"));
     }
 
     private McpSchema.CallToolResult handle(Map<String, Object> args) {

@@ -29,14 +29,57 @@ public final class McpToolSupport {
     public static McpServerFeatures.SyncToolSpecification tool(String name, String description,
                                                                Map<String, Object> properties,
                                                                List<String> required,
+                                                               Map<String, Object> outputSchema,
                                                                ToolHandler handler) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
                 .name(name)
                 .description(description)
                 .inputSchema(new McpSchema.JsonSchema("object", properties, required, null, null, null))
+                .outputSchema(outputSchema)
                 .build();
         return new McpServerFeatures.SyncToolSpecification(tool,
                 (exchange, args) -> handler.handle(args));
+    }
+
+    // ---- 输出 Schema 构造（#63：每个 Tool 声明明确 outputSchema，structuredContent 必须通过校验） ----
+
+    public static Map<String, Object> stringType() {
+        return Map.of("type", "string");
+    }
+
+    public static Map<String, Object> integerType() {
+        return Map.of("type", "integer");
+    }
+
+    public static Map<String, Object> numberType() {
+        return Map.of("type", "number");
+    }
+
+    public static Map<String, Object> booleanType() {
+        return Map.of("type", "boolean");
+    }
+
+    public static Map<String, Object> stringArrayType() {
+        return Map.of("type", "array", "items", stringType());
+    }
+
+    /** 字符串 → 字符串数组的标签对象（餐食 tags 形状）。 */
+    public static Map<String, Object> stringListTagsType() {
+        return Map.of("type", "object", "additionalProperties", stringArrayType());
+    }
+
+    public static Map<String, Object> arrayType(Map<String, Object> items) {
+        return Map.of("type", "array", "items", items);
+    }
+
+    /** 封闭对象 Schema：额外字段一律拒绝（结构化结果必须与契约完全一致）。 */
+    public static Map<String, Object> objectType(Map<String, Object> properties, List<String> required) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "object");
+        schema.put("properties", properties);
+        schema.put("required", required);
+        schema.put("additionalProperties", false);
+        return schema;
     }
 
     /** 读取必填 String 参数；缺失/非字符串抛 INVALID_PARAMS。 */
