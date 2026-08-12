@@ -21,3 +21,6 @@ diet:
     allow-legacy-user-header: false
     admin-protected: true
     admin-token: ${ADMIN_TOKEN}
+  mcp:
+    # #61：prod 缺失 Origin 必须 fail-closed（安全默认值）；如确需放行须显式改 true 并自担风险
+    allow-missing-origin: false

@@ -3,6 +3,12 @@ spring:
     activate:
       on-profile: dev
 
+# #61：dev 显式放行缺失 Origin（curl/MCP Inspector/受控服务端客户端本地流程）；
+# 生产不继承该配置，缺失 Origin 默认 fail-closed
+diet:
+  mcp:
+    allow-missing-origin: true
+
 logging:
   level:
     com.diet: INFO
