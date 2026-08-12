@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,8 +26,10 @@ import java.util.Map;
  * {@code diet.vectorstore.index-on-startup=true} 且 mode=qdrant 时启动执行：
  * 从 MySQL 读取审核餐食与其 meal_item_embedding 向量，按固定批次幂等 upsert 到 Qdrant。
  * 幂等性由同 mealId 覆盖保证，可反复运行；索引失败只告警，不阻塞业务启动。
+ * 必须早于 RAG 评估运行（@Order 0），否则评估会因 collection 尚未建立而全部降级。
  */
 @Component
+@Order(0)
 public class VectorIndexingRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(VectorIndexingRunner.class);

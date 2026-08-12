@@ -61,6 +61,7 @@
 
     <sql id="BrowseMealColumns">
         id,
+        source_type,
         name,
         name_en,
         aliases,

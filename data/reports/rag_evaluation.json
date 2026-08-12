@@ -7,25 +7,25 @@
       "recallAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "204451", "175340" ]
+      "topKSourceIds" : [ "175340", "204451", "430648" ]
     }, {
       "queryId" : "q-dinner-low-carb",
       "recallAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "128908", "283704" ]
+      "topKSourceIds" : [ "128908", "283704", "205871" ]
     }, {
       "queryId" : "q-lunch-quick",
       "recallAt3" : 0.058823529411764705,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "283465", "290088", "295236" ]
+      "topKSourceIds" : [ "283465", "149292", "151221" ]
     }, {
       "queryId" : "q-vegan-meal",
       "recallAt3" : 0.1875,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "419364", "187115", "297239" ]
+      "topKSourceIds" : [ "419364", "104869", "187115" ]
     }, {
       "queryId" : "q-curry",
       "recallAt3" : 0.6,
@@ -37,38 +37,38 @@
       "recallAt3" : 0.6,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "187686", "332905", "465006" ]
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
     }, {
       "queryId" : "q-seafood",
       "recallAt3" : 0.125,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "205695", "229669", "20305" ]
+      "topKSourceIds" : [ "205695", "229669", "112259" ]
     }, {
       "queryId" : "q-spicy",
       "recallAt3" : 0.16666666666666666,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "100900", "192574", "238010" ]
+      "topKSourceIds" : [ "100900", "192574", "100332" ]
     }, {
       "queryId" : "q-peanut-exclusion",
-      "recallAt3" : 0.03225806451612903,
+      "recallAt3" : 0.04838709677419355,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "307525", "301361", "123402" ]
+      "topKSourceIds" : [ "104206", "120612", "123402" ]
     }, {
       "queryId" : "q-fish-exclusion",
       "recallAt3" : 0.08333333333333333,
       "hardConstraintHitRate" : 1.0,
       "mode" : "HYBRID",
-      "topKSourceIds" : [ "123402", "270176", "128908" ]
+      "topKSourceIds" : [ "104206", "120612", "123402" ]
     } ],
-    "avgRecallAt3" : 0.3853581593927894,
+    "avgRecallAt3" : 0.3869710626185958,
     "hardConstraintHitRate" : 1.0,
     "degradedCount" : 0
   },
   "topK" : 3,
-  "runAt" : "2026-08-11T12:55:42.844822",
+  "runAt" : "2026-08-12T13:10:59.315744",
   "structured" : {
     "queries" : [ {
       "queryId" : "q-breakfast-protein",
