@@ -81,3 +81,24 @@
 - 移动端 390×844：档案页风险区完整渲染（5 复选框 + 说明框），`scrollWidth=clientWidth=390` 无横向溢出。
 - 说明：本次验收以 DOM 断言 + toast + DB 落库核对为准（沿用 37 号验收方式）；ego-browser 截图服务本次不可用（CDP Page.captureScreenshot 超时，浏览器侧问题，不影响断言）。
 - 清理：验收身份为匿名 Cookie 用户（DB 中 `user_id=5750655426821178388`），无计划残留。
+
+## 64/65/61 号票补充验收（2026-08-13，动作浏览槽位归一、收藏/取消收藏、MCP 经 Nginx 安全边界）
+
+- 验收环境：本地后端重启为最新代码（杀掉 2026-08-12 启动的旧进程，仓库根 `nohup mvn spring-boot:run`，`diet_db` 正式库，端口 8080；启动时注入 `MCP_API_TOKEN=acceptance-mcp-token-2026`、`MCP_ALLOWED_ORIGINS=http://localhost:8090`，dev profile 默认 `allow-missing-origin=true`）+ `health-nginx-test` 容器（8090→80，静态托管 `frontend/`）+ ego-browser 真实 Chromium；桌面 1710×983（emulation override 后 `innerWidth=1710`）+ 移动端 390×844 两种视口。
+- 环境修复（验收前置）：`health-nginx-test` 容器挂载的 `/var/folders/.../opencode/nginx-local.conf` 是 29 小时前的旧版本（无 `/mcp` location，`POST /mcp` 直接 nginx 405），已按当前 `deploy/nginx.conf` 重新生成（`127.0.0.1:8080` → `host.docker.internal:8080`）并 `nginx -s reload` 后恢复。
+- #61 MCP 经 Nginx（`curl -X POST http://localhost:8090/mcp`）：无 Authorization → 401 `{"error":"缺少或无效的 MCP Bearer token"}`；错误 token → 401 同上；合法 token + `Origin: http://evil.example` → 403 `{"error":"Origin 不在允许列表"}`；合法 token + `Origin: http://localhost:8090` + `Accept: application/json, text/event-stream` → 200 initialize JSON-RPC（`serverInfo: health-agent-mcp 0.1.0`）；带 `Mcp-Session-Id` 续调 `tools/list` → 200，4 个工具（calculate_targets / get_meal_detail / search_meals / get_routine_facts）全中文 schema 描述。全程经 Nginx 反代，无直连。
+- #64 动作浏览页（URL `http://localhost:8090/#/exercises`，桌面 + 移动）：
+  - 列表来自浏览 API（`/api/v1/health/exercises` 分页拉全，共 30 条），槽位全部为归一中文：训练部位「背/核心/肩/全身/手臂/腿/胸」、器材「弹力带/徒手/哑铃」、难度「进阶/入门」、动作模式「蹲/核心/踝/髋/拉/推/有氧」，筛选下拉无英文原始值。
+  - 搜索「登山者」→ 单卡显示「进阶 / 全身 / 徒手」；详情抽屉显示「训练部位：全身 · 难度：进阶 · 动作模式：有氧」+ 目标肌群「核心」，全文无 `cardio`/`body weight` 等英文原始值（DOM 正则断言 + 抽屉内文本核对）。
+  - 筛选：难度=入门 → 12 条；分页：30 条 / 每页 18 → 第 1/2 页 18 卡 ↔ 下一页 12 卡 ↔ 上一页回 18 卡，页码文案正确。
+  - 归一机制佐证（后端日志 WARN 为正常诊断）：DB `exercise_item` 行 38/58/59/60 存英文原始值（`cardio`/`body weight`/`upper legs`/`waist`/`中级`），`DbReviewedExerciseReader` 归一后 API 输出全中文（38 登山者→全身/徒手/进阶/有氧；60 侧平板支撑→核心/徒手/进阶/核心），未收录值从用户标签集合过滤并打 WARN。
+  - 移动端 390×844：卡片/筛选/抽屉正常，`scrollWidth=clientWidth=390` 无横向溢出，导航无溢出。
+- #65 收藏/取消收藏（网络 payload 拦截 + DOM 状态 + 刷新持久 + DB 落库四方核对）：
+  - 桌面 EXERCISE 38（登山者）：点收藏 → 按钮「收藏✓」`aria-pressed=true`、toast「已收藏」，请求 `action=FAVORITE`；再点 → 请求 `action=UNFAVORITE`（前端 feedback-control.js 不再重复发 FAVORITE）、按钮回「收藏」`aria-pressed=false`、toast「已取消收藏」，localStorage 收藏项清除；刷新页面后仍「收藏」（未收藏态）。
+  - 桌面 MEAL 2310 同流程通过（`action=FAVORITE` → `action=UNFAVORITE` → 刷新后未收藏）。
+  - 移动端 390×844：EXERCISE 38 同流程通过（toast「已收藏」/「已取消收藏」）。
+  - DB 核对 `recommend_feedback`：会话 `sess_d72a0e...` 下 EXERCISE/38（桌面+移动）与 MEAL/2310 各 `FAVORITE`+`UNFAVORITE` 成对落库（latest-wins，UNFAVORITE 撤销收藏贡献）。
+  - 全程控制台无 error/warning（桌面 + 移动，多次采样含 `Log.entryAdded` 与 `Runtime.exceptionThrown`）。
+- 发现的 Bug（本次验收复现，**先报告未改代码**）：浏览页共享实现（`frontend/assets/js/pages/browse.js`）跨页面事件委托互相覆盖——每个 `createBrowsePage` 实例都把 `click/change/submit` 委托监听器绑到同一个 `#app` 上且从不解绑，后访问的页面会把另一个页面重新渲染到当前路由下。复现（纯应用内导航，无刷新）：`#/meals` 加载 → 点导航进 `#/exercises`（正常显示健身动作库）→ 在动作页搜索「登山者」或切换难度筛选 → URL 仍是 `#/exercises`，但 `#app` 被餐食页整体覆盖（显示「餐食库」+「没有符合筛选条件的数据」，且筛选值串到餐食数据集）。反向同样：`#/meals` 上改「用餐时间」筛选后会被动作页覆盖（视访问顺序谁后绑定谁赢）。无 console error、无未捕获异常，纯监听器串扰 + 渲染竞态。影响 #64 的搜索/筛选/分页验收流程（首次访问动作页时全部通过，访问过餐食页后即触发）；`browse.js` 不在本批次工作区 diff 内，属既有问题，建议后续单独修（如模块级单例绑定 + 路由守卫，或解绑/按当前路由分发）。
+- 截图：captureScreenshot CDP 超时（沿用 62 号已知浏览器侧问题），以 DOM 断言为准。
+- 清理：验收无残留数据（收藏/取消收藏成对落库为业务正常事件流）；后端（8080）与 `health-nginx-test`（8090）验收后保持运行供继续验收。
