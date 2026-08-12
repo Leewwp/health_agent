@@ -8,6 +8,7 @@ import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.module.RoutineFact;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
+import com.diet.health.reader.exercise.DbReviewedExerciseReader;
 import com.diet.mapper.ExerciseMapper;
 import com.diet.mapper.MealMapper;
 import com.diet.mapper.RoutineFactMapper;
@@ -124,7 +125,8 @@ class DbReviewedResourceProviderTest {
         when(exerciseMapper.findAllApproved()).thenReturn(exerciseRows(5));
         when(exerciseMapper.browse(0, 50)).thenReturn(exerciseRows(5));
         when(exerciseMapper.count()).thenReturn(5);
-        ExerciseBrowseService browse = new ExerciseBrowseService(exerciseMapper, jsonService);
+        ExerciseBrowseService browse = new ExerciseBrowseService(
+                new DbReviewedExerciseReader(exerciseMapper, jsonService));
         PagedResponse<ExerciseBrowseItem> page = browse.browse(1, 50);
         List<String> browseIds = page.items().stream().map(item -> String.valueOf(item.id())).toList();
         List<String> providerIds = provider.exercises().stream().map(HealthResource::resourceId).toList();

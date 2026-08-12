@@ -178,6 +178,40 @@ class ReviewedResourceSeedValidatorTest {
     }
 
     @Test
+    void 每个动作用户槽位字段属于健身槽位合法中文集合() throws IOException {
+        // 64 号票：真实审核 seed 驱动的 API 与页面不得显示未允许英文槽位
+        List<String> allowedBodyParts = com.diet.health.reader.exercise.ExerciseVocabulary
+                .legalFitnessValues().get("bodyParts");
+        List<String> allowedEquipment = com.diet.health.reader.exercise.ExerciseVocabulary
+                .legalFitnessValues().get("equipment");
+        List<String> allowedDifficulty = com.diet.health.reader.exercise.ExerciseVocabulary
+                .legalFitnessValues().get("difficulty");
+        for (List<String> row : table(parseSeed(), "exercise_item")) {
+            assertEquals("APPROVED", cell(row, 15), "动作审核状态必须 APPROVED: " + row);
+            String bodyPart = com.diet.health.reader.exercise.ExerciseVocabulary.partZh(cell(row, 7));
+            assertTrue(allowedBodyParts.contains(bodyPart), "主部位必须归一为合法中文值: " + row);
+            String category = com.diet.health.reader.exercise.ExerciseVocabulary.partZh(cell(row, 6));
+            assertTrue(allowedBodyParts.contains(category), "类别必须归一为合法中文值: " + row);
+            for (int idx : new int[]{8, 9}) {
+                String json = cell(row, idx);
+                assertTrue(json.startsWith("["), "肌群必须是 JSON 数组: " + row);
+                List<String> raw = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(json, new com.fasterxml.jackson.core.type.TypeReference<>() {
+                        });
+                for (String muscle : raw) {
+                    String zh = com.diet.health.reader.exercise.ExerciseVocabulary.partZh(muscle);
+                    assertTrue(allowedBodyParts.contains(zh),
+                            "肌群 " + muscle + " 必须归一为合法中文值: " + row);
+                }
+            }
+            String equipment = com.diet.health.reader.exercise.ExerciseVocabulary.equipmentZh(cell(row, 10));
+            assertTrue(allowedEquipment.contains(equipment), "器材必须归一为合法中文值: " + row);
+            String difficulty = com.diet.health.reader.exercise.ExerciseVocabulary.difficultyZh(cell(row, 11));
+            assertTrue(allowedDifficulty.contains(difficulty), "难度必须归一为合法中文值: " + row);
+        }
+    }
+
+    @Test
     void 每个动作无媒体且保留GymVisual署名() throws IOException {
         for (List<String> row : table(parseSeed(), "exercise_item")) {
             assertEquals("NONE", cell(row, 19), "动作媒体状态必须是 NONE: " + row);
