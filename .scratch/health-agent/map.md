@@ -65,7 +65,7 @@
 
 ## Not yet specified
 
-当前没有阻塞实现交接的未锐化决策。29 号 Java 21 基线已由提交 3547bc7 接纳并完成验收（POM `maven.compiler.release=21` + clean build + javap major 65 + `mvn test` 通过）；正式资源导入、重建报告和发布后的持续维护属于实施票据及后续运营事实，不再作为本地图上的决策雾。
+当前没有阻塞实现交接的未锐化决策。2026-08-12 审查提出的动作读取 seam、反馈折叠、周日跨周与 fixture 餐食降级均已在 GitHub #60/#64/#65/#67/#69 冻结；开放票代表待实施工作，不再代表待决策内容。
 
 ## Implementation plan
 
@@ -87,6 +87,7 @@
 - **GitHub issue 全部关闭（2026-08-11）**：所有 open issue（#1、#31、#33-#45，共 44 个已关/0 个 open）逐票补充验收评论后关闭：#39-#44 审计批次（每票引用提交、测试与 CI 证据）、#37 前端（docs/frontend-browser-acceptance.md）、#38 总验收（M0-M4 清单 + CI run 证据 + 遗留如实记录）、#31/#33-#36 垂直实施票（对应提交与 map 验收记录）、#45 总控（子项全勾选）、#1 地图（Destination 达成）。遗留（非阻塞，如实记录）：本机 Docker Hub 拉取超时未本地起 compose 容器（CI 已覆盖）；媒体 404 待真实媒体 URL 复验。
 - **稳定性收敛批次 55-59 + M5 闸门（2026-08-12）**：#55-#59 四个修复票已关闭（56 会话并发幂等恢复 5fb89a5、57 周计划餐食 Provider 接缝 d423257、58 健身词汇端到端一致 dcd108c + 浏览器桌面/移动验收、59 精确 295/30/15 契约 7014ce8）。M5 闸门（48）真实复核通过：修正 Qdrant 明文 gRPC TLS 误用与查询向量 API 后，本机 DaoCloud 镜像代理取得 qdrant/qdrant:v1.17.0 并跑通 create/upsert/filter/delete 冒烟（3534a72）；MCP 0.17.0 四步 Servlet 冒烟通过。测试口径更新：全量 310（`mvn test` 293 过 + 17 门控跳过；`-Ditest.mysql=true` 309 过 + Qdrant 门控跳过；双门控 310 全过），AGENTS.md/README 已同步。M5 02/04/07 前置解除，下一批 M5 开发可直接开始。
 - **M5 #54 Qdrant VectorStore 完成（2026-08-12）**：新增 `com.diet.health.vectorstore` seam——VectorStore 接口 + QdrantVectorStore（明文 gRPC 6334，Cosine 距离，身份派生 collection 名，幂等 upsert/must_not 过滤/clear 重建/ping/close，Spring destroyMethod 关闭 client）+ InMemoryVectorStore（测试替身，行为对齐含空向量/limit 语义）；`VectorIndexingRunner` 启动批量索引（index-on-startup，64/批，无向量/维度不一致跳过，payload 含 data_version）；`VectorStoreConfiguration` 按 mode 选择适配器，身份 model/dimension/version 默认跟随 diet.embedding.*（切换 embedding 自动换 collection 身份）；docker-compose 增加 qdrant:v1.17.0 服务（6333/6334 + healthcheck + qdrant-data 卷，app 仅依赖启动顺序不阻塞降级）；README 记录索引重建方式与降级语义。测试口径 310→328（新增 18：16 单测 + 2 真实 Qdrant 集成门控；`mvn test` 309 过 + 19 门控跳过；双门控 328/0/0 实测通过），CI 保持绿（Qdrant 门控无容器时跳过）。
+- **完工后审查批次 #60-#70（2026-08-12，待实施）**：GitHub #46 为总地图，开放票不在本地重复建子票。已冻结顺序：#62 P0 档案风险与计划写入 Guard → #60 跨午夜/七天边界（两票不得并行）；资源架构走方案 B：#67 同时约束餐食和动作 Mapper → #64 动作读取 seam 与词汇归一、#68 审核餐食读取模块 → #69 在线 RAG/fixture 种子餐食路径与 #70 批处理隔离。#61 Origin 与 #65 两维反馈状态机可在不冲突时推进；#63 为 P2，所有 P0/P1 后执行。冻结语义以 GitHub 票正文为准。
 
 ## Out of scope
 
