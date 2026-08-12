@@ -181,8 +181,9 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, notice, traceId);
         }
 
-        // ADJUST 排除（43 号票）：只取 MEAL/EXERCISE 类型化引用，作息事实不参与排除
-        List<Long> excludeIds = intent.task() == HealthTask.ADJUST
+        // ADJUST 排除（43 号票 + #69 类型化契约）：只取 MEAL/EXERCISE 类型化字符串 resourceId，
+        // 作息事实不参与排除；fixture 种子 ID 原样传递，reviewed 数值解析在餐食模块查询前完成
+        List<String> excludeIds = intent.task() == HealthTask.ADJUST
                 ? state.excludeIdsFor(intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL")
                 : List.of();
         return handleRecommend(sessionId, traceId, state, intent, mergedSlots, excludeIds,
@@ -192,7 +193,7 @@ public class HealthOrchestratorService {
     /** 单品类推荐主链路：澄清 → 检索 → 解释候选。 */
     private HealthChatResponse handleRecommend(String sessionId, String traceId, HealthSessionState state,
                                                HealthIntentResult intent, Map<String, List<String>> mergedSlots,
-                                               List<Long> excludeIds, List<String> riskFlags, String advisoryCopy,
+                                               List<String> excludeIds, List<String> riskFlags, String advisoryCopy,
                                                String userInput) {
         HealthDomain domain = intent.domain();
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("domain", domain, "task", intent.task()));
@@ -253,9 +254,9 @@ public class HealthOrchestratorService {
         return speechText + " " + advisoryCopy;
     }
 
-    /** 领域检索：餐食走旧链路，动作走 Provider 筛选，作息走事实查询（按用户输入关键词命中类别）。 */
+    /** 领域检索：餐食走 MealModule（reviewed 检索 / fixture 种子），动作走 Provider 筛选，作息走事实查询。 */
     private List<HealthResource> retrieve(HealthDomain domain, Map<String, List<String>> slots,
-                                          List<Long> excludeIds, String userInput) {
+                                          List<String> excludeIds, String userInput) {
         return switch (domain) {
             case MEAL -> mealModule.recommendMeals(slots, excludeIds);
             case EXERCISE -> exerciseModule.recommend(slots, excludeIds, TOP_N);

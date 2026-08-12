@@ -1,21 +1,20 @@
 package com.diet.health.rag;
 
 import com.diet.enums.SourceMode;
+import com.diet.health.reader.meal.ReviewedMeal;
+import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.health.vectorstore.InMemoryVectorStore;
 import com.diet.health.vectorstore.VectorFilter;
 import com.diet.health.vectorstore.VectorHit;
 import com.diet.health.vectorstore.VectorPoint;
 import com.diet.health.vectorstore.VectorStoreIdentity;
 import com.diet.health.vectorstore.VectorStoreException;
-import com.diet.mapper.MealMapper;
 import com.diet.model.MealItem;
-import com.diet.model.MealItemRow;
 import com.diet.model.SlotBundle;
-import com.diet.util.JsonService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +31,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Hybrid 检索器融合测试（M5 #52）。
- * 验证：结构化与向量独立召回合并/去重/排序；向量命中按 ID 回查 MySQL 二次硬约束
+ * Hybrid 检索器融合测试（M5 #52；#69 迁移到审核读取模块替身，不断言 Mapper 内部交互）。
+ * 验证：结构化与向量独立召回合并/去重/排序；向量命中按 ID 回查审核读取模块二次硬约束
  * （过期索引丢弃）；Embedding/Qdrant 不可用或空结果时降级为结构化并标记原因。
  */
 class HybridMealRetrieverTest {
@@ -41,7 +40,7 @@ class HybridMealRetrieverTest {
     private MealRetriever structured;
     private EmbeddingClient embeddingClient;
     private InMemoryVectorStore vectorStore;
-    private MealMapper mealMapper;
+    private ReviewedMealReader reviewedMealReader;
     private HybridMealRetriever hybrid;
 
     @BeforeEach
@@ -50,11 +49,10 @@ class HybridMealRetrieverTest {
         embeddingClient = mock(EmbeddingClient.class);
         vectorStore = new InMemoryVectorStore(
                 new VectorStoreIdentity("dashscope", "text-embedding-v3", 2, "v3-2"));
-        mealMapper = mock(MealMapper.class);
+        reviewedMealReader = mock(ReviewedMealReader.class);
         when(embeddingClient.modelName()).thenReturn("text-embedding-v3");
         when(embeddingClient.modelVersion()).thenReturn("v1");
-        hybrid = new HybridMealRetriever(structured, embeddingClient, vectorStore, mealMapper,
-                new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        hybrid = new HybridMealRetriever(structured, embeddingClient, vectorStore, reviewedMealReader);
     }
 
     @Test
@@ -68,8 +66,8 @@ class HybridMealRetrieverTest {
         vectorStore.upsert(List.of(
                 new VectorPoint(2L, new float[]{1f, 0f}, approvedPayload()),
                 new VectorPoint(1L, new float[]{0f, 1f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(1L, "餐1"), row(2L, "餐2")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(2L, "餐2")));
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -92,8 +90,8 @@ class HybridMealRetrieverTest {
         vectorStore.upsert(List.of(
                 new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload()),
                 new VectorPoint(1L, new float[]{0f, 1f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(1L, "餐1"), row(9L, "餐9")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(9L, "餐9")));
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -109,31 +107,31 @@ class HybridMealRetrieverTest {
         when(structured.retrieve(anyQuery(), eq(10)))
                 .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
-        // 9 号向量点 payload 无过敏原标签（索引过期），但 MySQL 行已带"花生"→ 二次校验必须丢弃
+        // 9 号向量点 payload 无过敏原标签（索引过期），但审核库行已带"花生"→ 二次校验必须丢弃
         vectorStore.upsert(List.of(
                 new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(1L, "餐1"), row(9L, "餐9", List.of("花生"))));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(9L, "餐9", List.of("花生"))));
 
         RetrievalResult result = hybrid.retrieve(
                 new MealRetrievalQuery(Map.of("healthGoal", List.of("增肌")), List.of(), List.of("花生"), "增肌晚餐"),
                 10);
 
-        assertEquals(1, result.items().size(), "MySQL 二次校验发现过敏原，向量命中必须被丢弃");
+        assertEquals(1, result.items().size(), "审核库二次校验发现过敏原，向量命中必须被丢弃");
         assertEquals(1L, result.items().get(0).meal().id());
     }
 
     @Test
-    void 向量命中但MySQL已不存在时按过期索引丢弃() {
+    void 向量命中但审核库已不存在时按过期索引丢弃() {
         RetrievalItem a = item(1L, 1.0, null);
         when(structured.retrieve(anyQuery(), eq(10)))
                 .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
         vectorStore.upsert(List.of(
                 new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
-        // 回查 MySQL：9 号已不存在（过期索引）→ 丢弃，且合并集按 MySQL 行集为准
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(1L, "餐1")));
+        // 回查审核读取模块：9 号已不存在（过期索引）→ 丢弃，且合并集按审核库行集为准
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1")));
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -149,8 +147,8 @@ class HybridMealRetrieverTest {
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
         vectorStore.upsert(List.of(
                 new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(1L, "餐1"), row(9L, "餐9")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(9L, "餐9")));
 
         RetrievalResult result = hybrid.retrieve(
                 new MealRetrievalQuery(Map.of("healthGoal", List.of("增肌")), List.of(9L), List.of(), "增肌晚餐"), 10);
@@ -180,8 +178,7 @@ class HybridMealRetrieverTest {
         when(structured.retrieve(anyQuery(), eq(10)))
                 .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
-        hybrid = new HybridMealRetriever(structured, embeddingClient,
-                new FailingVectorStore(), mealMapper, new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()));
+        hybrid = new HybridMealRetriever(structured, embeddingClient, new FailingVectorStore(), reviewedMealReader);
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -216,8 +213,8 @@ class HybridMealRetrieverTest {
                         "source_type", List.of("PUBLIC"), "allergens", List.of())),
                 new VectorPoint(7L, new float[]{1f, 0f}, Map.of("review_status", List.of("APPROVED"),
                         "source_type", List.of("PERSONAL"), "allergens", List.of()))));
-        when(mealMapper.findApprovedPublicByIds(org.mockito.ArgumentMatchers.anyList()))
-                .thenReturn(List.of(row(1L, "餐1"), row(9L, "餐9")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(9L, "餐9")));
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -241,8 +238,8 @@ class HybridMealRetrieverTest {
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
         vectorStore.upsert(List.of(
                 new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(anyList()))
-                .thenReturn(List.of(row(9L, "餐9")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(9L, "餐9")));
 
         RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
 
@@ -259,8 +256,8 @@ class HybridMealRetrieverTest {
                 .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
         when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
         vectorStore.upsert(List.of(new VectorPoint(1L, new float[]{1f, 0f}, approvedPayload())));
-        when(mealMapper.findApprovedPublicByIds(org.mockito.ArgumentMatchers.anyList()))
-                .thenReturn(List.of(row(1L, "餐1")));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1")));
 
         hybrid.retrieve(new MealRetrievalQuery(
                 Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("增肌")), List.of(), List.of(), ""), 10);
@@ -290,25 +287,26 @@ class HybridMealRetrieverTest {
         return payload;
     }
 
-    private MealItemRow row(long id, String name) {
-        return row(id, name, List.of());
+    private ReviewedMeal meal(long id, String name) {
+        return meal(id, name, List.of());
     }
 
-    private MealItemRow row(long id, String name, List<String> allergens) {
-        MealItemRow row = new MealItemRow();
-        row.setId(id);
-        row.setName(name);
-        row.setReviewStatus("APPROVED");
-        row.setSourceType("PUBLIC");
-        row.setMealTime("[\"晚餐\"]");
-        row.setMood("[]");
-        row.setScene("[]");
-        row.setHealthGoal("[\"增肌\"]");
-        row.setCuisine("[]");
-        row.setTaste("[]");
-        row.setConvenience("[]");
-        row.setAllergenJson(new JsonService(new com.fasterxml.jackson.databind.ObjectMapper()).toJsonArray(allergens));
-        return row;
+    private ReviewedMeal meal(long id, String name, List<String> allergens) {
+        Map<String, List<String>> tags = new LinkedHashMap<>();
+        tags.put("mealTime", List.of("晚餐"));
+        tags.put("mood", List.of());
+        tags.put("scene", List.of());
+        tags.put("healthGoal", List.of("增肌"));
+        tags.put("cuisine", List.of());
+        tags.put("taste", List.of());
+        tags.put("convenience", List.of());
+        return new ReviewedMeal(
+                id, name, null, List.of(), tags, null, List.of(),
+                new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
+                new ReviewedMeal.Nutrition(null, null, null, null, null, false),
+                allergens, "REVIEWED", "APPROVED", "NONE", null,
+                "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", "PUBLIC"
+        );
     }
 
     /** ping 返回 true 但 search 抛故障的替身：模拟 Qdrant 运行时不可用。 */

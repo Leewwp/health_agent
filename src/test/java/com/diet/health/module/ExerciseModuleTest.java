@@ -44,7 +44,7 @@ class ExerciseModuleTest {
 
     @Test
     void 排除ID后不再出现() {
-        List<HealthResource> result = module.recommend(Map.of("bodyParts", List.of("胸")), List.of(9001L), 5);
+        List<HealthResource> result = module.recommend(Map.of("bodyParts", List.of("胸")), List.of("9001"), 5);
         assertFalse(result.stream().anyMatch(item -> item.resourceId().equals("9001")));
     }
 

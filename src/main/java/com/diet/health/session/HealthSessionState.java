@@ -62,16 +62,18 @@ public record HealthSessionState(
     }
 
     /**
-     * 排除引用提取（43 号票）：只取指定类型（MEAL/EXERCISE）的可参与 ADJUST 排除的
-     * 数字 ID；type 为 null 的旧版遗留引用按双类型兼容排除；ROUTINE 不参与。
+     * 排除引用提取（43 号票 + #69 类型化契约）：只取指定类型（MEAL/EXERCISE）的
+     * 类型化字符串 resourceId；type 为 null 的旧版遗留引用按双类型兼容排除；
+     * ROUTINE 不参与。fixture 种子 ID（M1-M9/9001 等）原样返回，不做数值强转；
+     * reviewed 库路径由调用方在进入数据库查询前解析数值 ID（非法/跨模式 ID 显式忽略）。
      */
-    public List<Long> excludeIdsFor(String type) {
-        List<Long> ids = new ArrayList<>();
+    public List<String> excludeIdsFor(String type) {
+        List<String> ids = new ArrayList<>();
         for (SessionResourceRef ref : lastResources) {
             boolean typed = type.equals(ref.type());
             boolean legacy = ref.type() == null;
-            if ((typed || legacy) && ref.id() != null && ref.id().matches("\\d+")) {
-                ids.add(Long.parseLong(ref.id()));
+            if ((typed || legacy) && ref.id() != null && !ref.id().isBlank()) {
+                ids.add(ref.id());
             }
         }
         return List.copyOf(ids);

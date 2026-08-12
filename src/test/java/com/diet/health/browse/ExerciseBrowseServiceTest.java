@@ -3,10 +3,8 @@ package com.diet.health.browse;
 import com.diet.exception.DietException;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
-import com.diet.mapper.ExerciseMapper;
-import com.diet.model.ExerciseItemRow;
-import com.diet.util.JsonService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.diet.health.reader.exercise.ReviewedExercise;
+import com.diet.health.reader.exercise.ReviewedExerciseReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,19 +18,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 动作浏览服务测试（33 号票）。
- * 接缝：ExerciseBrowseService + mock ExerciseMapper。验证分页参数校验、
- * 偏移计算、plan_ready/风险标签/替代组/媒体署名等元数据映射。
+ * 动作浏览服务测试（33 号票；#64 迁移到审核动作读取模块 seam）。
+ * 接缝：ExerciseBrowseService + mock ReviewedExerciseReader（方案 B，浏览用例层不接触 Mapper 行对象）。
+ * 验证分页参数校验、偏移计算与读取模型（已归一中文槽位）字段透传。
  */
 class ExerciseBrowseServiceTest {
 
-    private ExerciseMapper exerciseMapper;
+    private ReviewedExerciseReader reviewedExerciseReader;
     private ExerciseBrowseService service;
 
     @BeforeEach
     void setUp() {
-        exerciseMapper = mock(ExerciseMapper.class);
-        service = new ExerciseBrowseService(exerciseMapper, new JsonService(new ObjectMapper()));
+        reviewedExerciseReader = mock(ReviewedExerciseReader.class);
+        service = new ExerciseBrowseService(reviewedExerciseReader);
     }
 
     @Test
@@ -50,9 +48,9 @@ class ExerciseBrowseServiceTest {
     @Test
     void 分页偏移按page计算() {
         service.browse(1, 50);
-        verify(exerciseMapper).browse(0, 50);
+        verify(reviewedExerciseReader).browse(0, 50);
         service.browse(4, 20);
-        verify(exerciseMapper).browse(60, 20);
+        verify(reviewedExerciseReader).browse(60, 20);
     }
 
     @Test
@@ -63,8 +61,8 @@ class ExerciseBrowseServiceTest {
 
     @Test
     void 空数据返回空列表() {
-        when(exerciseMapper.browse(0, 20)).thenReturn(List.of());
-        when(exerciseMapper.count()).thenReturn(0);
+        when(reviewedExerciseReader.browse(0, 20)).thenReturn(List.of());
+        when(reviewedExerciseReader.count()).thenReturn(0);
         PagedResponse<ExerciseBrowseItem> response = service.browse(1, 20);
         assertTrue(response.items().isEmpty());
         assertEquals(0, response.total());
@@ -72,8 +70,8 @@ class ExerciseBrowseServiceTest {
 
     @Test
     void 动作元数据映射完整() {
-        when(exerciseMapper.browse(0, 20)).thenReturn(List.of(row()));
-        when(exerciseMapper.count()).thenReturn(1);
+        when(reviewedExerciseReader.browse(0, 20)).thenReturn(List.of(exercise()));
+        when(reviewedExerciseReader.count()).thenReturn(1);
         ExerciseBrowseItem item = service.browse(1, 20).items().get(0);
 
         assertEquals(9001L, item.id());
@@ -96,30 +94,31 @@ class ExerciseBrowseServiceTest {
         assertEquals("0662", item.sourceId());
     }
 
-    private ExerciseItemRow row() {
-        ExerciseItemRow row = new ExerciseItemRow();
-        row.setId(9001L);
-        row.setSourceName("gym-visual-exercises-dataset");
-        row.setSourceId("0662");
-        row.setSourceVersion("main-2026-08-10");
-        row.setName("俯卧撑");
-        row.setNameEn("push-up");
-        row.setAliases("[\"标准俯卧撑\"]");
-        row.setCategory("chest");
-        row.setBodyPart("胸");
-        row.setTargetMuscles("[\"胸\"]");
-        row.setSecondaryMuscles("[]");
-        row.setEquipment("徒手");
-        row.setDifficulty("入门");
-        row.setMovementPattern("推");
-        row.setRiskTags("[\"手腕压力\"]");
-        row.setAlternativeGroup("g_chest_press");
-        row.setReviewStatus("APPROVED");
-        row.setPlanReady(true);
-        row.setInstructionsZh("平躺，膝盖弯曲，双脚平放在地上。收紧腹肌，慢慢将上半身抬离地面。");
-        row.setStepsJson("[\"步骤一：准备姿势\",\"步骤二：完成动作\"]");
-        row.setMediaState("NONE");
-        row.setMediaCredit("© Gym visual — https://gymvisual.com/");
-        return row;
+    /** 读取模型（#64）：槽位字段已是归一中文，浏览服务原样透传。 */
+    private ReviewedExercise exercise() {
+        return new ReviewedExercise(
+                9001L,
+                "俯卧撑",
+                "push-up",
+                List.of("标准俯卧撑"),
+                "胸",
+                "胸",
+                List.of("手臂"),
+                List.of("手臂", "肩", "核心"),
+                "徒手",
+                "入门",
+                "推",
+                List.of("手腕压力"),
+                "g_chest_press",
+                "APPROVED",
+                true,
+                "平躺，膝盖弯曲，双脚平放在地上。收紧腹肌，慢慢将上半身抬离地面。",
+                List.of("步骤一：准备姿势", "步骤二：完成动作"),
+                "NONE",
+                "© Gym visual — https://gymvisual.com/",
+                "gym-visual-exercises-dataset",
+                "0662",
+                "main-2026-08-10"
+        );
     }
 }

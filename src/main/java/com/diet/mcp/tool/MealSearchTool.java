@@ -57,7 +57,8 @@ public class MealSearchTool implements McpToolSpec {
         if (limit < 1 || limit > McpToolSupport.MAX_LIMIT) {
             throw McpToolSupport.invalidParams("limit 必须在 1 到 " + McpToolSupport.MAX_LIMIT + " 之间");
         }
-        List<HealthResource> meals = mealModule.recommendMeals(slots, excludeIds, text);
+        List<String> typedExcludeIds = excludeIds.stream().map(String::valueOf).toList();
+        List<HealthResource> meals = mealModule.recommendMeals(slots, typedExcludeIds, text);
         List<Map<String, Object>> results = meals.stream().limit(limit)
                 .map(meal -> {
                     Map<String, Object> item = new LinkedHashMap<>();

@@ -164,7 +164,9 @@
     </select>
 
     <select id="search" resultMap="MealItemRowMap">
-        SELECT <include refid="MealColumns"/>
+        <!-- #69 修正：召回与浏览/索引共用 BrowseMealColumns（同一行映射口径），
+             否则 allergen_json 等 V3 字段为空，结构化路径的过敏原硬约束在真库上被绕过 -->
+        SELECT <include refid="BrowseMealColumns"/>
         FROM meal_item
         <where>
             <choose>

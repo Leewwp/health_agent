@@ -1,15 +1,14 @@
 package com.diet.health.rag;
 
-import com.diet.enums.SourceMode;
+import com.diet.health.reader.meal.MealAllergenConstraint;
+import com.diet.health.reader.meal.MealDomainMapper;
+import com.diet.health.reader.meal.ReviewedMeal;
+import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.health.vectorstore.VectorFilter;
 import com.diet.health.vectorstore.VectorHit;
 import com.diet.health.vectorstore.VectorStore;
 import com.diet.health.vectorstore.VectorStoreException;
-import com.diet.mapper.MealMapper;
 import com.diet.model.MealItem;
-import com.diet.model.MealItemRow;
-import com.diet.model.SlotBundle;
-import com.diet.util.JsonService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -30,10 +29,11 @@ import java.util.stream.Collectors;
  * <p>
  * 两条召回路径独立执行：结构化召回（JSON_OVERLAPS + 7 维重叠重排，审核 APPROVED 公共餐食）
  * 与 Qdrant 向量召回（余弦 top-N，payload 过滤审核状态/来源/过敏原/排除 ID）。
- * 合并规则：按餐食 ID 合并去重，再以 ID 回查 MySQL（审核 APPROVED 公共餐食）作为事实源
- * 二次执行全部硬约束——Qdrant 结果不得绕过领域规则，过期索引命中（MySQL 已不存在或
+ * 合并规则：按餐食 ID 合并去重，再以 ID 回查审核读取模块（审核 APPROVED 公共餐食）作为
+ * 事实源二次执行全部硬约束——Qdrant 结果不得绕过领域规则，过期索引命中（已不存在或
  * 硬约束不满足）直接丢弃。融合分 = 0.5 * 归一结构分 + 0.5 * 语义余弦（截断 [0,1]）。
  * Embedding/Qdrant 超时、不可用、维度不匹配或空结果时立即退回结构化检索并标记降级原因。
+ * 数据读取经 {@link ReviewedMealReader}（方案 B），本层不接触 Mapper 行对象。
  */
 @Service
 public class HybridMealRetriever implements MealRetriever {
@@ -49,21 +49,18 @@ public class HybridMealRetriever implements MealRetriever {
     private final MealRetriever structuredRetriever;
     private final EmbeddingClient embeddingClient;
     private final VectorStore vectorStore;
-    private final MealMapper mealMapper;
-    private final JsonService jsonService;
+    private final ReviewedMealReader reviewedMealReader;
 
     public HybridMealRetriever(
             @Qualifier("structuredMealRetriever")
             MealRetriever structuredRetriever,
             EmbeddingClient embeddingClient,
             VectorStore vectorStore,
-            MealMapper mealMapper,
-            JsonService jsonService) {
+            ReviewedMealReader reviewedMealReader) {
         this.structuredRetriever = structuredRetriever;
         this.embeddingClient = embeddingClient;
         this.vectorStore = vectorStore;
-        this.mealMapper = mealMapper;
-        this.jsonService = jsonService;
+        this.reviewedMealReader = reviewedMealReader;
     }
 
     @Override
@@ -95,36 +92,36 @@ public class HybridMealRetriever implements MealRetriever {
         return merge(query, base, structuredById, maxStructured, hits, limit);
     }
 
-    /** 融合：按 ID 回查 MySQL 二次校验硬约束后，确定性合并两条路径候选。 */
+    /** 融合：按 ID 回查审核读取模块二次校验硬约束后，确定性合并两条路径候选。 */
     private RetrievalResult merge(MealRetrievalQuery query, RetrievalResult base,
                                   Map<Long, RetrievalItem> structuredById, double maxStructured,
                                   List<VectorHit> hits, int limit) {
         // 回查 MySQL 二次校验：向量命中的 ID 必须仍存在且满足全部硬约束，过期索引命中直接丢弃
         Set<Long> mergeIds = new HashSet<>(structuredById.keySet());
         hits.forEach(hit -> mergeIds.add(hit.mealId()));
-        Map<Long, MealItemRow> rowById = new HashMap<>();
-        for (MealItemRow row : mealMapper.findApprovedPublicByIds(List.copyOf(mergeIds))) {
-            rowById.put(row.getId(), row);
+        Map<Long, ReviewedMeal> mealById = new HashMap<>();
+        for (ReviewedMeal meal : reviewedMealReader.findByIds(List.copyOf(mergeIds))) {
+            mealById.put(meal.id(), meal);
         }
         Set<Long> excludeIds = new HashSet<>(query.excludeIds() == null ? List.of() : query.excludeIds());
-        Set<String> allergens = new HashSet<>(query.allergenTags() == null ? List.of() : query.allergenTags());
+        List<String> allergens = query.allergenTags() == null ? List.of() : query.allergenTags();
         Map<Long, Double> semanticById = new HashMap<>(hits.size());
         for (VectorHit hit : hits) {
             semanticById.put(hit.mealId(), clampCosine(hit.score()));
         }
 
         List<RetrievalItem> merged = new ArrayList<>();
-        for (MealItemRow row : rowById.values()) {
-            if (excludeIds.contains(row.getId()) || containsAllergen(row, allergens)) {
+        for (ReviewedMeal meal : mealById.values()) {
+            if (excludeIds.contains(meal.id()) || MealAllergenConstraint.intersects(meal, allergens)) {
                 continue;
             }
-            Double semantic = semanticById.get(row.getId());
-            RetrievalItem structured = structuredById.get(row.getId());
+            Double semantic = semanticById.get(meal.id());
+            RetrievalItem structured = structuredById.get(meal.id());
             double structuredScore = structured == null ? 0 : structured.structuredScore();
             double normalized = maxStructured > 0 ? structuredScore / maxStructured : 0;
             double finalScore = 0.5 * normalized + 0.5 * (semantic == null ? 0 : semantic);
-            MealItem meal = structured == null ? toMealItem(row) : structured.meal();
-            merged.add(new RetrievalItem(meal, structuredScore, semantic, finalScore));
+            MealItem mealItem = structured == null ? MealDomainMapper.toMealItem(meal) : structured.meal();
+            merged.add(new RetrievalItem(mealItem, structuredScore, semantic, finalScore));
         }
         merged.sort(Comparator.comparingDouble(RetrievalItem::mergedScore).reversed()
                 .thenComparing(item -> item.meal().id()));
@@ -154,34 +151,6 @@ public class HybridMealRetriever implements MealRetriever {
 
     private List<RetrievalItem> limitTo(List<RetrievalItem> items, int limit) {
         return items.stream().limit(Math.max(limit, 0)).toList();
-    }
-
-    /** 餐食过敏原标签与查询过敏原硬约束是否有交集（与结构化检索同口径的二次校验）。 */
-    private boolean containsAllergen(MealItemRow row, Set<String> allergens) {
-        if (allergens.isEmpty()) {
-            return false;
-        }
-        Set<String> rowAllergens = new HashSet<>(jsonService.fromJsonArray(row.getAllergenJson()));
-        rowAllergens.retainAll(allergens);
-        return !rowAllergens.isEmpty();
-    }
-
-    private MealItem toMealItem(MealItemRow row) {
-        return new MealItem(
-                row.getId(),
-                SourceMode.PUBLIC,
-                null,
-                row.getName(),
-                new SlotBundle(
-                        jsonService.fromJsonArray(row.getMealTime()),
-                        jsonService.fromJsonArray(row.getMood()),
-                        jsonService.fromJsonArray(row.getScene()),
-                        jsonService.fromJsonArray(row.getHealthGoal()),
-                        jsonService.fromJsonArray(row.getCuisine()),
-                        jsonService.fromJsonArray(row.getTaste()),
-                        jsonService.fromJsonArray(row.getConvenience())),
-                0
-        );
     }
 
     /** 嵌入文本：查询显式文本优先，否则用槽位值拼接（排序保证确定性）。 */
