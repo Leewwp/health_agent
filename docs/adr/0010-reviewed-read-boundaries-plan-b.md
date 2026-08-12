@@ -1,0 +1,3 @@
+# 方案 B：审核资源读取边界（领域 Provider + 专用读取模块）
+
+正式审核库的健康读取走两套互斥边界（#66/#67 冻结）：`HealthResourceProvider` 只负责领域消费（候选读取、计划校验、反馈存在性、MCP 详情），并保留 DbReviewedResourceProvider 与 SeedResourceProvider 两个互斥 adapter；餐食浏览、Structured/Hybrid RAG、Embedding/向量索引/评估快照经专用审核读取模块访问数据库，动作浏览经专用审核动作读取模块访问数据库。只有 `DbReviewedResourceProvider`、审核餐食 DB adapter、审核动作 DB adapter 三个类可分别依赖 MealMapper/ExerciseMapper/RoutineFactMapper，其余健康调用方一律经接口消费。拒绝把 Provider 扩展成浏览/RAG/索引大接口：领域 Provider 与读取模块职责不同、演进节奏不同，合并会让每类调用方都被无关查询拖累并破坏深度模块边界。Mode 后果：FIXTURE_SEED 只保证离线领域流程，正式库浏览、真实 RAG、Embedding/Qdrant 索引与评估不是 fixture 等价能力，fixture 下显式启用正式 DB runner 必须 fail-fast。
