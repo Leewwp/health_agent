@@ -1,7 +1,7 @@
 # P1 Skills Registry、Resources 与工具白名单
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Priority: P1
 - Estimate: 0.5 天
@@ -24,3 +24,13 @@
 ## Done when
 
 外部 MCP 客户端可列出并读取三个 Skill；任何越过白名单或 Schema 无效的 manifest 都会在启动阶段被拒绝。
+
+## Answer
+
+2026-08-12 完成（提交 0b4a077）：
+
+- 三个版本化 YAML manifest：`meal-recommendation`、`routine-guidance`、`health-target-calculation`，固定 `name/version/description/input_schema/output_schema/allowed_tools/risk_level` 字段。
+- `SkillsRegistry` 启动校验：Schema 可解析、`allowed_tools` 属于四工具 allowlist、name 唯一，非法 manifest 拒绝启动（不引入新的自主执行循环）。
+- 以稳定 URI `skill://<name>` 经 MCP `resources/list` 与 `resources/read` 暴露原始 YAML。
+- 10 个测试覆盖合法读取、非法 Schema、未知工具与重复 name/version；全量 385 测试绿。
+

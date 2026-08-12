@@ -1,7 +1,7 @@
 # P0 M5 本地集成验收与运行文档
 
 - Type: task
-- Status: open
+- Status: resolved
 - Triage: ready-for-agent
 - Priority: P0
 - Estimate: 1 天
@@ -25,3 +25,14 @@
 ## Done when
 
 计划内任务全部关闭；项目能在本地运行；真实 Qdrant hybrid、结构化降级、合法 MCP 调用和非法访问拒绝都有可复核证据，且文档没有生产级或效果提升的夸大表述。
+
+## Answer
+
+2026-08-12 真实环境验收通过（提交 f54ef98 / 3fc8e49）：
+
+- 本地 MySQL + Qdrant 1.17.0 启动，密钥全部经环境变量注入；deepseek-v4-flash-0731 聊天 + qwen3.7-text-embedding（1024 维）真实调用。
+- 295/295 餐食向量索引到 Qdrant；固定查询集评估 hybrid Recall@3=0.387（structured 0.380）、硬约束命中率 1.0、降级 0，如实记录提升幅度。
+- 实时聊天 Trace 记录 HYBRID + 向量身份；停止 Qdrant 后同一查询降级 STRUCTURED/vector_store_unavailable 且优雅返回。
+- 外部 MCP 客户端完成 initialize、tools/list、四个 tools/call、resources/list/read；无 token 401、非法 Origin 403（allowlist 配置后）均验证。
+- 验收发现并修复两处真实缺口：BrowseMealColumns 缺 source_type 列（qdrant 索引启动 List.of(null) NPE）、VectorIndexingRunner 加 @Order(0) 早于 RAG 评估执行（否则 collection 未建时全量降级）。
+- README、Compose/env 示例与评估报告口径同步（387 测试双门控全绿），无生产级或效果提升的夸大表述。
