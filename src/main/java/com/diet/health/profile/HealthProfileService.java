@@ -3,11 +3,14 @@ package com.diet.health.profile;
 import com.diet.exception.HealthApiException;
 import com.diet.health.enums.ActivityLevel;
 import com.diet.health.enums.ProfileGoal;
+import com.diet.health.enums.ProfileRiskCondition;
 import com.diet.health.enums.ProfileSex;
+import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.mapper.HealthProfileMapper;
 import com.diet.model.HealthProfileRow;
 import com.diet.model.HealthProfileVersionRow;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -16,13 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * 健康档案服务（34 号，规格 8.1）：
- * 必填年龄/身高/体重/活动水平/主要目标，生理性别与时区选填；
+ * 健康档案服务（34 号，规格 8.1；62 号票补结构化风险字段）：
+ * 必填年龄/身高/体重/活动水平/主要目标，生理性别、时区、结构化风险条件与风险说明选填；
  * 能量区间由 EnergyCalculator 确定性计算并标记估算；每次保存递增版本并落快照，
  * 已激活计划保留生成时档案版本，不被静默重算。
+ * 风险条件以结构化枚举保存（规格 9 的长期风险信息），由 Java 规则评估，不依赖 LLM；
+ * riskNote 仅为补充说明，缺失或空白不误判为有风险。
  */
 @Service
 public class HealthProfileService {
@@ -35,6 +41,8 @@ public class HealthProfileService {
     public static final double MIN_WEIGHT_KG = 30;
     public static final double MAX_WEIGHT_KG = 300;
     public static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
+    /** 风险说明最大长度（超长直接参数错误）。 */
+    public static final int MAX_RISK_NOTE_LENGTH = 200;
 
     private final HealthProfileMapper profileMapper;
     private final ObjectMapper objectMapper;
@@ -44,16 +52,18 @@ public class HealthProfileService {
         this.objectMapper = objectMapper;
     }
 
-    /** 档案写入入参（timezone 缺省 Asia/Shanghai）。 */
+    /** 档案写入入参（timezone 缺省 Asia/Shanghai；riskConditions/riskNote 选填，缺省视为无风险）。 */
     public record HealthProfileInput(Integer age, ProfileSex sex, Double heightCm, Double weightKg,
-                                     ActivityLevel activityLevel, ProfileGoal goal, String timezone) {
+                                     ActivityLevel activityLevel, ProfileGoal goal, String timezone,
+                                     List<ProfileRiskCondition> riskConditions, String riskNote) {
     }
 
-    /** 档案视图：能量区间、估算标记与计算依据固定文案。 */
+    /** 档案视图：能量区间、估算标记、计算依据与结构化风险条件。 */
     public record HealthProfileView(Long userId, Integer age, ProfileSex sex, Double heightCm, Double weightKg,
                                     ActivityLevel activityLevel, ProfileGoal goal, String timezone,
                                     Integer calorieLow, Integer calorieHigh, boolean estimated,
-                                    Long versionNo, String calcBasis) {
+                                    Long versionNo, String calcBasis,
+                                    List<ProfileRiskCondition> riskConditions, String riskNote) {
     }
 
     /** 查询当前档案，不存在抛 NOT_FOUND。 */
@@ -65,7 +75,7 @@ public class HealthProfileService {
         return toView(row);
     }
 
-    /** 档案快照字段（计划版本/档案版本共用，保持生成依据一致）。 */
+    /** 档案快照字段（计划版本/档案版本共用，保持生成依据一致；含结构化风险条件与风险规则版本）。 */
     public static String profileSnapshot(HealthProfileView profile, ObjectMapper objectMapper) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("age", profile.age());
@@ -78,6 +88,9 @@ public class HealthProfileService {
         snapshot.put("calorieLow", profile.calorieLow());
         snapshot.put("calorieHigh", profile.calorieHigh());
         snapshot.put("estimated", profile.estimated());
+        snapshot.put("riskConditions", riskConditionNames(profile.riskConditions()));
+        snapshot.put("riskNote", profile.riskNote());
+        snapshot.put("riskRulesVersion", HealthRiskRuleService.PROFILE_RULES_VERSION);
         try {
             return objectMapper.writeValueAsString(snapshot);
         } catch (JsonProcessingException error) {
@@ -136,6 +149,8 @@ public class HealthProfileService {
         row.setCalorieLow(range.lowKcal());
         row.setCalorieHigh(range.highKcal());
         row.setEstimated(true);
+        row.setRiskConditionsJson(riskConditionJson(input.riskConditions()));
+        row.setRiskNote(trimToNull(input.riskNote()));
         row.setVersionNo(versionNo);
         row.setUpdatedAt(now);
     }
@@ -165,6 +180,9 @@ public class HealthProfileService {
         snapshot.put("calorieLow", row.getCalorieLow());
         snapshot.put("calorieHigh", row.getCalorieHigh());
         snapshot.put("estimated", row.getEstimated());
+        snapshot.put("riskConditions", parseRiskConditionNames(row.getRiskConditionsJson()));
+        snapshot.put("riskNote", row.getRiskNote());
+        snapshot.put("riskRulesVersion", HealthRiskRuleService.PROFILE_RULES_VERSION);
         snapshot.put("calcBasis", calcBasis);
         return snapshot;
     }
@@ -193,6 +211,17 @@ public class HealthProfileService {
         }
         if (input.goal() == null) {
             throw badRequest("主要目标不能为空");
+        }
+        if (input.riskNote() != null && input.riskNote().length() > MAX_RISK_NOTE_LENGTH) {
+            throw badRequest("风险说明最长 " + MAX_RISK_NOTE_LENGTH + " 个字符");
+        }
+        if (input.riskConditions() != null
+                && input.riskConditions().stream().anyMatch(java.util.Objects::isNull)) {
+            throw badRequest("风险条件列表不能包含空值");
+        }
+        if (input.riskConditions() != null && input.riskConditions().contains(ProfileRiskCondition.PREGNANCY)
+                && input.sex() == ProfileSex.MALE) {
+            throw badRequest("孕产风险条件与男性生理性别冲突");
         }
     }
 
@@ -236,7 +265,11 @@ public class HealthProfileService {
                         row.getWeightKg() == null ? null : row.getWeightKg().doubleValue(),
                         ActivityLevel.valueOf(row.getActivityLevel()),
                         ProfileGoal.valueOf(row.getGoal()),
-                        row.getTimezone()))
+                        row.getTimezone(),
+                        null,
+                        null)),
+                parseRiskConditions(row.getRiskConditionsJson()),
+                row.getRiskNote()
         );
     }
 
@@ -246,5 +279,52 @@ public class HealthProfileService {
         } catch (JsonProcessingException error) {
             throw new HealthApiException(HealthApiException.CODE_SERVICE_ERROR, "档案快照序列化失败");
         }
+    }
+
+    /** 风险条件 → JSON 枚举名数组（null/空 → null，落库后读取等同无风险）。 */
+    private String riskConditionJson(List<ProfileRiskCondition> conditions) {
+        if (conditions == null || conditions.isEmpty()) {
+            return null;
+        }
+        return toJson(riskConditionNames(conditions));
+    }
+
+    private static List<String> riskConditionNames(List<ProfileRiskCondition> conditions) {
+        if (conditions == null) {
+            return List.of();
+        }
+        return conditions.stream().map(Enum::name).toList();
+    }
+
+    /** 快照用：风险条件 JSON → 枚举名列表（与 {@link #profileSnapshot} 同构，保持两处快照一致）。 */
+    private List<String> parseRiskConditionNames(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {
+            });
+        } catch (JsonProcessingException error) {
+            throw new HealthApiException(HealthApiException.CODE_SERVICE_ERROR, "档案风险条件解析失败");
+        }
+    }
+
+    private List<ProfileRiskCondition> parseRiskConditions(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<ProfileRiskCondition>>() {
+            });
+        } catch (JsonProcessingException error) {
+            throw new HealthApiException(HealthApiException.CODE_SERVICE_ERROR, "档案风险条件解析失败");
+        }
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

@@ -5,6 +5,7 @@ import com.diet.model.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -29,6 +30,16 @@ public class HealthApiExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleDietException(DietException error, HttpServletRequest request) {
         return new ApiErrorResponse("BAD_REQUEST", error.getMessage(), requestId(request), null);
+    }
+
+    /**
+     * 请求体不可读（非法 JSON、未知枚举等）按参数错误返回（62 号票：
+     * 档案风险条件列表出现未知枚举必须被干净拒绝，不能落入 500）。
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleUnreadableBody(HttpMessageNotReadableException error, HttpServletRequest request) {
+        return new ApiErrorResponse("BAD_REQUEST", "请求体格式错误", requestId(request), null);
     }
 
     @ExceptionHandler(Exception.class)

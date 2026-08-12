@@ -3,10 +3,12 @@ package com.diet.health.profile;
 import com.diet.exception.HealthApiException;
 import com.diet.health.enums.ActivityLevel;
 import com.diet.health.enums.ProfileGoal;
+import com.diet.health.enums.ProfileRiskCondition;
 import com.diet.health.enums.ProfileSex;
 import com.diet.mapper.HealthProfileMapper;
 import com.diet.model.HealthProfileRow;
 import com.diet.model.HealthProfileVersionRow;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,7 +39,8 @@ class HealthProfileServiceTest {
 
     private static HealthProfileService.HealthProfileInput input(Integer age, ProfileSex sex, Double height,
                                                                  Double weight, ActivityLevel activity, ProfileGoal goal) {
-        return new HealthProfileService.HealthProfileInput(age, sex, height, weight, activity, goal, null);
+        return new HealthProfileService.HealthProfileInput(age, sex, height, weight, activity, goal, null,
+                null, null);
     }
 
     private static HealthProfileService.HealthProfileInput maleInput() {
@@ -214,6 +217,112 @@ class HealthProfileServiceTest {
         assertNotNull(view);
         assertEquals(2150, view.calorieLow());
         assertTrue(view.estimated());
+    }
+
+    // ---- 62 号票：结构化风险条件 ----
+
+    private static HealthProfileService.HealthProfileInput riskInput(List<ProfileRiskCondition> conditions, String note) {
+        return new HealthProfileService.HealthProfileInput(30, ProfileSex.FEMALE, 175.0, 70.0,
+                ActivityLevel.LIGHT, ProfileGoal.MAINTAIN, null, conditions, note);
+    }
+
+    @Test
+    void 每个结构化风险条件可保存并读取() {
+        for (ProfileRiskCondition condition : ProfileRiskCondition.values()) {
+            HealthProfileService.HealthProfileView view = service.saveProfile(1L, riskInput(List.of(condition), "备注"));
+            assertEquals(List.of(condition), view.riskConditions(), "条件 " + condition + " 必须原样读取");
+            assertEquals("备注", view.riskNote());
+            mapper.profiles.clear();
+            mapper.versions.clear();
+        }
+    }
+
+    @Test
+    void 多个风险条件同时保存且版本快照完整() {
+        HealthProfileService.HealthProfileView view = service.saveProfile(1L,
+                riskInput(List.of(ProfileRiskCondition.PREGNANCY, ProfileRiskCondition.CHRONIC_CONDITION), "妊娠期糖尿病"));
+        assertEquals(List.of(ProfileRiskCondition.PREGNANCY, ProfileRiskCondition.CHRONIC_CONDITION),
+                view.riskConditions());
+        assertEquals(1L, view.versionNo());
+        String snapshot = mapper.versions.get(0).getSnapshotJson();
+        assertTrue(snapshot.contains("PREGNANCY"), "版本快照必须含孕产条件");
+        assertTrue(snapshot.contains("CHRONIC_CONDITION"), "版本快照必须含慢病条件");
+        assertTrue(snapshot.contains("riskRulesVersion"), "版本快照必须含风险规则版本");
+    }
+
+    @Test
+    void 缺省风险字段视为无风险() {
+        HealthProfileService.HealthProfileView view = service.saveProfile(1L, maleInput());
+        assertTrue(view.riskConditions().isEmpty(), "缺省风险条件必须为空列表");
+        assertEquals(null, view.riskNote());
+    }
+
+    @Test
+    void 空白风险说明不落库() {
+        HealthProfileService.HealthProfileView view = service.saveProfile(1L,
+                riskInput(List.of(ProfileRiskCondition.EATING_DISORDER), "  "));
+        assertEquals(null, view.riskNote(), "空白说明按未填写处理");
+        assertEquals(List.of(ProfileRiskCondition.EATING_DISORDER), view.riskConditions());
+    }
+
+    @Test
+    void 孕产条件与男性生理性别为非法组合被拒绝() {
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.saveProfile(1L,
+                new HealthProfileService.HealthProfileInput(30, ProfileSex.MALE, 175.0, 70.0,
+                        ActivityLevel.LIGHT, ProfileGoal.MAINTAIN, null,
+                        List.of(ProfileRiskCondition.PREGNANCY), null)));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("冲突"));
+        assertEquals(0, mapper.profiles.size());
+    }
+
+    @Test
+    void 超长风险说明被拒绝() {
+        String note = "长".repeat(HealthProfileService.MAX_RISK_NOTE_LENGTH + 1);
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> service.saveProfile(1L, riskInput(List.of(), note)));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains(String.valueOf(HealthProfileService.MAX_RISK_NOTE_LENGTH)));
+    }
+
+    @Test
+    void 未知风险条件枚举被JSON反序列化拒绝() {
+        String json = "{\"age\":30,\"sex\":\"FEMALE\",\"heightCm\":175,\"weightKg\":70,"
+                + "\"activityLevel\":\"LIGHT\",\"goal\":\"MAINTAIN\","
+                + "\"riskConditions\":[\"UNKNOWN_CONDITION\"]}";
+        assertThrows(JsonProcessingException.class,
+                () -> new ObjectMapper().readValue(json, HealthProfileService.HealthProfileInput.class),
+                "未知枚举值必须被拒绝（HTTP 层映射为 400）");
+    }
+
+    @Test
+    void 风险条件列表含空值被拒绝() {
+        ArrayList<ProfileRiskCondition> withNull = new ArrayList<>();
+        withNull.add(ProfileRiskCondition.PREGNANCY);
+        withNull.add(null);
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> service.saveProfile(1L, riskInput(withNull, null)));
+        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
+    }
+
+    @Test
+    void 旧数据无风险字段按无风险读取() {
+        HealthProfileRow legacy = new HealthProfileRow();
+        legacy.setUserId(7L);
+        legacy.setAge(30);
+        legacy.setSex("MALE");
+        legacy.setHeightCm(java.math.BigDecimal.valueOf(175));
+        legacy.setWeightKg(java.math.BigDecimal.valueOf(70));
+        legacy.setActivityLevel("LIGHT");
+        legacy.setGoal("MAINTAIN");
+        legacy.setTimezone("Asia/Shanghai");
+        legacy.setCalorieLow(2150);
+        legacy.setCalorieHigh(2400);
+        legacy.setEstimated(true);
+        legacy.setVersionNo(1L);
+        mapper.profiles.add(legacy);
+        HealthProfileService.HealthProfileView view = service.getProfile(7L);
+        assertTrue(view.riskConditions().isEmpty(), "旧行 NULL 风险列必须按无风险读取");
     }
 
     /** 内存版 HealthProfileMapper：支持档案与快照读写；可模拟首份档案并发唯一键竞争。 */

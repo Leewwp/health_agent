@@ -89,11 +89,7 @@ public class WeeklyPlanService {
     /** 生成周计划草稿：候选前 Guard → 组合 → 组合时校验 → 持久化（硬错误不落库）。 */
     @Transactional
     public PlanView createDraft(Long userId, DraftPlanRequest request) {
-        HealthProfileView profile = profileService.getProfile(userId);
-        HealthRiskRuleService.RiskDecision profileRisk = riskRuleService.assessProfile(profile.age(), true);
-        if (profileRisk.blocked()) {
-            throw blocked(profileRisk.copy());
-        }
+        HealthProfileView profile = requireProfileRiskPassed(userId);
         String timezone = request == null || request.timezone() == null || request.timezone().isBlank()
                 ? DEFAULT_TIMEZONE : request.timezone();
         LocalDate weekStart = request != null && request.weekStart() != null
@@ -170,7 +166,7 @@ public class WeeklyPlanService {
         if (plan.getStatus() == null || !PlanStatus.DRAFT.name().equals(plan.getStatus())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "只有 DRAFT 计划可以激活");
         }
-        HealthProfileView profile = profileService.getProfile(userId);
+        HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> items = loadDrafts(plan);
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
@@ -216,7 +212,7 @@ public class WeeklyPlanService {
         if (PlanStatus.ARCHIVED.name().equals(plan.getStatus())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "归档计划不可编辑");
         }
-        HealthProfileView profile = profileService.getProfile(userId);
+        HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> items = loadDrafts(plan);
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
@@ -274,7 +270,7 @@ public class WeeklyPlanService {
         updated.setCreatedAt(item.getCreatedAt());
         updated.setUpdatedAt(LocalDateTime.now());
 
-        HealthProfileView profile = profileService.getProfile(userId);
+        HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> allItems = new ArrayList<>();
         for (WeeklyPlanItemRow row : planMapper.findItems(plan.getId(), plan.getCurrentVersion())) {
             allItems.add(row.getId().equals(itemId) ? toDraft(updated) : toDraft(row));
@@ -310,6 +306,21 @@ public class WeeklyPlanService {
     }
 
     // ---------- 内部辅助 ----------
+
+    /**
+     * 统一档案风险 Guard（62 号票）：所有计划写入口（createDraft/ACTIVE 复制/PATCH/activate）
+     * 在 Java 领域边界重新评估当前档案风险，不能依赖调用方先走聊天；
+     * BLOCK_PLAN 直接抛 RISK_BLOCKED，不持久化计划/版本/项目。
+     */
+    private HealthProfileView requireProfileRiskPassed(Long userId) {
+        HealthProfileView profile = profileService.getProfile(userId);
+        HealthRiskRuleService.RiskDecision risk = riskRuleService.assessProfile(
+                profile.age(), true, profile.riskConditions());
+        if (risk.blocked()) {
+            throw blocked(risk.copy());
+        }
+        return profile;
+    }
 
     private WeeklyPlanRow requirePlan(Long userId, Long planId) {
         WeeklyPlanRow plan = planMapper.findPlanById(planId, userId);

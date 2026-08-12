@@ -17,6 +17,8 @@
         <result property="calorieLow" column="calorie_low"/>
         <result property="calorieHigh" column="calorie_high"/>
         <result property="estimated" column="estimated"/>
+        <result property="riskConditionsJson" column="risk_conditions_json"/>
+        <result property="riskNote" column="risk_note"/>
         <result property="versionNo" column="version_no"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
@@ -35,6 +37,8 @@
         calorie_low,
         calorie_high,
         estimated,
+        risk_conditions_json,
+        risk_note,
         version_no,
         created_at,
         updated_at
@@ -56,10 +60,12 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO health_profile (
             user_id, age, sex, height_cm, weight_kg, activity_level, goal, timezone,
-            calorie_low, calorie_high, estimated, version_no, created_at, updated_at
+            calorie_low, calorie_high, estimated, risk_conditions_json, risk_note,
+            version_no, created_at, updated_at
         ) VALUES (
             #{userId}, #{age}, #{sex}, #{heightCm}, #{weightKg}, #{activityLevel}, #{goal}, #{timezone},
-            #{calorieLow}, #{calorieHigh}, #{estimated}, #{versionNo}, #{createdAt}, #{updatedAt}
+            #{calorieLow}, #{calorieHigh}, #{estimated}, #{riskConditionsJson}, #{riskNote},
+            #{versionNo}, #{createdAt}, #{updatedAt}
         )
     </insert>
 
@@ -75,6 +81,8 @@
             calorie_low = #{calorieLow},
             calorie_high = #{calorieHigh},
             estimated = #{estimated},
+            risk_conditions_json = #{riskConditionsJson},
+            risk_note = #{riskNote},
             version_no = #{versionNo},
             updated_at = #{updatedAt}
         WHERE id = #{id}

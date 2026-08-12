@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 57 号票：REVIEWED_DB 模式下周计划餐食候选与浏览/推荐/反馈同源的真实 MySQL 验证。
  * <p>
- * 在独立测试库 diet_db_itest 上（V1-V6 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食），
+ * 在独立测试库 diet_db_itest 上（V1-V7 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食），
  * 生成周计划并核对：餐食项目资源 ID 全部来自 Provider 计划餐食候选；候选集合与浏览/推荐
  * 可见的 APPROVED 公共餐食集合一致；每道计划餐食可被 Provider 按 ID 解析（反馈校验同源）；
  * 快照来源字段同源不混入 fixture 资源。
@@ -126,7 +126,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         profileService().saveProfile(USER, new HealthProfileService.HealthProfileInput(
                 30, null, 175.0, 70.0,
                 com.diet.health.enums.ActivityLevel.LIGHT,
-                com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai"));
+                com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai", null, null));
     }
 
     // ---------- 57 号票验收：餐食候选与浏览/推荐/反馈同源 ----------
