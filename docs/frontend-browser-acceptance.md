@@ -70,3 +70,14 @@
 ## 环境清理
 
 - 验收后已停止本地 fixture 后端与 Nginx 容器；测试库 `diet_db_f37` 保留（独立于 `diet_db`，不影响真实 API key 测试流程）。
+
+## 62 号票补充验收（2026-08-12，档案结构化风险字段与计划写入口 Guard）
+
+- 验收环境：本地后端（`mvn spring-boot:run` 重启加载 V7 迁移，`diet_db` 正式库，端口 8080）+ Nginx 同源反代（`health-nginx-test` 容器端口 8090，静态托管 `frontend/`，无构建步骤故前端改动即时生效）+ ego-browser 真实 Chromium；桌面 1280 视口 + 移动端 390×844 两种视口。
+- 档案页风险字段：URL `http://127.0.0.1:8090/#/profile` → 表单新增「身体状况（选填）」区（5 个复选框：孕产/当前伤病/术后康复/进食障碍/需医疗干预慢病）+「风险说明（选填）」文本框（maxlength=200）→ 勾选"当前伤病"、填写"右肩扭伤恢复中"并保存 → 摘要行显示「档案版本 v1 · 估算标记：是 · 身体状况：当前伤病（右肩扭伤恢复中）」、toast「健康档案已保存」；刷新后复选框与说明原样回填（DB 核对：`risk_conditions_json=["CURRENT_INJURY"]`、`risk_note=右肩扭伤恢复中`）。
+- 计划写入口直达阻断：不经过聊天，同一身份直接 `POST /api/v1/health/plans/drafts` → HTTP 409 + `{"code":"RISK_BLOCKED","message":"当前情况不适合生成具体计划，建议咨询专业医生或营养师。"}`；浏览器在 `#/plans` 点击「生成新草稿」→ toast 显示同一固定文案，列表保持空；DB 核对风险用户 `weekly_plan` 0 行（无计划/版本/项目半成品）。
+- 正常档案仍成功：风险字段缺省（NULL）时同一计划 API 正常生成 DRAFT（curl 冒烟 + 既有自动化测试覆盖）。
+- 未知枚举与非法组合：`riskConditions:["BOGUS_CONDITION"]` → 400 BAD_REQUEST「请求体格式错误」（新增 HttpMessageNotReadableException 处理，不再落 500）；孕产条件 + 男性性别 → 400「孕产风险条件与男性生理性别冲突」。
+- 移动端 390×844：档案页风险区完整渲染（5 复选框 + 说明框），`scrollWidth=clientWidth=390` 无横向溢出。
+- 说明：本次验收以 DOM 断言 + toast + DB 落库核对为准（沿用 37 号验收方式）；ego-browser 截图服务本次不可用（CDP Page.captureScreenshot 超时，浏览器侧问题，不影响断言）。
+- 清理：验收身份为匿名 Cookie 用户（DB 中 `user_id=5750655426821178388`），无计划残留。

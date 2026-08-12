@@ -46,10 +46,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收）：
- * 在独立测试库 diet_db_itest 上验证 V1-V6 迁移、saveProfile/createDraft/activate
+ * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段）：
+ * 在独立测试库 diet_db_itest 上验证 V1-V7 迁移、saveProfile/createDraft/activate
  * 任一步写入失败时数据库无半成品、并发激活只产生一个有效 ACTIVE、
- * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一。
+ * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一、风险档案阻断后无残留。
  * <p>
  * 门控：-Ditest.mysql=true（CI 的 MySQL 服务容器与本地 MySQL 均为 root/123456）。
  */
@@ -134,7 +134,7 @@ class MysqlTransactionIntegrationTest {
         return new HealthProfileService.HealthProfileInput(
                 30, null, 175.0, 70.0,
                 com.diet.health.enums.ActivityLevel.LIGHT,
-                com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai");
+                com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai", null, null);
     }
 
     private void saveProfile() {
@@ -159,14 +159,36 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V6迁移全部成功() {
+    void 干净库V1至V7迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(6, rows.size(), "干净库应执行 V1-V6 共 6 条迁移");
+        assertEquals(7, rows.size(), "干净库应执行 V1-V7 共 7 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("6", String.valueOf(rows.get(5).get("version")), "V6 最后执行");
+        assertEquals("7", String.valueOf(rows.get(6).get("version")), "V7 最后执行");
+    }
+
+    @Test
+    void 风险档案createDraft被阻断时计划版本与项目均无残留() {
+        profileService().saveProfile(USER, new HealthProfileService.HealthProfileInput(
+                30, null, 175.0, 70.0,
+                com.diet.health.enums.ActivityLevel.LIGHT,
+                com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai",
+                List.of(com.diet.health.enums.ProfileRiskCondition.CHRONIC_CONDITION), "高血压服药中"));
+        String stored = jdbc.queryForObject(
+                "SELECT risk_conditions_json FROM health_profile WHERE user_id = ?", String.class, USER);
+        assertTrue(stored != null && stored.contains("CHRONIC_CONDITION"),
+                "结构化风险条件必须落库，实际: " + stored);
+
+        WeeklyPlanService service = planService(realPlanMapper);
+        com.diet.exception.HealthApiException error = assertThrows(com.diet.exception.HealthApiException.class,
+                () -> service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null)),
+                "风险档案创建计划必须被阻断");
+        assertEquals("RISK_BLOCKED", error.code());
+        assertEquals(0, count("weekly_plan", "user_id", USER), "计划不得残留半成品");
+        assertEquals(0, countByPlan("weekly_plan_version", USER), "版本不得残留半成品");
+        assertEquals(0, countByPlan("weekly_plan_item", USER), "项目不得残留半成品");
     }
 
     @Test
@@ -182,6 +204,11 @@ class MysqlTransactionIntegrationTest {
                         + " AND table_name = 'weekly_plan' AND index_name = 'uk_plan_active_user_key'",
                 Integer.class);
         assertEquals(1, actives, "ACTIVE 唯一约束必须存在（V6）");
+        List<String> riskColumns = jdbc.queryForList(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'health_profile' AND column_name IN ('risk_conditions_json','risk_note')",
+                String.class);
+        assertEquals(2, riskColumns.size(), "V7 结构化风险列必须存在（risk_conditions_json/risk_note）");
     }
 
     // ---------- 39 号票验收点：任一步失败数据库无半成品 ----------
@@ -314,7 +341,7 @@ class MysqlTransactionIntegrationTest {
                 service.saveProfile(USER, new HealthProfileService.HealthProfileInput(
                         31, null, 176.0, 71.0,
                         com.diet.health.enums.ActivityLevel.LIGHT,
-                        com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai"));
+                        com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai", null, null));
         assertEquals(1L, first.versionNo());
         assertEquals(2L, second.versionNo());
         assertEquals(2, count("health_profile_version", "user_id", USER), "两版快照全部落库");

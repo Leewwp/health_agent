@@ -1,8 +1,10 @@
 package com.diet.health.risk;
 
 import com.diet.health.enums.HealthRiskLevel;
+import com.diet.health.enums.ProfileRiskCondition;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,6 +20,9 @@ public class HealthRiskRuleService {
 
     /** 规则集版本（与 RiskRuleCatalog 同一事实来源）。 */
     public static final String RULES_VERSION = RiskRuleCatalog.RULES_VERSION;
+
+    /** 档案结构化风险规则版本（62 号票，与 RiskRuleCatalog 同一事实来源）。 */
+    public static final String PROFILE_RULES_VERSION = RiskRuleCatalog.PROFILE_RULES_VERSION;
 
     /** BLOCK_PLAN 固定文案。 */
     public static final String BLOCK_PLAN_COPY = RiskRuleCatalog.BLOCK_PLAN_COPY;
@@ -68,20 +73,41 @@ public class HealthRiskRuleService {
     }
 
     /**
-     * 档案维度风险评估（34 号，候选前 Guard）：
+     * 档案维度风险评估（34 号，候选前 Guard；62 号票补齐结构化风险条件）：
      * 未满 18 岁一律 BLOCK_PLAN；65 岁以上生成具体训练计划 BLOCK_PLAN，
-     * 非训练计划只给 ADVISORY（当前唯一周计划为包含训练的综合计划，见 44 号票）。
+     * 非训练计划只给 ADVISORY（当前唯一周计划为包含训练的综合计划，见 44 号票）；
+     * 档案结构化风险条件（孕产/当前伤病/术后康复/进食障碍/需医疗干预慢病）各为 BLOCK_PLAN，
+     * 与年龄评估取最高等级；条件缺省（未填写）不误判为有风险；
+     * 未在规则目录登记的条件属内部错误，fail-closed（不静默跳过安全规则）。
      */
-    public RiskDecision assessProfile(int age, boolean trainingPlan) {
+    public RiskDecision assessProfile(int age, boolean trainingPlan, List<ProfileRiskCondition> conditions) {
+        List<String> matchedFlags = new ArrayList<>();
         if (age < 18) {
             return new RiskDecision(HealthRiskLevel.BLOCK_PLAN, List.of("UNDERAGE"), UNDERAGE_COPY);
         }
+        HealthRiskLevel highest = HealthRiskLevel.NORMAL;
+        String copy = null;
         if (age >= 65) {
-            if (trainingPlan) {
-                return new RiskDecision(HealthRiskLevel.BLOCK_PLAN, List.of("SENIOR_PLAN"), SENIOR_TRAINING_COPY);
-            }
-            return new RiskDecision(HealthRiskLevel.ADVISORY, List.of("SENIOR_PLAN"), ADVISORY_COPY);
+            matchedFlags.add("SENIOR_PLAN");
+            highest = trainingPlan ? HealthRiskLevel.BLOCK_PLAN : HealthRiskLevel.ADVISORY;
+            copy = trainingPlan ? SENIOR_TRAINING_COPY : ADVISORY_COPY;
         }
-        return new RiskDecision(HealthRiskLevel.NORMAL, List.of(), null);
+        if (conditions != null) {
+            for (ProfileRiskCondition condition : conditions) {
+                RiskRuleCatalog.RiskRule rule = RiskRuleCatalog.ruleByCondition(condition)
+                        .orElseThrow(() -> new IllegalStateException("档案风险条件未在目录登记: " + condition));
+                if (rule.level().ordinal() > highest.ordinal()) {
+                    highest = rule.level();
+                    copy = rule.copy();
+                }
+                if (!matchedFlags.contains(rule.flag())) {
+                    matchedFlags.add(rule.flag());
+                }
+            }
+        }
+        if (highest == HealthRiskLevel.NORMAL) {
+            return new RiskDecision(HealthRiskLevel.NORMAL, List.of(), null);
+        }
+        return new RiskDecision(highest, List.copyOf(matchedFlags), copy);
     }
 }

@@ -46,6 +46,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -66,7 +68,12 @@ class WeeklyPlanServiceTest {
 
     private static final HealthProfileService.HealthProfileView PROFILE = new HealthProfileService.HealthProfileView(
             1L, 30, ProfileSex.MALE, 175.0, 70.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
-            "Asia/Shanghai", 1200, 1800, true, 1L, "basis");
+            "Asia/Shanghai", 1200, 1800, true, 1L, "basis", List.of(), null);
+
+    private static final HealthProfileService.HealthProfileView RISK_PROFILE = new HealthProfileService.HealthProfileView(
+            1L, 30, ProfileSex.MALE, 175.0, 70.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
+            "Asia/Shanghai", 1200, 1800, true, 1L, "basis",
+            List.of(com.diet.health.enums.ProfileRiskCondition.CURRENT_INJURY), "右肩扭伤恢复中");
 
     @BeforeEach
     void setUp() {
@@ -160,12 +167,76 @@ class WeeklyPlanServiceTest {
     void 高龄档案生成计划被RISK_BLOCKED且不持久化() {
         HealthProfileService.HealthProfileView senior = new HealthProfileService.HealthProfileView(
                 1L, 70, ProfileSex.MALE, 175.0, 70.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
-                "Asia/Shanghai", 1200, 1800, true, 1L, "basis");
+                "Asia/Shanghai", 1200, 1800, true, 1L, "basis", List.of(), null);
         when(profileService.getProfile(1L)).thenReturn(senior);
         HealthApiException error = assertThrows(HealthApiException.class, () -> service.createDraft(1L, draftRequest()));
         assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
         assertEquals(HealthRiskRuleService.SENIOR_TRAINING_COPY, error.getMessage());
         assertEquals(0, planMapper.plans.size());
+    }
+
+    // ---- 62 号票：档案结构化风险条件阻断计划写入口 ----
+
+    @Test
+    void 档案风险条件阻断createDraft且composer与写入均不被调用() {
+        when(profileService.getProfile(1L)).thenReturn(RISK_PROFILE);
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.createDraft(1L, draftRequest()));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(HealthRiskRuleService.BLOCK_PLAN_COPY, error.getMessage());
+        verify(picker, never()).pickForDay(any(Integer.class), any(Integer.class));
+        verify(planAgent, never()).explain(any(), any());
+        assertEquals(0, planMapper.plans.size(), "风险阻断不得持久化计划");
+        assertEquals(0, planMapper.versions.size(), "风险阻断不得持久化版本");
+        assertEquals(0, planMapper.items.size(), "风险阻断不得持久化项目");
+    }
+
+    @Test
+    void 激活时档案风险在草稿生成后出现则重新校验并阻断() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        when(profileService.getProfile(1L)).thenReturn(RISK_PROFILE);
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.activate(1L, draft.id()));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(HealthRiskRuleService.BLOCK_PLAN_COPY, error.getMessage());
+        assertEquals(1, planMapper.versions.size(), "激活前重新校验阻断，不得新增版本快照");
+        assertEquals(PlanStatus.DRAFT.name(), planMapper.plans.get(0).getStatus(), "计划保持 DRAFT 未激活");
+    }
+
+    @Test
+    void 编辑ACTIVE时档案风险已出现则复制被阻断() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanView active = service.activate(1L, draft.id());
+        when(profileService.getProfile(1L)).thenReturn(RISK_PROFILE);
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.edit(1L, active.id()));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(1, planMapper.plans.size(), "风险阻断不得生成新草稿");
+        assertEquals(62, planMapper.items.size(), "风险阻断不得复制项目到新草稿");
+    }
+
+    @Test
+    void PATCH时档案风险已出现则修改被阻断且不落库() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanItemView exercise = draft.items().stream()
+                .filter(item -> "EXERCISE".equals(item.resourceType()))
+                .findFirst().orElseThrow();
+        when(profileService.getProfile(1L)).thenReturn(RISK_PROFILE);
+        HealthApiException error = assertThrows(HealthApiException.class, () -> service.patchItem(1L, draft.id(),
+                exercise.id(), new PatchItemRequest(MON.plusDays(1), LocalTime.of(20, 0), LocalTime.of(21, 30), "挪动")));
+        assertEquals(HealthApiException.CODE_RISK_BLOCKED, error.code());
+        assertEquals(LocalTime.of(19, 30), planMapper.items.stream()
+                        .filter(item -> item.getId().equals(exercise.id())).findFirst().orElseThrow().getStartTime(),
+                "风险阻断下 PATCH 不得落库");
+    }
+
+    @Test
+    void 版本快照档案依据包含风险条件与规则版本() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        WeeklyPlanVersionRow version = planMapper.versions.get(0);
+        assertTrue(version.getProfileSnapshotJson().contains("\"riskConditions\":[]"),
+                "档案快照必须含风险条件字段");
+        assertTrue(version.getProfileSnapshotJson().contains("riskRulesVersion"),
+                "档案快照必须含风险规则版本（生成依据可追溯）");
+        assertTrue(version.getProfileSnapshotJson().contains(HealthRiskRuleService.PROFILE_RULES_VERSION),
+                "快照记录当前档案风险规则版本");
     }
 
     @Test
@@ -412,7 +483,7 @@ class WeeklyPlanServiceTest {
         service.activate(1L, draft.id());
         HealthProfileService.HealthProfileView newProfile = new HealthProfileService.HealthProfileView(
                 1L, 31, ProfileSex.MALE, 176.0, 71.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
-                "Asia/Shanghai", 2200, 2600, true, 2L, "basis");
+                "Asia/Shanghai", 2200, 2600, true, 2L, "basis", List.of(), null);
         when(profileService.getProfile(1L)).thenReturn(newProfile);
         PlanView viewed = service.getPlan(1L, draft.id());
         assertTrue(viewed.profileStale(), "档案版本变新后 ACTIVE 计划应标记较旧");
@@ -425,7 +496,7 @@ class WeeklyPlanServiceTest {
         service.activate(1L, draft.id());
         HealthProfileService.HealthProfileView newProfile = new HealthProfileService.HealthProfileView(
                 1L, 31, ProfileSex.MALE, 176.0, 71.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
-                "Asia/Shanghai", 1200, 1800, true, 2L, "basis");
+                "Asia/Shanghai", 1200, 1800, true, 2L, "basis", List.of(), null);
         when(profileService.getProfile(1L)).thenReturn(newProfile);
         PlanView second = service.createDraft(1L, draftRequest());
         PlanView active = service.activate(1L, second.id());

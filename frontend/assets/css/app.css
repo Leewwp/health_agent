@@ -348,6 +348,41 @@ button {
     line-height: 1.5;
 }
 
+.field fieldset {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin: 0;
+}
+
+.field fieldset legend {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 0 4px;
+}
+
+.check-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px 12px;
+    margin-top: 8px;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+}
+
+.check-item input[type="checkbox"] {
+    width: auto;
+    flex: none;
+    cursor: pointer;
+}
+
 .slot-select {
     width: 100%;
     min-height: 118px;

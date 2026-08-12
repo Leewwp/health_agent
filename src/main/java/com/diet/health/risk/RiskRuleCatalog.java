@@ -1,6 +1,7 @@
 package com.diet.health.risk;
 
 import com.diet.health.enums.HealthRiskLevel;
+import com.diet.health.enums.ProfileRiskCondition;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -27,6 +28,12 @@ public final class RiskRuleCatalog {
 
     /** 规则集版本：任何关键词/等级/文案变更必须同步递增。 */
     public static final String RULES_VERSION = "2026-08-10-v1";
+
+    /**
+     * 档案结构化风险规则版本（62 号票）：档案风险条件规则集版本，与关键词规则独立演进。
+     * 档案版本快照与计划生成依据记录该版本，历史计划仍可读取生成时依据。
+     */
+    public static final String PROFILE_RULES_VERSION = "2026-08-12-profile-v1";
 
     /** BLOCK_PLAN 固定文案。 */
     public static final String BLOCK_PLAN_COPY = "当前情况不适合生成具体计划，建议咨询专业医生或营养师。";
@@ -58,6 +65,30 @@ public final class RiskRuleCatalog {
     /** 不可变规则列表（声明顺序即评估优先级）。 */
     public static List<RiskRule> rules() {
         return RULES;
+    }
+
+    /**
+     * 档案结构化风险条件规则（62 号票）：条件枚举 → 目录规则（flag → 等级 → 固定文案）。
+     * 与关键词规则共享 flag 语义与固定文案，但条件结构化存储于档案、不经文本匹配；
+     * CURRENT_INJURY / POST_SURGERY_REHAB 为档案专用 flag，不进入关键词规则集。
+     * 新增条件必须在枚举与这里同步登记，规则变更只改本文件并递增 {@link #PROFILE_RULES_VERSION}。
+     */
+    private static final Map<ProfileRiskCondition, RiskRule> PROFILE_CONDITION_RULES = Map.of(
+            ProfileRiskCondition.PREGNANCY,
+            new RiskRule("PREGNANCY", List.of(), HealthRiskLevel.BLOCK_PLAN, BLOCK_PLAN_COPY),
+            ProfileRiskCondition.CURRENT_INJURY,
+            new RiskRule("CURRENT_INJURY", List.of(), HealthRiskLevel.BLOCK_PLAN, BLOCK_PLAN_COPY),
+            ProfileRiskCondition.POST_SURGERY_REHAB,
+            new RiskRule("POST_SURGERY_REHAB", List.of(), HealthRiskLevel.BLOCK_PLAN, BLOCK_PLAN_COPY),
+            ProfileRiskCondition.EATING_DISORDER,
+            new RiskRule("EATING_DISORDER", List.of(), HealthRiskLevel.BLOCK_PLAN, BLOCK_PLAN_COPY),
+            ProfileRiskCondition.CHRONIC_CONDITION,
+            new RiskRule("CHRONIC_CONDITION", List.of(), HealthRiskLevel.BLOCK_PLAN, BLOCK_PLAN_COPY)
+    );
+
+    /** 按档案风险条件查规则，无登记返回空（视为内部错误，评估侧防御性跳过）。 */
+    public static Optional<RiskRule> ruleByCondition(ProfileRiskCondition condition) {
+        return Optional.ofNullable(PROFILE_CONDITION_RULES.get(condition));
     }
 
     /** 支持的风险 flag 白名单（供意图解析器校验 LLM 输出）。 */

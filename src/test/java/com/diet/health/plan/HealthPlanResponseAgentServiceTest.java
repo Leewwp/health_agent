@@ -37,7 +37,7 @@ class HealthPlanResponseAgentServiceTest {
 
     private static final HealthProfileView PROFILE = new HealthProfileView(1L, 30, com.diet.health.enums.ProfileSex.MALE,
             175.0, 70.0, com.diet.health.enums.ActivityLevel.LIGHT, com.diet.health.enums.ProfileGoal.MAINTAIN,
-            "Asia/Shanghai", 2150, 2400, true, 1L, "basis");
+            "Asia/Shanghai", 2150, 2400, true, 1L, "basis", List.of(), null);
 
     private static final List<PlanItemView> ITEMS = List.of(
             new PlanItemView(1L, "EXERCISE", "9001", "俯卧撑", LocalDate.of(2026, 8, 17),

@@ -17,6 +17,15 @@ const state = {
     error: null
 };
 
+/** 身体状况条件中文名（选项与摘要共用，顺序即展示顺序）。 */
+const RISK_LABELS = {
+    PREGNANCY: "孕产（孕期/哺乳期）",
+    CURRENT_INJURY: "当前伤病（活动相关损伤未愈）",
+    POST_SURGERY_REHAB: "术后/康复期",
+    EATING_DISORDER: "进食障碍",
+    CHRONIC_CONDITION: "需要医疗干预的慢性病"
+};
+
 let appElement = null;
 
 export async function render(app) {
@@ -69,12 +78,29 @@ export async function render(app) {
                 </select>`, "目标调整 ±5% / -5%~-15% / +5%~+10%")}
                 ${formField("timezone", "时区（选填）", `<input name="timezone" value="${escapeHtml(state.profile?.timezone ?? "Asia/Shanghai")}" placeholder="Asia/Shanghai">`, "默认 Asia/Shanghai")}
                 <div class="field full">
+                    <fieldset>
+                        <legend>身体状况（选填）</legend>
+                        <p class="field-hint">以下情况不会生成具体计划，仅返回固定安全提示，建议咨询专业医生或营养师。</p>
+                        ${riskChecks(state.profile?.riskConditions ?? [])}
+                    </fieldset>
+                </div>
+                ${formField("riskNote", "风险说明（选填）", `<textarea name="riskNote" maxlength="200" rows="2" placeholder="例如：右肩扭伤恢复中，遵医嘱服药">${escapeHtml(state.profile?.riskNote ?? "")}</textarea>`, "最长 200 字，仅作为补充说明")}
+                <div class="field full">
                     <button class="btn primary" type="submit">${state.saving ? "保存中..." : "保存档案"}</button>
                 </div>
             </form>
         </section>
     `;
     bind(app);
+}
+
+function riskChecks(selected) {
+    return `<div class="check-grid">` + Object.entries(RISK_LABELS).map(([value, label]) => `
+        <label class="check-item">
+            <input type="checkbox" name="riskCondition" value="${escapeHtml(value)}" ${selected.includes(value) ? "checked" : ""}>
+            <span>${escapeHtml(label)}</span>
+        </label>
+    `).join("") + `</div>`;
 }
 
 let listenersBound = false;
@@ -111,13 +137,15 @@ function formField(key, label, control, hint) {
 }
 
 function renderSummary(profile) {
+    const conditions = (profile.riskConditions || []).map((name) => RISK_LABELS[name] || name);
     return `
         <div class="calorie-range">
             <div class="stat-card"><span class="muted">每日能量下限（估算）</span><strong>${escapeHtml(profile.calorieLow)} kcal</strong></div>
             <div class="stat-card"><span class="muted">每日能量上限（估算）</span><strong>${escapeHtml(profile.calorieHigh)} kcal</strong></div>
         </div>
         <p class="muted" style="margin:0 0 4px;">${escapeHtml(profile.calcBasis)}</p>
-        <p class="muted" style="margin:0;">档案版本 v${escapeHtml(profile.versionNo)} · 估算标记：${profile.estimated ? "是" : "否"}</p>
+        <p class="muted" style="margin:0;">档案版本 v${escapeHtml(profile.versionNo)} · 估算标记：${profile.estimated ? "是" : "否"}
+            ${conditions.length ? ` · 身体状况：${escapeHtml(conditions.join("、"))}${profile.riskNote ? `（${escapeHtml(profile.riskNote)}）` : ""}` : ""}</p>
     `;
 }
 
@@ -149,7 +177,9 @@ async function saveForm(form) {
         activityLevel: formData.get("activityLevel"),
         goal: formData.get("goal"),
         sex: formData.get("sex") || null,
-        timezone: formData.get("timezone").trim() || "Asia/Shanghai"
+        timezone: formData.get("timezone").trim() || "Asia/Shanghai",
+        riskConditions: formData.getAll("riskCondition"),
+        riskNote: (formData.get("riskNote") || "").trim() || null
     };
     state.saving = true;
     try {

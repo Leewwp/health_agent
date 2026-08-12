@@ -78,7 +78,8 @@ public class CalculateTargetsTool implements McpToolSpec {
         result.put("highKcal", range.highKcal());
         result.put("estimated", true);
         result.put("calcBasis", HealthProfileService.buildCalcBasis(
-                new HealthProfileService.HealthProfileInput(age, sex, heightCm, weightKg, activity, goal, null)));
+                new HealthProfileService.HealthProfileInput(age, sex, heightCm, weightKg, activity, goal, null,
+                        null, null)));
         return McpToolSupport.success(result,
                 "每日能量区间：" + range.lowKcal() + "-" + range.highKcal() + " kcal（估算值）");
     }
