@@ -1,19 +1,23 @@
 package com.diet.health.vectorstore;
 
 import com.diet.health.rag.EmbeddingClient;
+import com.diet.health.reader.meal.ReviewedMeal;
+import com.diet.health.reader.meal.ReviewedMealReader;
+import com.diet.health.resource.HealthResourceProvider;
 import com.diet.mapper.MealEmbeddingMapper;
-import com.diet.mapper.MealMapper;
 import com.diet.model.MealEmbeddingRow;
-import com.diet.model.MealItemRow;
-import com.diet.util.JsonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -23,43 +27,57 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * VectorIndexingRunner 测试（M5 #54）。
- * 验证：未开启时跳过、无向量餐食跳过、payload 拼装、分批 upsert 与幂等。
+ * VectorIndexingRunner 测试（M5 #54；#70 迁移到审核读取模块替身并补模式隔离）。
+ * 验证：未开启时跳过且零读取、fixture 显式启用 fail-fast、无向量餐食跳过、
+ * payload 拼装、分批 upsert 与幂等。
  */
 class VectorIndexingRunnerTest {
 
-    private MealMapper mealMapper;
+    private ReviewedMealReader reviewedMealReader;
     private MealEmbeddingMapper embeddingMapper;
     private EmbeddingClient embeddingClient;
+    private HealthResourceProvider resourceProvider;
     private CapturingVectorStore store;
     private VectorIndexingRunner runner;
 
     @BeforeEach
     void setUp() {
-        mealMapper = mock(MealMapper.class);
+        reviewedMealReader = mock(ReviewedMealReader.class);
         embeddingMapper = mock(MealEmbeddingMapper.class);
         embeddingClient = mock(EmbeddingClient.class);
+        resourceProvider = mock(HealthResourceProvider.class);
         when(embeddingClient.modelName()).thenReturn("text-embedding-v3");
         when(embeddingClient.modelVersion()).thenReturn("v3-2");
         when(embeddingClient.configured()).thenReturn(true);
+        when(resourceProvider.providerMode()).thenReturn("REVIEWED_DB");
         store = new CapturingVectorStore(new VectorStoreIdentity("dashscope", "text-embedding-v3", 2, "v3-2"));
-        runner = new VectorIndexingRunner(mealMapper, embeddingMapper, embeddingClient,
-                new JsonService(new ObjectMapper()), new ObjectMapper(), store, true);
+        runner = new VectorIndexingRunner(reviewedMealReader, embeddingMapper, embeddingClient,
+                new ObjectMapper(), store, resourceProvider, true);
     }
 
     @Test
-    void 未开启索引时跳过() {
-        runner = new VectorIndexingRunner(mealMapper, embeddingMapper, embeddingClient,
-                new JsonService(new ObjectMapper()), new ObjectMapper(), store, false);
+    void 未开启索引时跳过且零读取() {
+        runner = new VectorIndexingRunner(reviewedMealReader, embeddingMapper, embeddingClient,
+                new ObjectMapper(), store, resourceProvider, false);
         runner.run(null);
         assertEquals(0, store.upserted.size(), "index-on-startup=false 时不应索引");
-        verify(mealMapper, never()).findApprovedPublicMeals();
+        verify(reviewedMealReader, never()).snapshotAll();
+    }
+
+    @Test
+    void fixture显式启用时failFast且错误包含模式与开关名() {
+        when(resourceProvider.providerMode()).thenReturn("FIXTURE_SEED");
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> runner.run(null),
+                "fixture + index-on-startup=true 必须启动失败");
+        assertTrue(error.getMessage().contains("FIXTURE_SEED"), "错误信息必须包含模式: " + error.getMessage());
+        assertTrue(error.getMessage().contains(VectorIndexingRunner.SWITCH_NAME), "错误信息必须包含开关名");
+        verify(reviewedMealReader, never()).snapshotAll();
     }
 
     @Test
     void 索引审核餐食并携带检索payload() {
-        MealItemRow meal = meal(1L, "[\"午餐\"]", "[\"川菜\"]", "[\"花生\"]", "APPROVED", "PUBLIC");
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(meal));
+        ReviewedMeal meal = meal(1L, List.of("午餐"), List.of("川菜"), List.of("花生"), "APPROVED", "PUBLIC");
+        when(reviewedMealReader.snapshotAll()).thenReturn(List.of(meal));
         when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
                 .thenReturn(List.of(row(1L, "v3-2", "[1.0,0.0]")));
 
@@ -78,8 +96,8 @@ class VectorIndexingRunnerTest {
 
     @Test
     void 向量维度与身份不一致时跳过() {
-        MealItemRow meal = meal(1L, "[\"午餐\"]", null, null, "APPROVED", "PUBLIC");
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(meal));
+        ReviewedMeal meal = meal(1L, List.of("午餐"), null, null, "APPROVED", "PUBLIC");
+        when(reviewedMealReader.snapshotAll()).thenReturn(List.of(meal));
         // 身份维度 2，但向量是 3 维 → 必须跳过，防止混写错误 collection
         when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
                 .thenReturn(List.of(row(1L, "v3-2", "[1.0,0.0,0.0]")));
@@ -91,7 +109,7 @@ class VectorIndexingRunnerTest {
 
     @Test
     void 无向量餐食跳过且不产生空payload点() {
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(meal(1L, null, null, null, "APPROVED", "PUBLIC")));
+        when(reviewedMealReader.snapshotAll()).thenReturn(List.of(meal(1L, null, null, null, "APPROVED", "PUBLIC")));
         when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
                 .thenReturn(List.of());
 
@@ -102,13 +120,13 @@ class VectorIndexingRunnerTest {
 
     @Test
     void 超批次时分批upsert() {
-        List<MealItemRow> meals = new ArrayList<>();
+        List<ReviewedMeal> meals = new ArrayList<>();
         List<MealEmbeddingRow> rows = new ArrayList<>();
         for (int i = 1; i <= 130; i++) {
             meals.add(meal((long) i, null, null, null, "APPROVED", "PUBLIC"));
             rows.add(row((long) i, "v3-2", "[1.0,0.0]"));
         }
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(meals);
+        when(reviewedMealReader.snapshotAll()).thenReturn(meals);
         when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
                 .thenReturn(rows);
 
@@ -121,7 +139,7 @@ class VectorIndexingRunnerTest {
 
     @Test
     void 存储不可用时跳过索引() {
-        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(meal(1L, null, null, null, "APPROVED", "PUBLIC")));
+        when(reviewedMealReader.snapshotAll()).thenReturn(List.of(meal(1L, null, null, null, "APPROVED", "PUBLIC")));
         when(embeddingMapper.findByMealIds(anyList(), eq("text-embedding-v3"), eq("v3-2")))
                 .thenReturn(List.of(row(1L, "v3-2", "[1.0,0.0]")));
         store.pingable = false;
@@ -131,17 +149,24 @@ class VectorIndexingRunnerTest {
         assertEquals(0, store.upserted.size(), "存储不可用时应跳过");
     }
 
-    private MealItemRow meal(Long id, String mealTime, String cuisine, String allergens,
-                             String reviewStatus, String sourceType) {
-        MealItemRow meal = new MealItemRow();
-        meal.setId(id);
-        meal.setName("测试餐食");
-        meal.setMealTime(mealTime);
-        meal.setCuisine(cuisine);
-        meal.setAllergenJson(allergens);
-        meal.setReviewStatus(reviewStatus);
-        meal.setSourceType(sourceType);
-        return meal;
+    private ReviewedMeal meal(Long id, List<String> mealTime, List<String> cuisine, List<String> allergens,
+                              String reviewStatus, String sourceType) {
+        Map<String, List<String>> tags = new LinkedHashMap<>();
+        tags.put("mealTime", mealTime == null ? List.of() : mealTime);
+        tags.put("mood", List.of());
+        tags.put("scene", List.of());
+        tags.put("healthGoal", List.of());
+        tags.put("cuisine", cuisine == null ? List.of() : cuisine);
+        tags.put("taste", List.of());
+        tags.put("convenience", List.of());
+        return new ReviewedMeal(
+                id, "测试餐食", null, List.of(), tags, null, List.of(),
+                new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
+                new ReviewedMeal.Nutrition(null, null, null, null, null, false),
+                allergens == null ? List.of() : allergens,
+                "REVIEWED", reviewStatus, "NONE", null,
+                "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", sourceType
+        );
     }
 
     private MealEmbeddingRow row(Long mealId, String version, String vectorJson) {
