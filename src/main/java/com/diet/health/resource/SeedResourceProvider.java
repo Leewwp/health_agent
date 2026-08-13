@@ -89,8 +89,8 @@ public class SeedResourceProvider implements HealthResourceProvider {
     }
 
     @Override
-    public String providerMode() {
-        return "FIXTURE_SEED";
+    public ResourceMode providerMode() {
+        return ResourceMode.FIXTURE_SEED;
     }
 
     @Override

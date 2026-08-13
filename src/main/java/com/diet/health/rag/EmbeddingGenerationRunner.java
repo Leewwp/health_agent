@@ -55,11 +55,7 @@ public class EmbeddingGenerationRunner implements ApplicationRunner {
         if (!generateOnStartup) {
             return;
         }
-        if ("FIXTURE_SEED".equals(resourceProvider.providerMode())) {
-            throw new IllegalStateException(
-                    resourceProvider.providerMode() + " 模式下禁止启用 " + SWITCH_NAME
-                            + "（正式 DB 向量生成不是 fixture 能力，请改用 diet.resource.mode=reviewed）");
-        }
+        resourceProvider.providerMode().requireReviewedCapability(SWITCH_NAME, "正式 DB 向量生成");
         if (!embeddingClient.configured()) {
             log.warn("Embedding 未配置（缺 API key），跳过餐食向量生成；结构化检索不受影响");
             return;

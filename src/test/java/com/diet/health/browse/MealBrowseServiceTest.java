@@ -1,10 +1,13 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
+import com.diet.exception.HealthApiException;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
+import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -28,12 +33,15 @@ import static org.mockito.Mockito.when;
 class MealBrowseServiceTest {
 
     private ReviewedMealReader reviewedMealReader;
+    private HealthResourceProvider resourceProvider;
     private MealBrowseService service;
 
     @BeforeEach
     void setUp() {
         reviewedMealReader = mock(ReviewedMealReader.class);
-        service = new MealBrowseService(reviewedMealReader);
+        resourceProvider = mock(HealthResourceProvider.class);
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        service = new MealBrowseService(reviewedMealReader, resourceProvider);
     }
 
     @Test
@@ -88,6 +96,34 @@ class MealBrowseServiceTest {
         assertTrue(response.items().isEmpty());
         assertEquals(0, response.total());
         assertEquals(0, response.totalPages());
+    }
+
+    @Test
+    void fixture模式返回能力不可用且不调用审核读取模块() {
+        HealthResourceProvider provider = mock(HealthResourceProvider.class);
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
+        MealBrowseService fixtureService = new MealBrowseService(reviewedMealReader, provider);
+
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> fixtureService.browse(1, 20));
+
+        assertEquals(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE, error.code());
+        assertTrue(error.getMessage().contains("餐食浏览"));
+        verifyNoInteractions(reviewedMealReader);
+    }
+
+    @Test
+    void reviewed模式正常调用审核读取模块() {
+        HealthResourceProvider provider = mock(HealthResourceProvider.class);
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of());
+        when(reviewedMealReader.countPublic()).thenReturn(0);
+
+        new MealBrowseService(reviewedMealReader, provider).browse(1, 20);
+
+        verify(reviewedMealReader).browse(0, 20);
+        verify(reviewedMealReader).countPublic();
+        verify(provider, never()).planMealCandidates();
     }
 
     @Test

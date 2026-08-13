@@ -1,5 +1,6 @@
 package com.diet.health.reader.exercise;
 
+import com.diet.health.intent.HealthSlotDictionary;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -68,9 +69,9 @@ class ExerciseVocabularyTest {
 
     @Test
     void 合法值集合与槽位字典对齐() {
-        assertTrue(ExerciseVocabulary.legalFitnessValues().get("bodyParts").containsAll(
+        assertTrue(HealthSlotDictionary.FITNESS_OPTIONS.get("bodyParts").containsAll(
                 List.of("胸", "背", "腿", "肩", "手臂", "核心", "臀", "全身")));
-        assertTrue(ExerciseVocabulary.legalFitnessValues().get("equipment").contains("徒手"));
-        assertFalse(ExerciseVocabulary.legalFitnessValues().get("equipment").contains("body weight"));
+        assertTrue(HealthSlotDictionary.FITNESS_OPTIONS.get("equipment").contains("徒手"));
+        assertFalse(HealthSlotDictionary.FITNESS_OPTIONS.get("equipment").contains("body weight"));
     }
 }

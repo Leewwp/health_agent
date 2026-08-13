@@ -126,7 +126,7 @@ class DbReviewedResourceProviderTest {
         when(exerciseMapper.browse(0, 50)).thenReturn(exerciseRows(5));
         when(exerciseMapper.count()).thenReturn(5);
         ExerciseBrowseService browse = new ExerciseBrowseService(
-                new DbReviewedExerciseReader(exerciseMapper, jsonService));
+                new DbReviewedExerciseReader(exerciseMapper, jsonService), provider);
         PagedResponse<ExerciseBrowseItem> page = browse.browse(1, 50);
         List<String> browseIds = page.items().stream().map(item -> String.valueOf(item.id())).toList();
         List<String> providerIds = provider.exercises().stream().map(HealthResource::resourceId).toList();
@@ -192,7 +192,7 @@ class DbReviewedResourceProviderTest {
 
     @Test
     void provider模式与资源版本标识明确() {
-        assertEquals("REVIEWED_DB", provider.providerMode());
+        assertEquals(ResourceMode.REVIEWED_DB, provider.providerMode());
         assertEquals("reviewed-2026-08-10-v1", provider.resourceVersion());
     }
 

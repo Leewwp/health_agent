@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * 审核资源 Provider 运行配置：按 diet.resource.mode 选择数据库审核子集或内存种子。
@@ -28,12 +29,17 @@ public class HealthResourceConfiguration {
             @Value("${diet.resource.mode:reviewed}") String mode
     ) {
         boolean prodActive = Arrays.asList(environment.getActiveProfiles()).contains("prod");
-        if ("fixture".equalsIgnoreCase(mode)) {
-            if (prodActive) {
-                throw new IllegalStateException("生产环境禁止 diet.resource.mode=fixture，必须使用 reviewed");
+        String normalizedMode = mode == null ? "" : mode.trim().toLowerCase(Locale.ROOT);
+        return switch (normalizedMode) {
+            case "reviewed" -> dbReviewedResourceProvider;
+            case "fixture" -> {
+                if (prodActive) {
+                    throw new IllegalStateException("生产环境禁止 diet.resource.mode=fixture，必须使用 reviewed");
+                }
+                yield seedResourceProvider;
             }
-            return seedResourceProvider;
-        }
-        return dbReviewedResourceProvider;
+            default -> throw new IllegalStateException(
+                    "diet.resource.mode 只允许 reviewed 或 fixture，当前值：" + mode);
+        };
     }
 }

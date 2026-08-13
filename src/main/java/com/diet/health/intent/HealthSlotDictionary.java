@@ -24,7 +24,7 @@ public class HealthSlotDictionary {
     public static final List<String> ROUTINE_SLOTS = List.of("wakeTime", "bedtime", "sleepDuration");
 
     /** 健身槽位合法值（版本化种子）。 */
-    private static final Map<String, List<String>> FITNESS_OPTIONS = Map.of(
+    public static final Map<String, List<String>> FITNESS_OPTIONS = Map.of(
             "bodyParts", List.of("胸", "背", "腿", "肩", "手臂", "核心", "臀", "全身"),
             "equipment", List.of("徒手", "哑铃", "杠铃", "弹力带", "壶铃", "器械"),
             "trainingGoal", List.of("增肌", "减脂", "耐力", "力量", "柔韧", "保持健康"),

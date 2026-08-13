@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,7 +26,7 @@ import java.util.Set;
  *   <li>要求 {@code Authorization: Bearer <MCP_API_TOKEN>}，token 缺失或错误一律 401；</li>
  *   <li>Origin 头存在时必须命中 allowlist（{@code diet.mcp.allowed-origins}），否则 403；
  *       缺失 Origin（curl/MCP Inspector/服务端调用）按 {@code diet.mcp.allow-missing-origin} 放行；
- *       默认空 allowlist 表示本地演示不限制 Origin（生产须显式配置）；</li>
+ *       空 allowlist 对任何已提供 Origin 均拒绝（生产须显式配置）；</li>
  *   <li>校验通过后在请求属性写入 principal，供 transport contextExtractor 读取。失败时
  *       Filter 直接短路，不进入 MCP servlet，因此身份边界不受 MVC 拦截器影响。</li>
  * </ul>
@@ -102,7 +101,8 @@ public class McpSecurityFilter implements Filter {
         while (headerValues.hasMoreElements()) {
             origins.add(headerValues.nextElement());
         }
-        if (origins.isEmpty() || origins.stream().allMatch(String::isBlank)) {
+        // 只有没有 Origin 头时才应用 allowMissingOrigin；空白头是异常输入，不能伪装成缺失。
+        if (origins.isEmpty()) {
             return allowMissingOrigin;
         }
         // #61：空 allowlist 不得表达“任意来源”；非空 Origin 必须精确命中规范化 allowlist。
@@ -128,8 +128,7 @@ public class McpSecurityFilter implements Filter {
         if (raw == null || raw.isBlank()) {
             return Set.of();
         }
-        return new LinkedHashSet<>(Arrays.stream(raw.split(","))
-                .map(String::trim)
+        return new LinkedHashSet<>(McpConfigValidator.parseEntries(raw).stream()
                 .filter(s -> !s.isEmpty())
                 .toList());
     }

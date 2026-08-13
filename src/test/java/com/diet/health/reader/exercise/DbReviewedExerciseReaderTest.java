@@ -1,5 +1,8 @@
 package com.diet.health.reader.exercise;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.diet.health.module.HealthResource;
 import com.diet.health.resource.DbReviewedResourceProvider;
 import com.diet.mapper.ExerciseMapper;
@@ -10,6 +13,7 @@ import com.diet.util.JsonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -86,6 +90,32 @@ class DbReviewedExerciseReaderTest {
         assertEquals("", exercise.equipment(), "未收录器材为空串，不透出英文");
         assertTrue(exercise.targetMuscles().isEmpty(), "未收录肌群从用户标签集合过滤");
         assertEquals("", exercise.difficulty(), "未收录难度为空串");
+    }
+
+    @Test
+    void 只对归一失败的原始值记录告警() {
+        Logger logger = (Logger) LoggerFactory.getLogger(DbReviewedExerciseReader.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            when(exerciseMapper.browse(0, 10)).thenReturn(List.of(row(1L)));
+            reader.browse(0, 10);
+            assertTrue(appender.list.isEmpty(), "合法可归一值不得误报未收录告警");
+
+            appender.list.clear();
+            ExerciseItemRow unknown = row(2L);
+            unknown.setCategory("unknown-category");
+            unknown.setBodyPart("unknown-part");
+            unknown.setEquipment("unknown-equipment");
+            unknown.setDifficulty("unknown-difficulty");
+            when(exerciseMapper.browse(0, 10)).thenReturn(List.of(unknown));
+            reader.browse(0, 10);
+            assertEquals(4, appender.list.size(), "四个归一失败的单值字段应分别记录告警");
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
     }
 
     @Test

@@ -24,14 +24,7 @@ public final class MealDomainMapper {
                 SourceMode.PUBLIC,
                 null,
                 meal.name(),
-                new SlotBundle(
-                        meal.tags().getOrDefault("mealTime", List.of()),
-                        meal.tags().getOrDefault("mood", List.of()),
-                        meal.tags().getOrDefault("scene", List.of()),
-                        meal.tags().getOrDefault("healthGoal", List.of()),
-                        meal.tags().getOrDefault("cuisine", List.of()),
-                        meal.tags().getOrDefault("taste", List.of()),
-                        meal.tags().getOrDefault("convenience", List.of())),
+                SlotBundle.fromHealthSlots(meal.tags()),
                 0
         );
     }

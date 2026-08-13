@@ -74,11 +74,7 @@ public class RagEvaluationRunner implements ApplicationRunner {
         if (!evalRun) {
             return;
         }
-        if ("FIXTURE_SEED".equals(resourceProvider.providerMode())) {
-            throw new IllegalStateException(
-                    resourceProvider.providerMode() + " 模式下禁止启用 " + SWITCH_NAME
-                            + "（正式 DB RAG 评估不是 fixture 能力，请改用 diet.resource.mode=reviewed）");
-        }
+        resourceProvider.providerMode().requireReviewedCapability(SWITCH_NAME, "正式 DB RAG 评估");
         List<LabeledMealQuery> queries;
         try (InputStream in = new ClassPathResource(QUERY_SET).getInputStream()) {
             String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);

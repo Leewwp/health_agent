@@ -70,11 +70,7 @@ public class VectorIndexingRunner implements ApplicationRunner {
         if (!indexOnStartup) {
             return;
         }
-        if ("FIXTURE_SEED".equals(resourceProvider.providerMode())) {
-            throw new IllegalStateException(
-                    resourceProvider.providerMode() + " 模式下禁止启用 " + SWITCH_NAME
-                            + "（正式 DB 向量索引不是 fixture 能力，请改用 diet.resource.mode=reviewed）");
-        }
+        resourceProvider.providerMode().requireReviewedCapability(SWITCH_NAME, "正式 DB 向量索引");
         if (!vectorStore.ping()) {
             log.warn("向量存储不可用，跳过餐食索引；结构化检索不受影响");
             return;

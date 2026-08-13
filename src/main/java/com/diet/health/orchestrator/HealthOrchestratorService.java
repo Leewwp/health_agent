@@ -209,7 +209,7 @@ public class HealthOrchestratorService {
 
         List<HealthResource> candidates = retrieve(domain, mergedSlots, excludeIds, userInput);
         agentTraceService.recordEvent("CANDIDATES_RETRIEVED", "RETRIEVE",
-                Map.of("domain", domain, "providerMode", resourceProvider.providerMode(),
+                Map.of("domain", domain, "providerMode", resourceProvider.providerMode().name(),
                         "resourceVersion", resourceProvider.resourceVersion(), "excludeIds", excludeIds),
                 Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList()));
         if (candidates.isEmpty()) {

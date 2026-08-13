@@ -91,7 +91,7 @@
   - 列表来自浏览 API（`/api/v1/health/exercises` 分页拉全，共 30 条），槽位全部为归一中文：训练部位「背/核心/肩/全身/手臂/腿/胸」、器材「弹力带/徒手/哑铃」、难度「进阶/入门」、动作模式「蹲/核心/踝/髋/拉/推/有氧」，筛选下拉无英文原始值。
   - 搜索「登山者」→ 单卡显示「进阶 / 全身 / 徒手」；详情抽屉显示「训练部位：全身 · 难度：进阶 · 动作模式：有氧」+ 目标肌群「核心」，全文无 `cardio`/`body weight` 等英文原始值（DOM 正则断言 + 抽屉内文本核对）。
   - 筛选：难度=入门 → 12 条；分页：30 条 / 每页 18 → 第 1/2 页 18 卡 ↔ 下一页 12 卡 ↔ 上一页回 18 卡，页码文案正确。
-  - 归一机制佐证（后端日志 WARN 为正常诊断）：DB `exercise_item` 行 38/58/59/60 存英文原始值（`cardio`/`body weight`/`upper legs`/`waist`/`中级`），`DbReviewedExerciseReader` 归一后 API 输出全中文（38 登山者→全身/徒手/进阶/有氧；60 侧平板支撑→核心/徒手/进阶/核心），未收录值从用户标签集合过滤并打 WARN。
+  - 归一机制佐证：DB `exercise_item` 行 38/58/59/60 存英文原始值（`cardio`/`body weight`/`upper legs`/`waist`/`中级`），`DbReviewedExerciseReader` 归一后 API 输出全中文（38 登山者→全身/徒手/进阶/有氧；60 侧平板支撑→核心/徒手/进阶/核心）；合法映射值不产生日志，只有真正未收录值才从用户标签集合过滤并打 WARN。
   - 移动端 390×844：卡片/筛选/抽屉正常，`scrollWidth=clientWidth=390` 无横向溢出，导航无溢出。
 - #65 收藏/取消收藏（网络 payload 拦截 + DOM 状态 + 刷新持久 + DB 落库四方核对）：
   - 桌面 EXERCISE 38（登山者）：点收藏 → 按钮「收藏✓」`aria-pressed=true`、toast「已收藏」，请求 `action=FAVORITE`；再点 → 请求 `action=UNFAVORITE`（前端 feedback-control.js 不再重复发 FAVORITE）、按钮回「收藏」`aria-pressed=false`、toast「已取消收藏」，localStorage 收藏项清除；刷新页面后仍「收藏」（未收藏态）。
@@ -101,4 +101,11 @@
   - 全程控制台无 error/warning（桌面 + 移动，多次采样含 `Log.entryAdded` 与 `Runtime.exceptionThrown`）。
 - 发现的 Bug（本次验收复现，**先报告未改代码**）：浏览页共享实现（`frontend/assets/js/pages/browse.js`）跨页面事件委托互相覆盖——每个 `createBrowsePage` 实例都把 `click/change/submit` 委托监听器绑到同一个 `#app` 上且从不解绑，后访问的页面会把另一个页面重新渲染到当前路由下。复现（纯应用内导航，无刷新）：`#/meals` 加载 → 点导航进 `#/exercises`（正常显示健身动作库）→ 在动作页搜索「登山者」或切换难度筛选 → URL 仍是 `#/exercises`，但 `#app` 被餐食页整体覆盖（显示「餐食库」+「没有符合筛选条件的数据」，且筛选值串到餐食数据集）。反向同样：`#/meals` 上改「用餐时间」筛选后会被动作页覆盖（视访问顺序谁后绑定谁赢）。无 console error、无未捕获异常，纯监听器串扰 + 渲染竞态。影响 #64 的搜索/筛选/分页验收流程（首次访问动作页时全部通过，访问过餐食页后即触发）；`browse.js` 不在本批次工作区 diff 内，属既有问题，建议后续单独修（如模块级单例绑定 + 路由守卫，或解绑/按当前路由分发）。
 - 截图：captureScreenshot CDP 超时（沿用 62 号已知浏览器侧问题），以 DOM 断言为准。
+
+## 浏览页监听器串扰修复复验（2026-08-13）
+
+- 修复：`browse.js` 的 click/change/submit 委托增加当前 route 守卫，submit 仅处理当前浏览页的筛选表单；旧页面实例的监听器即使仍绑定在 `#app`，也不能处理另一路由事件。
+- 真实 Chromium，经 Nginx `http://localhost:8090`：`#/meals`（20 卡）→ `#/exercises`（18 卡）→ `#/meals` → `#/exercises` → 在搜索表单提交「登山者」；最终 URL 保持 `#/exercises`，标题保持「健身动作库」，仅显示 1 张「登山者」卡（进阶/全身/徒手），未再被餐食页覆盖。
+- 当前代码独立实例回归（Spring Boot `8094` + Nginx `http://localhost:8095`）：`#/meals` 首屏 20 卡，点击首张「黑豆千层面」打开详情抽屉，抽屉名称与来源字段正常显示，证明迁移后的 reviewed 分页与详情链路可用。
+- 页面加载、应用内导航、搜索表单提交与 DOM 结果均通过；截图仍因 ego/CDP `Page.captureScreenshot` 超时失败，与本页前述环境问题一致。
 - 清理：验收无残留数据（收藏/取消收藏成对落库为业务正常事件流）；后端（8080）与 `health-nginx-test`（8090）验收后保持运行供继续验收。

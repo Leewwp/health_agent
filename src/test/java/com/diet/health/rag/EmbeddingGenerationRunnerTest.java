@@ -3,6 +3,7 @@ package com.diet.health.rag;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import com.diet.mapper.MealEmbeddingMapper;
 import com.diet.model.MealEmbeddingRow;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +43,7 @@ class EmbeddingGenerationRunnerTest {
         embeddingMapper = mock(MealEmbeddingMapper.class);
         embeddingClient = mock(EmbeddingClient.class);
         resourceProvider = mock(HealthResourceProvider.class);
-        when(resourceProvider.providerMode()).thenReturn("REVIEWED_DB");
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         when(embeddingClient.configured()).thenReturn(true);
         when(embeddingClient.modelName()).thenReturn("text-embedding-v3");
         when(embeddingClient.modelVersion()).thenReturn("v3-2");
@@ -61,7 +62,7 @@ class EmbeddingGenerationRunnerTest {
 
     @Test
     void fixture显式启用时failFast且错误包含模式与开关名() {
-        when(resourceProvider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> runner.run(null),
                 "fixture + generate-on-startup=true 必须启动失败");
         assertTrue(error.getMessage().contains("FIXTURE_SEED"), "错误信息必须包含模式: " + error.getMessage());

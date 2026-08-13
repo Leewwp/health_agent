@@ -48,9 +48,10 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
         List<String> rawSecondary = jsonService.fromJsonArray(row.getSecondaryMuscles());
         logUnrepresented("动作 " + row.getId(), "靶肌", ExerciseVocabulary.unrepresentedParts(rawTarget));
         logUnrepresented("动作 " + row.getId(), "次肌", ExerciseVocabulary.unrepresentedParts(rawSecondary));
-        logUnrepresented("动作 " + row.getId(), "部位", singleUnrepresented(row.getBodyPart()));
-        logUnrepresented("动作 " + row.getId(), "器材", singleUnrepresented(row.getEquipment()));
-        logUnrepresented("动作 " + row.getId(), "难度", singleUnrepresented(row.getDifficulty()));
+        logUnrepresented("动作 " + row.getId(), "分类", unrepresentedPart(row.getCategory()));
+        logUnrepresented("动作 " + row.getId(), "部位", unrepresentedPart(row.getBodyPart()));
+        logUnrepresented("动作 " + row.getId(), "器材", unrepresentedEquipment(row.getEquipment()));
+        logUnrepresented("动作 " + row.getId(), "难度", unrepresentedDifficulty(row.getDifficulty()));
         return new ReviewedExercise(
                 row.getId(),
                 row.getName(),
@@ -77,9 +78,20 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
         );
     }
 
-    /** 未收录单值包装为列表，便于统一降级记录。 */
-    private List<String> singleUnrepresented(String raw) {
-        return raw == null || raw.isBlank() ? List.of() : List.of(raw);
+    /** 仅将归一失败的单值列入诊断，合法英文原始值不产生日志。 */
+    private List<String> unrepresentedPart(String raw) {
+        return raw == null || raw.isBlank() || !ExerciseVocabulary.partZh(raw).isEmpty()
+                ? List.of() : List.of(raw);
+    }
+
+    private List<String> unrepresentedEquipment(String raw) {
+        return raw == null || raw.isBlank() || !ExerciseVocabulary.equipmentZh(raw).isEmpty()
+                ? List.of() : List.of(raw);
+    }
+
+    private List<String> unrepresentedDifficulty(String raw) {
+        return raw == null || raw.isBlank() || !ExerciseVocabulary.difficultyZh(raw).isEmpty()
+                ? List.of() : List.of(raw);
     }
 
     /** 未收录原始值明确降级：过滤并记录可诊断信息，不原样透出英文。 */

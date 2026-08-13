@@ -12,6 +12,7 @@ import com.diet.health.plan.WeeklyPlanService;
 import com.diet.health.module.PlanMealCandidate;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.health.session.HealthSessionService;
 import com.diet.mapper.HealthProfileMapper;
@@ -138,7 +139,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     @Test
     void 审核模式下计划餐食全部来自审核候选且与浏览可见集合一致() {
         saveProfile();
-        assertEquals("REVIEWED_DB", resourceProvider.providerMode());
+        assertEquals(ResourceMode.REVIEWED_DB, resourceProvider.providerMode());
         List<PlanMealCandidate> candidates = resourceProvider.planMealCandidates();
         assertFalse(candidates.isEmpty(), "审核子集必须提供计划餐食候选");
 

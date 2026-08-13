@@ -55,8 +55,8 @@ public interface HealthResourceProvider {
      */
     List<PlanMealCandidate> planMealCandidates();
 
-    /** Provider 模式标识：REVIEWED_DB=数据库审核子集；FIXTURE_SEED=内存种子。 */
-    String providerMode();
+    /** Provider 模式：REVIEWED_DB=数据库审核子集；FIXTURE_SEED=内存种子。 */
+    ResourceMode providerMode();
 
     /** 资源版本（数据库审核子集批次版本或种子版本）。 */
     String resourceVersion();
