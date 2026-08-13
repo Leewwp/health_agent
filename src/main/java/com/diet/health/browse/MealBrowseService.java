@@ -1,7 +1,6 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
-import com.diet.exception.HealthApiException;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.meal.ReviewedMeal;
@@ -55,10 +54,7 @@ public class MealBrowseService {
     }
 
     private void requireReviewedMode() {
-        if (!resourceProvider.providerMode().isReviewed()) {
-            throw new HealthApiException(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE,
-                    "当前资源模式不提供正式审核库餐食浏览");
-        }
+        ReviewedBrowseMode.require(resourceProvider, "餐食浏览");
     }
 
     /** 读取模型 → 浏览条目（浏览用例层透传，字段口径与读取模块同一行映射一致）。 */

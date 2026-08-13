@@ -33,4 +33,17 @@ public record ReviewedExercise(
         String sourceId,
         String sourceVersion
 ) {
+
+    /** 在读取模块边界完成深拷贝，避免调用方修改共享快照。 */
+    public ReviewedExercise {
+        aliases = immutableList(aliases);
+        targetMuscles = immutableList(targetMuscles);
+        secondaryMuscles = immutableList(secondaryMuscles);
+        riskTags = immutableList(riskTags);
+        steps = immutableList(steps);
+    }
+
+    private static <T> List<T> immutableList(List<T> values) {
+        return values == null ? List.of() : List.copyOf(values);
+    }
 }

@@ -99,6 +99,7 @@
   - 移动端 390×844：EXERCISE 38 同流程通过（toast「已收藏」/「已取消收藏」）。
   - DB 核对 `recommend_feedback`：会话 `sess_d72a0e...` 下 EXERCISE/38（桌面+移动）与 MEAL/2310 各 `FAVORITE`+`UNFAVORITE` 成对落库（latest-wins，UNFAVORITE 撤销收藏贡献）。
   - 全程控制台无 error/warning（桌面 + 移动，多次采样含 `Log.entryAdded` 与 `Runtime.exceptionThrown`）。
+- #65 失败回滚复验（2026-08-13 收尾）：390×844 动作页注入网络失败后，收藏 localStorage 与 `aria-pressed` 均回滚为未收藏，toast 展示失败原因，且 `unhandledrejection` 事件数为 0；页面宽度仍为 `scrollWidth=innerWidth=390`。
 - 发现的 Bug（本次验收复现，**先报告未改代码**）：浏览页共享实现（`frontend/assets/js/pages/browse.js`）跨页面事件委托互相覆盖——每个 `createBrowsePage` 实例都把 `click/change/submit` 委托监听器绑到同一个 `#app` 上且从不解绑，后访问的页面会把另一个页面重新渲染到当前路由下。复现（纯应用内导航，无刷新）：`#/meals` 加载 → 点导航进 `#/exercises`（正常显示健身动作库）→ 在动作页搜索「登山者」或切换难度筛选 → URL 仍是 `#/exercises`，但 `#app` 被餐食页整体覆盖（显示「餐食库」+「没有符合筛选条件的数据」，且筛选值串到餐食数据集）。反向同样：`#/meals` 上改「用餐时间」筛选后会被动作页覆盖（视访问顺序谁后绑定谁赢）。无 console error、无未捕获异常，纯监听器串扰 + 渲染竞态。影响 #64 的搜索/筛选/分页验收流程（首次访问动作页时全部通过，访问过餐食页后即触发）；`browse.js` 不在本批次工作区 diff 内，属既有问题，建议后续单独修（如模块级单例绑定 + 路由守卫，或解绑/按当前路由分发）。
 - 截图：captureScreenshot CDP 超时（沿用 62 号已知浏览器侧问题），以 DOM 断言为准。
 
@@ -109,3 +110,10 @@
 - 当前代码独立实例回归（Spring Boot `8094` + Nginx `http://localhost:8095`）：`#/meals` 首屏 20 卡，点击首张「黑豆千层面」打开详情抽屉，抽屉名称与来源字段正常显示，证明迁移后的 reviewed 分页与详情链路可用。
 - 页面加载、应用内导航、搜索表单提交与 DOM 结果均通过；截图仍因 ego/CDP `Page.captureScreenshot` 超时失败，与本页前述环境问题一致。
 - 清理：验收无残留数据（收藏/取消收藏成对落库为业务正常事件流）；后端（8080）与 `health-nginx-test`（8090）验收后保持运行供继续验收。
+
+## MCP 外部客户端连续全链复验（2026-08-13）
+
+- 当前 HEAD 独立实例 `http://localhost:8094/mcp`，客户端 `batch-closeout-review/1.0.0`，通过同一个 `Mcp-Session-Id` 连续完成 `initialize → tools/list → tools/call`。
+- `tools/list` 返回 4 个工具，均同时包含 `inputSchema` 与 `outputSchema`，对象 schema 均为封闭对象（`additionalProperties=false`）。
+- 四次连续调用全部成功且返回 `structuredContent`：`search_meals(slots.mealTime=早餐, limit=1)` 返回 1 条；`get_meal_detail(mealId=2310)` 返回黑豆千层面；`get_routine_facts(keyword=睡多久)` 返回 3 条；`calculate_targets(age=30, sex=MALE, heightCm=175, weightKg=70, activityLevel=MODERATE, goal=MAINTAIN)` 返回 2450-2700 kcal。
+- Authorization、Origin 与 session 均通过同一 MCP endpoint 验证；token 仅注入本地进程，未写入仓库或文档。

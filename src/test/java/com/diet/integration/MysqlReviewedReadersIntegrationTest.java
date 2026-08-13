@@ -20,6 +20,8 @@ import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.vectorstore.InMemoryVectorStore;
 import com.diet.health.vectorstore.VectorPoint;
 import com.diet.health.vectorstore.VectorStoreIdentity;
+import com.diet.mapper.MealEmbeddingMapper;
+import com.diet.model.MealEmbeddingRow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
@@ -45,7 +47,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * #68/#69 方案 B 读取边界：审核读取模块与浏览/检索链路的真实 MySQL 门控验证。
+ * #68/#69/#70 方案 B 读取边界：审核读取模块、浏览/检索与批处理数据面的真实 MySQL 门控验证。
  * <p>
  * 在独立测试库 diet_db_itest 上（V1-V7 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食、
  * 30 个 APPROVED 动作），验证：
@@ -55,6 +57,7 @@ import static org.mockito.Mockito.when;
  *   <li>#69 reviewed 浏览服务（MealBrowseService/ExerciseBrowseService）真库分页走查；</li>
  *   <li>#69 Structured/Hybrid 二次校验：从真库召回后按 ID 回查确认一致——向量独有候选、
  *       过期索引命中、过期过敏原 payload 均以 MySQL 为事实源裁决。</li>
+ *   <li>#70 审核快照的来源映射与 embedding 行按餐食 ID 一致，且不混入非审核数据。</li>
  * </ul>
  * 用例内自造的小批量行（source_name 前缀 itest-）在每例前后清理，不影响 295/30 基线。
  * <p>
@@ -87,6 +90,8 @@ class MysqlReviewedReadersIntegrationTest {
     private ExerciseBrowseService exerciseBrowseService;
     @Autowired
     private StructuredMealRetriever structuredRetriever;
+    @Autowired
+    private MealEmbeddingMapper embeddingMapper;
 
     private JdbcTemplate jdbc;
 
@@ -234,6 +239,43 @@ class MysqlReviewedReadersIntegrationTest {
         } finally {
             jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
         }
+    }
+
+    // ---------- #70：审核快照来源映射与 embedding 真库一致性 ----------
+
+    @Test
+    void 审核快照来源映射与Embedding行按餐食ID一致且不混入非审核数据() {
+        long approved = insertMeal("embedding-approved", "APPROVED", "PUBLIC", null, "[\"早餐\"]", "[]");
+        long pending = insertMeal("embedding-pending", "PENDING", "PUBLIC", null, "[\"早餐\"]", "[]");
+        try {
+            insertEmbedding(approved, "itest-model", "itest-v1");
+            insertEmbedding(pending, "itest-model", "itest-v1");
+
+            Map<Long, String> sourceById = mealReader.snapshotAll().stream()
+                    .collect(Collectors.toMap(ReviewedMeal::id, ReviewedMeal::sourceId));
+            assertEquals("embedding-approved", sourceById.get(approved));
+            assertFalse(sourceById.containsKey(pending), "非审核餐食不得进入评估来源映射");
+
+            List<MealEmbeddingRow> rows = embeddingMapper.findByMealIds(
+                    sourceById.keySet().stream().sorted().toList(), "itest-model", "itest-v1");
+            assertEquals(List.of(approved), rows.stream().map(MealEmbeddingRow::getMealId).toList(),
+                    "按审核快照 ID 读取 embedding 时不得混入非审核餐食向量");
+            assertEquals("embedding-approved", sourceById.get(rows.getFirst().getMealId()),
+                    "embedding 行必须能映射回同一审核快照来源 ID");
+            assertEquals(4, rows.getFirst().getDimension());
+        } finally {
+            jdbc.update("DELETE FROM meal_item_embedding WHERE model = ? AND model_version = ?",
+                    "itest-model", "itest-v1");
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
+        }
+        assertEquals(295, mealReader.countPublic(), "清理后必须恢复 295 基线");
+    }
+
+    private void insertEmbedding(long mealId, String model, String modelVersion) {
+        jdbc.update("INSERT INTO meal_item_embedding"
+                        + " (meal_id, model, model_version, dimension, vector, created_at)"
+                        + " VALUES (?, ?, ?, 4, '[1.0,0.0,0.0,0.0]', NOW())",
+                mealId, model, modelVersion);
     }
 
     // ---------- #68/#64：DbReviewedExerciseReader 真库行为 ----------

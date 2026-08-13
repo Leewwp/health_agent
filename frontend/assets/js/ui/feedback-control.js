@@ -65,7 +65,8 @@ export function bindFeedbackControl(container) {
         const type = button.dataset.type;
         const id = button.dataset.id;
         const action = button.dataset.feedback;
-        handleAction(type, id, action, button);
+        // 事件委托必须消费异步错误，失败路径已在 handleAction 内提示并回滚。
+        void handleAction(type, id, action, button).catch(() => {});
     });
 }
 
