@@ -21,11 +21,11 @@
 
 ## Decisions so far
 
-<!-- 子票关闭后追加“名称 + 链接 + 一句话结论”，详细答案只保留在子票。 -->
+- [#75 冻结统一健康链路评估与标注契约](https://github.com/Leewwp/health_agent/issues/75)：采用 `health-eval-v2`，分离 BENCHMARK/TRACE_AUDIT，以 36 条版本化 JSONL、确定性指标、结构化 Trace 事件和可追溯 JSON 报告构成面试向最小评估闭环；保留旧饮食入口，不建设评估平台或混合总分。
 
 ## Not yet specified
 
-当前没有未锐化范围。统一评估的精确标注与报告契约由独立决策票处理，其余均为依赖该决策或已冻结边界的实施任务。
+当前没有未锐化范围。统一评估契约已由 #75 冻结，#73 仅等待 #74 的反馈 traceId 精确归因实现后进入 frontier。
 
 ## Out of scope
 
