@@ -145,7 +145,7 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 545 个测试（512 通过，33 个环境门控按条件跳过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 548 个测试（514 通过，34 个环境门控按条件跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -155,7 +155,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 30 个 MySQL 集成场景（事务 16 + reviewed 计划/餐食 4 + reviewed readers 10）；本机启用该门控时结果为 542 通过、仅 3 个 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 545 个测试。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 31 个 MySQL 集成场景（事务 16 + reviewed 计划/餐食 4 + reviewed readers 11）；本机启用该门控时结果为 545 通过、仅 3 个 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 548 个测试。
 
 ## 部署（Compose，spec 11）
 
@@ -212,4 +212,4 @@ curl -X POST http://localhost:8080/api/v1/diet/chat -H 'Content-Type: applicatio
 
 ## 边界
 
-这是面试展示项目，不包含医疗诊断、真实账号体系、生产级安全平台、多实例锁、消息队列或长期行为追踪。健康聊天、周计划、浏览与反馈统一使用 `HealthResourceProvider`：正式模式（`diet.resource.mode=reviewed`，默认）读数据库审核子集，fixture 模式（`diet.resource.mode=fixture`，生产禁止）读内存种子用于离线演示，两种模式由 providerMode 标识隔离、禁止混用。完整 MVP 中 Agent 仍只负责意图理解和解释；候选召回、数值计算、计划规则和风险结论由 Java 确定性逻辑控制。
+这是面试展示项目，不包含医疗诊断、真实账号体系、生产级安全平台、多实例锁、消息队列或长期行为追踪。健康聊天、周计划与反馈使用 `HealthResourceProvider`；正式审核库浏览、Structured/Hybrid RAG、Embedding、向量索引与评估使用专用 `health/reader` 读取模块。正式模式（`diet.resource.mode=reviewed`，默认）读数据库审核子集，fixture 模式（`diet.resource.mode=fixture`，生产禁止）读内存种子用于离线演示；fixture 不提供正式审核库浏览和批处理能力，两种模式由 providerMode 标识隔离、禁止混用。完整 MVP 中 Agent 仍只负责意图理解和解释；候选召回、数值计算、计划规则和风险结论由 Java 确定性逻辑控制。

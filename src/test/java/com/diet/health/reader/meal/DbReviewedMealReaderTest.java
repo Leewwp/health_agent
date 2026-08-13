@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -137,6 +138,21 @@ class DbReviewedMealReaderTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> meals.add(reader.toReviewedMeal(row(2L, "APPROVED"))),
                 "读取模块返回的集合必须不可变");
+    }
+
+    @Test
+    void 读取模型内嵌集合深不可变() {
+        ReviewedMeal meal = reader.toReviewedMeal(row(1L, "APPROVED"));
+
+        assertAll(
+                () -> assertThrows(UnsupportedOperationException.class, () -> meal.aliases().add("别名")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> meal.ingredients().add("配料")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> meal.allergens().add("牛奶")),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> meal.tags().put("mealTime", List.of("晚餐"))),
+                () -> assertThrows(UnsupportedOperationException.class,
+                        () -> meal.tags().get("mealTime").add("晚餐"))
+        );
     }
 
     private MealItemRow row(Long id, String reviewStatus) {

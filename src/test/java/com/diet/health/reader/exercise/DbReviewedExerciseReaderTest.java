@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -145,6 +147,20 @@ class DbReviewedExerciseReaderTest {
         when(exerciseMapper.count()).thenReturn(0);
         assertTrue(reader.browse(0, 10).isEmpty());
         assertEquals(0, reader.count());
+    }
+
+    @Test
+    void 读取模型内嵌集合深不可变() {
+        when(exerciseMapper.browse(0, 10)).thenReturn(List.of(row(1L)));
+        ReviewedExercise exercise = reader.browse(0, 10).get(0);
+
+        assertAll(
+                () -> assertThrows(UnsupportedOperationException.class, () -> exercise.aliases().add("别名")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> exercise.targetMuscles().add("腿")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> exercise.secondaryMuscles().add("腿")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> exercise.riskTags().add("风险")),
+                () -> assertThrows(UnsupportedOperationException.class, () -> exercise.steps().add("步骤"))
+        );
     }
 
     @Test

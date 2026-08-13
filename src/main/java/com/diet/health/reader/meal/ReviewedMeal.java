@@ -1,6 +1,8 @@
 package com.diet.health.reader.meal;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +32,27 @@ public record ReviewedMeal(
         String sourceVersion,
         String sourceType
 ) {
+
+    /** 在读取模块边界完成深拷贝，避免调用方修改共享快照。 */
+    public ReviewedMeal {
+        aliases = immutableList(aliases);
+        tags = immutableTags(tags);
+        ingredients = immutableList(ingredients);
+        allergens = immutableList(allergens);
+    }
+
+    private static <T> List<T> immutableList(List<T> values) {
+        return values == null ? List.of() : List.copyOf(values);
+    }
+
+    private static Map<String, List<String>> immutableTags(Map<String, List<String>> values) {
+        if (values == null || values.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<String>> copy = new LinkedHashMap<>();
+        values.forEach((key, value) -> copy.put(key, immutableList(value)));
+        return Collections.unmodifiableMap(copy);
+    }
 
     /** 份量口径。 */
     public record Serving(int count, BigDecimal size, String unit) {

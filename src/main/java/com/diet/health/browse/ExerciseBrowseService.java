@@ -1,7 +1,6 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
-import com.diet.exception.HealthApiException;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.exercise.ReviewedExercise;
@@ -56,10 +55,7 @@ public class ExerciseBrowseService {
     }
 
     private void requireReviewedMode() {
-        if (!resourceProvider.providerMode().isReviewed()) {
-            throw new HealthApiException(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE,
-                    "当前资源模式不提供正式审核库动作浏览");
-        }
+        ReviewedBrowseMode.require(resourceProvider, "动作浏览");
     }
 
     /** 读取模型 → 浏览条目（浏览用例层透传）。 */
