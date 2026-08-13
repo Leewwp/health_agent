@@ -14,12 +14,20 @@
 ## Scope
 
 - 新增 Flyway 迁移，为 `recommend_feedback` 增加可空 `trace_id` 和必要索引；
+- **已冻结数据库契约**：新增 V8 迁移，`recommend_feedback.trace_id` 使用 `varchar(128) NULL`，增加 `(user_id, trace_id)` 普通索引；不建立外键，不改变既有 `item_id`/类型化资源兼容列；
 - 扩展健康反馈请求、模型、Mapper 与服务校验，传入 traceId 时校验用户、会话和 Trace 归属；
-- 聊天资源卡反馈携带产生该推荐的 `traceId`，浏览页和历史旧数据允许为空；
+- **已冻结请求契约**：健康反馈请求新增可选 `traceId`；聊天响应的每张资源卡从所属回复继承该 `traceId`，浏览页、计划页和历史旧数据保持为空；
+- **已冻结校验顺序**：先按当前匿名用户查询 Trace，再要求 `trace.sessionId == request.sessionId`；Trace 不存在、用户不匹配或会话不匹配均返回统一 404/无权访问错误，并保证 insert 未执行；
 - 旧 `/api/v1/diet/**` 与已有反馈行保持兼容，不伪造 traceId；
-- 评估读取优先按 traceId 精确归因，仅对旧数据保留有明确标记的兼容回退；
+- **已冻结评估归因**：优先按 `trace_id` 精确读取；trace 为空的旧反馈才允许 session/时间窗口回退，报告必须标记 `EXACT_TRACE` 或 `LEGACY_SESSION_FALLBACK`；
 - 覆盖越权、Trace/session 不匹配、空 traceId 和迁移兼容测试。
 
 ## Done when
 
 新健康聊天反馈可按 traceId 一对一归因，非法归属被拒绝且不落库；旧反馈接口与旧数据仍可使用；真实 MySQL 迁移及相关自动化测试通过。
+
+## Implementation contract
+
+- `trace_id` 允许为空；非空值长度上限与 `diet_request_trace.trace_id` 一致（128 字符）。
+- 不补造旧数据的 traceId；旧饮食接口继续写 NULL。
+- 评估读取和聚合必须能区分精确归因与兼容回退，不能把回退结果伪装成精确反馈。
