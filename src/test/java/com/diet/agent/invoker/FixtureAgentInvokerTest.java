@@ -43,9 +43,19 @@ class FixtureAgentInvokerTest {
                 候选资源（已排序）: [{"resourceId": 9001, "name": "俯卧撑"}, {"resourceId": 9002, "name": "深蹲"}]
                 """;
         String text = invoker.invoke(invocation("RecommendResponseAgent", prompt)).text();
-        assertTrue(text.contains("\"resourceId\":9001"));
-        assertTrue(text.contains("\"resourceId\":9002"));
+        assertTrue(text.contains("\"resourceId\":\"9001\""));
+        assertTrue(text.contains("\"resourceId\":\"9002\""));
         assertTrue(Pattern.compile("\"speechText\"").matcher(text).find());
+    }
+
+    @Test
+    void recommend夹具回显字母数字种子ID() {
+        String prompt = """
+                候选资源（已排序）: [{"resourceId": "M1", "name": "燕麦牛奶粥"}, {"resourceId": "R1", "name": "睡眠时长"}]
+                """;
+        String text = invoker.invoke(invocation("RecommendResponseAgent", prompt)).text();
+        assertTrue(text.contains("\"resourceId\":\"M1\""));
+        assertTrue(text.contains("\"resourceId\":\"R1\""));
     }
 
     @Test

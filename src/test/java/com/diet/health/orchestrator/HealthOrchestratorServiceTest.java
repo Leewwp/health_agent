@@ -121,7 +121,7 @@ class HealthOrchestratorServiceTest {
         when(traceMapper.findByTraceId(any(), anyString())).thenReturn(null);
         when(traceMapper.findBySessionId(any(), anyString(), anyInt())).thenReturn(List.of());
         when(traceMapper.findByTimeRange(any(), any(), any(), anyBoolean(), anyInt())).thenReturn(List.of());
-        when(traceMapper.updateLabel(any(), anyString(), any(), any(), any(), any(), any())).thenReturn(1);
+        when(traceMapper.updateLabel(any(), anyString(), any(), any(), any(), any(), any(), any(), any())).thenReturn(1);
 
         AgentTraceService trace = new AgentTraceService(traceMapper, objectMapper);
         SessionService messageService = new SessionService(sessionMapper, new JsonService(objectMapper), 10);
@@ -134,7 +134,7 @@ class HealthOrchestratorServiceTest {
         HealthRecommendResponseService recommend = new HealthRecommendResponseService(contract, new PromptLoader(), "qwen-max", "v1", 1000);
 
         mealModule = mock(MealModule.class);
-        when(mealModule.recommendMeals(any(), any())).thenReturn(List.of(
+        when(mealModule.recommendMeals(any(), any(), anyString())).thenReturn(List.of(
                 new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of()),
                 new HealthResource("MEAL", "7", "鸡胸肉沙拉", "PUBLIC", "公共餐食库", null, false, Map.of())
         ));
@@ -162,6 +162,53 @@ class HealthOrchestratorServiceTest {
         assertFalse(response.displayBlocks().isEmpty());
         assertEquals("MEAL", response.displayBlocks().get(0).resourceType());
         assertEquals("5", response.displayBlocks().get(0).resourceId());
+    }
+
+    @Test
+    void 餐食检索透传用户原话与槽位() {
+        org.mockito.ArgumentCaptor<Map<String, List<String>>> slots =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        org.mockito.ArgumentCaptor<String> text = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<List<String>> exclude =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        when(mealModule.recommendMeals(slots.capture(), exclude.capture(), text.capture())).thenReturn(List.of(
+                new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of())
+        ));
+
+        HealthChatResponse response = chat("晚上想要高蛋白清淡晚餐");
+        assertEquals(HealthResponseType.ANSWER, response.responseType());
+        assertEquals("MEAL", response.domain().name());
+        assertEquals("晚上想要高蛋白清淡晚餐", text.getValue(), "用户原话应进入检索文本");
+        assertFalse(slots.getValue().isEmpty(), "槽位应透传");
+        assertTrue(slots.getValue().containsKey("mealTime"));
+        assertEquals(List.of(), exclude.getValue(), "非 ADJUST 的普通推荐排除集必须显式为空并透传");
+    }
+
+    @Test
+    void ADJUST检索透传历史排除ID() {
+        // 先在同会话内完成一轮餐食推荐（记录 lastResources），再发起 ADJUST 换一批：
+        // 排除 ID 必须来自会话历史类型化资源引用并透传给 MealModule。
+        org.mockito.ArgumentCaptor<Map<String, List<String>>> slots =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        org.mockito.ArgumentCaptor<String> text = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<List<String>> exclude =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        when(mealModule.recommendMeals(slots.capture(), exclude.capture(), text.capture()))
+                .thenReturn(List.of(
+                        new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of())
+                ));
+
+        String sessionId = "sess_adjust_exclude";
+        HealthChatResponse first = chatInSession(sessionId, "午餐想吃清淡的");
+        assertEquals(HealthResponseType.ANSWER, first.responseType());
+        assertFalse(first.displayBlocks().isEmpty());
+
+        HealthChatResponse second = chatInSession(sessionId, "换一批");
+        assertEquals(HealthResponseType.ANSWER, second.responseType());
+        assertEquals("MEAL", second.domain().name());
+        assertEquals(List.of("5"), exclude.getValue(),
+                "ADJUST 换一批必须把上一轮推荐资源作为排除 ID 透传");
+        assertEquals("换一批", text.getValue(), "ADJUST 检索同样透传用户原话");
     }
 
     @Test
@@ -223,13 +270,29 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
+    void PLAN意图返回非写入引导且不含即将上线() {
+        HealthChatResponse response = chat("帮我安排一周的计划");
+        assertEquals(HealthResponseType.ANSWER, response.responseType(), "PLAN 响应保持非写入的 ANSWER");
+        assertEquals("PLAN", response.task().name());
+        assertTrue(response.displayBlocks().isEmpty(), "PLAN 引导回复不携带资源卡");
+        assertFalse(response.speechText().contains("即将上线"), "不得宣称周计划尚未上线");
+        assertTrue(response.speechText().contains("我的计划"), "应引导进入已上线的计划页面");
+        assertTrue(response.speechText().contains("档案"), "应提示先完善健康档案");
+        assertEquals(1, insertedTraces.size(), "单轮 PLAN 聊天只产生一条 Trace，无任何计划写入");
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+                orchestrator.healthChat(1L, new HealthChatRequest(null, "plan-no-write-" + System.nanoTime(),
+                        "帮我安排一周的计划", Map.of())));
+    }
+
+    @Test
     void 风险信号跨轮累积并透出ADVISORY文案() {
         String sessionId = "sess_senior_advisory";
         HealthChatResponse first = chatInSession(sessionId, "65岁老人想练胸");
-        assertEquals(HealthResponseType.CLARIFY, first.responseType());
+        assertEquals(HealthResponseType.ANSWER, first.responseType());
         assertTrue(first.riskFlags().contains("SENIOR"));
+        assertTrue(first.speechText().contains("仅供参考"), "ADVISORY 文案应透出");
 
-        HealthChatResponse second = chatInSession(sessionId, "练胸");
+        HealthChatResponse second = chatInSession(sessionId, "练背");
         assertEquals(HealthResponseType.ANSWER, second.responseType());
         assertTrue(second.riskFlags().contains("SENIOR"), "历史风险信号应跨轮保留");
         assertTrue(second.speechText().contains("仅供参考"), "ADVISORY 文案应透出");
@@ -237,7 +300,7 @@ class HealthOrchestratorServiceTest {
 
     @Test
     void 候选为空返回空结果提示() {
-        when(mealModule.recommendMeals(any(), any())).thenReturn(List.of());
+        when(mealModule.recommendMeals(any(), any(), anyString())).thenReturn(List.of());
         HealthChatResponse response = chat("午餐想吃清淡的");
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertTrue(response.displayBlocks().isEmpty());

@@ -121,10 +121,18 @@ function bind(app) {
 
 function renderMessage(message) {
     const blocks = (message.blocks || []).map((block) =>
-        renderResourceCard(block, { sessionId: state.sessionId || getOrCreateClientSessionId() })
+        renderResourceCard(block, { sessionId: state.sessionId || getOrCreateClientSessionId(), traceId: message.traceId })
     ).join("");
     const missingSlots = message.missingSlots && message.missingSlots.length
         ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
+        : "";
+    // PLAN 意图回复：派生指向周计划页面的入口按钮（不依赖新增后端字段，只负责导航，
+    // 草稿创建仍由计划页内明确的「生成新草稿」按钮触发）
+    const planEntry = message.task === "PLAN"
+        ? `<div class="button-row" style="margin-top:8px;">
+              <a class="btn primary" href="#/plans">进入周计划页面</a>
+              <a class="btn ghost" href="#/profile">完善健康档案</a>
+           </div>`
         : "";
     const metaParts = [];
     if (message.traceId) {
@@ -141,6 +149,7 @@ function renderMessage(message) {
     return `
         <article class="message ${message.role}">
             <div class="bubble">${escapeHtml(message.text)}</div>
+            ${planEntry}
             ${missingSlots}
             ${blocks ? `<div class="grid two">${blocks}</div>` : ""}
             ${meta}
@@ -186,7 +195,9 @@ async function sendMessage(message, retried) {
             phase: response.phase
         });
     } catch (error) {
-        if (!retried && error.status === 404) {
+        // 会话相关失败（后端数据重置/匿名身份轮换后本地残留旧 sessionId）可能以 4xx 返回
+        // （当前「会话不存在或无权访问」为 400）：统一清空本地会话后重试一次
+        if (!retried && error.status >= 400 && error.status < 500) {
             clearChatSession();
             state.sessionId = null;
             return sendMessage(message, true);

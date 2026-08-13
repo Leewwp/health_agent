@@ -13,8 +13,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * 旧饮食反馈适配层（41 号票）：
- * itemId → MEAL 类型化字段 + LEGACY_DIET 来源写入，原字段保留，旧接口行为不变。
+ * 旧饮食反馈适配层（41 号票 + #74）：
+ * itemId → MEAL 类型化字段 + LEGACY_DIET 来源写入，原字段保留，旧接口行为不变；
+ * traceId 恒为 NULL（旧链路不伪造精确归因）。
  */
 class FeedbackServiceTest {
 
@@ -32,7 +33,8 @@ class FeedbackServiceTest {
         service.save(1L, request);
 
         verify(mapper).insertTyped(
-                eq(1L), eq("sess-1"), eq(3L),
+                eq(1L), eq("sess-1"), eq(null),
+                eq(3L),
                 eq("MEAL"), eq("3"),
                 eq(null), eq(null),
                 eq("LIKE"), eq(5), eq("口味合适"),
@@ -48,6 +50,7 @@ class FeedbackServiceTest {
 
         verify(mapper).insertTyped(
                 eq(1L), eq("sess-1"), eq(null),
+                eq(null),
                 eq("MEAL"), eq(null),
                 eq(null), eq(null),
                 eq("DISLIKE"), eq(null), eq(null),
@@ -55,10 +58,25 @@ class FeedbackServiceTest {
     }
 
     @Test
+    void 旧接口traceId恒为NULL不伪造() {
+        FeedbackRequest request = new FeedbackRequest()
+                .sessionId("sess-1")
+                .itemId(3L)
+                .action("LIKE");
+        service.save(1L, request);
+
+        // #74：旧饮食链路不得携带任何 traceId，保持 NULL 归因语义。
+        verify(mapper).insertTyped(
+                eq(1L), eq("sess-1"), eq(null),
+                any(), any(), any(),
+                any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void 旧接口sessionId为空拒绝且不写入() {
         FeedbackRequest request = new FeedbackRequest().sessionId("  ").action("LIKE");
         assertThrows(DietException.class, () -> service.save(1L, request));
-        verify(mapper, never()).insertTyped(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(mapper, never()).insertTyped(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

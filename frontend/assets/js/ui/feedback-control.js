@@ -22,13 +22,14 @@ const ACTIONS = [
  * 渲染反馈按钮组。
  * @param {string} resourceType MEAL | EXERCISE | ROUTINE
  * @param {string|number} resourceId
- * @param {{sessionId?: string, planId?: string|number, planItemId?: string|number, source?: string}} context
+ * @param {{sessionId?: string, traceId?: string, planId?: string|number, planItemId?: string|number, source?: string}} context
  */
 export function renderFeedbackControl(resourceType, resourceId, context) {
     const ctx = context || {};
     const favoriteActive = resourceType !== "ROUTINE" && isFavorite(resourceType, resourceId);
     const contextAttrs = `
         ${ctx.sessionId ? ` data-session-id="${escapeHtml(ctx.sessionId)}"` : ""}
+        ${ctx.traceId ? ` data-trace-id="${escapeHtml(ctx.traceId)}"` : ""}
         ${ctx.planId ? ` data-plan-id="${escapeHtml(ctx.planId)}"` : ""}
         ${ctx.planItemId ? ` data-plan-item-id="${escapeHtml(ctx.planItemId)}"` : ""}
         ${ctx.source ? ` data-source="${escapeHtml(ctx.source)}"` : ""}
@@ -83,6 +84,7 @@ window.addEventListener("favoriteschange", () => {
 function contextFromButton(button) {
     return {
         sessionId: button.dataset.sessionId || null,
+        traceId: button.dataset.traceId || null,
         planId: button.dataset.planId || null,
         planItemId: button.dataset.planItemId || null,
         source: button.dataset.source || null

@@ -179,7 +179,9 @@ public class AgentTraceService {
                 expectedSlots,
                 expectedClarifyAction,
                 userId,
-                request.labelNote()
+                request.labelNote(),
+                request.evaluationSchemaVersion(),
+                request.expectedHealthJson()
         );
         if (updated == 0) {
             throw new DietException("Trace 不存在或无权限标注");

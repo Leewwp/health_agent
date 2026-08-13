@@ -1,25 +1,65 @@
-# 餐食 RAG 评估记录（33 号票）
+# 餐食 RAG 评估记录（33 号票；#77 扩展为 60 条六层查询与多指标消融）
 
-> 固定标注查询集：`src/main/resources/diet/eval/labeled_meal_queries.json`（10 条，真值为库内审核餐食来源 ID）。
-> 运行方式：`mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"`，报告输出 `data/reports/rag_evaluation.json`。
+> 固定标注查询集：`src/main/resources/diet/eval/labeled_meal_queries.json`
+> （**60 条、六层各 10 条**：精确标签 / 自然语言 / 长尾表达 / 同义词 / 排除项 / 过敏原，
+> 每条带 `stratum` 与稳定 sourceId 二元相关集合，`querySetVersion=1.1.0`）。
+> 运行方式：`mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"`，
+> 报告输出 `data/reports/rag_evaluation.json`（JSON 报告是唯一数字事实来源，本文档只引用该报告口径）。
 
-## 结论（2026-08-10，无 API key 环境，292 条审核餐食）
+## 指标口径（与代码 `RecallEvaluationService` 一致）
 
-| 指标 | structured-only | hybrid |
-|---|---|---|
-| 平均 Recall@3 | 0.393 | 0.393（全部降级为结构化） |
-| 硬约束命中率 | 1.000 | 1.000 |
-| 降级次数 | 0 | 10 / 10 |
+| 指标 | 公式（topK=3，位置从 1 开始） |
+|---|---|
+| Recall@3 | top3 命中真值数 / 真值总数（真值为空记 0） |
+| MRR | top3 内首个命中的 1/rank，无命中记 0 |
+| NDCG@3 | DCG/IDCG；DCG = Σ rel_i / log2(i+1)，IDCG 按真值全部排前 |
+| Precision@3 | top3 命中真值数 / 3 |
+| 硬约束命中率 | 排除项/过敏原不出现于 top3 的查询占比 |
+| 降级分布 | 按原因统计：vector_store_unavailable / embedding_unavailable / no_vector_hits / 无 |
+| P95 延迟 | 每次 retrieve 计时，升序第 ceil(0.95×N) 位（毫秒） |
 
-- 本环境未配置 `DASHSCOPE_API_KEY`，`meal_item_embedding` 为空：hybrid 检索器对全部 10 条查询按设计降级为结构化检索，结果与 structured-only 逐条一致（Recall@3 相同），Embedding 降级正确率 100%。
-- 检索池只包含 `review_status=APPROVED` 的审核餐食；旧库 PENDING 行不进入审核检索链路（浏览、检索、评估口径一致）。
-- 硬约束（过敏原/排除 ID）命中率 1.000：`q-peanut-exclusion`（排除 208047 花生酱鸡）、`q-fish-exclusion`（排除 278532 鱼料理）的排除项均已传入检索器过滤且未进入 top3。
-- 结构化基线 Recall@3=0.393：查询集多为大相关集合（如 52 条「快速午餐」），top3 命中 3 条的预期上限约 3/52≈0.058，其余查询（如 2-3 条小集合）拉高了平均值。
+## 消融设计（#77）
 
-## 说明
+- **嵌入文本**：用户原话（`text` 非空）vs 槽位拼接（`text` 置空，走检索器槽位值排序拼接兜底）。
+- **融合权重**：结构化分权重 0.3 / 0.5 / 0.7（语义分权重为 1-w）。权重经
+  `HybridMealRetriever` 构造器测试接缝显式注入；生产 bean 保持默认 0.5
+  （`diet.rag.fusion-weight`），评测不静默修改线上权重。
+- 消融矩阵在 runner 侧组织，报告 `ablations` 字段记录全部变体（0.5+用户原话与生产 bean
+  口径相同不重复执行）。
 
-- 未配置向量/未生成 embedding 时不宣称 RAG 效果提升；配置 `DASHSCOPE_API_KEY` 并执行
-  `--diet.embedding.generate-on-startup=true` 生成向量后重跑评估，hybrid 的语义重排在
-  结构化 top-10 池内进行，方可比较语义分对 Recall@3 的影响。
-- 向量生成：`diet.embedding.generate-on-startup=true`（需要真实 key），幂等写入 `meal_item_embedding`。
+## 降级运行结论（2026-08-13，无 API key 环境，295 条审核餐食，querySetVersion 1.1.0）
+
+> **本运行是降级验证，不是 Hybrid 效果数字**：未配置 `DASHSCOPE_API_KEY`，hybrid 对全部
+> 60 条查询按设计降级为结构化检索。报告 `degradedRun=true` 已如实标注。对外效果只引用
+> 零降级或明确分层说明的真实运行（配置真实 key 并生成向量后重跑，比较同一查询集的
+> hybrid vs structured 差异）。
+
+| 指标（structured = hybrid，因全部降级） | 数值 |
+|---|---|
+| 平均 Recall@3 | 0.351 |
+| 平均 MRR | 1.000 |
+| 平均 NDCG@3 | 1.000 |
+| 平均 Precision@3 | 0.956 |
+| 硬约束命中率 | 1.000 |
+| 降级次数 | 60 / 60（embedding_unavailable） |
+| P95 延迟 | ~4.6 ms（hybrid 降级路径） |
+
+- 分层 Recall@3（structured）：精确标签 0.435 / 自然语言 0.317 / 长尾 0.309 / 同义词 0.275 /
+  排除项 0.418 / 过敏原 0.351。分层差异来自真值集合大小：大相关集合（如「快速午餐」52 条）
+  的 top3 命中上限低，小集合查询拉高平均。
+- 硬约束命中率 1.000：排除项层（排除 175340/187115/287061/73679/112259/100332/103004/
+  128908/100900/110711）与过敏原层（牛奶/麸质/鱼/甲壳类/鸡蛋/花生）全部未进入 top3。
+- MRR/NDCG@3 为 1.000 属预期：真值即「满足槽位与硬约束的全体审核餐食」，结构化检索
+  把槽位命中餐食排在首位，故首个命中恒成立；这两个指标在真实 embedding 运行中才具备
+  区分度（语义重排会改变排序）。
+
+## 运行方式与可复现性
+
+- 查询集版本、git commit、审核资源版本、embedding provider/model/version/dimension、
+  collection、融合权重、runAt 全部记录在报告 `environment` 字段；报告同时带 `querySetVersion`
+  与 `degradedRun`/`degradedRunNote` 标注。
+- 复现真实效果数字：配置 `DASHSCOPE_API_KEY`，执行
+  `--diet.embedding.generate-on-startup=true` 生成向量（幂等写入 `meal_item_embedding`），
+  再重跑评估；报告零降级时方可引用 hybrid 效果数字。
+- 向量生成：`diet.embedding.generate-on-startup=true`（需要真实 key）。
 - 检索模式：`diet.rag.mode=hybrid`（默认）或 `structured`。

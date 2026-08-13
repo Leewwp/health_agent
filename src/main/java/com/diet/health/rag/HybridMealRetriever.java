@@ -11,7 +11,9 @@ import com.diet.health.vectorstore.VectorStoreException;
 import com.diet.model.MealItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -31,7 +33,9 @@ import java.util.stream.Collectors;
  * 与 Qdrant 向量召回（余弦 top-N，payload 过滤审核状态/来源/过敏原/排除 ID）。
  * 合并规则：按餐食 ID 合并去重，再以 ID 回查审核读取模块（审核 APPROVED 公共餐食）作为
  * 事实源二次执行全部硬约束——Qdrant 结果不得绕过领域规则，过期索引命中（已不存在或
- * 硬约束不满足）直接丢弃。融合分 = 0.5 * 归一结构分 + 0.5 * 语义余弦（截断 [0,1]）。
+ * 硬约束不满足）直接丢弃。融合分 = fusionWeight * 归一结构分 + (1 - fusionWeight) * 语义余弦
+ * （截断 [0,1]），权重经 {@code diet.rag.fusion-weight} 注入、默认 0.5（#77 消融接缝：
+ * 评测通过构造器显式注入 0.3/0.7，不静默修改线上默认）。
  * Embedding/Qdrant 超时、不可用、维度不匹配或空结果时立即退回结构化检索并标记降级原因。
  * 数据读取经 {@link ReviewedMealReader}（方案 B），本层不接触 Mapper 行对象。
  */
@@ -46,21 +50,42 @@ public class HybridMealRetriever implements MealRetriever {
     /** 向量召回池：与结构化池一致，两条路径各自独立取 top-N 再融合。 */
     private static final int VECTOR_POOL = 10;
 
+    /** 生产默认融合权重（#77：可经 diet.rag.fusion-weight 覆盖）。 */
+    static final double DEFAULT_FUSION_WEIGHT = 0.5;
+
     private final MealRetriever structuredRetriever;
     private final EmbeddingClient embeddingClient;
     private final VectorStore vectorStore;
     private final ReviewedMealReader reviewedMealReader;
+    private final double fusionWeight;
 
+    /** 兼容旧构造（测试/历史调用点）：融合权重取默认 0.5。 */
     public HybridMealRetriever(
             @Qualifier("structuredMealRetriever")
             MealRetriever structuredRetriever,
             EmbeddingClient embeddingClient,
             VectorStore vectorStore,
             ReviewedMealReader reviewedMealReader) {
+        this(structuredRetriever, embeddingClient, vectorStore, reviewedMealReader, DEFAULT_FUSION_WEIGHT);
+    }
+
+    /**
+     * #77 权重接缝：Spring 注入 {@code diet.rag.fusion-weight}（默认 0.5），
+     * 评测消融经该构造器显式注入 0.3/0.7 权重变体。
+     */
+    @Autowired
+    public HybridMealRetriever(
+            @Qualifier("structuredMealRetriever")
+            MealRetriever structuredRetriever,
+            EmbeddingClient embeddingClient,
+            VectorStore vectorStore,
+            ReviewedMealReader reviewedMealReader,
+            @Value("${diet.rag.fusion-weight:0.5}") double fusionWeight) {
         this.structuredRetriever = structuredRetriever;
         this.embeddingClient = embeddingClient;
         this.vectorStore = vectorStore;
         this.reviewedMealReader = reviewedMealReader;
+        this.fusionWeight = fusionWeight;
     }
 
     @Override
@@ -119,7 +144,7 @@ public class HybridMealRetriever implements MealRetriever {
             RetrievalItem structured = structuredById.get(meal.id());
             double structuredScore = structured == null ? 0 : structured.structuredScore();
             double normalized = maxStructured > 0 ? structuredScore / maxStructured : 0;
-            double finalScore = 0.5 * normalized + 0.5 * (semantic == null ? 0 : semantic);
+            double finalScore = fusionWeight * normalized + (1 - fusionWeight) * (semantic == null ? 0 : semantic);
             MealItem mealItem = structured == null ? MealDomainMapper.toMealItem(meal) : structured.meal();
             merged.add(new RetrievalItem(mealItem, structuredScore, semantic, finalScore));
         }

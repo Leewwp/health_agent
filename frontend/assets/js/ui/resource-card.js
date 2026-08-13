@@ -15,7 +15,7 @@ let cardSequence = 0;
 /**
  * 渲染一张资源卡片。
  * @param {object} resource 资源对象（浏览条目 / 对话块 / 计划项目，按字段识别）
- * @param {{sessionId?: string, planId?: string|number, planItemId?: string|number, matchScore?: number, editable?: boolean}} options
+ * @param {{sessionId?: string, traceId?: string, planId?: string|number, planItemId?: string|number, matchScore?: number, editable?: boolean}} options
  */
 export function renderResourceCard(resource, options) {
     const opts = options || {};
@@ -57,6 +57,7 @@ export function renderResourceCard(resource, options) {
                 <button class="btn soft" data-action="open-resource" data-key="${key}">详情</button>
                 ${renderFeedbackControl(resourceType, resourceId, {
                     sessionId: opts.sessionId,
+                    traceId: opts.traceId,
                     planId: opts.planId,
                     planItemId: opts.planItemId
                 })}
