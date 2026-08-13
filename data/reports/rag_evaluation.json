@@ -1,138 +1,4662 @@
 {
-  "sourceMappingCount" : 295,
-  "queryCount" : 10,
-  "hybrid" : {
-    "queries" : [ {
-      "queryId" : "q-breakfast-protein",
-      "recallAt3" : 1.0,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "175340", "204451", "430648" ]
-    }, {
-      "queryId" : "q-dinner-low-carb",
-      "recallAt3" : 1.0,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "128908", "283704", "205871" ]
-    }, {
-      "queryId" : "q-lunch-quick",
-      "recallAt3" : 0.058823529411764705,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "283465", "149292", "151221" ]
-    }, {
-      "queryId" : "q-vegan-meal",
-      "recallAt3" : 0.1875,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "419364", "104869", "187115" ]
-    }, {
-      "queryId" : "q-curry",
-      "recallAt3" : 0.6,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "316871", "73679", "83737" ]
-    }, {
-      "queryId" : "q-soup",
-      "recallAt3" : 0.6,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "187686", "287061", "332905" ]
-    }, {
-      "queryId" : "q-seafood",
-      "recallAt3" : 0.125,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "205695", "229669", "112259" ]
-    }, {
-      "queryId" : "q-spicy",
-      "recallAt3" : 0.16666666666666666,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "100900", "192574", "100332" ]
-    }, {
-      "queryId" : "q-peanut-exclusion",
-      "recallAt3" : 0.04838709677419355,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "104206", "120612", "123402" ]
-    }, {
-      "queryId" : "q-fish-exclusion",
-      "recallAt3" : 0.08333333333333333,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "HYBRID",
-      "topKSourceIds" : [ "104206", "120612", "123402" ]
-    } ],
-    "avgRecallAt3" : 0.3869710626185958,
-    "hardConstraintHitRate" : 1.0,
-    "degradedCount" : 0
-  },
+  "runAt" : "2026-08-13T22:02:31.217860",
+  "degradedRun" : true,
+  "degradedRunNote" : "降级运行（未配置真实 API key 或向量存储不可用，hybrid 60/60 条按设计降级为结构化检索）：本报告只验证降级正确性，不作为 Hybrid 效果数字；对外效果只引用零降级或明确分层说明的真实运行。",
   "topK" : 3,
-  "runAt" : "2026-08-12T13:10:59.315744",
+  "queryCount" : 60,
+  "sourceMappingCount" : 295,
+  "environment" : {
+    "gitCommit" : "6374494fd0a7bc50c088fc9f3f996170557d30a7",
+    "querySetVersion" : "1.1.0",
+    "resourceVersion" : "reviewed-2026-08-10-v1",
+    "embeddingProvider" : "dashscope",
+    "embeddingModel" : "text-embedding-v3",
+    "embeddingModelVersion" : "v3-1024",
+    "embeddingDimension" : 1024,
+    "collection" : "meal_dashscope_text-embedding-v3_1024_v3-1024",
+    "fusionWeights" : [ 0.3, 0.5, 0.7 ]
+  },
   "structured" : {
     "queries" : [ {
-      "queryId" : "q-breakfast-protein",
+      "queryId" : "q-exact-breakfast-protein",
+      "stratum" : "exact_label",
       "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "175340", "204451" ]
     }, {
-      "queryId" : "q-dinner-low-carb",
+      "queryId" : "q-exact-dinner-lowcarb",
+      "stratum" : "exact_label",
       "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "128908", "283704" ]
     }, {
-      "queryId" : "q-lunch-quick",
-      "recallAt3" : 0.058823529411764705,
+      "queryId" : "q-exact-lunch-quick",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
-      "topKSourceIds" : [ "304250", "86463", "149292" ]
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
     }, {
-      "queryId" : "q-vegan-meal",
+      "queryId" : "q-exact-vegan",
+      "stratum" : "exact_label",
       "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "104869", "187115", "278704" ]
     }, {
-      "queryId" : "q-curry",
-      "recallAt3" : 0.6,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "STRUCTURED",
-      "topKSourceIds" : [ "192361", "304522", "316871" ]
-    }, {
-      "queryId" : "q-soup",
-      "recallAt3" : 0.6,
-      "hardConstraintHitRate" : 1.0,
-      "mode" : "STRUCTURED",
-      "topKSourceIds" : [ "187686", "287061", "332905" ]
-    }, {
-      "queryId" : "q-seafood",
-      "recallAt3" : 0.1875,
+      "queryId" : "q-exact-seafood",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "112259", "117145", "142483" ]
     }, {
-      "queryId" : "q-spicy",
+      "queryId" : "q-exact-soup",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-exact-spicy",
+      "stratum" : "exact_label",
       "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "100332", "100900", "10405" ]
     }, {
-      "queryId" : "q-peanut-exclusion",
-      "recallAt3" : 0.0,
+      "queryId" : "q-exact-southeast",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-exact-teatime-dessert",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-exact-snack-protein",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "149292", "151221", "159036" ]
+    }, {
+      "queryId" : "q-nl-breakfast-protein",
+      "stratum" : "natural_language",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "175340", "204451" ]
+    }, {
+      "queryId" : "q-nl-dinner-light",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "123402", "129799", "161915" ]
+    }, {
+      "queryId" : "q-nl-lunch-quick",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-nl-vegan",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-nl-seafood",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-nl-soup",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-nl-spicy",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-nl-protein",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.022556390977443608,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "198328", "96740", "307525" ]
     }, {
-      "queryId" : "q-fish-exclusion",
-      "recallAt3" : 0.0,
+      "queryId" : "q-nl-brunch",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.3,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "110711", "121716", "133551" ]
+    }, {
+      "queryId" : "q-nl-teatime",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-lt-hearty",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.13043478260869565,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "96740", "198328", "104869" ]
+    }, {
+      "queryId" : "q-lt-lowcal",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.037037037037037035,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "99208", "100332", "103004" ]
+    }, {
+      "queryId" : "q-lt-sugar",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.041666666666666664,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103966", "104865", "10570" ]
+    }, {
+      "queryId" : "q-lt-sweet",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-lt-broth",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-lt-exotic",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-lt-creamy",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "104206", "123402" ]
+    }, {
+      "queryId" : "q-lt-postworkout",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "149292", "151221", "159036" ]
+    }, {
+      "queryId" : "q-lt-light",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "205695", "214810", "283704" ]
+    }, {
+      "queryId" : "q-lt-seafood-quick",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-syn-breakfast-sweet",
+      "stratum" : "synonym",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-syn-noon",
+      "stratum" : "synonym",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-syn-eve-light",
+      "stratum" : "synonym",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "123402", "129799", "161915" ]
+    }, {
+      "queryId" : "q-syn-curry",
+      "stratum" : "synonym",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-syn-veg",
+      "stratum" : "synonym",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-syn-umami",
+      "stratum" : "synonym",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-syn-soup",
+      "stratum" : "synonym",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-syn-spicy",
+      "stratum" : "synonym",
+      "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-syn-protein",
+      "stratum" : "synonym",
+      "recallAt3" : 0.022556390977443608,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
       "hardConstraintHitRate" : 1.0,
       "mode" : "STRUCTURED",
       "topKSourceIds" : [ "198328", "96740", "307525" ]
+    }, {
+      "queryId" : "q-syn-dessert",
+      "stratum" : "synonym",
+      "recallAt3" : 0.375,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-exc-breakfast",
+      "stratum" : "exclusion",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.3333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "204451" ]
+    }, {
+      "queryId" : "q-exc-vegan",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.2,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "278704", "297239" ]
+    }, {
+      "queryId" : "q-exc-soup",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.75,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "332905", "465006" ]
+    }, {
+      "queryId" : "q-exc-southeast",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-exc-seafood",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "117145", "142483", "169354" ]
+    }, {
+      "queryId" : "q-exc-spicy",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100900", "10405", "154388" ]
+    }, {
+      "queryId" : "q-exc-teatime",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "201477", "209188" ]
+    }, {
+      "queryId" : "q-exc-dinner-protein",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.375,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "96740", "198328" ]
+    }, {
+      "queryId" : "q-exc-lunch-quick",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.058823529411764705,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-exc-brunch",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "133551", "146461" ]
+    }, {
+      "queryId" : "q-all-breakfast-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "204451" ]
+    }, {
+      "queryId" : "q-all-lunch-nogluten",
+      "stratum" : "allergen",
+      "recallAt3" : 0.08571428571428572,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "88129", "104206", "123402" ]
+    }, {
+      "queryId" : "q-all-dinner-nofish",
+      "stratum" : "allergen",
+      "recallAt3" : 0.07692307692307693,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "96740", "307525" ]
+    }, {
+      "queryId" : "q-all-vegan-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187115", "278704", "297239" ]
+    }, {
+      "queryId" : "q-all-seafood-noshell",
+      "stratum" : "allergen",
+      "recallAt3" : 0.2,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-all-spicy-noegg",
+      "stratum" : "allergen",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "10405", "154388" ]
+    }, {
+      "queryId" : "q-all-dinner-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "96740", "307525", "120612" ]
+    }, {
+      "queryId" : "q-all-breakfast-noegg",
+      "stratum" : "allergen",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "145533", "175340" ]
+    }, {
+      "queryId" : "q-all-snack-nopeanut",
+      "stratum" : "allergen",
+      "recallAt3" : 0.10714285714285714,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "144673", "149292", "151221" ]
+    }, {
+      "queryId" : "q-all-teatime-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.3333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004" ]
     } ],
-    "avgRecallAt3" : 0.3800490196078431,
+    "avgRecallAt3" : 0.3507501710695555,
+    "avgMrr" : 1.0,
+    "avgNdcgAt3" : 1.0,
+    "avgPrecisionAt3" : 0.9555555555555556,
     "hardConstraintHitRate" : 1.0,
-    "degradedCount" : 0
+    "degradedCount" : 0,
+    "p95LatencyMs" : 6.775125,
+    "degradationDistribution" : {
+      "无" : 60
+    },
+    "stratumSummaries" : {
+      "exact_label" : {
+        "stratum" : "exact_label",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.43476702219349284,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9333333333333333
+      },
+      "natural_language" : {
+        "stratum" : "natural_language",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.31702266129123713,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9666666666666666
+      },
+      "long_tail" : {
+        "stratum" : "long_tail",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.3089312478986392,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 1.0
+      },
+      "synonym" : {
+        "stratum" : "synonym",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.27452266129123715,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 1.0
+      },
+      "exclusion" : {
+        "stratum" : "exclusion",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.4181127450980392,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9333333333333333
+      },
+      "allergen" : {
+        "stratum" : "allergen",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.3511446886446886,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9
+      }
+    }
+  },
+  "hybrid" : {
+    "queries" : [ {
+      "queryId" : "q-exact-breakfast-protein",
+      "stratum" : "exact_label",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "175340", "204451" ]
+    }, {
+      "queryId" : "q-exact-dinner-lowcarb",
+      "stratum" : "exact_label",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "128908", "283704" ]
+    }, {
+      "queryId" : "q-exact-lunch-quick",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-exact-vegan",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-exact-seafood",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-exact-soup",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-exact-spicy",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-exact-southeast",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-exact-teatime-dessert",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-exact-snack-protein",
+      "stratum" : "exact_label",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "149292", "151221", "159036" ]
+    }, {
+      "queryId" : "q-nl-breakfast-protein",
+      "stratum" : "natural_language",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "175340", "204451" ]
+    }, {
+      "queryId" : "q-nl-dinner-light",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "123402", "129799", "161915" ]
+    }, {
+      "queryId" : "q-nl-lunch-quick",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-nl-vegan",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-nl-seafood",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-nl-soup",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-nl-spicy",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-nl-protein",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.022556390977443608,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "96740", "307525" ]
+    }, {
+      "queryId" : "q-nl-brunch",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.3,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "110711", "121716", "133551" ]
+    }, {
+      "queryId" : "q-nl-teatime",
+      "stratum" : "natural_language",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-lt-hearty",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.13043478260869565,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "96740", "198328", "104869" ]
+    }, {
+      "queryId" : "q-lt-lowcal",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.037037037037037035,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "99208", "100332", "103004" ]
+    }, {
+      "queryId" : "q-lt-sugar",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.041666666666666664,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103966", "104865", "10570" ]
+    }, {
+      "queryId" : "q-lt-sweet",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-lt-broth",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-lt-exotic",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-lt-creamy",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "104206", "123402" ]
+    }, {
+      "queryId" : "q-lt-postworkout",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "149292", "151221", "159036" ]
+    }, {
+      "queryId" : "q-lt-light",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "205695", "214810", "283704" ]
+    }, {
+      "queryId" : "q-lt-seafood-quick",
+      "stratum" : "long_tail",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-syn-breakfast-sweet",
+      "stratum" : "synonym",
+      "recallAt3" : 0.42857142857142855,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-syn-noon",
+      "stratum" : "synonym",
+      "recallAt3" : 0.057692307692307696,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-syn-eve-light",
+      "stratum" : "synonym",
+      "recallAt3" : 0.23076923076923078,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "123402", "129799", "161915" ]
+    }, {
+      "queryId" : "q-syn-curry",
+      "stratum" : "synonym",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-syn-veg",
+      "stratum" : "synonym",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "187115", "278704" ]
+    }, {
+      "queryId" : "q-syn-umami",
+      "stratum" : "synonym",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-syn-soup",
+      "stratum" : "synonym",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "287061", "332905" ]
+    }, {
+      "queryId" : "q-syn-spicy",
+      "stratum" : "synonym",
+      "recallAt3" : 0.16666666666666666,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "100900", "10405" ]
+    }, {
+      "queryId" : "q-syn-protein",
+      "stratum" : "synonym",
+      "recallAt3" : 0.022556390977443608,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "96740", "307525" ]
+    }, {
+      "queryId" : "q-syn-dessert",
+      "stratum" : "synonym",
+      "recallAt3" : 0.375,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "121716", "201477" ]
+    }, {
+      "queryId" : "q-exc-breakfast",
+      "stratum" : "exclusion",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.3333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "204451" ]
+    }, {
+      "queryId" : "q-exc-vegan",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.2,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "104869", "278704", "297239" ]
+    }, {
+      "queryId" : "q-exc-soup",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.75,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187686", "332905", "465006" ]
+    }, {
+      "queryId" : "q-exc-southeast",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.6,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "192361", "304522", "316871" ]
+    }, {
+      "queryId" : "q-exc-seafood",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "117145", "142483", "169354" ]
+    }, {
+      "queryId" : "q-exc-spicy",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.17647058823529413,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100900", "10405", "154388" ]
+    }, {
+      "queryId" : "q-exc-teatime",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.5,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "201477", "209188" ]
+    }, {
+      "queryId" : "q-exc-dinner-protein",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.375,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "96740", "198328" ]
+    }, {
+      "queryId" : "q-exc-lunch-quick",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.058823529411764705,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "307525", "301361", "86463" ]
+    }, {
+      "queryId" : "q-exc-brunch",
+      "stratum" : "exclusion",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "133551", "146461" ]
+    }, {
+      "queryId" : "q-all-breakfast-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.6666666666666666,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004", "204451" ]
+    }, {
+      "queryId" : "q-all-lunch-nogluten",
+      "stratum" : "allergen",
+      "recallAt3" : 0.08571428571428572,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "88129", "104206", "123402" ]
+    }, {
+      "queryId" : "q-all-dinner-nofish",
+      "stratum" : "allergen",
+      "recallAt3" : 0.07692307692307693,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "198328", "96740", "307525" ]
+    }, {
+      "queryId" : "q-all-vegan-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "187115", "278704", "297239" ]
+    }, {
+      "queryId" : "q-all-seafood-noshell",
+      "stratum" : "allergen",
+      "recallAt3" : 0.2,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "112259", "117145", "142483" ]
+    }, {
+      "queryId" : "q-all-spicy-noegg",
+      "stratum" : "allergen",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "100332", "10405", "154388" ]
+    }, {
+      "queryId" : "q-all-dinner-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 0.1875,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "96740", "307525", "120612" ]
+    }, {
+      "queryId" : "q-all-breakfast-noegg",
+      "stratum" : "allergen",
+      "recallAt3" : 0.3333333333333333,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "121716", "145533", "175340" ]
+    }, {
+      "queryId" : "q-all-snack-nopeanut",
+      "stratum" : "allergen",
+      "recallAt3" : 0.10714285714285714,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 1.0,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "144673", "149292", "151221" ]
+    }, {
+      "queryId" : "q-all-teatime-nomilk",
+      "stratum" : "allergen",
+      "recallAt3" : 1.0,
+      "mrr" : 1.0,
+      "ndcgAt3" : 1.0,
+      "precisionAt3" : 0.3333333333333333,
+      "hardConstraintHitRate" : 1.0,
+      "mode" : "STRUCTURED",
+      "topKSourceIds" : [ "103004" ]
+    } ],
+    "avgRecallAt3" : 0.3507501710695555,
+    "avgMrr" : 1.0,
+    "avgNdcgAt3" : 1.0,
+    "avgPrecisionAt3" : 0.9555555555555556,
+    "hardConstraintHitRate" : 1.0,
+    "degradedCount" : 60,
+    "p95LatencyMs" : 4.619708,
+    "degradationDistribution" : {
+      "embedding_unavailable" : 60
+    },
+    "stratumSummaries" : {
+      "exact_label" : {
+        "stratum" : "exact_label",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.43476702219349284,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9333333333333333
+      },
+      "natural_language" : {
+        "stratum" : "natural_language",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.31702266129123713,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9666666666666666
+      },
+      "long_tail" : {
+        "stratum" : "long_tail",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.3089312478986392,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 1.0
+      },
+      "synonym" : {
+        "stratum" : "synonym",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.27452266129123715,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 1.0
+      },
+      "exclusion" : {
+        "stratum" : "exclusion",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.4181127450980392,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9333333333333333
+      },
+      "allergen" : {
+        "stratum" : "allergen",
+        "queryCount" : 10,
+        "avgRecallAt3" : 0.3511446886446886,
+        "avgMrr" : 1.0,
+        "avgNdcgAt3" : 1.0,
+        "avgPrecisionAt3" : 0.9
+      }
+    }
+  },
+  "ablations" : {
+    "hybrid_user_text_0.3" : {
+      "queries" : [ {
+        "queryId" : "q-exact-breakfast-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-exact-dinner-lowcarb",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "128908", "283704" ]
+      }, {
+        "queryId" : "q-exact-lunch-quick",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exact-vegan",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-exact-seafood",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-exact-soup",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-exact-spicy",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-exact-southeast",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exact-teatime-dessert",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exact-snack-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-nl-breakfast-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-nl-dinner-light",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-nl-lunch-quick",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-nl-vegan",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-nl-seafood",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-nl-soup",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-nl-spicy",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-nl-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-nl-brunch",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.3,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "110711", "121716", "133551" ]
+      }, {
+        "queryId" : "q-nl-teatime",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-hearty",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.13043478260869565,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "198328", "104869" ]
+      }, {
+        "queryId" : "q-lt-lowcal",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.037037037037037035,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "99208", "100332", "103004" ]
+      }, {
+        "queryId" : "q-lt-sugar",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.041666666666666664,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103966", "104865", "10570" ]
+      }, {
+        "queryId" : "q-lt-sweet",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-broth",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-lt-exotic",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-lt-creamy",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "104206", "123402" ]
+      }, {
+        "queryId" : "q-lt-postworkout",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-lt-light",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "205695", "214810", "283704" ]
+      }, {
+        "queryId" : "q-lt-seafood-quick",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-breakfast-sweet",
+        "stratum" : "synonym",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-syn-noon",
+        "stratum" : "synonym",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-syn-eve-light",
+        "stratum" : "synonym",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-syn-curry",
+        "stratum" : "synonym",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-syn-veg",
+        "stratum" : "synonym",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-syn-umami",
+        "stratum" : "synonym",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-soup",
+        "stratum" : "synonym",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-syn-spicy",
+        "stratum" : "synonym",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-syn-protein",
+        "stratum" : "synonym",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-syn-dessert",
+        "stratum" : "synonym",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exc-breakfast",
+        "stratum" : "exclusion",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "204451" ]
+      }, {
+        "queryId" : "q-exc-vegan",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "278704", "297239" ]
+      }, {
+        "queryId" : "q-exc-soup",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.75,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "332905", "465006" ]
+      }, {
+        "queryId" : "q-exc-southeast",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exc-seafood",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "117145", "142483", "169354" ]
+      }, {
+        "queryId" : "q-exc-spicy",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100900", "10405", "154388" ]
+      }, {
+        "queryId" : "q-exc-teatime",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "201477", "209188" ]
+      }, {
+        "queryId" : "q-exc-dinner-protein",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "96740", "198328" ]
+      }, {
+        "queryId" : "q-exc-lunch-quick",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.058823529411764705,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exc-brunch",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "133551", "146461" ]
+      }, {
+        "queryId" : "q-all-breakfast-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "204451" ]
+      }, {
+        "queryId" : "q-all-lunch-nogluten",
+        "stratum" : "allergen",
+        "recallAt3" : 0.08571428571428572,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "88129", "104206", "123402" ]
+      }, {
+        "queryId" : "q-all-dinner-nofish",
+        "stratum" : "allergen",
+        "recallAt3" : 0.07692307692307693,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-all-vegan-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187115", "278704", "297239" ]
+      }, {
+        "queryId" : "q-all-seafood-noshell",
+        "stratum" : "allergen",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-all-spicy-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "10405", "154388" ]
+      }, {
+        "queryId" : "q-all-dinner-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "307525", "120612" ]
+      }, {
+        "queryId" : "q-all-breakfast-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "145533", "175340" ]
+      }, {
+        "queryId" : "q-all-snack-nopeanut",
+        "stratum" : "allergen",
+        "recallAt3" : 0.10714285714285714,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "144673", "149292", "151221" ]
+      }, {
+        "queryId" : "q-all-teatime-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004" ]
+      } ],
+      "avgRecallAt3" : 0.3507501710695555,
+      "avgMrr" : 1.0,
+      "avgNdcgAt3" : 1.0,
+      "avgPrecisionAt3" : 0.9555555555555556,
+      "hardConstraintHitRate" : 1.0,
+      "degradedCount" : 60,
+      "p95LatencyMs" : 4.696209,
+      "degradationDistribution" : {
+        "embedding_unavailable" : 60
+      },
+      "stratumSummaries" : {
+        "exact_label" : {
+          "stratum" : "exact_label",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.43476702219349284,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "natural_language" : {
+          "stratum" : "natural_language",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.31702266129123713,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9666666666666666
+        },
+        "long_tail" : {
+          "stratum" : "long_tail",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3089312478986392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "synonym" : {
+          "stratum" : "synonym",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.27452266129123715,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "exclusion" : {
+          "stratum" : "exclusion",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.4181127450980392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "allergen" : {
+          "stratum" : "allergen",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3511446886446886,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9
+        }
+      }
+    },
+    "hybrid_slot_concat_0.3" : {
+      "queries" : [ {
+        "queryId" : "q-exact-breakfast-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-exact-dinner-lowcarb",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "128908", "283704" ]
+      }, {
+        "queryId" : "q-exact-lunch-quick",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exact-vegan",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-exact-seafood",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-exact-soup",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-exact-spicy",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-exact-southeast",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exact-teatime-dessert",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exact-snack-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-nl-breakfast-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-nl-dinner-light",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-nl-lunch-quick",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-nl-vegan",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-nl-seafood",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-nl-soup",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-nl-spicy",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-nl-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-nl-brunch",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.3,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "110711", "121716", "133551" ]
+      }, {
+        "queryId" : "q-nl-teatime",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-hearty",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.13043478260869565,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "198328", "104869" ]
+      }, {
+        "queryId" : "q-lt-lowcal",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.037037037037037035,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "99208", "100332", "103004" ]
+      }, {
+        "queryId" : "q-lt-sugar",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.041666666666666664,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103966", "104865", "10570" ]
+      }, {
+        "queryId" : "q-lt-sweet",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-broth",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-lt-exotic",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-lt-creamy",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "104206", "123402" ]
+      }, {
+        "queryId" : "q-lt-postworkout",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-lt-light",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "205695", "214810", "283704" ]
+      }, {
+        "queryId" : "q-lt-seafood-quick",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-breakfast-sweet",
+        "stratum" : "synonym",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-syn-noon",
+        "stratum" : "synonym",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-syn-eve-light",
+        "stratum" : "synonym",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-syn-curry",
+        "stratum" : "synonym",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-syn-veg",
+        "stratum" : "synonym",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-syn-umami",
+        "stratum" : "synonym",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-soup",
+        "stratum" : "synonym",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-syn-spicy",
+        "stratum" : "synonym",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-syn-protein",
+        "stratum" : "synonym",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-syn-dessert",
+        "stratum" : "synonym",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exc-breakfast",
+        "stratum" : "exclusion",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "204451" ]
+      }, {
+        "queryId" : "q-exc-vegan",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "278704", "297239" ]
+      }, {
+        "queryId" : "q-exc-soup",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.75,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "332905", "465006" ]
+      }, {
+        "queryId" : "q-exc-southeast",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exc-seafood",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "117145", "142483", "169354" ]
+      }, {
+        "queryId" : "q-exc-spicy",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100900", "10405", "154388" ]
+      }, {
+        "queryId" : "q-exc-teatime",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "201477", "209188" ]
+      }, {
+        "queryId" : "q-exc-dinner-protein",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "96740", "198328" ]
+      }, {
+        "queryId" : "q-exc-lunch-quick",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.058823529411764705,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exc-brunch",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "133551", "146461" ]
+      }, {
+        "queryId" : "q-all-breakfast-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "204451" ]
+      }, {
+        "queryId" : "q-all-lunch-nogluten",
+        "stratum" : "allergen",
+        "recallAt3" : 0.08571428571428572,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "88129", "104206", "123402" ]
+      }, {
+        "queryId" : "q-all-dinner-nofish",
+        "stratum" : "allergen",
+        "recallAt3" : 0.07692307692307693,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-all-vegan-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187115", "278704", "297239" ]
+      }, {
+        "queryId" : "q-all-seafood-noshell",
+        "stratum" : "allergen",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-all-spicy-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "10405", "154388" ]
+      }, {
+        "queryId" : "q-all-dinner-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "307525", "120612" ]
+      }, {
+        "queryId" : "q-all-breakfast-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "145533", "175340" ]
+      }, {
+        "queryId" : "q-all-snack-nopeanut",
+        "stratum" : "allergen",
+        "recallAt3" : 0.10714285714285714,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "144673", "149292", "151221" ]
+      }, {
+        "queryId" : "q-all-teatime-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004" ]
+      } ],
+      "avgRecallAt3" : 0.3507501710695555,
+      "avgMrr" : 1.0,
+      "avgNdcgAt3" : 1.0,
+      "avgPrecisionAt3" : 0.9555555555555556,
+      "hardConstraintHitRate" : 1.0,
+      "degradedCount" : 60,
+      "p95LatencyMs" : 4.481292,
+      "degradationDistribution" : {
+        "embedding_unavailable" : 60
+      },
+      "stratumSummaries" : {
+        "exact_label" : {
+          "stratum" : "exact_label",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.43476702219349284,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "natural_language" : {
+          "stratum" : "natural_language",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.31702266129123713,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9666666666666666
+        },
+        "long_tail" : {
+          "stratum" : "long_tail",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3089312478986392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "synonym" : {
+          "stratum" : "synonym",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.27452266129123715,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "exclusion" : {
+          "stratum" : "exclusion",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.4181127450980392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "allergen" : {
+          "stratum" : "allergen",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3511446886446886,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9
+        }
+      }
+    },
+    "hybrid_slot_concat_0.5" : {
+      "queries" : [ {
+        "queryId" : "q-exact-breakfast-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-exact-dinner-lowcarb",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "128908", "283704" ]
+      }, {
+        "queryId" : "q-exact-lunch-quick",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exact-vegan",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-exact-seafood",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-exact-soup",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-exact-spicy",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-exact-southeast",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exact-teatime-dessert",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exact-snack-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-nl-breakfast-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-nl-dinner-light",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-nl-lunch-quick",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-nl-vegan",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-nl-seafood",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-nl-soup",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-nl-spicy",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-nl-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-nl-brunch",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.3,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "110711", "121716", "133551" ]
+      }, {
+        "queryId" : "q-nl-teatime",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-hearty",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.13043478260869565,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "198328", "104869" ]
+      }, {
+        "queryId" : "q-lt-lowcal",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.037037037037037035,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "99208", "100332", "103004" ]
+      }, {
+        "queryId" : "q-lt-sugar",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.041666666666666664,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103966", "104865", "10570" ]
+      }, {
+        "queryId" : "q-lt-sweet",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-broth",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-lt-exotic",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-lt-creamy",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "104206", "123402" ]
+      }, {
+        "queryId" : "q-lt-postworkout",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-lt-light",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "205695", "214810", "283704" ]
+      }, {
+        "queryId" : "q-lt-seafood-quick",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-breakfast-sweet",
+        "stratum" : "synonym",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-syn-noon",
+        "stratum" : "synonym",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-syn-eve-light",
+        "stratum" : "synonym",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-syn-curry",
+        "stratum" : "synonym",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-syn-veg",
+        "stratum" : "synonym",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-syn-umami",
+        "stratum" : "synonym",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-soup",
+        "stratum" : "synonym",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-syn-spicy",
+        "stratum" : "synonym",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-syn-protein",
+        "stratum" : "synonym",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-syn-dessert",
+        "stratum" : "synonym",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exc-breakfast",
+        "stratum" : "exclusion",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "204451" ]
+      }, {
+        "queryId" : "q-exc-vegan",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "278704", "297239" ]
+      }, {
+        "queryId" : "q-exc-soup",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.75,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "332905", "465006" ]
+      }, {
+        "queryId" : "q-exc-southeast",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exc-seafood",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "117145", "142483", "169354" ]
+      }, {
+        "queryId" : "q-exc-spicy",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100900", "10405", "154388" ]
+      }, {
+        "queryId" : "q-exc-teatime",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "201477", "209188" ]
+      }, {
+        "queryId" : "q-exc-dinner-protein",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "96740", "198328" ]
+      }, {
+        "queryId" : "q-exc-lunch-quick",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.058823529411764705,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exc-brunch",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "133551", "146461" ]
+      }, {
+        "queryId" : "q-all-breakfast-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "204451" ]
+      }, {
+        "queryId" : "q-all-lunch-nogluten",
+        "stratum" : "allergen",
+        "recallAt3" : 0.08571428571428572,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "88129", "104206", "123402" ]
+      }, {
+        "queryId" : "q-all-dinner-nofish",
+        "stratum" : "allergen",
+        "recallAt3" : 0.07692307692307693,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-all-vegan-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187115", "278704", "297239" ]
+      }, {
+        "queryId" : "q-all-seafood-noshell",
+        "stratum" : "allergen",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-all-spicy-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "10405", "154388" ]
+      }, {
+        "queryId" : "q-all-dinner-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "307525", "120612" ]
+      }, {
+        "queryId" : "q-all-breakfast-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "145533", "175340" ]
+      }, {
+        "queryId" : "q-all-snack-nopeanut",
+        "stratum" : "allergen",
+        "recallAt3" : 0.10714285714285714,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "144673", "149292", "151221" ]
+      }, {
+        "queryId" : "q-all-teatime-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004" ]
+      } ],
+      "avgRecallAt3" : 0.3507501710695555,
+      "avgMrr" : 1.0,
+      "avgNdcgAt3" : 1.0,
+      "avgPrecisionAt3" : 0.9555555555555556,
+      "hardConstraintHitRate" : 1.0,
+      "degradedCount" : 60,
+      "p95LatencyMs" : 4.71125,
+      "degradationDistribution" : {
+        "embedding_unavailable" : 60
+      },
+      "stratumSummaries" : {
+        "exact_label" : {
+          "stratum" : "exact_label",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.43476702219349284,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "natural_language" : {
+          "stratum" : "natural_language",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.31702266129123713,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9666666666666666
+        },
+        "long_tail" : {
+          "stratum" : "long_tail",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3089312478986392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "synonym" : {
+          "stratum" : "synonym",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.27452266129123715,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "exclusion" : {
+          "stratum" : "exclusion",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.4181127450980392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "allergen" : {
+          "stratum" : "allergen",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3511446886446886,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9
+        }
+      }
+    },
+    "hybrid_user_text_0.7" : {
+      "queries" : [ {
+        "queryId" : "q-exact-breakfast-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-exact-dinner-lowcarb",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "128908", "283704" ]
+      }, {
+        "queryId" : "q-exact-lunch-quick",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exact-vegan",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-exact-seafood",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-exact-soup",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-exact-spicy",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-exact-southeast",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exact-teatime-dessert",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exact-snack-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-nl-breakfast-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-nl-dinner-light",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-nl-lunch-quick",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-nl-vegan",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-nl-seafood",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-nl-soup",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-nl-spicy",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-nl-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-nl-brunch",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.3,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "110711", "121716", "133551" ]
+      }, {
+        "queryId" : "q-nl-teatime",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-hearty",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.13043478260869565,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "198328", "104869" ]
+      }, {
+        "queryId" : "q-lt-lowcal",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.037037037037037035,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "99208", "100332", "103004" ]
+      }, {
+        "queryId" : "q-lt-sugar",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.041666666666666664,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103966", "104865", "10570" ]
+      }, {
+        "queryId" : "q-lt-sweet",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-broth",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-lt-exotic",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-lt-creamy",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "104206", "123402" ]
+      }, {
+        "queryId" : "q-lt-postworkout",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-lt-light",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "205695", "214810", "283704" ]
+      }, {
+        "queryId" : "q-lt-seafood-quick",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-breakfast-sweet",
+        "stratum" : "synonym",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-syn-noon",
+        "stratum" : "synonym",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-syn-eve-light",
+        "stratum" : "synonym",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-syn-curry",
+        "stratum" : "synonym",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-syn-veg",
+        "stratum" : "synonym",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-syn-umami",
+        "stratum" : "synonym",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-soup",
+        "stratum" : "synonym",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-syn-spicy",
+        "stratum" : "synonym",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-syn-protein",
+        "stratum" : "synonym",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-syn-dessert",
+        "stratum" : "synonym",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exc-breakfast",
+        "stratum" : "exclusion",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "204451" ]
+      }, {
+        "queryId" : "q-exc-vegan",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "278704", "297239" ]
+      }, {
+        "queryId" : "q-exc-soup",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.75,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "332905", "465006" ]
+      }, {
+        "queryId" : "q-exc-southeast",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exc-seafood",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "117145", "142483", "169354" ]
+      }, {
+        "queryId" : "q-exc-spicy",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100900", "10405", "154388" ]
+      }, {
+        "queryId" : "q-exc-teatime",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "201477", "209188" ]
+      }, {
+        "queryId" : "q-exc-dinner-protein",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "96740", "198328" ]
+      }, {
+        "queryId" : "q-exc-lunch-quick",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.058823529411764705,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exc-brunch",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "133551", "146461" ]
+      }, {
+        "queryId" : "q-all-breakfast-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "204451" ]
+      }, {
+        "queryId" : "q-all-lunch-nogluten",
+        "stratum" : "allergen",
+        "recallAt3" : 0.08571428571428572,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "88129", "104206", "123402" ]
+      }, {
+        "queryId" : "q-all-dinner-nofish",
+        "stratum" : "allergen",
+        "recallAt3" : 0.07692307692307693,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-all-vegan-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187115", "278704", "297239" ]
+      }, {
+        "queryId" : "q-all-seafood-noshell",
+        "stratum" : "allergen",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-all-spicy-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "10405", "154388" ]
+      }, {
+        "queryId" : "q-all-dinner-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "307525", "120612" ]
+      }, {
+        "queryId" : "q-all-breakfast-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "145533", "175340" ]
+      }, {
+        "queryId" : "q-all-snack-nopeanut",
+        "stratum" : "allergen",
+        "recallAt3" : 0.10714285714285714,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "144673", "149292", "151221" ]
+      }, {
+        "queryId" : "q-all-teatime-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004" ]
+      } ],
+      "avgRecallAt3" : 0.3507501710695555,
+      "avgMrr" : 1.0,
+      "avgNdcgAt3" : 1.0,
+      "avgPrecisionAt3" : 0.9555555555555556,
+      "hardConstraintHitRate" : 1.0,
+      "degradedCount" : 60,
+      "p95LatencyMs" : 5.012916,
+      "degradationDistribution" : {
+        "embedding_unavailable" : 60
+      },
+      "stratumSummaries" : {
+        "exact_label" : {
+          "stratum" : "exact_label",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.43476702219349284,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "natural_language" : {
+          "stratum" : "natural_language",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.31702266129123713,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9666666666666666
+        },
+        "long_tail" : {
+          "stratum" : "long_tail",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3089312478986392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "synonym" : {
+          "stratum" : "synonym",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.27452266129123715,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "exclusion" : {
+          "stratum" : "exclusion",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.4181127450980392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "allergen" : {
+          "stratum" : "allergen",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3511446886446886,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9
+        }
+      }
+    },
+    "hybrid_slot_concat_0.7" : {
+      "queries" : [ {
+        "queryId" : "q-exact-breakfast-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-exact-dinner-lowcarb",
+        "stratum" : "exact_label",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "128908", "283704" ]
+      }, {
+        "queryId" : "q-exact-lunch-quick",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exact-vegan",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-exact-seafood",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-exact-soup",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-exact-spicy",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-exact-southeast",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exact-teatime-dessert",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exact-snack-protein",
+        "stratum" : "exact_label",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-nl-breakfast-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "175340", "204451" ]
+      }, {
+        "queryId" : "q-nl-dinner-light",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-nl-lunch-quick",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-nl-vegan",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-nl-seafood",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-nl-soup",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-nl-spicy",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-nl-protein",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-nl-brunch",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.3,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "110711", "121716", "133551" ]
+      }, {
+        "queryId" : "q-nl-teatime",
+        "stratum" : "natural_language",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-hearty",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.13043478260869565,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "198328", "104869" ]
+      }, {
+        "queryId" : "q-lt-lowcal",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.037037037037037035,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "99208", "100332", "103004" ]
+      }, {
+        "queryId" : "q-lt-sugar",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.041666666666666664,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103966", "104865", "10570" ]
+      }, {
+        "queryId" : "q-lt-sweet",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-lt-broth",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-lt-exotic",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-lt-creamy",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "104206", "123402" ]
+      }, {
+        "queryId" : "q-lt-postworkout",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "149292", "151221", "159036" ]
+      }, {
+        "queryId" : "q-lt-light",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "205695", "214810", "283704" ]
+      }, {
+        "queryId" : "q-lt-seafood-quick",
+        "stratum" : "long_tail",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-breakfast-sweet",
+        "stratum" : "synonym",
+        "recallAt3" : 0.42857142857142855,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-syn-noon",
+        "stratum" : "synonym",
+        "recallAt3" : 0.057692307692307696,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-syn-eve-light",
+        "stratum" : "synonym",
+        "recallAt3" : 0.23076923076923078,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "123402", "129799", "161915" ]
+      }, {
+        "queryId" : "q-syn-curry",
+        "stratum" : "synonym",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-syn-veg",
+        "stratum" : "synonym",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "187115", "278704" ]
+      }, {
+        "queryId" : "q-syn-umami",
+        "stratum" : "synonym",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-syn-soup",
+        "stratum" : "synonym",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "287061", "332905" ]
+      }, {
+        "queryId" : "q-syn-spicy",
+        "stratum" : "synonym",
+        "recallAt3" : 0.16666666666666666,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "100900", "10405" ]
+      }, {
+        "queryId" : "q-syn-protein",
+        "stratum" : "synonym",
+        "recallAt3" : 0.022556390977443608,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-syn-dessert",
+        "stratum" : "synonym",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "121716", "201477" ]
+      }, {
+        "queryId" : "q-exc-breakfast",
+        "stratum" : "exclusion",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "204451" ]
+      }, {
+        "queryId" : "q-exc-vegan",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "104869", "278704", "297239" ]
+      }, {
+        "queryId" : "q-exc-soup",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.75,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187686", "332905", "465006" ]
+      }, {
+        "queryId" : "q-exc-southeast",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.6,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "192361", "304522", "316871" ]
+      }, {
+        "queryId" : "q-exc-seafood",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "117145", "142483", "169354" ]
+      }, {
+        "queryId" : "q-exc-spicy",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.17647058823529413,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100900", "10405", "154388" ]
+      }, {
+        "queryId" : "q-exc-teatime",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.5,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "201477", "209188" ]
+      }, {
+        "queryId" : "q-exc-dinner-protein",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.375,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "96740", "198328" ]
+      }, {
+        "queryId" : "q-exc-lunch-quick",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.058823529411764705,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "307525", "301361", "86463" ]
+      }, {
+        "queryId" : "q-exc-brunch",
+        "stratum" : "exclusion",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "133551", "146461" ]
+      }, {
+        "queryId" : "q-all-breakfast-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.6666666666666666,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004", "204451" ]
+      }, {
+        "queryId" : "q-all-lunch-nogluten",
+        "stratum" : "allergen",
+        "recallAt3" : 0.08571428571428572,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "88129", "104206", "123402" ]
+      }, {
+        "queryId" : "q-all-dinner-nofish",
+        "stratum" : "allergen",
+        "recallAt3" : 0.07692307692307693,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "198328", "96740", "307525" ]
+      }, {
+        "queryId" : "q-all-vegan-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "187115", "278704", "297239" ]
+      }, {
+        "queryId" : "q-all-seafood-noshell",
+        "stratum" : "allergen",
+        "recallAt3" : 0.2,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "112259", "117145", "142483" ]
+      }, {
+        "queryId" : "q-all-spicy-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "100332", "10405", "154388" ]
+      }, {
+        "queryId" : "q-all-dinner-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 0.1875,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "96740", "307525", "120612" ]
+      }, {
+        "queryId" : "q-all-breakfast-noegg",
+        "stratum" : "allergen",
+        "recallAt3" : 0.3333333333333333,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "121716", "145533", "175340" ]
+      }, {
+        "queryId" : "q-all-snack-nopeanut",
+        "stratum" : "allergen",
+        "recallAt3" : 0.10714285714285714,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 1.0,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "144673", "149292", "151221" ]
+      }, {
+        "queryId" : "q-all-teatime-nomilk",
+        "stratum" : "allergen",
+        "recallAt3" : 1.0,
+        "mrr" : 1.0,
+        "ndcgAt3" : 1.0,
+        "precisionAt3" : 0.3333333333333333,
+        "hardConstraintHitRate" : 1.0,
+        "mode" : "STRUCTURED",
+        "topKSourceIds" : [ "103004" ]
+      } ],
+      "avgRecallAt3" : 0.3507501710695555,
+      "avgMrr" : 1.0,
+      "avgNdcgAt3" : 1.0,
+      "avgPrecisionAt3" : 0.9555555555555556,
+      "hardConstraintHitRate" : 1.0,
+      "degradedCount" : 60,
+      "p95LatencyMs" : 4.919625,
+      "degradationDistribution" : {
+        "embedding_unavailable" : 60
+      },
+      "stratumSummaries" : {
+        "exact_label" : {
+          "stratum" : "exact_label",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.43476702219349284,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "natural_language" : {
+          "stratum" : "natural_language",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.31702266129123713,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9666666666666666
+        },
+        "long_tail" : {
+          "stratum" : "long_tail",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3089312478986392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "synonym" : {
+          "stratum" : "synonym",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.27452266129123715,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 1.0
+        },
+        "exclusion" : {
+          "stratum" : "exclusion",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.4181127450980392,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9333333333333333
+        },
+        "allergen" : {
+          "stratum" : "allergen",
+          "queryCount" : 10,
+          "avgRecallAt3" : 0.3511446886446886,
+          "avgMrr" : 1.0,
+          "avgNdcgAt3" : 1.0,
+          "avgPrecisionAt3" : 0.9
+        }
+      }
+    }
   }
 }

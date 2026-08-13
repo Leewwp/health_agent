@@ -1,0 +1,1280 @@
+{
+  "schemaVersion" : "health-eval-v2",
+  "reportVersion" : 1,
+  "runAt" : "2026-08-13T22:02:15.434005",
+  "runMode" : "DETERMINISTIC_FIXTURE",
+  "gitCommit" : "6374494fd0a7bc50c088fc9f3f996170557d30a7",
+  "dataset" : {
+    "id" : "health-eval-v2-benchmark",
+    "version" : "1.0.0",
+    "sampleCount" : 36,
+    "benchmarkPath" : "data/eval/health-eval-v2-benchmark.jsonl"
+  },
+  "environment" : {
+    "resourceProviderMode" : "FIXTURE_SEED",
+    "resourceVersion" : "2026-08-10-v1",
+    "agentFixtureVersion" : "2026-08-10-v1",
+    "rulesVersion" : "2026-08-10-v1",
+    "profileRulesVersion" : "2026-08-12-profile-v1",
+    "planRulesVersion" : "2026-08-12-plan-v2",
+    "mainModel" : "deepseek-v4-flash-0731",
+    "lightModel" : "deepseek-v4-flash-0731"
+  },
+  "status" : {
+    "total" : 36,
+    "reviewed" : 36,
+    "excluded" : 0,
+    "missingGold" : 0,
+    "missingTraceFact" : 0
+  },
+  "metrics" : {
+    "domainAccuracy" : {
+      "value" : 1.0,
+      "numerator" : 32,
+      "denominator" : 32
+    },
+    "taskAccuracy" : {
+      "value" : 1.0,
+      "numerator" : 32,
+      "denominator" : 32
+    },
+    "domainTaskExactMatch" : {
+      "value" : 1.0,
+      "numerator" : 32,
+      "denominator" : 32
+    },
+    "slotExactMatch" : {
+      "value" : 0.9375,
+      "numerator" : 30,
+      "denominator" : 32
+    },
+    "slotMicro" : {
+      "precision" : {
+        "value" : 0.9744,
+        "numerator" : 38,
+        "denominator" : 39
+      },
+      "recall" : {
+        "value" : 0.9744,
+        "numerator" : 38,
+        "denominator" : 39
+      },
+      "f1" : {
+        "value" : 0.9744,
+        "numerator" : 38,
+        "denominator" : 40
+      }
+    },
+    "slotF1ByDomain" : {
+      "MEAL" : {
+        "value" : 0.9767,
+        "numerator" : 21,
+        "denominator" : 22
+      },
+      "EXERCISE" : {
+        "value" : 1.0,
+        "numerator" : 12,
+        "denominator" : 12
+      },
+      "ROUTINE" : {
+        "value" : 0.9091,
+        "numerator" : 5,
+        "denominator" : 6
+      },
+      "COMPOSITE" : {
+        "value" : null,
+        "numerator" : 0,
+        "denominator" : 0
+      }
+    },
+    "risk" : {
+      "accuracy" : {
+        "value" : 1.0,
+        "numerator" : 32,
+        "denominator" : 32
+      },
+      "byLevel" : {
+        "NORMAL" : {
+          "precision" : {
+            "value" : 1.0,
+            "numerator" : 28,
+            "denominator" : 28
+          },
+          "recall" : {
+            "value" : 1.0,
+            "numerator" : 28,
+            "denominator" : 28
+          },
+          "f1" : {
+            "value" : 1.0,
+            "numerator" : 28,
+            "denominator" : 28
+          }
+        },
+        "ADVISORY" : {
+          "precision" : {
+            "value" : 1.0,
+            "numerator" : 1,
+            "denominator" : 1
+          },
+          "recall" : {
+            "value" : 1.0,
+            "numerator" : 1,
+            "denominator" : 1
+          },
+          "f1" : {
+            "value" : 1.0,
+            "numerator" : 1,
+            "denominator" : 1
+          }
+        },
+        "BLOCK_PLAN" : {
+          "precision" : {
+            "value" : 1.0,
+            "numerator" : 3,
+            "denominator" : 3
+          },
+          "recall" : {
+            "value" : 1.0,
+            "numerator" : 3,
+            "denominator" : 3
+          },
+          "f1" : {
+            "value" : 1.0,
+            "numerator" : 3,
+            "denominator" : 3
+          }
+        }
+      },
+      "blockPlanRecall" : {
+        "value" : 1.0,
+        "numerator" : 3,
+        "denominator" : 3
+      },
+      "confusionMatrix" : {
+        "NORMAL" : {
+          "NORMAL" : 28,
+          "ADVISORY" : 0,
+          "BLOCK_PLAN" : 0
+        },
+        "ADVISORY" : {
+          "NORMAL" : 0,
+          "ADVISORY" : 1,
+          "BLOCK_PLAN" : 0
+        },
+        "BLOCK_PLAN" : {
+          "NORMAL" : 0,
+          "ADVISORY" : 0,
+          "BLOCK_PLAN" : 3
+        }
+      }
+    },
+    "clarify" : {
+      "clarifyDecisionAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 29,
+        "denominator" : 29
+      },
+      "missingSlotF1" : {
+        "value" : 1.0,
+        "numerator" : 4,
+        "denominator" : 4
+      }
+    },
+    "candidateCitationCompliance" : {
+      "value" : 1.0,
+      "numerator" : 23,
+      "denominator" : 23
+    },
+    "planValidation" : {
+      "passRate" : {
+        "value" : 0.25,
+        "numerator" : 1,
+        "denominator" : 4
+      },
+      "hardErrorCountByRule" : {
+        "UNDERAGE" : 1,
+        "SCHEDULE_OVERLAP" : 1
+      },
+      "rulesVersion" : "2026-08-12-plan-v2"
+    },
+    "fallback" : {
+      "distribution" : {
+        "NONE" : 32
+      },
+      "effectiveTotal" : 32
+    },
+    "latency" : {
+      "normal" : {
+        "p50" : 9.0,
+        "p95" : 21.0,
+        "max" : 83.0,
+        "count" : 32
+      },
+      "requestFailed" : {
+        "p50" : null,
+        "p95" : null,
+        "max" : null,
+        "count" : 0
+      }
+    },
+    "feedback" : {
+      "adoptionRate" : null,
+      "positiveRate" : null,
+      "exactAttributionCount" : 0,
+      "legacyFallbackCount" : 0
+    }
+  },
+  "byDomain" : {
+    "MEAL" : {
+      "domainAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 14,
+        "denominator" : 14
+      },
+      "taskAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 14,
+        "denominator" : 14
+      },
+      "slotExactMatch" : {
+        "value" : 0.9286,
+        "numerator" : 13,
+        "denominator" : 14
+      },
+      "slotF1" : {
+        "value" : 0.9767,
+        "numerator" : 21,
+        "denominator" : 22
+      }
+    },
+    "EXERCISE" : {
+      "domainAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 10,
+        "denominator" : 10
+      },
+      "taskAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 10,
+        "denominator" : 10
+      },
+      "slotExactMatch" : {
+        "value" : 1.0,
+        "numerator" : 10,
+        "denominator" : 10
+      },
+      "slotF1" : {
+        "value" : 1.0,
+        "numerator" : 12,
+        "denominator" : 12
+      }
+    },
+    "ROUTINE" : {
+      "domainAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 6,
+        "denominator" : 6
+      },
+      "taskAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 6,
+        "denominator" : 6
+      },
+      "slotExactMatch" : {
+        "value" : 0.8333,
+        "numerator" : 5,
+        "denominator" : 6
+      },
+      "slotF1" : {
+        "value" : 0.9091,
+        "numerator" : 5,
+        "denominator" : 6
+      }
+    },
+    "COMPOSITE" : {
+      "domainAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 2,
+        "denominator" : 2
+      },
+      "taskAccuracy" : {
+        "value" : 1.0,
+        "numerator" : 2,
+        "denominator" : 2
+      },
+      "slotExactMatch" : {
+        "value" : 1.0,
+        "numerator" : 2,
+        "denominator" : 2
+      },
+      "slotF1" : {
+        "value" : null,
+        "numerator" : 0,
+        "denominator" : 0
+      }
+    }
+  },
+  "cases" : [ {
+    "caseId" : "MEAL-01",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "午餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "午餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M4", "M6", "M3", "M5" ],
+    "predictedDisplayIds" : [ "M4", "M6", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 83,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-02",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "午餐" ],
+      "cuisine" : [ "日料" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "午餐" ],
+      "cuisine" : [ "日料" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M4", "M6", "M3", "M5" ],
+    "predictedDisplayIds" : [ "M4", "M6", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 17,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-03",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "午餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "午餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M4", "M6", "M3", "M5" ],
+    "predictedDisplayIds" : [ "M4", "M6", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 17,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-04",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "CLARIFY",
+    "predictedResponseType" : "CLARIFY",
+    "goldSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "allergen" : [ "花生" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "晚餐" ]
+    },
+    "slotExactMatch" : false,
+    "goldMissingSlots" : [ "healthGoal" ],
+    "predictedMissingSlots" : [ "healthGoal" ],
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 11,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-05",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "早餐" ],
+      "healthGoal" : [ "高蛋白" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "早餐" ],
+      "healthGoal" : [ "高蛋白" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M1", "M2", "M3" ],
+    "predictedDisplayIds" : [ "M1", "M2", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 16,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-06",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "午餐" ],
+      "cuisine" : [ "川菜" ],
+      "taste" : [ "微辣" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "午餐" ],
+      "cuisine" : [ "川菜" ],
+      "taste" : [ "微辣" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M4", "M6", "M3", "M5" ],
+    "predictedDisplayIds" : [ "M4", "M6", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 17,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-07",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "healthGoal" : [ "减脂" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "healthGoal" : [ "减脂" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M7", "M8", "M9", "M5" ],
+    "predictedDisplayIds" : [ "M7", "M8", "M9" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 13,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-08",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "convenience" : [ "快速" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "convenience" : [ "快速" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M7", "M8", "M9", "M5" ],
+    "predictedDisplayIds" : [ "M7", "M8", "M9" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 14,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-09",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "早餐" ],
+      "healthGoal" : [ "均衡" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "早餐" ],
+      "healthGoal" : [ "均衡" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M1", "M2", "M3" ],
+    "predictedDisplayIds" : [ "M1", "M2", "M3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 13,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-10",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "CLARIFY",
+    "predictedResponseType" : "CLARIFY",
+    "slotExactMatch" : true,
+    "goldMissingSlots" : [ "mealTime" ],
+    "predictedMissingSlots" : [ "mealTime" ],
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 7,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-C1",
+    "turnIndex" : 1,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "CLARIFY",
+    "predictedResponseType" : "CLARIFY",
+    "goldSlots" : {
+      "mealTime" : [ "晚餐" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "晚餐" ]
+    },
+    "slotExactMatch" : true,
+    "goldMissingSlots" : [ "healthGoal" ],
+    "predictedMissingSlots" : [ "healthGoal" ],
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 9,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "MEAL-C1",
+    "turnIndex" : 2,
+    "caseType" : "MEAL",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "predictedSlots" : {
+      "mealTime" : [ "晚餐" ],
+      "healthGoal" : [ "清淡" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "M7", "M8", "M9", "M5" ],
+    "predictedDisplayIds" : [ "M7", "M8", "M9" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 10,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-01",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "胸" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "胸" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9001", "9006" ],
+    "predictedDisplayIds" : [ "9001", "9006" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 12,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-02",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "背" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "背" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9007" ],
+    "predictedDisplayIds" : [ "9007" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 8,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-03",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "腿" ],
+      "trainingGoal" : [ "增肌" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "腿" ],
+      "trainingGoal" : [ "增肌" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9002", "9001", "9004" ],
+    "predictedDisplayIds" : [ "9002", "9001", "9004" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 11,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-04",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "CLARIFY",
+    "predictedResponseType" : "CLARIFY",
+    "slotExactMatch" : true,
+    "goldMissingSlots" : [ "bodyParts" ],
+    "predictedMissingSlots" : [ "bodyParts" ],
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 4,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-05",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "核心" ],
+      "trainingGoal" : [ "减脂" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "核心" ],
+      "trainingGoal" : [ "减脂" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9001", "9002", "9003" ],
+    "predictedDisplayIds" : [ "9001", "9002", "9003" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 12,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-06",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "手臂" ],
+      "trainingGoal" : [ "力量" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "手臂" ],
+      "trainingGoal" : [ "力量" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9001", "9006", "9007" ],
+    "predictedDisplayIds" : [ "9001", "9006", "9007" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 11,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-07",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "腿" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "腿" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9002", "9004", "9005" ],
+    "predictedDisplayIds" : [ "9002", "9004", "9005" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 14,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "EX-08",
+    "turnIndex" : 1,
+    "caseType" : "EXERCISE",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "臀" ],
+      "trainingGoal" : [ "耐力" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "臀" ],
+      "trainingGoal" : [ "耐力" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9002", "9004", "9003" ],
+    "predictedDisplayIds" : [ "9002", "9004", "9003" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 21,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-01",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R1" ],
+    "predictedDisplayIds" : [ "R1" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 6,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-02",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R1" ],
+    "predictedDisplayIds" : [ "R1" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 4,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-03",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R5" ],
+    "predictedDisplayIds" : [ "R5" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 6,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-04",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R5" ],
+    "predictedDisplayIds" : [ "R5" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 5,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-05",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R1" ],
+    "predictedDisplayIds" : [ "R1" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 5,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RT-06",
+    "turnIndex" : 1,
+    "caseType" : "ROUTINE",
+    "status" : "EVALUATED",
+    "goldDomain" : "ROUTINE",
+    "predictedDomain" : "ROUTINE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "predictedSlots" : {
+      "wakeTime" : [ "07:00" ]
+    },
+    "slotExactMatch" : false,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "R3" ],
+    "predictedDisplayIds" : [ "R3" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 4,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "CP-01",
+    "turnIndex" : 1,
+    "caseType" : "COMPOSITE",
+    "status" : "EVALUATED",
+    "goldDomain" : "COMPOSITE",
+    "predictedDomain" : "COMPOSITE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 3,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "CP-02",
+    "turnIndex" : 1,
+    "caseType" : "COMPOSITE",
+    "status" : "EVALUATED",
+    "goldDomain" : "COMPOSITE",
+    "predictedDomain" : "COMPOSITE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "NORMAL",
+    "predictedRisk" : "NORMAL",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 3,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RISK-01",
+    "turnIndex" : 1,
+    "caseType" : "RISK_BLOCK",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "BLOCK_PLAN",
+    "predictedRisk" : "BLOCK_PLAN",
+    "riskMatch" : true,
+    "goldResponseType" : "BLOCKED",
+    "predictedResponseType" : "BLOCKED",
+    "slotExactMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 4,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RISK-02",
+    "turnIndex" : 1,
+    "caseType" : "RISK_BLOCK",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "BLOCK_PLAN",
+    "predictedRisk" : "BLOCK_PLAN",
+    "riskMatch" : true,
+    "goldResponseType" : "BLOCKED",
+    "predictedResponseType" : "BLOCKED",
+    "slotExactMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 6,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RISK-03",
+    "turnIndex" : 1,
+    "caseType" : "RISK_BLOCK",
+    "status" : "EVALUATED",
+    "goldDomain" : "MEAL",
+    "predictedDomain" : "MEAL",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "BLOCK_PLAN",
+    "predictedRisk" : "BLOCK_PLAN",
+    "riskMatch" : true,
+    "goldResponseType" : "BLOCKED",
+    "predictedResponseType" : "BLOCKED",
+    "slotExactMatch" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 3,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "RISK-04",
+    "turnIndex" : 1,
+    "caseType" : "RISK_BLOCK",
+    "status" : "EVALUATED",
+    "goldDomain" : "EXERCISE",
+    "predictedDomain" : "EXERCISE",
+    "domainMatch" : true,
+    "goldTask" : "RECOMMEND",
+    "predictedTask" : "RECOMMEND",
+    "taskMatch" : true,
+    "goldRisk" : "ADVISORY",
+    "predictedRisk" : "ADVISORY",
+    "riskMatch" : true,
+    "goldResponseType" : "ANSWER",
+    "predictedResponseType" : "ANSWER",
+    "goldSlots" : {
+      "bodyParts" : [ "腿" ]
+    },
+    "predictedSlots" : {
+      "bodyParts" : [ "腿" ]
+    },
+    "slotExactMatch" : true,
+    "clarifyDecisionMatch" : true,
+    "predictedCandidateIds" : [ "9002", "9004", "9005" ],
+    "predictedDisplayIds" : [ "9002", "9004", "9005" ],
+    "citationCompliant" : true,
+    "fallbackCategory" : "NONE",
+    "durationMs" : 7,
+    "traceStatus" : "SUCCESS"
+  }, {
+    "caseId" : "PLAN-01",
+    "turnIndex" : 1,
+    "caseType" : "PLAN_VALIDATION",
+    "status" : "EVALUATED",
+    "predictedPlanLevel" : "OK",
+    "goldPlanLevel" : "OK",
+    "planLevelMatch" : true
+  }, {
+    "caseId" : "PLAN-02",
+    "turnIndex" : 1,
+    "caseType" : "PLAN_VALIDATION",
+    "status" : "EVALUATED",
+    "predictedPlanLevel" : "HARD_ERROR",
+    "goldPlanLevel" : "HARD_ERROR",
+    "planLevelMatch" : true,
+    "predictedRuleCodes" : [ "UNDERAGE" ],
+    "goldRuleCodes" : [ "UNDERAGE" ]
+  }, {
+    "caseId" : "PLAN-03",
+    "turnIndex" : 1,
+    "caseType" : "PLAN_VALIDATION",
+    "status" : "EVALUATED",
+    "predictedPlanLevel" : "HARD_ERROR",
+    "goldPlanLevel" : "HARD_ERROR",
+    "planLevelMatch" : true,
+    "predictedRuleCodes" : [ "SCHEDULE_OVERLAP" ],
+    "goldRuleCodes" : [ "SCHEDULE_OVERLAP" ]
+  }, {
+    "caseId" : "PLAN-04",
+    "turnIndex" : 1,
+    "caseType" : "PLAN_VALIDATION",
+    "status" : "EVALUATED",
+    "predictedPlanLevel" : "WARNING",
+    "goldPlanLevel" : "WARNING",
+    "planLevelMatch" : true,
+    "predictedRuleCodes" : [ "ENERGY_OUT_OF_RANGE" ],
+    "goldRuleCodes" : [ "ENERGY_OUT_OF_RANGE" ]
+  } ],
+  "notes" : [ "运行模式：DETERMINISTIC_FIXTURE——固定 Agent/resource fixture 与规则，无 API key/MySQL/Qdrant 也可运行，作普通回归", "所有指标给有效分母；缺 gold 或结构化事实为 null 不算 0", "计划样本（caseType=PLAN_VALIDATION）直接调用 PlanValidationService，不复制规则", "用户反馈仅统计 #74 精确 trace 归因；FAVORITE/UNFAVORITE 不进满意度；本档位无真实用户反馈", "BENCHMARK 为单标注者两遍复核（labeledAt/reviewedAt/reviewStatus=REVIEWED），不声称多人标注", "候选引用合规 = 最终展示 ID 全部属于本轮候选集，明细记违规 ID", "风险阻断、正常澄清和无候选不算 fallback；REQUEST_FAILED 为最严重 fallback 主类" ]
+}
