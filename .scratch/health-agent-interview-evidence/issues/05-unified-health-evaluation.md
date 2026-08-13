@@ -5,7 +5,7 @@
 - Triage: ready-for-agent
 - Priority: P1
 - Estimate: 3-5 天（含 36 条样本编制与单人两遍复核）
-- Blocked by: 04
+- Blocked by: local 04 ([GitHub #74](https://github.com/Leewwp/health_agent/issues/74)); local 03 ([GitHub #75](https://github.com/Leewwp/health_agent/issues/75)) 已 resolved
 - GitHub: https://github.com/Leewwp/health_agent/issues/73
 
 ## Question
