@@ -251,7 +251,7 @@ public class HealthEvalRunner implements ApplicationRunner {
         for (RequestTraceRow trace : traces) {
             ExpectedHealth gold = ExpectedHealth.parse(readTree(trace.getExpectedHealthJson()));
             AuditFeedbackLoader.Attribution attribution = attributions.getOrDefault(
-                    trace.getTraceId(), new AuditFeedbackLoader.Attribution(List.of(), null));
+                    AuditFeedbackLoader.attributionKey(trace), new AuditFeedbackLoader.Attribution(List.of(), null));
             TraceFacts facts = reader.read(trace, attribution.feedbacks(), attribution.attribution());
             turns.add(new TurnInput(BenchmarkCase.audit(trace.getTraceId(), gold), facts));
         }
@@ -308,7 +308,7 @@ public class HealthEvalRunner implements ApplicationRunner {
         for (int i = 0; i < turns.size(); i++) {
             RequestTraceRow row = producedTraces.get(i);
             AuditFeedbackLoader.Attribution attribution = attributions.getOrDefault(
-                    row.getTraceId(), new AuditFeedbackLoader.Attribution(List.of(), null));
+                    AuditFeedbackLoader.attributionKey(row), new AuditFeedbackLoader.Attribution(List.of(), null));
             TraceFacts facts = reader.read(row, attribution.feedbacks(), attribution.attribution());
             turns.set(i, new TurnInput(turns.get(i).sample(), facts));
         }

@@ -26,7 +26,7 @@ public class AuditFeedbackLoader {
         this.feedbackMapper = feedbackMapper;
     }
 
-    /** 按 trace 逐条归并反馈与归因标记，返回 traceId → 归因结果。 */
+    /** 按 trace 逐条归并反馈与归因标记，返回稳定归因键 → 归因结果。 */
     public Map<String, Attribution> load(Long userId, LocalDateTime startAt, LocalDateTime endAt,
                                          List<RequestTraceRow> traces) {
         List<String> traceIds = traces.stream()
@@ -53,16 +53,16 @@ public class AuditFeedbackLoader {
             String traceId = trace.getTraceId();
             List<FeedbackRow> exact = hasText(traceId) ? byTraceId.getOrDefault(traceId, List.of()) : List.of();
             if (!exact.isEmpty()) {
-                result.put(traceId, new Attribution(exact, TraceFactReader.ATTRIBUTION_EXACT_TRACE));
+                result.put(attributionKey(trace), new Attribution(exact, TraceFactReader.ATTRIBUTION_EXACT_TRACE));
             } else if (!hasText(traceId)) {
                 List<FeedbackRow> fallback = bySession.getOrDefault(trace.getSessionId(), List.of());
                 if (!fallback.isEmpty()) {
-                    result.put(traceId, new Attribution(fallback, TraceFactReader.ATTRIBUTION_LEGACY_SESSION_FALLBACK));
+                    result.put(attributionKey(trace), new Attribution(fallback, TraceFactReader.ATTRIBUTION_LEGACY_SESSION_FALLBACK));
                 } else {
-                    result.put(traceId, new Attribution(List.of(), null));
+                    result.put(attributionKey(trace), new Attribution(List.of(), null));
                 }
             } else {
-                result.put(traceId, new Attribution(List.of(), null));
+                result.put(attributionKey(trace), new Attribution(List.of(), null));
             }
         }
         return result;
@@ -70,6 +70,17 @@ public class AuditFeedbackLoader {
 
     /** 单条 trace 的反馈归因结果。 */
     public record Attribution(List<FeedbackRow> feedbacks, String attribution) {
+    }
+
+    /** 旧数据的 trace_id 为空，必须用行 id 隔离同一会话中的多条旧 trace；两者皆缺时快速失败，避免静默串扰。 */
+    static String attributionKey(RequestTraceRow trace) {
+        if (hasText(trace.getTraceId())) {
+            return trace.getTraceId();
+        }
+        if (trace.getId() == null) {
+            throw new IllegalStateException("归因键要求非空 trace_id 或行 id，实际两者皆缺：session=" + trace.getSessionId());
+        }
+        return "legacy-trace-" + trace.getId();
     }
 
     /** 计划校验结果 → 引擎 PlanOutcome（复用 PlanValidationService，不复制规则）。 */
@@ -86,7 +97,7 @@ public class AuditFeedbackLoader {
         return new PlanOutcome(result.level().name(), allCodes, hardErrorCodes);
     }
 
-    private boolean hasText(String text) {
+    private static boolean hasText(String text) {
         return text != null && !text.isBlank();
     }
 }
