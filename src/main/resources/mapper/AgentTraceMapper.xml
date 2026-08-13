@@ -19,6 +19,8 @@
         <result property="expectedIntent" column="expected_intent"/>
         <result property="expectedSlots" column="expected_slots"/>
         <result property="expectedClarifyAction" column="expected_clarify_action"/>
+        <result property="evaluationSchemaVersion" column="evaluation_schema_version"/>
+        <result property="expectedHealthJson" column="expected_health_json"/>
         <result property="labeledBy" column="labeled_by"/>
         <result property="labeledAt" column="labeled_at"/>
         <result property="labelNote" column="label_note"/>
@@ -51,6 +53,8 @@
         expected_intent,
         expected_slots,
         expected_clarify_action,
+        evaluation_schema_version,
+        expected_health_json,
         labeled_by,
         labeled_at,
         label_note,
@@ -81,6 +85,8 @@
         expected_intent,
         expected_slots,
         expected_clarify_action,
+        evaluation_schema_version,
+        expected_health_json,
         labeled_by,
         labeled_at,
         label_note,
@@ -107,6 +113,8 @@
         expected_intent,
         expected_slots,
         expected_clarify_action,
+        evaluation_schema_version,
+        expected_health_json,
         labeled_by,
         labeled_at,
         label_note,
@@ -134,6 +142,8 @@
         expected_intent,
         expected_slots,
         expected_clarify_action,
+        evaluation_schema_version,
+        expected_health_json,
         labeled_by,
         labeled_at,
         label_note,
@@ -157,6 +167,8 @@
         SET expected_intent = #{expectedIntent},
         expected_slots = #{expectedSlots},
         expected_clarify_action = #{expectedClarifyAction},
+        evaluation_schema_version = #{evaluationSchemaVersion},
+        expected_health_json = #{expectedHealthJson},
         labeled_by = #{labeledBy},
         labeled_at = NOW(),
         label_note = #{labelNote},

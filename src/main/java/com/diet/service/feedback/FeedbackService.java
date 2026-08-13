@@ -14,7 +14,7 @@ public class FeedbackService {
         this.feedbackMapper = feedbackMapper;
     }
 
-    /** 旧饮食接口适配层：itemId → MEAL 类型化字段 + LEGACY_DIET 来源，保留原字段。 */
+    /** 旧饮食接口适配层：itemId → MEAL 类型化字段 + LEGACY_DIET 来源，保留原字段；traceId 恒为 NULL 不伪造（#74）。 */
     public void save(Long userId, FeedbackRequest request) {
         if (request == null || request.sessionId() == null || request.sessionId().isBlank()) {
             throw new DietException("反馈 sessionId 不能为空");
@@ -25,6 +25,7 @@ public class FeedbackService {
         feedbackMapper.insertTyped(
                 userId,
                 request.sessionId(),
+                null,
                 request.itemId(),
                 FeedbackConstants.RESOURCE_TYPE_MEAL,
                 request.itemId() == null ? null : String.valueOf(request.itemId()),

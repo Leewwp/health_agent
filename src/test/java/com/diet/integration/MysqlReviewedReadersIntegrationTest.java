@@ -49,7 +49,7 @@ import static org.mockito.Mockito.when;
 /**
  * #68/#69/#70 方案 B 读取边界：审核读取模块、浏览/检索与批处理数据面的真实 MySQL 门控验证。
  * <p>
- * 在独立测试库 diet_db_itest 上（V1-V7 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食、
+ * 在独立测试库 diet_db_itest 上（V1-V9 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食、
  * 30 个 APPROVED 动作），验证：
  * <ul>
  *   <li>#68 审核餐食/动作读取模块真库行为：仅 APPROVED + PUBLIC 返回（审核/来源过滤）、

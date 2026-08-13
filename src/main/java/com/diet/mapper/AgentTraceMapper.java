@@ -40,7 +40,9 @@ public interface AgentTraceMapper {
             @Param("expectedSlots") String expectedSlots,
             @Param("expectedClarifyAction") String expectedClarifyAction,
             @Param("labeledBy") Long labeledBy,
-            @Param("labelNote") String labelNote
+            @Param("labelNote") String labelNote,
+            @Param("evaluationSchemaVersion") String evaluationSchemaVersion,
+            @Param("expectedHealthJson") String expectedHealthJson
     );
 }
 

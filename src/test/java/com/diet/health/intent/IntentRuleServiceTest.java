@@ -40,6 +40,22 @@ class IntentRuleServiceTest {
     }
 
     @Test
+    void 周计划关键词路由到PLAN意图() {
+        HealthIntentResult result = rules.fallback("帮我安排一周的计划", Map.of(), null);
+        assertEquals(HealthTask.PLAN, result.task());
+
+        HealthIntentResult exercisePlan = rules.fallback("帮我安排一周的训练", Map.of(), null);
+        assertEquals(HealthTask.PLAN, exercisePlan.task(), "训练与周计划关键词并存时按 PLAN 处理");
+    }
+
+    @Test
+    void 单餐请求不得被PLAN关键词误路由() {
+        // 回归：#72 PLAN 兜底关键词必须足够精确，避免「帮我安排一下午餐」被误判为周计划。
+        HealthIntentResult meal = rules.fallback("帮我安排一下午餐", Map.of(), null);
+        assertEquals(HealthTask.RECOMMEND, meal.task(), "「帮我安排一下午餐」是单餐推荐，不是周计划");
+    }
+
+    @Test
     void 换一批路由到ADJUST且尊重已有健身槽位() {
         HealthIntentResult mealAdjust = rules.fallback("换一批", Map.of("mealTime", List.of("午餐")), null);
         assertEquals(HealthDomain.MEAL, mealAdjust.domain());

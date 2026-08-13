@@ -8,6 +8,7 @@
         <id property="id" column="id"/>
         <result property="userId" column="user_id"/>
         <result property="sessionId" column="session_id"/>
+        <result property="traceId" column="trace_id"/>
         <result property="itemId" column="item_id"/>
         <result property="resourceType" column="resource_type"/>
         <result property="resourceId" column="resource_id"/>
@@ -22,10 +23,10 @@
 
     <insert id="insertTyped">
         INSERT INTO recommend_feedback (
-        user_id, session_id, item_id, resource_type, resource_id, plan_id, plan_item_id,
+        user_id, session_id, trace_id, item_id, resource_type, resource_id, plan_id, plan_item_id,
         action, rating, reason, source, created_at
         ) VALUES (
-        #{userId}, #{sessionId}, #{itemId}, #{resourceType}, #{resourceId}, #{planId}, #{planItemId},
+        #{userId}, #{sessionId}, #{traceId}, #{itemId}, #{resourceType}, #{resourceId}, #{planId}, #{planItemId},
         #{action}, #{rating}, #{reason}, #{source}, NOW()
         )
     </insert>
@@ -34,6 +35,7 @@
         SELECT id,
         user_id,
         session_id,
+        trace_id,
         item_id,
         resource_type,
         resource_id,
@@ -48,6 +50,7 @@
         WHERE user_id = #{userId}
         AND created_at &gt;= #{startAt}
         AND created_at &lt; #{endAt}
+        AND trace_id IS NULL
         <choose>
             <when test="sessionIds != null and sessionIds.size() &gt; 0">
                 AND session_id IN
@@ -62,10 +65,42 @@
         ORDER BY created_at DESC, id DESC
     </select>
 
+    <select id="findByTraceIds" resultMap="FeedbackRowMap">
+        SELECT id,
+        user_id,
+        session_id,
+        trace_id,
+        item_id,
+        resource_type,
+        resource_id,
+        plan_id,
+        plan_item_id,
+        action,
+        rating,
+        reason,
+        source,
+        created_at
+        FROM recommend_feedback
+        WHERE user_id = #{userId}
+        <choose>
+            <when test="traceIds != null and traceIds.size() &gt; 0">
+                AND trace_id IN
+                <foreach collection="traceIds" item="traceId" open="(" separator="," close=")">
+                    #{traceId}
+                </foreach>
+            </when>
+            <otherwise>
+                AND 1 = 0
+            </otherwise>
+        </choose>
+        ORDER BY created_at DESC, id DESC
+    </select>
+
     <select id="findRecent" resultMap="FeedbackRowMap">
         SELECT id,
         user_id,
         session_id,
+        trace_id,
         item_id,
         resource_type,
         resource_id,

@@ -85,38 +85,44 @@ public class FixtureAgentInvoker implements AgentInvoker {
         return index < 0 ? prompt : prompt.substring(index + marker.length());
     }
 
-    /** 意图固定结果：风险 / 健身 / 作息 / 饮食 四个场景，槽位按 Prompt 关键词提取。 */
+    /** 意图固定结果：风险 / 综合 / 健身 / 作息 / 计划 / 饮食 场景，槽位按 Prompt 关键词提取。 */
     private static String intentFixture(String prompt) {
         String riskFlag = riskFlag(prompt);
-        if (riskFlag != null) {
-            String domain = containsAny(prompt, "训练", "健身", "俯卧撑", "深蹲", "练") ? "EXERCISE"
-                    : containsAny(prompt, "睡眠", "作息", "睡多久", "几点睡") ? "ROUTINE"
-                    : "MEAL";
-            return "{\"domain\":\"" + domain + "\",\"task\":\"RECOMMEND\",\"riskFlags\":[\"" + riskFlag + "\"],\"slots\":{},\"preferenceSignals\":[],\"confidence\":0.9}";
+        if (containsAny(prompt, "综合", "整体")) {
+            return intentJson("COMPOSITE", "RECOMMEND", "", riskFlag);
         }
-        if (containsAny(prompt, "训练", "健身", "俯卧撑", "深蹲", "练")) {
-            String bodyParts = pickOne(prompt, "胸", "背", "腿", "核心", "手臂", "臀");
-            String goal = pickOne(prompt, "增肌", "减脂", "耐力", "柔韧", "力量");
-            StringBuilder slots = new StringBuilder();
-            appendSlot(slots, "bodyParts", bodyParts);
-            appendSlot(slots, "trainingGoal", goal);
-            return intentJson("EXERCISE", "RECOMMEND", slots.toString());
+        if (containsAny(prompt, "安排一周", "周计划", "一周的计划", "一周安排", "帮我安排一周")) {
+            return intentJson("MEAL", "PLAN", "", riskFlag);
         }
-        if (containsAny(prompt, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "生物钟")) {
-            return intentJson("ROUTINE", "RECOMMEND", "\"wakeTime\":[\"07:00\"]");
+        if (containsAny(prompt, "换一批", "换换", "不要", "去掉")) {
+            // #76 ADJUST 场景：任务按当前领域路由（MEAL/EXERCISE），排除集由编排器从会话历史类型化引用取
+            return intentJson(containsAny(prompt, "训练", "健身", "俯卧撑", "深蹲") ? "EXERCISE" : "MEAL",
+                    "ADJUST", "", riskFlag);
         }
-        String mealTime = pickOne(prompt, "早餐", "午餐", "晚餐");
-        String healthGoal = pickOne(prompt, "清淡", "减脂", "高蛋白", "养胃", "均衡");
-        String cuisine = pickOne(prompt, "川菜", "粤菜", "湘菜", "轻食", "日料", "火锅");
-        String taste = pickOne(prompt, "辣", "微辣", "甜");
-        String convenience = pickOne(prompt, "快速", "慢享", "外带方便");
+        String domain;
         StringBuilder slots = new StringBuilder();
-        appendSlot(slots, "mealTime", mealTime);
-        appendSlot(slots, "healthGoal", healthGoal);
-        appendSlot(slots, "cuisine", cuisine);
-        appendSlot(slots, "taste", taste);
-        appendSlot(slots, "convenience", convenience);
-        return intentJson("MEAL", "RECOMMEND", slots.toString());
+        if (containsAny(prompt, "训练", "健身", "俯卧撑", "深蹲", "练")) {
+            domain = "EXERCISE";
+            appendSlot(slots, "bodyParts", pickOne(prompt, "胸", "背", "腿", "核心", "手臂", "臀"));
+            appendSlot(slots, "trainingGoal", pickOne(prompt, "增肌", "减脂", "耐力", "柔韧", "力量"));
+        } else if (containsAny(prompt, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "生物钟")) {
+            domain = "ROUTINE";
+            slots.append("\"wakeTime\":[\"07:00\"]");
+        } else {
+            domain = "MEAL";
+            String mealTime = pickOne(prompt, "早餐", "午餐", "晚餐");
+            if (mealTime == null && containsAny(prompt, "晚上", "晚饭")) {
+                mealTime = "晚餐";
+            }
+            appendSlot(slots, "mealTime", mealTime);
+            appendSlot(slots, "healthGoal", pickOne(prompt, "清淡", "减脂", "高蛋白", "养胃", "均衡"));
+            appendSlot(slots, "cuisine", pickOne(prompt, "川菜", "粤菜", "湘菜", "轻食", "日料", "火锅"));
+            // 微辣必须先于辣匹配，否则"微辣"会被截取为"辣"
+            appendSlot(slots, "taste", pickOne(prompt, "微辣", "辣", "甜"));
+            appendSlot(slots, "convenience",
+                    containsAny(prompt, "快的", "快点", "快速") ? "快速" : pickOne(prompt, "慢享", "外带方便"));
+        }
+        return intentJson(domain, "RECOMMEND", slots.toString(), riskFlag);
     }
 
     /** 按风险关键词返回对应 flag（44 号票：来自 RiskRuleCatalog 唯一事实来源，命中首个规则）。 */
@@ -127,8 +133,17 @@ public class FixtureAgentInvoker implements AgentInvoker {
     }
 
     private static String intentJson(String domain, String task, String slotsJson) {
-        return "{\"domain\":\"" + domain + "\",\"task\":\"" + task + "\",\"riskFlags\":[],"
-                + "\"slots\":{" + slotsJson + "},\"preferenceSignals\":[],\"confidence\":0.9}";
+        return intentJson(domain, task, slotsJson, null);
+    }
+
+    private static String intentJson(String domain, String task, String slotsJson, String riskFlag) {
+        String flags = riskFlag == null ? "[]" : "[\"" + riskFlag + "\"]";
+        StringBuilder json = new StringBuilder();
+        json.append("{\"domain\":\"").append(domain).append("\",\"task\":\"").append(task).append("\"");
+        json.append(",\"riskFlags\":").append(flags);
+        json.append(",\"slots\":{").append(slotsJson).append("}");
+        json.append(",\"preferenceSignals\":[],\"confidence\":0.9}");
+        return json.toString();
     }
 
     private static void appendSlot(StringBuilder slots, String name, String value) {
@@ -162,9 +177,9 @@ public class FixtureAgentInvoker implements AgentInvoker {
         return "这顿主要是早餐、午餐还是晚餐？";
     }
 
-    /** 推荐解释固定结果：从输入 Prompt 的候选 JSON 中提取前 3 个 resourceId 原样回显。 */
+    /** 推荐解释固定结果：从输入 Prompt 的候选 JSON 中提取前 3 个 resourceId 原样回显（#73 起按字符串输出）。 */
     private static String recommendFixture(String prompt) {
-        List<Long> ids = extractCandidateIds(prompt, 3);
+        List<String> ids = extractCandidateIds(prompt, 3);
         if (ids.isEmpty()) {
             return null;
         }
@@ -173,19 +188,22 @@ public class FixtureAgentInvoker implements AgentInvoker {
             if (i > 0) {
                 json.append(',');
             }
-            json.append("{\"resourceId\":").append(ids.get(i)).append(",\"reason\":\"匹配你选择的偏好条件\"}");
+            json.append("{\"resourceId\":\"").append(ids.get(i)).append("\",\"reason\":\"匹配你选择的偏好条件\"}");
         }
         json.append("]}");
         return json.toString();
     }
 
-    /** 从候选 JSON 中提取 resourceId（限制数量），支持字符串或数字两种形态，保持出现顺序。 */
-    private static List<Long> extractCandidateIds(String prompt, int limit) {
-        Pattern pattern = Pattern.compile("\"resourceId\"\\s*:\\s*\"?(\\d+)\"?");
+    /**
+     * 从候选 JSON 中提取 resourceId（限制数量），支持字符串或数字两种形态，保持出现顺序。
+     * #73：餐食 M1-M9 与作息 R1-R5 为字母数字种子 ID，regex 须同时覆盖字母与数字。
+     */
+    private static List<String> extractCandidateIds(String prompt, int limit) {
+        Pattern pattern = Pattern.compile("\"resourceId\"\\s*:\\s*\"?([A-Za-z0-9_-]+)\"?");
         Matcher matcher = pattern.matcher(prompt);
-        Map<Long, Boolean> seen = new LinkedHashMap<>();
+        Map<String, Boolean> seen = new LinkedHashMap<>();
         while (matcher.find() && seen.size() < limit) {
-            seen.put(Long.parseLong(matcher.group(1)), Boolean.TRUE);
+            seen.put(matcher.group(1), Boolean.TRUE);
         }
         return List.copyOf(seen.keySet());
     }

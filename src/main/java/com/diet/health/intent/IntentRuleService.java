@@ -38,7 +38,10 @@ public class IntentRuleService {
         }
         HealthDomain domain = HealthDomain.MEAL;
         HealthTask task = HealthTask.CHAT;
-        if (containsAny(text, "训练", "健身", "俯卧撑", "深蹲", "练")) {
+        if (containsAny(text, "安排一周", "周计划", "一周的计划", "一周安排", "帮我安排一周")) {
+            domain = HealthDomain.MEAL;
+            task = HealthTask.PLAN;
+        } else if (containsAny(text, "训练", "健身", "俯卧撑", "深蹲", "练")) {
             domain = HealthDomain.EXERCISE;
             task = HealthTask.RECOMMEND;
         } else if (containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "生物钟")) {

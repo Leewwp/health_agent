@@ -16,8 +16,8 @@
 - **健康档案与周计划**：Mifflin-St Jeor 能量区间、DRAFT/ACTIVE/ARCHIVED 生命周期、版本快照（档案/规则/会话/事实/资源生成依据）、`POST /api/v1/health/plan/**`、事务化写入 + 行锁 + 数据库级 ACTIVE 唯一约束；
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
 - **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实，媒体一律无图+保留署名）；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
-- **餐食 RAG（M5 #52 融合）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集对比 `Recall@3`/硬约束命中率/降级（见 `docs/research/meal-rag-evaluation.md`）；
-- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V6 计划版本依据与 ACTIVE 约束）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
+- **餐食 RAG（M5 #52 融合；#77 扩展评测）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
+- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V9 反馈归因/评估标注字段，含 V6 计划版本依据与 ACTIVE 约束）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
 ## 本地启动
@@ -149,7 +149,7 @@ mvn test
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
-39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V6）上验证 saveProfile/createDraft/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致。需要本机 MySQL（root/123456，与 dev 配置一致）：
+39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V9）上验证 saveProfile/createDraft/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致。需要本机 MySQL（root/123456，与 dev 配置一致）：
 
 ```bash
 mvn test -Ditest.mysql=true

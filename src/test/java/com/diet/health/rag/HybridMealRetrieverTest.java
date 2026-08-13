@@ -265,6 +265,69 @@ class HybridMealRetrieverTest {
         verify(embeddingClient).embed(eq("增肌 晚餐"));
     }
 
+    @Test
+    void 嵌入文本非空时使用用户原话而非槽位拼接() {
+        RetrievalItem a = item(1L, 0.9, null);
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(new VectorPoint(1L, new float[]{1f, 0f}, approvedPayload())));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1")));
+
+        hybrid.retrieve(new MealRetrievalQuery(
+                Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("增肌")), List.of(), List.of(),
+                "晚上想吃增肌餐"), 10);
+
+        verify(embeddingClient).embed(eq("晚上想吃增肌餐"));
+    }
+
+    @Test
+    void 融合权重可注入且改变融合排序() {
+        // 结构化：A 高分、B 低分；向量：B 余弦满、A 余弦 0。
+        // 0.3 权重（结构 0.3/语义 0.7）：B=0.7 > A=0.3 → B 在前；
+        // 0.7 权重（结构 0.7/语义 0.3）：A=0.7 > B=0.5 → A 在前。
+        RetrievalItem a = item(1L, 1.0, null);
+        RetrievalItem b = item(2L, 0.5, null);
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(a, b), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(
+                new VectorPoint(2L, new float[]{1f, 0f}, approvedPayload()),
+                new VectorPoint(1L, new float[]{0f, 1f}, approvedPayload())));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1"), meal(2L, "餐2")));
+
+        HybridMealRetriever weight03 = new HybridMealRetriever(structured, embeddingClient, vectorStore,
+                reviewedMealReader, 0.3);
+        RetrievalResult result03 = weight03.retrieve(query("增肌晚餐"), 10);
+        assertEquals(2L, result03.items().get(0).meal().id(), "0.3 权重下语义分主导，向量候选在前");
+        assertEquals(0.85, result03.items().get(0).mergedScore(), 1e-9, "B：0.3*0.5 + 0.7*1.0 = 0.85");
+        assertEquals(0.3, result03.items().get(1).mergedScore(), 1e-9, "A：0.3*1.0 + 0.7*0.0 = 0.3");
+
+        HybridMealRetriever weight07 = new HybridMealRetriever(structured, embeddingClient, vectorStore,
+                reviewedMealReader, 0.7);
+        RetrievalResult result07 = weight07.retrieve(query("增肌晚餐"), 10);
+        assertEquals(1L, result07.items().get(0).meal().id(), "0.7 权重下结构分主导，结构化候选在前");
+        assertEquals(0.7, result07.items().get(0).mergedScore(), 1e-9, "A：0.7*1.0 + 0.3*0.0 = 0.7");
+        assertEquals(0.65, result07.items().get(1).mergedScore(), 1e-9, "B：0.7*0.5 + 0.3*1.0 = 0.65");
+    }
+
+    @Test
+    void 无权重构造默认融合权重为05() {
+        RetrievalItem a = item(1L, 1.0, null);
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(a), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(new VectorPoint(1L, new float[]{1f, 0f}, approvedPayload())));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(meal(1L, "餐1")));
+
+        RetrievalResult result = hybrid.retrieve(query("增肌晚餐"), 10);
+
+        assertEquals(1.0, result.items().get(0).mergedScore(), 1e-9, "默认 0.5：0.5*1.0 + 0.5*1.0 = 1.0");
+    }
+
     private MealRetrievalQuery query(String text) {
         return new MealRetrievalQuery(Map.of("healthGoal", List.of("增肌")), List.of(), List.of(), text);
     }

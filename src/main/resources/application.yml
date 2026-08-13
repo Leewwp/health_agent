@@ -50,6 +50,8 @@ diet:
   rag:
     # structured=只用结构化检索；hybrid=结构化+语义合并（embedding 失败自动降级）
     mode: hybrid
+    # hybrid 融合权重：结构化分权重（语义分权重 = 1-w），默认 0.5（#77 消融经测试接缝注入，不静默改线上）
+    fusion-weight: 0.5
     # 启动时运行 RAG 评估（固定查询集 → data/reports/rag_evaluation.json）
     eval-run: false
     eval-report-path: data/reports/rag_evaluation.json

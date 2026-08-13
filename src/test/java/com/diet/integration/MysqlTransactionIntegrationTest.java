@@ -51,8 +51,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段）：
- * 在独立测试库 diet_db_itest 上验证 V1-V7 迁移、saveProfile/createDraft/activate
+ * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段；#74 补 traceId 归因）：
+ * 在独立测试库 diet_db_itest 上验证 V1-V9 迁移、saveProfile/createDraft/activate
  * 任一步写入失败时数据库无半成品、并发激活只产生一个有效 ACTIVE、
  * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一、风险档案阻断后无残留。
  * <p>
@@ -171,14 +171,14 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V7迁移全部成功() {
+    void 干净库V1至V9迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(7, rows.size(), "干净库应执行 V1-V7 共 7 条迁移");
+        assertEquals(9, rows.size(), "干净库应执行 V1-V9 共 9 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("7", String.valueOf(rows.get(6).get("version")), "V7 最后执行");
+        assertEquals("9", String.valueOf(rows.get(8).get("version")), "V9 最后执行");
     }
 
     @Test
@@ -221,6 +221,33 @@ class MysqlTransactionIntegrationTest {
                         + " AND table_name = 'health_profile' AND column_name IN ('risk_conditions_json','risk_note')",
                 String.class);
         assertEquals(2, riskColumns.size(), "V7 结构化风险列必须存在（risk_conditions_json/risk_note）");
+        List<String> traceColumns = jdbc.queryForList(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'recommend_feedback' AND column_name IN ('trace_id','item_id','resource_type')",
+                String.class);
+        assertEquals(3, traceColumns.size(), "V8 加 trace_id 且不破坏 item_id/resource_type 兼容列");
+        Integer traceIndexes = jdbc.queryForObject(
+                "SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics"
+                        + " WHERE table_schema = 'diet_db_itest' AND table_name = 'recommend_feedback'"
+                        + " AND index_name = 'idx_feedback_trace'",
+                Integer.class);
+        assertEquals(1, traceIndexes, "(user_id, trace_id) 普通索引必须存在（V8）");
+        Integer traceColumnLen = jdbc.queryForObject(
+                "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'recommend_feedback' AND column_name = 'trace_id'",
+                Integer.class);
+        assertEquals(128, traceColumnLen, "trace_id 长度上限必须与 diet_request_trace.trace_id 一致（128）");
+        List<String> evalColumns = jdbc.queryForList(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'diet_request_trace'"
+                        + " AND column_name IN ('evaluation_schema_version','expected_health_json')",
+                String.class);
+        assertEquals(2, evalColumns.size(), "V9 评估标注列必须存在（evaluation_schema_version/expected_health_json）");
+        String evalColumnType = jdbc.queryForObject(
+                "SELECT DATA_TYPE FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'diet_request_trace' AND column_name = 'expected_health_json'",
+                String.class);
+        assertEquals("json", evalColumnType, "expected_health_json 必须为 JSON 类型（V9）");
     }
 
     // ---------- 39 号票验收点：任一步失败数据库无半成品 ----------
@@ -501,6 +528,75 @@ class MysqlTransactionIntegrationTest {
         } finally {
             RequestContextHolder.resetRequestAttributes();
         }
+    }
+
+    // ---------- #74：反馈 traceId 精确归因在真实 MySQL 上落库与查询 ----------
+
+    @Test
+    void traceId反馈经真实服务落库并可按trace精确读取() throws Exception {
+        String sessionId = "sess-74";
+        String traceId = "trace_74_itest";
+        // 先落一条归属该用户的真实 Trace（response_json 为健康聊天最终响应快照）。
+        String responseJson = objectMapper.writeValueAsString(com.diet.health.model.HealthChatResponse.answer(
+                sessionId, traceId, com.diet.health.enums.HealthDomain.EXERCISE,
+                com.diet.health.enums.HealthTask.RECOMMEND, List.of(),
+                com.diet.health.enums.HealthPhase.RESPOND, "推荐如下",
+                List.of(new com.diet.health.model.HealthDisplayBlock(
+                        "EXERCISE", "9001", "俯卧撑", "PUBLIC", "来源", null, true, null))));
+        jdbc.update("INSERT INTO diet_request_trace (trace_id, request_id, session_id, user_id, status, event_count,"
+                        + " trace_json, response_json, created_at, updated_at)"
+                        + " VALUES (?, ?, ?, ?, 'SUCCESS', 0, '{}', ?, NOW(), NOW())",
+                traceId, traceId, sessionId, USER, responseJson);
+
+        // 合法归因：资源在该 trace 推荐结果中，真实服务写入并携带 traceId。
+        feedbackService.save(USER, new HealthFeedbackRequest(sessionId, "EXERCISE", "9001", "LIKE",
+                null, null, 5, "练了很舒服", null, traceId));
+        List<com.diet.model.FeedbackRow> byTrace = realFeedbackMapper.findByTraceIds(USER, List.of(traceId));
+        assertEquals(1, byTrace.size(), "按 traceId 必须精确读到一条反馈");
+        assertEquals(traceId, byTrace.get(0).getTraceId());
+        assertEquals("EXERCISE", byTrace.get(0).getResourceType());
+        assertEquals("9001", byTrace.get(0).getResourceId());
+        assertEquals("HEALTH_CHAT", byTrace.get(0).getSource());
+
+        // 精确归因后，session 回退查询不得再读到这条带 traceId 的新反馈。
+        assertTrue(realFeedbackMapper.findBySessions(
+                USER, List.of(sessionId), LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1)).isEmpty(),
+                "带 trace_id 的反馈不得混入 session 回退归因");
+    }
+
+    @Test
+    void traceId反馈跨用户与资源不匹配均被拒绝且不落库() throws Exception {
+        String sessionId = "sess-74-b";
+        String traceId = "trace_74_cross";
+        jdbc.update("INSERT INTO diet_request_trace (trace_id, request_id, session_id, user_id, status, event_count,"
+                        + " trace_json, response_json, created_at, updated_at)"
+                        + " VALUES (?, ?, ?, ?, 'SUCCESS', 0, '{}', ?, NOW(), NOW())",
+                traceId, traceId, sessionId, USER,
+                objectMapper.writeValueAsString(com.diet.health.model.HealthChatResponse.answer(
+                        sessionId, traceId, com.diet.health.enums.HealthDomain.MEAL,
+                        com.diet.health.enums.HealthTask.RECOMMEND, List.of(),
+                        com.diet.health.enums.HealthPhase.RESPOND, "推荐如下",
+                        List.of(new com.diet.health.model.HealthDisplayBlock(
+                                "MEAL", "M1", "示例餐", "PUBLIC", "来源", null, false, null)))));
+
+        // 跨用户：Trace 属于 USER，另一用户反馈必须 404 且不写入。
+        com.diet.exception.HealthApiException crossUser = assertThrows(
+                com.diet.exception.HealthApiException.class,
+                () -> feedbackService.save(USER + 1, new HealthFeedbackRequest(
+                        sessionId, "MEAL", "M1", "LIKE", null, null, null, null, null, traceId)));
+        assertEquals("NOT_FOUND", crossUser.code());
+        assertTrue(crossUser.getMessage().contains("无权访问"));
+
+        // 资源不匹配：该 trace 只推荐 MEAL:M1，对 EXERCISE:9001 反馈必须 400 且不写入。
+        com.diet.exception.HealthApiException wrongResource = assertThrows(
+                com.diet.exception.HealthApiException.class,
+                () -> feedbackService.save(USER, new HealthFeedbackRequest(
+                        sessionId, "EXERCISE", "9001", "LIKE", null, null, null, null, null, traceId)));
+        assertEquals("BAD_REQUEST", wrongResource.code());
+
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM recommend_feedback WHERE user_id = ? AND session_id = ?",
+                Integer.class, USER, sessionId), "两处非法归因都不得落库");
     }
 
     // ---------- 28 号矩阵：MySQL 不可用有固定结果 ----------

@@ -9,6 +9,7 @@ public class FeedbackRow {
     private Long id;
     private Long userId;
     private String sessionId;
+    private String traceId;
     private Long itemId;
     private String resourceType;
     private String resourceId;

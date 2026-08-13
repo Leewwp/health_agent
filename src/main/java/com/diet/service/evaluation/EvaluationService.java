@@ -33,6 +33,11 @@ public class EvaluationService {
     );
     private static final List<String> FORBIDDEN_PHRASES = List.of("治好", "治疗", "保证", "一定能瘦", "根治", "替代医生");
 
+    /** #74：反馈归因标记——反馈按 traceId 一对一精确命中。 */
+    private static final String ATTRIBUTION_EXACT_TRACE = "EXACT_TRACE";
+    /** #74：反馈归因标记——traceId 为空的旧反馈按 session/时间窗口回退命中。 */
+    private static final String ATTRIBUTION_LEGACY_SESSION_FALLBACK = "LEGACY_SESSION_FALLBACK";
+
     private final AgentTraceService agentTraceService;
     private final FeedbackMapper feedbackMapper;
     private final ObjectMapper objectMapper;
@@ -62,17 +67,25 @@ public class EvaluationService {
         int limit = request.limit() == null ? DEFAULT_LIMIT : request.limit();
         // 从 diet_request_trace 按用户和时间范围读取待评估 trace。
         List<RequestTraceRow> traces = agentTraceService.findByTimeRange(userId, request.startAt(), request.endAt(), false, limit);
-        // 按 trace 涉及的 sessionId 一次性读取用户反馈，减少后续逐条查询。
-        Map<String, List<FeedbackRow>> feedbackBySession = loadFeedback(userId, request.startAt(), request.endAt(), traces);
+        // #74：按 trace 逐条归因反馈（优先 traceId 精确命中，旧 trace 走 session 回退）。
+        Map<String, TraceFeedback> feedbackByTrace = loadFeedback(userId, request.startAt(), request.endAt(), traces);
 
-        // 遍历每条 trace，结合对应 session 的反馈，生成单条 TraceEvaluationResult。
-        List<TraceEvaluationResult> results = traces.stream()
-                // 对单条 trace 执行规则解析、Judge 评分和总分汇总。
-                .map(trace -> evaluateTrace(trace, feedbackBySession.getOrDefault(trace.getSessionId(), List.of()), includeJudge))
-                // 收集成列表，后续用于区间聚合。
-                .toList();
+        // 遍历每条 trace，结合归因到的反馈，生成单条 TraceEvaluationResult，并累计两种归因计数。
+        List<TraceEvaluationResult> results = new ArrayList<>();
+        int exactAttributionCount = 0;
+        int legacyFallbackCount = 0;
+        for (RequestTraceRow trace : traces) {
+            TraceFeedback context = feedbackByTrace.getOrDefault(attributionKey(trace), TraceFeedback.NONE);
+            if (ATTRIBUTION_EXACT_TRACE.equals(context.attribution())) {
+                exactAttributionCount++;
+            } else if (ATTRIBUTION_LEGACY_SESSION_FALLBACK.equals(context.attribution())) {
+                legacyFallbackCount++;
+            }
+            // 对单条 trace 执行规则解析、Judge 评分和总分汇总。
+            results.add(evaluateTrace(trace, context.feedbacks(), includeJudge, context.attribution()));
+        }
 
-        // 将区间元信息、整体平均值和单条明细组装为最终报告。
+        // 将区间元信息、整体平均值、归因计数和单条明细组装为最终报告。
         return new EvaluationReport(
                 // 评估窗口开始时间，和请求保持一致。
                 request.startAt(),
@@ -86,31 +99,73 @@ public class EvaluationService {
                 average(results.stream().map(TraceEvaluationResult::score).toList()),
                 // 计算每个指标在整个时间范围内的平均值。
                 metricAverages(results),
+                // #74：反馈经 trace_id 精确归因的 trace 数。
+                exactAttributionCount,
+                // #74：旧反馈经 session/时间窗口回退归因的 trace 数。
+                legacyFallbackCount,
                 // 返回每条 trace 的评估明细，供后台页面展示和排查。
                 results
         );
     }
 
-    private Map<String, List<FeedbackRow>> loadFeedback(Long userId, LocalDateTime startAt, LocalDateTime endAt, List<RequestTraceRow> traces) {
-        // 从 trace 列表里提取 sessionId，因为当前 recommend_feedback 还没有 traceId。
-        List<String> sessionIds = traces.stream()
-                // 取出每条 trace 所属的 sessionId。
-                .map(RequestTraceRow::getSessionId)
-                // 过滤掉异常空 sessionId，避免 MyBatis IN 条件里出现 null。
+    /**
+     * #74 反馈归因：先按 trace_id 精确读取反馈（EXACT_TRACE），
+     * 只有 traceId 为空的旧 trace 才走 session/时间窗口回退（LEGACY_SESSION_FALLBACK）；
+     * 有 traceId 但无匹配反馈的 trace 归因为无反馈（标记 null），不把同 session 的旧反馈伪装成精确命中。
+     */
+    private Map<String, TraceFeedback> loadFeedback(Long userId, LocalDateTime startAt, LocalDateTime endAt, List<RequestTraceRow> traces) {
+        // 第一遍：提取所有非空 traceId，一次性精确查询反馈（traceId 用户范围内全局唯一，无需时间窗）。
+        List<String> traceIds = traces.stream()
+                .map(RequestTraceRow::getTraceId)
                 .filter(Objects::nonNull)
-                // 同一个 session 可能有多条 trace，这里去重减少查询参数。
                 .distinct()
-                // 收集成不可变列表传给 FeedbackMapper。
                 .toList();
-        // 查询时间范围内这些 session 的反馈，并按 sessionId 分组，方便单条 trace 取用。
-        return feedbackMapper.findBySessions(userId, sessionIds, startAt, endAt).stream()
-                // 同一个 session 下的反馈会被所有同 session trace 共享，这是当前无 traceId 反馈表的近似归因。
-                .collect(Collectors.groupingBy(FeedbackRow::getSessionId));
+        Map<String, List<FeedbackRow>> feedbackByTraceId = traceIds.isEmpty() ? Map.of()
+                : feedbackMapper.findByTraceIds(userId, traceIds).stream()
+                        .collect(Collectors.groupingBy(FeedbackRow::getTraceId));
+
+        // 第二遍：只有 traceId 为空的旧 trace 参与 session/时间窗口回退，避免新反馈被误归因到旧 trace。
+        List<String> legacySessionIds = traces.stream()
+                .filter(trace -> !hasText(trace.getTraceId()))
+                .map(RequestTraceRow::getSessionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<String, List<FeedbackRow>> feedbackBySession = legacySessionIds.isEmpty() ? Map.of()
+                : feedbackMapper.findBySessions(userId, legacySessionIds, startAt, endAt).stream()
+                        .collect(Collectors.groupingBy(FeedbackRow::getSessionId));
+
+        // 按 trace 逐条归并：精确命中优先，其次旧 trace 的 session 回退，都没有则无反馈。
+        Map<String, TraceFeedback> contexts = new HashMap<>();
+        for (RequestTraceRow trace : traces) {
+            String traceId = trace.getTraceId();
+            List<FeedbackRow> exact = hasText(traceId) ? feedbackByTraceId.getOrDefault(traceId, List.of()) : List.of();
+            if (!exact.isEmpty()) {
+                contexts.put(attributionKey(trace), new TraceFeedback(exact, ATTRIBUTION_EXACT_TRACE));
+                continue;
+            }
+            if (!hasText(traceId)) {
+                List<FeedbackRow> fallback = feedbackBySession.getOrDefault(trace.getSessionId(), List.of());
+                if (!fallback.isEmpty()) {
+                    contexts.put(attributionKey(trace), new TraceFeedback(fallback, ATTRIBUTION_LEGACY_SESSION_FALLBACK));
+                    continue;
+                }
+            }
+            contexts.put(attributionKey(trace), TraceFeedback.NONE);
+        }
+        return contexts;
     }
 
-    private TraceEvaluationResult evaluateTrace(RequestTraceRow row, List<FeedbackRow> feedbacks, boolean includeJudge) {
+    /** 归因上下文键：有 traceId 用 traceId，否则用行 ID 兜底，避免同 session 多条旧 trace 互相覆盖。 */
+    private String attributionKey(RequestTraceRow trace) {
+        return hasText(trace.getTraceId()) ? trace.getTraceId()
+                : trace.getId() == null ? trace.getTraceId() : "legacy-trace-" + trace.getId();
+    }
+
+    private TraceEvaluationResult evaluateTrace(RequestTraceRow row, List<FeedbackRow> feedbacks, boolean includeJudge,
+                                                String feedbackAttribution) {
         // 先把 trace_json 中的事件解析成评估需要的扁平快照。
-        TraceSnapshot snapshot = parseTrace(row);
+        TraceSnapshot snapshot = parseTrace(row, feedbackAttribution);
         // 使用 LinkedHashMap 保持指标输出顺序稳定，便于后台页面展示。
         Map<String, Double> metrics = new LinkedHashMap<>();
         // 意图准确率：需要人工 expected_intent，未标注则返回 null 不参与平均。
@@ -152,7 +207,7 @@ public class EvaluationService {
             metrics.put("naturalness", judge.naturalness());
         }
 
-        // 用户反馈分来自 recommend_feedback；当前按 session 近似归因。
+        // 用户反馈分来自 recommend_feedback；#74 起反馈按 trace 精确归因或旧 session 回退。
         Double userFeedbackScore = feedbackScore(feedbacks);
         // 规则分只聚合 0-1 分制的规则指标，不把原始 latency/token 值直接混入。
         Double ruleScore = groupAverage(metrics, List.of(
@@ -194,8 +249,10 @@ public class EvaluationService {
         detail.put("expectedSlots", row.getExpectedSlots());
         // 人工标注的期望澄清动作。
         detail.put("expectedClarifyAction", row.getExpectedClarifyAction());
-        // 当前 session 关联到的反馈数量。
+        // 当前 trace 关联到的反馈数量。
         detail.put("feedbackCount", feedbacks.size());
+        // #74：反馈归因标记 EXACT_TRACE / LEGACY_SESSION_FALLBACK，无反馈时为 null。
+        detail.put("feedbackAttribution", snapshot.feedbackAttribution());
         // 标记 Judge 维度是否启用，便于前端解释分数来源。
         detail.put("judgeMode", includeJudge ? "LLM_AS_JUDGE" : "DISABLED");
         // Judge 给出的简短原因，Judge 未启用或失败时为 null。
@@ -224,7 +281,7 @@ public class EvaluationService {
         );
     }
 
-    private TraceSnapshot parseTrace(RequestTraceRow row) {
+    private TraceSnapshot parseTrace(RequestTraceRow row, String feedbackAttribution) {
         // 最终意图，优先从 INTENT_REVISED 事件里读取。
         String intent = null;
         // 澄清动作，来自 CLARIFY_DECISION 的 action 字段。
@@ -343,7 +400,9 @@ public class EvaluationService {
                 // 最终回复文本。
                 finalText,
                 // 最终推荐卡片数量。
-                responseIds.size()
+                responseIds.size(),
+                // #74：反馈归因标记 EXACT_TRACE / LEGACY_SESSION_FALLBACK，无反馈时为 null。
+                feedbackAttribution
         );
     }
 
@@ -707,7 +766,17 @@ public class EvaluationService {
             // 最终回复文本。
             String finalText,
             // 最终推荐卡片数量。
-            int recommendationCount
+            int recommendationCount,
+            // #74：反馈归因标记 EXACT_TRACE / LEGACY_SESSION_FALLBACK，无反馈时为 null。
+            String feedbackAttribution
     ) {
+    }
+
+    /** #74：单条 trace 的反馈归因结果（反馈列表 + 归因标记；无反馈时使用 NONE）。 */
+    private record TraceFeedback(
+            List<FeedbackRow> feedbacks,
+            String attribution
+    ) {
+        private static final TraceFeedback NONE = new TraceFeedback(List.of(), null);
     }
 }

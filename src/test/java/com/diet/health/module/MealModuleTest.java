@@ -100,6 +100,22 @@ class MealModuleTest {
     }
 
     @Test
+    void 显式文本重载进入检索查询() {
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
+        when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
+                List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.HYBRID, null));
+
+        module.recommendMeals(Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("高蛋白")),
+                List.of("7"), "晚上想要高蛋白清淡晚餐");
+
+        ArgumentCaptor<MealRetrievalQuery> captor = ArgumentCaptor.forClass(MealRetrievalQuery.class);
+        verify(retriever).retrieve(captor.capture(), eq(10));
+        assertEquals("晚上想要高蛋白清淡晚餐", captor.getValue().text(), "显式文本应原样进入查询");
+        assertEquals(List.of(7L), captor.getValue().excludeIds());
+    }
+
+    @Test
     void 检索结果记录MEAL_RETRIEVED模式与降级原因Trace() {
         when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);

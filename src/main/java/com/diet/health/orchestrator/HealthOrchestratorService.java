@@ -173,7 +173,7 @@ public class HealthOrchestratorService {
             String copy = switch (intent.domain()) {
                 case COMPOSITE -> "我可以分别帮你安排饮食、训练和作息，也可以先从其中一个方面开始，你想先看哪个？";
                 default -> intent.task() == HealthTask.PLAN
-                        ? "完整的周计划功能即将上线，当前可以先进行单次推荐，直接告诉我你的需求即可。"
+                        ? "周计划功能已经上线：进入「我的计划」页面即可查看和激活每周安排；如尚未完善健康档案，请先前往「健康档案」页面填写基础信息，再返回计划页面生成草稿。我不会在聊天里直接替你创建计划，避免生成重复草稿。"
                         : "餐食和动作可以在对应页面浏览，也可以直接告诉我你的需求，我来帮你筛选。";
             };
             HealthChatResponse notice = HealthChatResponse.answer(sessionId, traceId, intent.domain(), intent.task(),
@@ -258,7 +258,7 @@ public class HealthOrchestratorService {
     private List<HealthResource> retrieve(HealthDomain domain, Map<String, List<String>> slots,
                                           List<String> excludeIds, String userInput) {
         return switch (domain) {
-            case MEAL -> mealModule.recommendMeals(slots, excludeIds);
+            case MEAL -> mealModule.recommendMeals(slots, excludeIds, userInput);
             case EXERCISE -> exerciseModule.recommend(slots, excludeIds, TOP_N);
             case ROUTINE -> routineModule.lookup(userInput, slots).stream()
                     .map(routineModule::toResource)
