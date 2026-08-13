@@ -90,7 +90,7 @@ public class MealModule {
     /** 健康链路（可携带显式嵌入文本，M5 #47 MCP search_meals 用；为空时内部用槽位文本兜底）。 */
     public List<HealthResource> recommendMeals(Map<String, List<String>> healthSlots, List<String> excludeIds,
                                                String text) {
-        if ("FIXTURE_SEED".equals(resourceProvider.providerMode())) {
+        if (resourceProvider.providerMode().isFixture()) {
             return recommendFromSeed(healthSlots, excludeIds);
         }
         // reviewed：类型化排除 ID 在进入数据库查询前只接受数值 ID，非法/跨模式 ID 显式忽略并记录
@@ -183,7 +183,7 @@ public class MealModule {
     /** fixture 路径 Trace：明确记录 FIXTURE 模式与无向量 collection，不调用 Embedding/VectorStore。 */
     private Map<String, Object> fixtureTraceDetail(List<HealthResource> ranked) {
         Map<String, Object> traceDetail = new LinkedHashMap<>();
-        traceDetail.put("mode", resourceProvider.providerMode());
+        traceDetail.put("mode", resourceProvider.providerMode().name());
         traceDetail.put("degradationReason", null);
         traceDetail.put("vectorProvider", null);
         traceDetail.put("vectorModel", null);

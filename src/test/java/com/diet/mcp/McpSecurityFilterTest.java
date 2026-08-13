@@ -162,6 +162,15 @@ class McpSecurityFilterTest {
     }
 
     @Test
+    void 空白origin头不按缺失处理() throws Exception {
+        McpSecurityFilter filter = new McpSecurityFilter(TOKEN,
+                McpSecurityFilter.parseAllowlist("http://localhost:5173"), true);
+        MockHttpServletRequest req = request("Bearer " + TOKEN);
+        req.addHeader("Origin", "   ");
+        assertEquals(403, doFilter(filter, req).getStatus(), "已提供但全空白的 Origin 必须拒绝");
+    }
+
+    @Test
     void 缺失origin且allowlist为空时按显式策略() throws Exception {
         // 空 allowlist + 缺失 Origin：只放行显式 allowMissingOrigin=true 的受控客户端
         assertEquals(200, doFilter(new McpSecurityFilter(TOKEN, Set.of(), true),

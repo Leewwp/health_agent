@@ -129,8 +129,8 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     }
 
     @Override
-    public String providerMode() {
-        return "REVIEWED_DB";
+    public ResourceMode providerMode() {
+        return ResourceMode.REVIEWED_DB;
     }
 
     @Override

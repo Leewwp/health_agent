@@ -61,15 +61,6 @@ public class StructuredMealRetriever implements MealRetriever {
 
     /** 健康槽位 Map → 旧链路 SlotBundle（与 MealModule 同口径）。 */
     public SlotBundle toSlotBundle(Map<String, List<String>> healthSlots) {
-        Map<String, List<String>> safe = healthSlots == null ? Map.of() : healthSlots;
-        return new SlotBundle(
-                safe.getOrDefault("mealTime", List.of()),
-                safe.getOrDefault("mood", List.of()),
-                safe.getOrDefault("scene", List.of()),
-                safe.getOrDefault("healthGoal", List.of()),
-                safe.getOrDefault("cuisine", List.of()),
-                safe.getOrDefault("taste", List.of()),
-                safe.getOrDefault("convenience", List.of())
-        );
+        return SlotBundle.fromHealthSlots(healthSlots);
     }
 }

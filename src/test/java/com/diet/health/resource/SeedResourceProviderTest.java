@@ -72,7 +72,7 @@ class SeedResourceProviderTest {
 
     @Test
     void provider模式与资源版本标识明确() {
-        assertEquals("FIXTURE_SEED", provider.providerMode());
+        assertEquals(ResourceMode.FIXTURE_SEED, provider.providerMode());
         assertEquals(SeedResources.SEED_VERSION, provider.resourceVersion());
     }
 }

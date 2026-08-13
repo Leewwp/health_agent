@@ -6,6 +6,7 @@ import com.diet.health.rag.RetrievalResult;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class RagEvaluationRunnerTest {
         mealRetriever = mock(MealRetriever.class);
         reviewedMealReader = mock(ReviewedMealReader.class);
         resourceProvider = mock(HealthResourceProvider.class);
-        when(resourceProvider.providerMode()).thenReturn("REVIEWED_DB");
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         when(structuredRetriever.retrieve(any(), anyInt()))
                 .thenReturn(new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null));
         when(mealRetriever.retrieve(any(), anyInt()))
@@ -69,7 +70,7 @@ class RagEvaluationRunnerTest {
 
     @Test
     void fixture显式启用时failFast且错误包含模式与开关名() throws Exception {
-        when(resourceProvider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> runner.run(null),
                 "fixture + eval-run=true 必须启动失败");
         assertTrue(error.getMessage().contains("FIXTURE_SEED"), "错误信息必须包含模式: " + error.getMessage());

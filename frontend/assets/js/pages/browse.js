@@ -193,6 +193,9 @@ export function createBrowsePage(definition) {
     }
 
     function handleClick(event) {
+        if (currentRoute() !== route) {
+            return;
+        }
         const target = event.target.closest("[data-action]");
         if (!target) {
             return;
@@ -215,6 +218,9 @@ export function createBrowsePage(definition) {
     }
 
     function handleChange(event) {
+        if (currentRoute() !== route) {
+            return;
+        }
         const select = event.target.closest("[data-browse-filter]");
         if (!select) {
             return;
@@ -225,6 +231,9 @@ export function createBrowsePage(definition) {
     }
 
     function handleSubmit(event) {
+        if (currentRoute() !== route || !event.target.matches("form[data-browse-filter='1']")) {
+            return;
+        }
         event.preventDefault();
         const search = event.target.elements.search;
         if (search) {

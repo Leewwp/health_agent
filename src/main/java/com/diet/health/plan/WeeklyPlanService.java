@@ -444,13 +444,13 @@ public class WeeklyPlanService {
             entry.put("resourceId", item.resourceId());
             entry.put("name", item.name());
             entry.put("sourceVersion", resourceProvider.resourceVersion());
-            entry.put("reviewStatus", "REVIEWED_DB".equals(resourceProvider.providerMode()) ? "APPROVED" : "SEED");
+            entry.put("reviewStatus", resourceProvider.providerMode().isReviewed() ? "APPROVED" : "SEED");
             entry.put("planParams", item.planParams());
             fillSource(entry, item);
             snapshots.add(entry);
         }
         Map<String, Object> envelope = new LinkedHashMap<>();
-        envelope.put("providerMode", resourceProvider.providerMode());
+        envelope.put("providerMode", resourceProvider.providerMode().name());
         envelope.put("resourceVersion", resourceProvider.resourceVersion());
         envelope.put("items", snapshots);
         return List.of(envelope);

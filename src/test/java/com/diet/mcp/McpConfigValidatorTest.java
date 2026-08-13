@@ -34,6 +34,10 @@ class McpConfigValidatorTest {
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> McpConfigValidator.validateForStartup("real-token", "https://demo.health.example,  ,https://a.example"));
         assertTrue(error.getMessage().contains("空白条目"), error.getMessage());
+        assertThrows(IllegalStateException.class,
+                () -> McpConfigValidator.validateForStartup("real-token", "https://demo.health.example,"));
+        assertThrows(IllegalStateException.class,
+                () -> McpConfigValidator.validateForStartup("real-token", ",https://demo.health.example"));
     }
 
     @Test
@@ -44,7 +48,10 @@ class McpConfigValidatorTest {
                 "https://demo.health.example/extra",
                 "ftp://demo.health.example",
                 "https://demo.health.example?x=1",
-                "not a uri"
+                "not a uri",
+                "https://-",
+                "https://..",
+                "https://demo.health.example:99999"
         }) {
             assertThrows(IllegalStateException.class,
                     () -> McpConfigValidator.validateForStartup("real-token", illegal),
@@ -55,7 +62,7 @@ class McpConfigValidatorTest {
     @Test
     void 合法allowlist通过校验() {
         assertDoesNotThrow(() -> McpConfigValidator.validateForStartup("real-token",
-                "https://demo.health.example, http://localhost:5173, https://app.example:8443"));
+                "https://demo.health.example, http://localhost:5173, https://app.example:8443, https://[::1]:8443"));
     }
 
     @Test

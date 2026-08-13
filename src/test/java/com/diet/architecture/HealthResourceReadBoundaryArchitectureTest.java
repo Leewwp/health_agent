@@ -1,20 +1,15 @@
 package com.diet.architecture;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.core.type.filter.AssignableTypeFilter;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,8 +30,9 @@ import static org.junit.jupiter.api.Assertions.fail;
  *   <li>其余健康调用方（领域编排/计划/反馈/module、browse/rag/vectorstore/eval、健康控制器与 MCP 工具）
  *       不得直接依赖三个资源 Mapper；违规时失败信息列出实际违规类与违规 Mapper 类型。</li>
  * </ul>
- * 扫描范围：com.diet.health 全包 + 健康控制器 + MCP 包；检查构造器参数、字段与
- * 方法签名的类型引用。旧饮食兼容链（com.diet.service 等）不受本闸门约束。
+ * 扫描范围：com.diet.health 全包 + 健康控制器 + MCP 包；读取全部 class 字节码，
+ * 覆盖非 Spring bean、嵌套类、继承链和方法体局部引用。旧饮食兼容链
+ * （com.diet.service 等）不受本闸门约束。
  */
 class HealthResourceReadBoundaryArchitectureTest {
 
@@ -96,73 +92,55 @@ class HealthResourceReadBoundaryArchitectureTest {
 
     // ---- 扫描与依赖提取 ----
 
-    private List<String> scanClasses(String... basePackages) {
-        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-        scanner.addIncludeFilter(new AssignableTypeFilter(Object.class));
+    private List<String> scanClasses(String... basePackages) throws IOException, URISyntaxException {
         List<String> classes = new ArrayList<>();
         for (String basePackage : basePackages) {
-            scanner.findCandidateComponents(basePackage).forEach(bd -> {
-                String className = bd instanceof AnnotatedBeanDefinition annotated
-                        ? annotated.getMetadata().getClassName()
-                        : bd.getBeanClassName();
-                if (className != null && !className.contains("$") && !className.endsWith("Test")) {
-                    classes.add(className);
+            String packagePath = basePackage.replace('.', '/');
+            Enumeration<URL> roots = getClass().getClassLoader().getResources(packagePath);
+            while (roots.hasMoreElements()) {
+                URL root = roots.nextElement();
+                if (!"file".equals(root.getProtocol())) {
+                    continue;
                 }
-            });
+                Path directory = Path.of(root.toURI());
+                try (var files = Files.walk(directory)) {
+                    files.filter(path -> path.getFileName().toString().endsWith(".class"))
+                            .map(directory::relativize)
+                            .map(Path::toString)
+                            .map(relative -> basePackage + "." + relative
+                                    .substring(0, relative.length() - ".class".length())
+                                    .replace('/', '.').replace('\\', '.'))
+                            .filter(className -> !className.endsWith("package-info"))
+                            .filter(className -> !className.matches(".*Test(\\$.*)?$"))
+                            .forEach(classes::add);
+                }
+            }
         }
         return classes.stream().sorted().distinct().toList();
     }
 
-    /** 类直接引用的资源 Mapper 简单名集合（构造器参数、字段、方法签名）。 */
-    private Set<String> directMapperDeps(String className) throws ClassNotFoundException {
+    /** 类字节码及其继承链引用的资源 Mapper 集合，包括方法体局部引用。 */
+    private Set<String> directMapperDeps(String className) throws ClassNotFoundException, IOException {
         Class<?> clazz = Class.forName(className, false, getClass().getClassLoader());
         Set<String> deps = new TreeSet<>();
-        for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
-            for (Type type : constructor.getGenericParameterTypes()) {
-                collectMapperNames(type, deps);
-            }
-        }
-        for (Field field : clazz.getDeclaredFields()) {
-            collectMapperNames(field.getGenericType(), deps);
-        }
-        for (Method method : clazz.getDeclaredMethods()) {
-            collectMapperNames(method.getGenericReturnType(), deps);
-            for (Type type : method.getGenericParameterTypes()) {
-                collectMapperNames(type, deps);
-            }
+        for (Class<?> current = clazz; current != null; current = current.getSuperclass()) {
+            collectMapperNames(current, deps);
         }
         return deps;
     }
 
-    private void collectMapperNames(Type type, Set<String> deps) {
-        if (type instanceof Class<?> clazz) {
-            if (RESOURCE_MAPPERS.contains(clazz.getSimpleName())) {
-                deps.add(clazz.getSimpleName());
+    private void collectMapperNames(Class<?> clazz, Set<String> deps) throws IOException {
+        String resource = "/" + clazz.getName().replace('.', '/') + ".class";
+        try (InputStream input = clazz.getResourceAsStream(resource)) {
+            if (input == null) {
+                return;
             }
-            return;
-        }
-        if (type instanceof ParameterizedType parameterized) {
-            collectMapperNames(parameterized.getRawType(), deps);
-            for (Type arg : parameterized.getActualTypeArguments()) {
-                collectMapperNames(arg, deps);
+            String bytecode = new String(input.readAllBytes(), StandardCharsets.ISO_8859_1);
+            for (String mapper : RESOURCE_MAPPERS) {
+                if (bytecode.contains("com/diet/mapper/" + mapper)) {
+                    deps.add(mapper);
+                }
             }
-            return;
-        }
-        if (type instanceof GenericArrayType array) {
-            collectMapperNames(array.getGenericComponentType(), deps);
-            return;
-        }
-        if (type instanceof WildcardType wildcard) {
-            for (Type lower : wildcard.getLowerBounds()) {
-                collectMapperNames(lower, deps);
-            }
-            for (Type upper : wildcard.getUpperBounds()) {
-                collectMapperNames(upper, deps);
-            }
-            return;
-        }
-        if (type instanceof TypeVariable<?>) {
-            return;
         }
     }
 }

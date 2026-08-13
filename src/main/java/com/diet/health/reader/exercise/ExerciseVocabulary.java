@@ -120,30 +120,4 @@ public final class ExerciseVocabulary {
         return dropped;
     }
 
-    /** 器材归一：单个值包装为列表；未收录返回空列表。 */
-    public static List<String> normalizeEquipment(String value) {
-        String zh = equipmentZh(value);
-        return zh.isEmpty() ? List.of() : List.of(zh);
-    }
-
-    /** 难度归一：单个值包装为列表；未收录返回空列表。 */
-    public static List<String> normalizeDifficulty(String value) {
-        String zh = difficultyZh(value);
-        return zh.isEmpty() ? List.of() : List.of(zh);
-    }
-
-    /** 单值归一（空串 → 空串），供主部位/器材/难度单值字段使用。 */
-    public static String single(String value) {
-        return value == null ? "" : value;
-    }
-
-    /** 健身槽位中文合法值（与 HealthSlotDictionary.FITNESS_OPTIONS 对齐，供校验测试使用）。 */
-    public static Map<String, List<String>> legalFitnessValues() {
-        Map<String, List<String>> result = new LinkedHashMap<>();
-        result.put("bodyParts", List.of("胸", "背", "腿", "肩", "手臂", "核心", "臀", "全身"));
-        result.put("equipment", List.of("徒手", "哑铃", "杠铃", "弹力带", "壶铃", "器械"));
-        result.put("trainingGoal", List.of("增肌", "减脂", "耐力", "力量", "柔韧", "保持健康"));
-        result.put("difficulty", List.of("入门", "进阶", "挑战"));
-        return result;
-    }
 }

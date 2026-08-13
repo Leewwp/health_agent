@@ -1,6 +1,7 @@
 package com.diet.model;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import lombok.Data;
@@ -30,6 +31,20 @@ public class SlotBundle {
 
     public static SlotBundle empty() {
         return new SlotBundle(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    /** 健康链七维餐食槽位 Map → 旧饮食链槽位对象。 */
+    public static SlotBundle fromHealthSlots(Map<String, List<String>> healthSlots) {
+        Map<String, List<String>> safe = healthSlots == null ? Map.of() : healthSlots;
+        return new SlotBundle(
+                safe.getOrDefault("mealTime", List.of()),
+                safe.getOrDefault("mood", List.of()),
+                safe.getOrDefault("scene", List.of()),
+                safe.getOrDefault("healthGoal", List.of()),
+                safe.getOrDefault("cuisine", List.of()),
+                safe.getOrDefault("taste", List.of()),
+                safe.getOrDefault("convenience", List.of())
+        );
     }
 
     public boolean isEmpty() {

@@ -1,5 +1,6 @@
 package com.diet.health.seed;
 
+import com.diet.health.intent.HealthSlotDictionary;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -180,12 +181,12 @@ class ReviewedResourceSeedValidatorTest {
     @Test
     void 每个动作用户槽位字段属于健身槽位合法中文集合() throws IOException {
         // 64 号票：真实审核 seed 驱动的 API 与页面不得显示未允许英文槽位
-        List<String> allowedBodyParts = com.diet.health.reader.exercise.ExerciseVocabulary
-                .legalFitnessValues().get("bodyParts");
-        List<String> allowedEquipment = com.diet.health.reader.exercise.ExerciseVocabulary
-                .legalFitnessValues().get("equipment");
-        List<String> allowedDifficulty = com.diet.health.reader.exercise.ExerciseVocabulary
-                .legalFitnessValues().get("difficulty");
+        List<String> allowedBodyParts = HealthSlotDictionary
+                .FITNESS_OPTIONS.get("bodyParts");
+        List<String> allowedEquipment = HealthSlotDictionary
+                .FITNESS_OPTIONS.get("equipment");
+        List<String> allowedDifficulty = HealthSlotDictionary
+                .FITNESS_OPTIONS.get("difficulty");
         for (List<String> row : table(parseSeed(), "exercise_item")) {
             assertEquals("APPROVED", cell(row, 15), "动作审核状态必须 APPROVED: " + row);
             String bodyPart = com.diet.health.reader.exercise.ExerciseVocabulary.partZh(cell(row, 7));

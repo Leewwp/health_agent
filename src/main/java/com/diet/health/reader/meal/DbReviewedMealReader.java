@@ -31,16 +31,7 @@ public class DbReviewedMealReader implements ReviewedMealReader {
 
     @Override
     public List<ReviewedMeal> recallStructured(Map<String, List<String>> slots, int limit) {
-        Map<String, List<String>> safe = slots == null ? Map.of() : slots;
-        SlotBundle bundle = new SlotBundle(
-                safe.getOrDefault("mealTime", List.of()),
-                safe.getOrDefault("mood", List.of()),
-                safe.getOrDefault("scene", List.of()),
-                safe.getOrDefault("healthGoal", List.of()),
-                safe.getOrDefault("cuisine", List.of()),
-                safe.getOrDefault("taste", List.of()),
-                safe.getOrDefault("convenience", List.of())
-        );
+        SlotBundle bundle = SlotBundle.fromHealthSlots(slots);
         List<MealItemRow> rows = mealMapper.search(
                 SourceMode.PUBLIC, null,
                 jsonService.toJsonArray(bundle.mealTime()),

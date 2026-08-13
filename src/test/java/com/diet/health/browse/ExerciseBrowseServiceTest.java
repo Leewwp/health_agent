@@ -1,10 +1,13 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
+import com.diet.exception.HealthApiException;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.exercise.ReviewedExercise;
 import com.diet.health.reader.exercise.ReviewedExerciseReader;
+import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -25,12 +29,15 @@ import static org.mockito.Mockito.when;
 class ExerciseBrowseServiceTest {
 
     private ReviewedExerciseReader reviewedExerciseReader;
+    private HealthResourceProvider resourceProvider;
     private ExerciseBrowseService service;
 
     @BeforeEach
     void setUp() {
         reviewedExerciseReader = mock(ReviewedExerciseReader.class);
-        service = new ExerciseBrowseService(reviewedExerciseReader);
+        resourceProvider = mock(HealthResourceProvider.class);
+        when(resourceProvider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        service = new ExerciseBrowseService(reviewedExerciseReader, resourceProvider);
     }
 
     @Test
@@ -66,6 +73,20 @@ class ExerciseBrowseServiceTest {
         PagedResponse<ExerciseBrowseItem> response = service.browse(1, 20);
         assertTrue(response.items().isEmpty());
         assertEquals(0, response.total());
+    }
+
+    @Test
+    void fixture模式返回能力不可用且不调用审核读取模块() {
+        HealthResourceProvider provider = mock(HealthResourceProvider.class);
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
+        ExerciseBrowseService fixtureService = new ExerciseBrowseService(reviewedExerciseReader, provider);
+
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> fixtureService.browse(1, 20));
+
+        assertEquals(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE, error.code());
+        assertTrue(error.getMessage().contains("动作浏览"));
+        verifyNoInteractions(reviewedExerciseReader);
     }
 
     @Test

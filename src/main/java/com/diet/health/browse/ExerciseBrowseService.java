@@ -1,10 +1,14 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
+import com.diet.exception.HealthApiException;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.exercise.ReviewedExercise;
 import com.diet.health.reader.exercise.ReviewedExerciseReader;
+import com.diet.health.resource.HealthResourceProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,12 +27,17 @@ public class ExerciseBrowseService {
     static final int MAX_PAGE_SIZE = 50;
 
     private final ReviewedExerciseReader reviewedExerciseReader;
+    private final HealthResourceProvider resourceProvider;
 
-    public ExerciseBrowseService(ReviewedExerciseReader reviewedExerciseReader) {
+    @Autowired
+    public ExerciseBrowseService(ReviewedExerciseReader reviewedExerciseReader,
+                                 @Qualifier("healthResourceProvider") HealthResourceProvider resourceProvider) {
         this.reviewedExerciseReader = reviewedExerciseReader;
+        this.resourceProvider = resourceProvider;
     }
 
     public PagedResponse<ExerciseBrowseItem> browse(int page, int size) {
+        requireReviewedMode();
         if (page < 1) {
             throw new DietException("page 必须不小于 1");
         }
@@ -44,6 +53,13 @@ public class ExerciseBrowseService {
         int total = reviewedExerciseReader.count();
         List<ExerciseBrowseItem> items = exercises.stream().map(ExerciseBrowseService::toItem).toList();
         return PagedResponse.of(items, page, size, total);
+    }
+
+    private void requireReviewedMode() {
+        if (!resourceProvider.providerMode().isReviewed()) {
+            throw new HealthApiException(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE,
+                    "当前资源模式不提供正式审核库动作浏览");
+        }
     }
 
     /** 读取模型 → 浏览条目（浏览用例层透传）。 */

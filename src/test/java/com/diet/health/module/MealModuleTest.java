@@ -8,6 +8,7 @@ import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalMode;
 import com.diet.health.rag.RetrievalResult;
 import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.resource.ResourceMode;
 import com.diet.health.seed.SeedResources;
 import com.diet.mapper.FeedbackMapper;
 import com.diet.model.MealItem;
@@ -64,7 +65,7 @@ class MealModuleTest {
 
     @Test
     void 健康链路经检索器映射为类型化资源() {
-        when(provider.providerMode()).thenReturn("REVIEWED_DB");
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼",
                 new SlotBundle(List.of("午餐"), List.of(), List.of(), List.of("清淡"), List.of(), List.of(), List.of()), 0.9);
         RetrievalResult result = new RetrievalResult(
@@ -84,7 +85,7 @@ class MealModuleTest {
 
     @Test
     void 检索查询携带排除ID和过敏原约束() {
-        when(provider.providerMode()).thenReturn("REVIEWED_DB");
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, null));
@@ -100,7 +101,7 @@ class MealModuleTest {
 
     @Test
     void 检索结果记录MEAL_RETRIEVED模式与降级原因Trace() {
-        when(provider.providerMode()).thenReturn("REVIEWED_DB");
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, "embedding_unavailable"));
@@ -123,7 +124,7 @@ class MealModuleTest {
 
     @Test
     void fixture模式走种子路径且检索器零调用() {
-        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         List<HealthResource> resources = module.recommendMeals(
@@ -138,7 +139,7 @@ class MealModuleTest {
 
     @Test
     void fixture模式排除ID原样生效() {
-        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         List<HealthResource> resources = module.recommendMeals(
@@ -151,7 +152,7 @@ class MealModuleTest {
 
     @Test
     void fixture模式无匹配餐次时确定性回退全部候选() {
-        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         List<HealthResource> resources = module.recommendMeals(
@@ -162,7 +163,7 @@ class MealModuleTest {
 
     @Test
     void fixture模式Trace记录FIXTURE模式与无向量collection() {
-        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         module.recommendMeals(Map.of("mealTime", List.of("午餐")), List.of());
@@ -178,7 +179,7 @@ class MealModuleTest {
 
     @Test
     void fixture模式空候选返回空列表() {
-        when(provider.providerMode()).thenReturn("FIXTURE_SEED");
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(List.of());
 
         List<HealthResource> resources = module.recommendMeals(
@@ -190,7 +191,7 @@ class MealModuleTest {
 
     @Test
     void reviewed非数值排除ID忽略且不抛异常() {
-        when(provider.providerMode()).thenReturn("REVIEWED_DB");
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
         when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
                 List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, null));

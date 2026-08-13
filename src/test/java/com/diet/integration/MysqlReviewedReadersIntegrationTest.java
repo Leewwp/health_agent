@@ -2,6 +2,7 @@ package com.diet.integration;
 
 import com.diet.health.browse.ExerciseBrowseService;
 import com.diet.health.browse.MealBrowseService;
+import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
@@ -322,8 +323,8 @@ class MysqlReviewedReadersIntegrationTest {
         assertEquals(exerciseReader.browse(0, 100).stream().map(ReviewedExercise::id).toList(),
                 allPageIds, "浏览服务逐页结果必须与读取模块一致");
 
-        List<String> legalBodyParts = ExerciseVocabulary.legalFitnessValues().get("bodyParts");
-        List<String> legalEquipment = ExerciseVocabulary.legalFitnessValues().get("equipment");
+        List<String> legalBodyParts = HealthSlotDictionary.FITNESS_OPTIONS.get("bodyParts");
+        List<String> legalEquipment = HealthSlotDictionary.FITNESS_OPTIONS.get("equipment");
         List<ExerciseBrowseItem> allItems = new ArrayList<>(page1.items());
         allItems.addAll(page2.items());
         for (ExerciseBrowseItem item : allItems) {

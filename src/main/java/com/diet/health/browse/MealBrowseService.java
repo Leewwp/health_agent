@@ -1,10 +1,14 @@
 package com.diet.health.browse;
 
 import com.diet.exception.DietException;
+import com.diet.exception.HealthApiException;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
+import com.diet.health.resource.HealthResourceProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,12 +26,17 @@ public class MealBrowseService {
     static final int MAX_PAGE_SIZE = 50;
 
     private final ReviewedMealReader reviewedMealReader;
+    private final HealthResourceProvider resourceProvider;
 
-    public MealBrowseService(ReviewedMealReader reviewedMealReader) {
+    @Autowired
+    public MealBrowseService(ReviewedMealReader reviewedMealReader,
+                             @Qualifier("healthResourceProvider") HealthResourceProvider resourceProvider) {
         this.reviewedMealReader = reviewedMealReader;
+        this.resourceProvider = resourceProvider;
     }
 
     public PagedResponse<MealBrowseItem> browse(int page, int size) {
+        requireReviewedMode();
         if (page < 1) {
             throw new DietException("page 必须不小于 1");
         }
@@ -43,6 +52,13 @@ public class MealBrowseService {
         int total = reviewedMealReader.countPublic();
         List<MealBrowseItem> items = meals.stream().map(MealBrowseService::toItem).toList();
         return PagedResponse.of(items, page, size, total);
+    }
+
+    private void requireReviewedMode() {
+        if (!resourceProvider.providerMode().isReviewed()) {
+            throw new HealthApiException(HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE,
+                    "当前资源模式不提供正式审核库餐食浏览");
+        }
     }
 
     /** 读取模型 → 浏览条目（浏览用例层透传，字段口径与读取模块同一行映射一致）。 */
