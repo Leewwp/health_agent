@@ -5,7 +5,7 @@
 - Triage: ready-for-agent
 - Priority: P2
 - Estimate: 2-3 天
-- Blocked by: 01
+- Blocked by: local 01 ([GitHub #76](https://github.com/Leewwp/health_agent/issues/76))
 - GitHub: https://github.com/Leewwp/health_agent/issues/77
 
 ## Question
