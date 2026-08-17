@@ -72,6 +72,19 @@ public class HealthSlotDictionary {
         return MEAL_SLOTS.contains(slotName) || FITNESS_SLOTS.contains(slotName) || ROUTINE_SLOTS.contains(slotName);
     }
 
+    /** 判断槽位是否属于指定领域。 */
+    public boolean belongsTo(String slotName, com.diet.health.enums.HealthDomain domain) {
+        if (domain == null) {
+            return false;
+        }
+        return switch (domain) {
+            case MEAL -> MEAL_SLOTS.contains(slotName);
+            case EXERCISE -> FITNESS_SLOTS.contains(slotName);
+            case ROUTINE -> ROUTINE_SLOTS.contains(slotName);
+            case COMPOSITE, OTHER -> false;
+        };
+    }
+
     /** 过滤非法槽位值，返回净化后的槽位 Map（丢弃不合法条目）。 */
     public Map<String, List<String>> filterLegal(Map<String, List<String>> raw) {
         Map<String, List<String>> result = new LinkedHashMap<>();

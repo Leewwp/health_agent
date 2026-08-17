@@ -14,8 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Java 意图兜底规则：三品类路由、风险信号、调整与闲聊。 */
 class IntentRuleServiceTest {
 
-    private final IntentRuleService rules = new IntentRuleService(
-            new HealthSlotDictionary(TestSupport.slotOptionService()));
+    private final IntentRuleService rules = new IntentRuleService(new HealthInputNormalizer());
 
     @Test
     void 健身关键词路由到EXERCISE推荐() {
@@ -73,10 +72,26 @@ class IntentRuleServiceTest {
     }
 
     @Test
-    void 无关键词默认MEAL闲聊() {
+    void 无关键词进入OTHER闲聊() {
         HealthIntentResult result = rules.fallback("你好", Map.of(), "INVALID_JSON");
-        assertEquals(HealthDomain.MEAL, result.domain());
+        assertEquals(HealthDomain.OTHER, result.domain());
         assertEquals(HealthTask.CHAT, result.task());
+    }
+
+    @Test
+    void 健身别名与无关对话安全路由() {
+        assertEquals(HealthDomain.EXERCISE, rules.fallback("胸肌", Map.of(), null).domain());
+        assertEquals(List.of("腿"), rules.fallback("大腿", Map.of(), null).slots().get("bodyParts"));
+        assertEquals(List.of("臀"), rules.fallback("臀大肌", Map.of(), null).slots().get("bodyParts"));
+        assertEquals(HealthDomain.OTHER, rules.fallback("推荐电影", Map.of(), null).domain());
+        assertEquals(HealthDomain.OTHER, rules.fallback("你是 AI 吗", Map.of(), null).domain());
+    }
+
+    @Test
+    void 咖啡与训练时段路由到作息事实() {
+        assertEquals(HealthDomain.ROUTINE, rules.fallback("晚上几点前停止喝咖啡", Map.of(), null).domain());
+        assertEquals(HealthDomain.ROUTINE, rules.fallback("什么时候训练合适", Map.of(), null).domain());
+        assertEquals(HealthDomain.EXERCISE, rules.fallback("适合新手的训练", Map.of(), null).domain());
     }
 
     @Test

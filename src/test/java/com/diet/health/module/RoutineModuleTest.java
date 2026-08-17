@@ -53,10 +53,11 @@ class RoutineModuleTest {
     }
 
     @Test
-    void 无关键词命中时返回通用睡眠事实() {
+    void 无关键词命中时不编造通用睡眠事实() {
         var facts = module.lookup("随便聊聊", Map.of());
-        assertFalse(facts.isEmpty(), "无命中应兜底返回睡眠类通用事实");
-        assertTrue(facts.stream().allMatch(fact -> "睡眠".equals(fact.category())));
+        assertTrue(facts.isEmpty());
+        assertFalse(module.supportsFactQuery("帮我制定适合我的作息"));
+        assertTrue(module.supportsFactQuery("晚上几点前停止喝咖啡"));
     }
 
     @Test

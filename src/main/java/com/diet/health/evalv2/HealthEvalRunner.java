@@ -7,6 +7,8 @@ import com.diet.health.evalv2.HealthEvalReport.EnvironmentInfo;
 import com.diet.health.evalv2.InMemoryEvalMappers.InMemoryAgentTraceMapper;
 import com.diet.health.evalv2.InMemoryEvalMappers.InMemorySessionMapper;
 import com.diet.health.intent.HealthIntentAgentService;
+import com.diet.health.intent.HealthInputNormalizer;
+import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.agent.invoker.FixtureAgentInvoker;
 import com.diet.health.clarify.HealthClarifyAgentService;
 import com.diet.health.clarify.HealthClarifyRuleService;
@@ -225,8 +227,11 @@ public class HealthEvalRunner implements ApplicationRunner {
         } catch (Exception error) {
             throw new IllegalStateException("无法注入健康会话密钥", error);
         }
+        HealthInputNormalizer inputNormalizer = new HealthInputNormalizer();
         HealthOrchestratorService orchestrator = new HealthOrchestratorService(
-                sessionService, messageService, intentAgentService, clarifyRuleService, clarifyAgentService,
+                sessionService, messageService, intentAgentService,
+                new HealthIntentRevisionService(inputNormalizer), inputNormalizer,
+                clarifyRuleService, clarifyAgentService,
                 riskRuleService, mealModule, exerciseModule, routineModule, resourceProvider,
                 recommendResponseService, traceService, objectMapper);
         return new HealthEvalExecution(orchestrator, traceMapper, evalUserId);

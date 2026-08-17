@@ -54,10 +54,7 @@ public class RoutineModule {
         return map;
     }
 
-    /**
-     * 按关键词匹配返回事实，最多 3 条；无关键词命中时返回"睡眠"类通用事实（确定性兜底，
-     * 来源为当前 Provider，不再是种子前 3 条）。
-     */
+    /** 按关键词匹配返回事实，最多 3 条；无明确事实关键词时返回空，避免把未知问题猜成睡眠事实。 */
     public List<RoutineFact> lookup(String userInput, Map<String, List<String>> slots) {
         List<RoutineFact> all = resourceProvider.routineFacts();
         String matchedCategory = findCategory(userInput);
@@ -67,7 +64,15 @@ public class RoutineModule {
                 return hits;
             }
         }
-        return filterByCategory(all, "睡眠");
+        return List.of();
+    }
+
+    /** 明确的通用事实问题可直接查询；个性化作息安排仍交给澄清或计划入口。 */
+    public boolean supportsFactQuery(String userInput) {
+        if (userInput == null || findCategory(userInput) == null) {
+            return false;
+        }
+        return !containsAny(userInput, "帮我安排", "帮我规划", "制定", "调整我的", "适合我的作息", "我的作息计划");
     }
 
     /** 按类别对应的 topic/类别 集合过滤，取前 3 条（Provider 返回有序，保持确定性）。 */
@@ -90,6 +95,15 @@ public class RoutineModule {
             }
         }
         return null;
+    }
+
+    private boolean containsAny(String text, String... keywords) {
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 事实 → 类型化资源（结构化事实标识，resourceType 统一 ROUTINE）。 */

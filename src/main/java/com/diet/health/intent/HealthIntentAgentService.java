@@ -35,6 +35,7 @@ public class HealthIntentAgentService {
     private final PromptLoader promptLoader;
     private final HealthSlotDictionary slotDictionary;
     private final IntentRuleService intentRuleService;
+    private final HealthInputNormalizer inputNormalizer;
     private final String modelName;
     private final String promptVersion;
     private final Duration timeout;
@@ -44,6 +45,7 @@ public class HealthIntentAgentService {
             PromptLoader promptLoader,
             HealthSlotDictionary slotDictionary,
             IntentRuleService intentRuleService,
+            HealthInputNormalizer inputNormalizer,
             @Value("${diet.llm.light-model:qwen-turbo}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
@@ -52,6 +54,7 @@ public class HealthIntentAgentService {
         this.promptLoader = promptLoader;
         this.slotDictionary = slotDictionary;
         this.intentRuleService = intentRuleService;
+        this.inputNormalizer = inputNormalizer;
         this.modelName = modelName;
         this.promptVersion = promptVersion;
         this.timeout = Duration.ofMillis(timeoutMs);
@@ -69,7 +72,7 @@ public class HealthIntentAgentService {
                         "intent-v1",
                         promptText,
                         timeout,
-                        this::parseIntentJson,
+                        root -> parseIntentJson(root, userInput),
                         null,
                         null
                 )
@@ -90,7 +93,7 @@ public class HealthIntentAgentService {
     }
 
     /** 契约解析：枚举/必填字段校验 + 槽位合法性过滤 + 偏好信号校验。 */
-    private HealthIntentResult parseIntentJson(JsonNode root) throws AgentFailureException {
+    private HealthIntentResult parseIntentJson(JsonNode root, String userInput) throws AgentFailureException {
         HealthDomain domain = parseEnum(root.path("domain").asText(null), HealthDomain.class);
         if (domain == null) {
             throw new AgentFailureException(AgentFailureType.SCHEMA_VIOLATION, "domain 缺失或非法");
@@ -101,7 +104,7 @@ public class HealthIntentAgentService {
         }
 
         JsonNode slotsNode = root.path("slots");
-        Map<String, List<String>> slots = new LinkedHashMap<>();
+        Map<String, List<String>> rawSlots = new LinkedHashMap<>();
         boolean slotDegraded = false;
         if (slotsNode.isObject()) {
             for (Map.Entry<String, JsonNode> entry : slotsNode.properties()) {
@@ -109,15 +112,36 @@ public class HealthIntentAgentService {
                 if (rawValues.isEmpty()) {
                     continue;
                 }
-                List<String> legal = rawValues.stream()
-                        .filter(value -> slotDictionary.isValid(entry.getKey(), value))
-                        .toList();
-                if (legal.size() != rawValues.size()) {
+                if (!slotDictionary.belongsTo(entry.getKey(), domain)) {
                     slotDegraded = true;
+                    continue;
                 }
-                if (!legal.isEmpty()) {
-                    slots.put(entry.getKey(), legal);
-                }
+                rawSlots.put(entry.getKey(), rawValues);
+            }
+        }
+        HealthInputNormalizer.NormalizationResult normalization = inputNormalizer.normalize(domain, userInput, rawSlots);
+        Map<String, List<String>> slots = new LinkedHashMap<>();
+        normalization.slots().forEach((slot, values) -> {
+            List<String> legal = values.stream()
+                    .filter(value -> slotDictionary.isValid(slot, value))
+                    .toList();
+            if (!legal.isEmpty()) {
+                slots.put(slot, legal);
+            }
+        });
+        if (normalization.requiresClarification()
+                || slots.values().stream().mapToInt(List::size).sum()
+                < normalization.slots().values().stream().mapToInt(List::size).sum()) {
+            slotDegraded = true;
+        }
+        for (Map.Entry<String, List<String>> entry : rawSlots.entrySet()) {
+            HealthInputNormalizer.NormalizationResult rawNormalization = inputNormalizer.normalize(
+                    domain, "", Map.of(entry.getKey(), entry.getValue()));
+            int legalRawCount = rawNormalization.slots().getOrDefault(entry.getKey(), List.of()).stream()
+                    .filter(value -> slotDictionary.isValid(entry.getKey(), value))
+                    .toList().size();
+            if (legalRawCount < entry.getValue().stream().distinct().count()) {
+                slotDegraded = true;
             }
         }
 
