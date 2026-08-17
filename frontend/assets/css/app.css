@@ -752,6 +752,7 @@ tr:last-child td {
     display: grid;
     width: 100%;
     aspect-ratio: 4 / 3;
+    margin: 0;
     place-items: center;
     overflow: hidden;
     border: 1px solid var(--border);
@@ -760,6 +761,9 @@ tr:last-child td {
 }
 
 .media-frame img {
+    position: absolute;
+    inset: 0;
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -852,6 +856,7 @@ tr:last-child td {
 
 .drawer-body {
     display: grid;
+    grid-auto-rows: max-content;
     min-height: 0;
     gap: 16px;
     align-content: start;
