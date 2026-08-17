@@ -11,8 +11,9 @@ import { escapeHtml, formatTime, formatDateLabel, localDateOf } from "../util/do
 import { showToast } from "../ui/toast.js";
 import { listPlans, getPlan, createPlanDraft, activatePlan, editPlan, patchPlanItem } from "../api.js";
 import { registerResource, getOrCreateClientSessionId } from "../store.js";
-import { openDrawer, bindDrawer } from "../ui/detail-drawer.js";
+import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
+import { requestConfirmation, requestText } from "../ui/modal.js";
 import { currentRoute, navigate } from "../router.js";
 
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
@@ -342,7 +343,16 @@ async function savePlanItem(item, values) {
 
 async function createDraft() {
     const weekStart = nextMonday();
-    const focus = window.prompt(`生成 ${weekStart} 当周草稿。\n训练重点（可选，例如：胸）：`, "") || "";
+    const focus = await requestText({
+        title: `生成 ${weekStart} 当周草稿`,
+        description: "系统会根据当前健康档案生成七天安排。",
+        label: "训练重点（可选）",
+        placeholder: "例如：胸、核心或全身",
+        confirmLabel: "生成草稿"
+    });
+    if (focus === null) {
+        return;
+    }
     try {
         const plan = await createPlanDraft({
             weekStart,
@@ -366,7 +376,12 @@ async function createDraft() {
 async function activate(planId) {
     const plan = state.detail && String(state.detail.id) === String(planId) ? state.detail : null;
     const label = plan ? `${plan.weekStart} 当周计划` : "该计划";
-    if (!window.confirm(`确认激活 ${label}？\n激活后同一用户旧的已激活计划将自动归档，且激活版本不可原地修改。`)) {
+    const confirmed = await requestConfirmation({
+        title: `激活${label}`,
+        description: "激活后旧的已激活计划会自动归档，且本版本不可原地修改。",
+        confirmLabel: "确认激活"
+    });
+    if (!confirmed) {
         return;
     }
     try {
@@ -381,7 +396,12 @@ async function activate(planId) {
 }
 
 async function editAsDraft(planId) {
-    if (!window.confirm("编辑已激活计划将复制为新的草稿，原激活版本保留为历史。继续？")) {
+    const confirmed = await requestConfirmation({
+        title: "创建编辑草稿",
+        description: "系统会复制当前已激活计划，原版本继续作为历史记录保留。",
+        confirmLabel: "创建草稿"
+    });
+    if (!confirmed) {
         return;
     }
     try {
@@ -397,10 +417,7 @@ async function editAsDraft(planId) {
 }
 
 function closeDrawerFromSave() {
-    const root = document.getElementById("drawer-root");
-    root.classList.remove("open");
-    root.setAttribute("aria-hidden", "true");
-    root.innerHTML = "";
+    closeDrawer();
 }
 
 function nextMonday() {

@@ -121,6 +121,7 @@ class DbReviewedMealReaderTest {
         assertEquals(List.of("鸡蛋", "麸质"), meal.allergens());
         assertEquals("REVIEWED", meal.allergenStatus());
         assertEquals("APPROVED", meal.reviewStatus());
+        assertEquals("/assets/test-meal.jpg", meal.mediaUrl());
         assertEquals("NONE", meal.mediaStatus());
         assertEquals("foodcom-recipes-and-reviews-v2", meal.sourceName());
         assertEquals("317010", meal.sourceId());
@@ -186,6 +187,7 @@ class DbReviewedMealReaderTest {
         row.setSourceName("foodcom-recipes-and-reviews-v2");
         row.setSourceId("317010");
         row.setSourceVersion("v2");
+        row.setMediaUrl("/assets/test-meal.jpg");
         row.setMediaStatus("NONE");
         return row;
     }

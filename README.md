@@ -15,9 +15,9 @@
 - **风险规则**：单一版本化 `RiskRuleCatalog`（唯一事实来源），`NORMAL/ADVISORY/BLOCK_PLAN` 三档与固定中文文案，三阶段 Guard（候选前/组合时/输出后）；
 - **健康档案与周计划**：Mifflin-St Jeor 能量区间、DRAFT/ACTIVE/ARCHIVED 生命周期、版本快照（档案/规则/会话/事实/资源生成依据）、`POST /api/v1/health/plan/**`、事务化写入 + 行锁 + 数据库级 ACTIVE 唯一约束；
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
-- **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实，媒体一律无图+保留署名）；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
+- **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实）；dev 另行幂等导入 1,324 条本地动作目录与已授权媒体，动作浏览展示完整目录，推荐和周计划仍只消费审核/计划资格动作；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
 - **餐食 RAG（M5 #52 融合；#77 扩展评测）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
-- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V9 反馈归因/评估标注字段，含 V6 计划版本依据与 ACTIVE 约束）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
+- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V12 动作媒体/缩略图与完整来源 revision，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
 ## 本地启动
@@ -34,12 +34,19 @@ mvn spring-boot:run
 
 > 若本地已有按 `src/main/resources/db/diet_db.sql` 导入的旧库，Flyway 会以 `baseline-on-migrate` 标记 V1 并只执行增量迁移，无需重复导入。该 dump 已转为 `db/migration/V1__legacy_baseline.sql` 作为基线。
 
-3. 配置 DashScope API key（无 key 时健康接口自动确定性降级为模板，不影响演示）：
+3. 在仓库根目录 `.env` 配置 DashScope API key（Spring Boot 启动时自动读取，文件已被 Git 忽略；无 key 时健康接口自动确定性降级为模板）：
+
+```dotenv
+DASHSCOPE_API_KEY=填写你的实际密钥
+```
+
+然后启动应用：
 
 ```bash
-export DASHSCOPE_API_KEY=sk-xxx
 mvn spring-boot:run
 ```
+
+也可以使用 `export DASHSCOPE_API_KEY=...` 或命令行参数覆盖 `.env`；系统环境变量和命令行参数的优先级更高。不要把真实 key 写入受版本控制的配置文件。
 
 服务默认运行在 `http://localhost:8080`。
 
@@ -123,8 +130,9 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 
 | 环境变量 | 用途 | 默认 |
 |---|---|---|
-| `DASHSCOPE_API_KEY` | DashScope 模型 key | 占位符（降级模式） |
+| `DASHSCOPE_API_KEY` | DashScope 模型 key（可由根目录 `.env` 或系统环境变量注入，空则降级/失败） | 空 |
 | `DASHSCOPE_BASE_URL` | DashScope 兼容端点 | 官方地址 |
+| `DASHSCOPE_EMBEDDING_BASE_URL` | Embedding 原生端点（专属 MaaS 空间与聊天兼容端点不同时需单独配置） | 回退聊天端点 |
 | `DIET_SESSION_SECRET` | 匿名 Cookie HMAC 密钥 | `dev-only-change-me` |
 | `ADMIN_TOKEN` | admin 调试入口 token | 空（dev 不启用保护） |
 | `DATABASE_URL/USERNAME/PASSWORD` | prod 数据源 | dev 用本地 root/123456 |
@@ -145,17 +153,17 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 631 个测试（595 通过，36 个环境门控按条件跳过）。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、澄清继续会话、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、周计划事务/行锁/激活不变量、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。固定场景集在无 API key 下可复现；当前 `mvn test` 发现 656 个测试（619 通过，37 个环境门控按条件跳过）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
-39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V9）上验证 saveProfile/createDraft/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致。需要本机 MySQL（root/123456，与 dev 配置一致）：
+39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V12）上验证 saveProfile/createDraft/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致。需要本机 MySQL（root/123456，与 dev 配置一致）：
 
 ```bash
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 33 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 4 + reviewed readers 11）；本机启用该门控时结果为 628 通过、仅 3 个 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 631 个测试。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 34 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 4 + reviewed readers 12）；本机启用该门控时结果为 653 通过、仅 3 个 Qdrant 场景跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，可用 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 执行全部 656 个测试。
 
 ## 部署（Compose，spec 11）
 

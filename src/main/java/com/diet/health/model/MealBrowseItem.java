@@ -18,6 +18,7 @@ public record MealBrowseItem(
         List<String> allergens,
         String allergenStatus,
         String reviewStatus,
+        String mediaUrl,
         String mediaStatus,
         String mediaCredit,
         String sourceName,

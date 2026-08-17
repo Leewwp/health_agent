@@ -1,6 +1,9 @@
 spring:
   application:
     name: health-agent
+  config:
+    # 本地启动时可从仓库根目录 .env 读取配置；系统环境变量和命令行参数优先级更高。
+    import: optional:file:.env[.properties]
   profiles:
     default: dev
   datasource:
@@ -31,9 +34,14 @@ management:
       show-details: never
 agentscope:
   dashscope:
-    api-key: ${DASHSCOPE_API_KEY:请填入自己的apiKey}
+    # API key 从 DASHSCOPE_API_KEY 读取，可由根目录 .env、系统环境变量或命令行参数提供。
+    # 默认空值：dev 未配置时 LLM/embedding 确定性降级；prod 缺失时启动失败。
+    api-key: ${DASHSCOPE_API_KEY:}
     base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
 diet:
+  seed:
+    # 本地完整媒体目录默认不导入；dev profile 在媒体包存在时显式启用。
+    local-media-catalog: ${DIET_LOCAL_MEDIA_CATALOG_ENABLED:false}
   llm:
     main-model: deepseek-v4-flash-0731
     light-model: deepseek-v4-flash-0731

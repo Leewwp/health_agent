@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# 提交前密钥泄漏守卫：
+#   检查暂存内容（index）中是否出现常见 API key / 凭证赋值 / 私有密钥块，
+#   命中即阻止提交，防止真实密钥再次进入仓库（历史上 application.yml 曾泄漏 DashScope key）。
+#
+# 启用方式（只需一次）：
+#   git config core.hooksPath .githooks
+# 或软链到 .git/hooks/pre-commit。
+#
+# 白名单路径：这些目录内的示例/测试假 key 是刻意为之的夹具/文档，不做拦截。
+#   src/test/   —— 脱敏器测试用的假 key（sk-abcdef... 等）
+#   .scratch/   —— 本地 issue/spec 注记
+#   .githooks/  —— 本守卫自身
+#   .github/    —— CI 工作流
+#
+# 注意：GitHub 原生 secret scanning 对推送到 GitHub 的内容另有自动检测；
+# 本守卫补的是“提交前本地阻止”，两者不互相替代。
+
+set -euo pipefail
+
+ALLOWED='^(src/test/|\.scratch/|\.githooks/|\.github/)'
+
+PATTERNS=(
+  # OpenAI/DashScope/Anthropic 类 API key（要求 16+ 位非占位后缀，规避 sk-xxx 这种文档示例）
+  'sk-[A-Za-z0-9_-]{16,}'
+  # 常见凭证环境变量被赋成"真实形态"的值：要么 sk- 开头（≥8 位，跳过 sk-xxx 文档示例），
+  # 要么 ≥24 位无空格字符串（过滤 dev-only-change-me 等常见占位符；${VAR:...} 已在上方掩码删除）
+  '(DASHSCOPE_API_KEY|MCP_API_TOKEN|ADMIN_TOKEN|DIET_SESSION_SECRET|DATABASE_PASSWORD|DATABASE_USERNAME|MYSQL_ROOT_PASSWORD|POSTGRES_PASSWORD)[ \t]*[=:][ \t]*(sk-[A-Za-z0-9_-]{8,}|[A-Za-z0-9_=+./-]{24,})'
+  # HTTP Authorization Bearer 硬编码
+  'Authorization[ \t]*:[ \t]*Bearer[ \t]+[A-Za-z0-9._-]{16,}'
+  # GitHub 个人访问令牌 / 细粒度 PAT / Google API key
+  'ghp_[A-Za-z0-9]{20,}'
+  'github_pat_[A-Za-z0-9_]{20,}'
+  'AIza[0-9A-Za-z_-]{30,}'
+  # 私有密钥块
+  '-----BEGIN [A-Z a-z]*PRIVATE KEY-----'
+)
+GREP=''
+for p in "${PATTERNS[@]}"; do
+  GREP="${GREP:+$GREP|}$p"
+done
+
+bad=0
+found=0
+while IFS= read -r -d '' f; do
+  [[ "$f" =~ $ALLOWED ]] && continue
+  # 图片/GIF 等二进制文件由媒体清单 SHA-256 校验，不进入文本正则扫描；
+  # 避免 macOS sed 在二进制字节上报 illegal byte sequence。
+  read -r added deleted < <(git diff --cached --numstat -- "$f")
+  [[ "$added" == "-" || "$deleted" == "-" ]] && continue
+  # 先把 ${VAR} / ${VAR:默认值} / ${VAR:?提示} 这类惰性环境变量引用掩码并整段删除，
+  # 否则 yml 里 `${DIET_SESSION_SECRET:dev-only-change-me}` 会被误判为真实赋值。
+  masked=$(git show ":$f" 2>/dev/null | sed -E 's/\$\{[A-Za-z0-9_]+([^}]*)\}/__ENV_REF__/g; s/__ENV_REF__//g')
+  matches=$(printf '%s' "$masked" | grep -nE "$GREP" || true)
+  if [[ -n "$matches" ]]; then
+    if [[ $found -eq 0 ]]; then
+      echo "x 检测到疑似密钥/敏感凭证，已阻止提交："
+      found=1
+    fi
+    echo "  - $f"
+    echo "$matches" | sed 's/^/      /' | head -8
+    bad=1
+  fi
+done < <(git diff --cached --name-only -z)
+
+if [[ $bad -ne 0 ]]; then
+  echo
+  echo "提交已阻止：以上暂存内容疑似包含真实密钥（API key / 凭证赋值 / 私钥）。"
+  echo "处理方式："
+  echo "  1) 从暂存与文件中删除真实密钥，改用环境变量（如 DASHSCOPE_API_KEY）注入；"
+  echo "  2) 若是刻意为之的测试夹具/文档示例，请放回白名单路径（src/test/、.scratch/、docs 短占位）；"
+  echo "  3) 确认非误报后再提交。不要用 --no-verify 绕过本守卫。"
+  exit 1
+fi
+exit 0

@@ -2,6 +2,7 @@
  * Hash 路由（18 号决策：保留 vanilla hash 路由，页面按需原生 import()）。
  */
 import { clearResourceRegistry } from "./store.js";
+import { closeDrawer } from "./ui/detail-drawer.js";
 
 const ROUTES = new Map();
 const NAV_ACTIVE_PREFIX = ["/chat", "/meals", "/exercises", "/plans", "/profile"];
@@ -42,6 +43,7 @@ async function render(app, force) {
         navigate("/chat");
         return;
     }
+    closeDrawer({ restoreFocus: false });
     clearResourceRegistry();
     try {
         const module = await loader();

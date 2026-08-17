@@ -110,6 +110,7 @@ public class DbReviewedMealReader implements ReviewedMealReader {
                 jsonService.fromJsonArray(row.getAllergenJson()),
                 row.getAllergenStatus(),
                 row.getReviewStatus(),
+                row.getMediaUrl(),
                 row.getMediaStatus(),
                 row.getMediaCredit(),
                 row.getSourceName(),

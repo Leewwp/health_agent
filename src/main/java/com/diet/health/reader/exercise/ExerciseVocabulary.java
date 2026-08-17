@@ -19,22 +19,49 @@ import java.util.Set;
 public final class ExerciseVocabulary {
 
     /** 数据集器材英文值 → 健身槽位中文值。 */
-    private static final Map<String, String> EQUIPMENT_ZH = Map.of(
-            "body weight", "徒手",
-            "dumbbell", "哑铃",
-            "band", "弹力带"
+    private static final Map<String, String> EQUIPMENT_ZH = Map.ofEntries(
+            Map.entry("assisted", "辅助器械"),
+            Map.entry("band", "弹力带"),
+            Map.entry("barbell", "杠铃"),
+            Map.entry("body weight", "徒手"),
+            Map.entry("bosu ball", "平衡球"),
+            Map.entry("cable", "绳索器械"),
+            Map.entry("dumbbell", "哑铃"),
+            Map.entry("elliptical machine", "椭圆机"),
+            Map.entry("ez barbell", "曲杆杠铃"),
+            Map.entry("hammer", "锤式器械"),
+            Map.entry("kettlebell", "壶铃"),
+            Map.entry("leverage machine", "杠杆器械"),
+            Map.entry("medicine ball", "药球"),
+            Map.entry("olympic barbell", "奥杆杠铃"),
+            Map.entry("resistance band", "阻力带"),
+            Map.entry("roller", "滚轴"),
+            Map.entry("rope", "绳索"),
+            Map.entry("skierg machine", "滑雪机"),
+            Map.entry("sled machine", "雪橇机"),
+            Map.entry("smith machine", "史密斯机"),
+            Map.entry("stability ball", "健身球"),
+            Map.entry("stationary bike", "健身车"),
+            Map.entry("stepmill machine", "登阶机"),
+            Map.entry("tire", "轮胎"),
+            Map.entry("trap bar", "六角杠"),
+            Map.entry("upper body ergometer", "上肢功率车"),
+            Map.entry("weighted", "负重"),
+            Map.entry("wheel roller", "健腹轮")
     );
 
     /** 数据集部位英文值 → 健身槽位中文值。 */
-    private static final Map<String, String> BODY_PART_ZH = Map.of(
-            "chest", "胸",
-            "waist", "核心",
-            "back", "背",
-            "upper legs", "腿",
-            "lower legs", "腿",
-            "upper arms", "手臂",
-            "shoulders", "肩",
-            "cardio", "全身"
+    private static final Map<String, String> BODY_PART_ZH = Map.ofEntries(
+            Map.entry("back", "背"),
+            Map.entry("cardio", "全身"),
+            Map.entry("chest", "胸"),
+            Map.entry("lower arms", "手臂"),
+            Map.entry("lower legs", "腿"),
+            Map.entry("neck", "颈部"),
+            Map.entry("shoulders", "肩"),
+            Map.entry("upper arms", "手臂"),
+            Map.entry("upper legs", "腿"),
+            Map.entry("waist", "核心")
     );
 
     /** 数据集肌群英文值 → 健身槽位中文值。 */

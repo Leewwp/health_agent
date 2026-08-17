@@ -7,6 +7,8 @@
  *   生产由 `X-Admin-Token` 保护（diet.security.admin-token）。
  */
 
+import { BACKEND_UNAVAILABLE_MESSAGE, readResponseError } from "./http-error.js";
+
 const HEALTH_BASE = "/api/v1/health";
 const DIET_BASE = "/api/v1/diet";
 const ADMIN_TOKEN_KEY = "health.adminToken";
@@ -52,13 +54,18 @@ async function request(base, path, options) {
         headers.set("Content-Type", "application/json");
     }
 
-    const response = await fetch(`${base}${path}`, {
-        ...config,
-        headers,
-        body: config.body === undefined || config.body instanceof FormData
-            ? config.body
-            : JSON.stringify(config.body)
-    });
+    let response;
+    try {
+        response = await fetch(`${base}${path}`, {
+            ...config,
+            headers,
+            body: config.body === undefined || config.body instanceof FormData
+                ? config.body
+                : JSON.stringify(config.body)
+        });
+    } catch (error) {
+        throw new Error(BACKEND_UNAVAILABLE_MESSAGE);
+    }
 
     if (!response.ok) {
         const detail = await readError(response);
@@ -83,15 +90,7 @@ async function request(base, path, options) {
 
 async function readError(response) {
     const text = await response.text();
-    if (!text) {
-        return "";
-    }
-    try {
-        const payload = JSON.parse(text);
-        return payload.message || payload.error || text;
-    } catch (error) {
-        return text;
-    }
+    return readResponseError(response.status, response.headers.get("Content-Type"), text);
 }
 
 function toQuery(params) {

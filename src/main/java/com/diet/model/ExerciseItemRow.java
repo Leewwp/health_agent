@@ -27,6 +27,8 @@ public class ExerciseItemRow {
     private Boolean planReady;
     private String instructionsZh;
     private String stepsJson;
+    private String thumbnailUrl;
+    private String mediaUrl;
     private String mediaState;
     private String mediaCredit;
     private LocalDateTime createdAt;

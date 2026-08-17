@@ -367,7 +367,7 @@ class HybridMealRetrieverTest {
                 id, name, null, List.of(), tags, null, List.of(),
                 new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
                 new ReviewedMeal.Nutrition(null, null, null, null, null, false),
-                allergens, "REVIEWED", "APPROVED", "NONE", null,
+                allergens, "REVIEWED", "APPROVED", null, "NONE", null,
                 "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", "PUBLIC"
         );
     }

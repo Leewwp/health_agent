@@ -21,6 +21,8 @@ public record ExerciseBrowseItem(
         boolean planReady,
         String instructionsZh,
         List<String> steps,
+        String thumbnailUrl,
+        String mediaUrl,
         String mediaState,
         String mediaCredit,
         String sourceName,

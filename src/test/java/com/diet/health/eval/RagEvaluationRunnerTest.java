@@ -185,7 +185,7 @@ class RagEvaluationRunnerTest {
                 id, "测试餐", null, List.of(), tags, null, List.of(),
                 new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
                 new ReviewedMeal.Nutrition(null, null, null, null, null, false),
-                List.of(), "REVIEWED", "APPROVED", "NONE", null,
+                List.of(), "REVIEWED", "APPROVED", null, "NONE", null,
                 "foodcom-recipes-and-reviews-v2", sourceId, "v2", "PUBLIC"
         );
     }

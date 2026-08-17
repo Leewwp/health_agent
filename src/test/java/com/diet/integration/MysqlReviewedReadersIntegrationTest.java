@@ -2,7 +2,6 @@ package com.diet.integration;
 
 import com.diet.health.browse.ExerciseBrowseService;
 import com.diet.health.browse.MealBrowseService;
-import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.model.ExerciseBrowseItem;
 import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
@@ -49,8 +48,8 @@ import static org.mockito.Mockito.when;
 /**
  * #68/#69/#70 方案 B 读取边界：审核读取模块、浏览/检索与批处理数据面的真实 MySQL 门控验证。
  * <p>
- * 在独立测试库 diet_db_itest 上（V1-V9 迁移 + 审核资源种子导入，295 道 APPROVED 公共餐食、
- * 30 个 APPROVED 动作），验证：
+ * 在独立测试库 diet_db_itest 上（V1-V12 迁移 + 资源种子导入，295 道 APPROVED 公共餐食、
+ * 1324 个本地动作目录项，其中 30 个具备计划资格），验证：
  * <ul>
  *   <li>#68 审核餐食/动作读取模块真库行为：仅 APPROVED + PUBLIC 返回（审核/来源过滤）、
  *       browse 分页计数、findByIds 批量回查去重、id 升序稳定排序；</li>
@@ -59,7 +58,7 @@ import static org.mockito.Mockito.when;
  *       过期索引命中、过期过敏原 payload 均以 MySQL 为事实源裁决。</li>
  *   <li>#70 审核快照的来源映射与 embedding 行按餐食 ID 一致，且不混入非审核数据。</li>
  * </ul>
- * 用例内自造的小批量行（source_name 前缀 itest-）在每例前后清理，不影响 295/30 基线。
+ * 用例内自造的小批量行（source_name 前缀 itest-）在每例前后清理，不影响 295/1324 基线。
  * <p>
  * 门控：-Ditest.mysql=true（CI 的 MySQL 服务容器与本地 MySQL 均为 root/123456）。
  */
@@ -72,6 +71,8 @@ import static org.mockito.Mockito.when;
 })
 @EnabledIfSystemProperty(named = "itest.mysql", matches = "true")
 class MysqlReviewedReadersIntegrationTest {
+
+    private static final int EXERCISE_CATALOG_BASELINE = 1324;
 
     /** 自造餐食行的来源标记（uk_meal_source 唯一键 + 用例清理锚点）。 */
     private static final String ITEST_MEAL_SOURCE = "itest-68";
@@ -98,7 +99,7 @@ class MysqlReviewedReadersIntegrationTest {
     @BeforeEach
     void cleanCustomRows() {
         jdbc = new JdbcTemplate(dataSource);
-        // 清理上一次运行残留的自造行，保证 295/30 基线断言确定
+        // 清理上一次运行残留的自造行，保证 295/1324 基线断言确定
         jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
         jdbc.update("DELETE FROM exercise_item WHERE source_name = ?", ITEST_EXERCISE_SOURCE);
     }
@@ -177,6 +178,24 @@ class MysqlReviewedReadersIntegrationTest {
     }
 
     // ---------- #68：DbReviewedMealReader 真库行为 ----------
+
+    @Test
+    void 结构化召回在LIMIT前过滤未审核与非公共餐食() {
+        long approvedId = insertMeal("limit-approved", "APPROVED", "PUBLIC", null,
+                "[\"早餐\"]", "[]");
+        long pendingId = insertMeal("limit-pending", "PENDING", "PUBLIC", null,
+                "[\"早餐\"]", "[]");
+        long personalId = insertMeal("limit-personal", "APPROVED", "PERSONAL", 1L,
+                "[\"早餐\"]", "[]");
+        jdbc.update("UPDATE meal_item SET updated_at = DATE_ADD(NOW(), INTERVAL 1 DAY) WHERE id = ?", approvedId);
+        jdbc.update("UPDATE meal_item SET updated_at = DATE_ADD(NOW(), INTERVAL 2 DAY) WHERE id IN (?, ?)", pendingId, personalId);
+
+        List<ReviewedMeal> result = mealReader.recallStructured(Map.of("mealTime", List.of("早餐")), 1);
+
+        assertEquals(List.of(approvedId), result.stream().map(ReviewedMeal::id).toList(),
+                "PENDING 或个人餐食不得占用公共审核结果的 LIMIT 窗口");
+        assertTrue(result.stream().allMatch(meal -> "APPROVED".equals(meal.reviewStatus())));
+    }
 
     @Test
     void 餐食读取仅返回APPROVED公共行审核与来源过滤生效() {
@@ -281,18 +300,18 @@ class MysqlReviewedReadersIntegrationTest {
     // ---------- #68/#64：DbReviewedExerciseReader 真库行为 ----------
 
     @Test
-    void 动作读取仅返回APPROVED行审核过滤生效且词汇归一() {
+    void 动作目录完整展示且词汇归一不改变计划资格边界() {
         try {
             long approved = insertExercise("e1", "APPROVED");
-            insertExercise("e2", "PENDING");
-            insertExercise("e3", "REJECTED");
+            long pending = insertExercise("e2", "PENDING");
+            long rejected = insertExercise("e3", "REJECTED");
 
-            assertEquals(31, exerciseReader.count(), "动作总数只统计 APPROVED 行");
+            assertEquals(EXERCISE_CATALOG_BASELINE + 3, exerciseReader.count(),
+                    "动作浏览目录应包含审核状态不同的完整本地资料");
             List<ReviewedExercise> all = exerciseReader.browse(0, 100);
             assertTrue(all.stream().anyMatch(e -> e.id().equals(approved)), "APPROVED 行必须可见");
-            assertTrue(all.stream().noneMatch(e -> e.reviewStatus().equals("PENDING")
-                            || e.reviewStatus().equals("REJECTED")),
-                    "PENDING/REJECTED 行不得可见");
+            assertTrue(all.stream().anyMatch(e -> e.id().equals(pending)), "PENDING 目录项必须可浏览");
+            assertTrue(all.stream().anyMatch(e -> e.id().equals(rejected)), "REJECTED 目录项必须可浏览");
 
             ReviewedExercise viewed = all.stream().filter(e -> e.id().equals(approved))
                     .findFirst().orElseThrow();
@@ -304,24 +323,22 @@ class MysqlReviewedReadersIntegrationTest {
         } finally {
             jdbc.update("DELETE FROM exercise_item WHERE source_name = ?", ITEST_EXERCISE_SOURCE);
         }
-        assertEquals(30, exerciseReader.count(), "清理后必须恢复 30 基线");
+        assertEquals(EXERCISE_CATALOG_BASELINE, exerciseReader.count(), "清理后必须恢复 1324 条目录基线");
     }
 
     @Test
-    void 动作分页id升序稳定且计数与种子基线一致() {
-        assertEquals(30, exerciseReader.count(), "审核动作发布基线 30 条");
-        List<Long> firstPage = exerciseReader.browse(0, 20).stream().map(ReviewedExercise::id).toList();
-        List<Long> secondPage = exerciseReader.browse(20, 20).stream().map(ReviewedExercise::id).toList();
-        assertEquals(20, firstPage.size());
-        assertEquals(10, secondPage.size(), "末页应为 30 - 20 = 10 条");
-        assertTrue(isStrictlyAscending(firstPage), "首页必须 id 升序");
-        assertTrue(isStrictlyAscending(secondPage), "末页必须 id 升序");
-        List<Long> union = new ArrayList<>(firstPage);
-        union.addAll(secondPage);
-        assertEquals(union.stream().distinct().toList(), union, "翻页不得重复");
-        assertTrue(exerciseReader.browse(0, 100).stream()
-                        .allMatch(e -> "APPROVED".equals(e.reviewStatus())),
-                "全部可见动作必须 APPROVED");
+    void 动作目录分页稳定且计数与本地媒体基线一致() {
+        assertEquals(EXERCISE_CATALOG_BASELINE, exerciseReader.count(), "动作目录发布基线 1324 条");
+        List<Long> allIds = new ArrayList<>();
+        for (int offset = 0; offset < EXERCISE_CATALOG_BASELINE; offset += 50) {
+            allIds.addAll(exerciseReader.browse(offset, 50).stream().map(ReviewedExercise::id).toList());
+        }
+        assertEquals(EXERCISE_CATALOG_BASELINE, allIds.size(), "分页应覆盖完整动作目录");
+        assertEquals(allIds.stream().distinct().toList(), allIds, "翻页不得重复");
+        assertEquals(24, exerciseReader.browse(1300, 50).size(), "末页应为 1324 - 26*50 = 24 条");
+        assertEquals(exerciseReader.browse(0, EXERCISE_CATALOG_BASELINE).stream()
+                        .map(ReviewedExercise::id).toList(), allIds,
+                "逐页浏览与完整目录顺序必须一致");
     }
 
     // ---------- #69：reviewed 浏览服务真库走查 ----------
@@ -350,31 +367,29 @@ class MysqlReviewedReadersIntegrationTest {
     @Test
     void 动作浏览服务真库分页走查总数与页序正确() {
         PagedResponse<ExerciseBrowseItem> page1 = exerciseBrowseService.browse(1, 20);
-        assertEquals(30, page1.total(), "动作浏览总数必须与审核库基线一致");
-        assertEquals(2, page1.totalPages());
+        assertEquals(EXERCISE_CATALOG_BASELINE, page1.total(), "动作浏览总数必须与本地目录基线一致");
+        assertEquals(67, page1.totalPages());
         assertEquals(20, page1.items().size());
-        PagedResponse<ExerciseBrowseItem> page2 = exerciseBrowseService.browse(2, 20);
-        assertEquals(10, page2.items().size(), "末页应为 30 - 20 = 10 条");
-        assertTrue(page1.items().stream().allMatch(i -> "APPROVED".equals(i.reviewStatus())),
-                "浏览页不得出现非 APPROVED 动作");
+        PagedResponse<ExerciseBrowseItem> lastPage = exerciseBrowseService.browse(67, 20);
+        assertEquals(4, lastPage.items().size(), "末页应为 1324 - 66*20 = 4 条");
 
         List<Long> allPageIds = new ArrayList<>();
-        allPageIds.addAll(page1.items().stream().map(ExerciseBrowseItem::id).toList());
-        allPageIds.addAll(page2.items().stream().map(ExerciseBrowseItem::id).toList());
+        List<ExerciseBrowseItem> allItems = new ArrayList<>();
+        for (int page = 1; page <= 67; page++) {
+            List<ExerciseBrowseItem> items = exerciseBrowseService.browse(page, 20).items();
+            allItems.addAll(items);
+            allPageIds.addAll(items.stream().map(ExerciseBrowseItem::id).toList());
+        }
         assertEquals(allPageIds.stream().distinct().toList(), allPageIds, "翻页不得重复");
-        assertEquals(exerciseReader.browse(0, 100).stream().map(ReviewedExercise::id).toList(),
+        assertEquals(exerciseReader.browse(0, EXERCISE_CATALOG_BASELINE).stream()
+                        .map(ReviewedExercise::id).toList(),
                 allPageIds, "浏览服务逐页结果必须与读取模块一致");
 
-        List<String> legalBodyParts = HealthSlotDictionary.FITNESS_OPTIONS.get("bodyParts");
-        List<String> legalEquipment = HealthSlotDictionary.FITNESS_OPTIONS.get("equipment");
-        List<ExerciseBrowseItem> allItems = new ArrayList<>(page1.items());
-        allItems.addAll(page2.items());
         for (ExerciseBrowseItem item : allItems) {
-            assertTrue(legalBodyParts.contains(item.bodyPart()),
-                    "主部位必须是健身槽位中文词汇，不得透出英文: " + item.bodyPart());
-            assertTrue(item.equipment() == null || item.equipment().isEmpty()
-                            || legalEquipment.contains(item.equipment()),
-                    "器材必须是健身槽位中文词汇: " + item.equipment());
+            assertFalse(containsAsciiLetter(item.bodyPart()),
+                    "主部位不得透出英文原始词汇: " + item.bodyPart());
+            assertFalse(containsAsciiLetter(item.equipment()),
+                    "器材不得透出英文原始词汇: " + item.equipment());
         }
     }
 
@@ -513,5 +528,9 @@ class MysqlReviewedReadersIntegrationTest {
             }
         }
         return true;
+    }
+
+    private boolean containsAsciiLetter(String value) {
+        return value != null && value.matches(".*[A-Za-z].*");
     }
 }

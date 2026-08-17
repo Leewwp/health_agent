@@ -25,6 +25,8 @@
         <result property="planReady" column="plan_ready"/>
         <result property="instructionsZh" column="instructions_zh"/>
         <result property="stepsJson" column="steps_json"/>
+        <result property="thumbnailUrl" column="thumbnail_url"/>
+        <result property="mediaUrl" column="media_url"/>
         <result property="mediaState" column="media_state"/>
         <result property="mediaCredit" column="media_credit"/>
         <result property="createdAt" column="created_at"/>
@@ -52,6 +54,8 @@
         plan_ready,
         instructions_zh,
         steps_json,
+        thumbnail_url,
+        media_url,
         media_state,
         media_credit
     </sql>
@@ -59,15 +63,13 @@
     <select id="browse" resultMap="ExerciseItemRowMap">
         SELECT <include refid="ExerciseColumns"/>
         FROM exercise_item
-        WHERE review_status = 'APPROVED'
-        ORDER BY id
+        ORDER BY plan_ready DESC, name, source_id
         LIMIT #{offset}, #{size}
     </select>
 
     <select id="count" resultType="int">
         SELECT COUNT(1)
         FROM exercise_item
-        WHERE review_status = 'APPROVED'
     </select>
 
     <select id="findAllApproved" resultMap="ExerciseItemRowMap">

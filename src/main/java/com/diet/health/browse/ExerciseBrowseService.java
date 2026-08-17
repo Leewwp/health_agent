@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * 动作浏览服务（规格 6.2）。
- * 只暴露审核通过（review_status=APPROVED）的动作；分页参数：page≥1、1≤size≤50。
+ * 资料库展示完整本地动作目录；只有 plan_ready 动作可被自动周计划消费。
  * 媒体状态与署名原样透出（无图状态 + Gym visual 署名）。
  * 用户槽位字段（部位/器材/难度/肌群）已由读取模块归一为健身槽位中文词汇。
  * 数据读取经 {@link ReviewedExerciseReader}（方案 B），本层不接触 Mapper 行对象。
@@ -78,11 +78,17 @@ public class ExerciseBrowseService {
                 exercise.planReady(),
                 exercise.instructionsZh(),
                 exercise.steps(),
+                licensedMediaUrl(exercise.thumbnailUrl(), exercise.mediaState()),
+                licensedMediaUrl(exercise.mediaUrl(), exercise.mediaState()),
                 exercise.mediaState(),
                 exercise.mediaCredit(),
                 exercise.sourceName(),
                 exercise.sourceId(),
                 exercise.sourceVersion()
         );
+    }
+
+    private static String licensedMediaUrl(String mediaUrl, String mediaState) {
+        return "LICENSED".equals(mediaState) ? mediaUrl : null;
     }
 }

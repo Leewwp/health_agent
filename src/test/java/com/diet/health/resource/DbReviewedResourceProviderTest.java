@@ -71,6 +71,27 @@ class DbReviewedResourceProviderTest {
     }
 
     @Test
+    void 只有已授权媒体进入健康资源() {
+        ExerciseItemRow exercise = exerciseRows(1).get(0);
+        exercise.setMediaUrl("/assets/exercise.gif");
+        exercise.setMediaState("NONE");
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of(exercise));
+        assertEquals(null, provider.exercises().get(0).mediaUrl());
+
+        exercise.setMediaState("LICENSED");
+        assertEquals("/assets/exercise.gif", provider.exercises().get(0).mediaUrl());
+
+        MealItemRow meal = mealRows(1).get(0);
+        meal.setMediaUrl("/assets/meal.jpg");
+        meal.setMediaStatus("NONE");
+        when(mealMapper.findApprovedPublicById(1L)).thenReturn(meal);
+        assertEquals(null, provider.mealById("1").orElseThrow().mediaUrl());
+
+        meal.setMediaStatus("LICENSED");
+        assertEquals("/assets/meal.jpg", provider.mealById("1").orElseThrow().mediaUrl());
+    }
+
+    @Test
     void 计划餐食候选与浏览公共餐食同源且按主键序() {
         List<MealItemRow> rows = mealRows(5);
         rows.get(0).setCaloriesKcal(java.math.BigDecimal.valueOf(320));
