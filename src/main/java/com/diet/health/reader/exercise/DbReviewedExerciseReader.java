@@ -13,7 +13,7 @@ import java.util.List;
  * 审核动作读取模块 DB adapter（#64，方案 B）。
  * <p>
  * 本类与 {@code DbReviewedResourceProvider} 是仅有的两个允许依赖 ExerciseMapper 的类。
- * 封装 APPROVED 过滤（Mapper SQL）、分页读取、稳定排序与面向浏览的不可变读取模型；
+ * 封装完整动作目录的分页读取、稳定排序与面向浏览的不可变读取模型；
  * 用户槽位字段经 {@link ExerciseVocabulary} 归一为中文，未收录原始值过滤并记录
  * 可诊断信息，不原样透出。SQL 复用现有 Mapper 契约（不为抽象重写 SQL）。
  */
@@ -62,14 +62,16 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
                 ExerciseVocabulary.normalizeParts(rawTarget),
                 ExerciseVocabulary.normalizeParts(rawSecondary),
                 ExerciseVocabulary.equipmentZh(row.getEquipment()),
-                ExerciseVocabulary.difficultyZh(row.getDifficulty()),
-                row.getMovementPattern(),
+                catalogDifficulty(row.getDifficulty()),
+                catalogMovementPattern(row.getMovementPattern()),
                 jsonService.fromJsonArray(row.getRiskTags()),
                 row.getAlternativeGroup(),
                 row.getReviewStatus(),
                 Boolean.TRUE.equals(row.getPlanReady()),
                 row.getInstructionsZh(),
                 jsonService.fromJsonArray(row.getStepsJson()),
+                row.getThumbnailUrl(),
+                row.getMediaUrl(),
                 row.getMediaState(),
                 row.getMediaCredit(),
                 row.getSourceName(),
@@ -90,8 +92,16 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
     }
 
     private List<String> unrepresentedDifficulty(String raw) {
-        return raw == null || raw.isBlank() || !ExerciseVocabulary.difficultyZh(raw).isEmpty()
+        return raw == null || raw.isBlank() || "未评估".equals(raw) || !ExerciseVocabulary.difficultyZh(raw).isEmpty()
                 ? List.of() : List.of(raw);
+    }
+
+    private String catalogDifficulty(String raw) {
+        return "未评估".equals(raw) ? "" : ExerciseVocabulary.difficultyZh(raw);
+    }
+
+    private String catalogMovementPattern(String raw) {
+        return "未评估".equals(raw) ? "" : raw;
     }
 
     /** 未收录原始值明确降级：过滤并记录可诊断信息，不原样透出英文。 */

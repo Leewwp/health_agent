@@ -16,7 +16,7 @@ import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
 import { currentRoute } from "../router.js";
 
-const MAX_LOAD_PAGES = 20;
+const MAX_LOAD_PAGES = 100;
 const PAGE_SIZE = 20;
 
 export function createBrowsePage(definition) {
@@ -93,6 +93,9 @@ export function createBrowsePage(definition) {
                 items.push(...result.items);
                 if (page >= result.totalPages) {
                     break;
+                }
+                if (page === MAX_LOAD_PAGES) {
+                    throw new Error("数据页数超过本地浏览安全上限");
                 }
             }
             state.items = items;

@@ -11,6 +11,7 @@
     --border: #dcebe4;
     --danger: #cc4b4b;
     --warning: #b7791f;
+    --focus: #176b50;
     --shadow: 0 18px 45px rgba(39, 92, 70, 0.11);
     --radius-lg: 26px;
     --radius-md: 18px;
@@ -20,6 +21,11 @@
 
 * {
     box-sizing: border-box;
+}
+
+html,
+body {
+    overflow-x: clip;
 }
 
 body {
@@ -46,6 +52,15 @@ textarea {
 
 button {
     cursor: pointer;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+}
+
+#app:focus {
+    outline: none;
 }
 
 .app-shell {
@@ -150,7 +165,7 @@ button {
     max-width: 650px;
     font-size: clamp(34px, 6vw, 66px);
     line-height: 1.02;
-    letter-spacing: -0.055em;
+    letter-spacing: 0;
 }
 
 .hero-panel p {
@@ -218,7 +233,7 @@ button {
 .section h2,
 .section h3 {
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
 }
 
 .card-title p,
@@ -799,7 +814,7 @@ tr:last-child td {
     width: min(var(--drawer-width), 100%);
     height: 100%;
     padding: 22px;
-    overflow: auto;
+    overflow: hidden;
     background: #fff;
     box-shadow: -18px 0 45px rgba(39, 92, 70, 0.16);
     animation: drawer-in 180ms ease;
@@ -826,7 +841,7 @@ tr:last-child td {
 
 .drawer-header h2 {
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
 }
 
 .drawer-header p {
@@ -837,9 +852,11 @@ tr:last-child td {
 
 .drawer-body {
     display: grid;
+    min-height: 0;
     gap: 16px;
     align-content: start;
     padding-bottom: 18px;
+    overflow-y: auto;
 }
 
 .drawer-footer {
@@ -881,6 +898,55 @@ tr:last-child td {
     padding-left: 20px;
     color: var(--text);
     line-height: 1.65;
+}
+
+/* ---------- 页面内模态框 ---------- */
+
+.modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: none;
+    place-items: center;
+    padding: 20px;
+    background: rgba(24, 53, 42, 0.38);
+}
+
+.modal-root.open {
+    display: grid;
+}
+
+.modal-panel {
+    display: grid;
+    width: min(440px, 100%);
+    gap: 20px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+}
+
+.modal-panel h2 {
+    margin: 0;
+    font-size: 22px;
+}
+
+.modal-copy {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.modal-panel form {
+    display: grid;
+    gap: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 /* ---------- 周计划 ---------- */
@@ -1063,8 +1129,18 @@ tr:last-child td {
     .nav-links {
         justify-content: flex-start;
         flex-wrap: nowrap;
+        gap: 4px;
         overflow-x: auto;
         padding-bottom: 2px;
+    }
+
+    .nav-links a {
+        display: flex;
+        flex: 0 0 auto;
+        min-height: 44px;
+        align-items: center;
+        padding: 7px 8px;
+        white-space: nowrap;
     }
 
     .hero-panel,
@@ -1093,5 +1169,16 @@ tr:last-child td {
 
     .kv-list .kv {
         grid-template-columns: 96px minmax(0, 1fr);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }

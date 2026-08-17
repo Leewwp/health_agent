@@ -154,10 +154,24 @@ class MealBrowseServiceTest {
         assertEquals(List.of("鸡蛋"), item.allergens());
         assertEquals("REVIEWED", item.allergenStatus());
         assertEquals("APPROVED", item.reviewStatus());
+        assertEquals(null, item.mediaUrl());
         assertEquals("NONE", item.mediaStatus());
         assertEquals("foodcom-recipes-and-reviews-v2", item.sourceName());
         assertEquals("317010", item.sourceId());
         assertEquals("v2", item.sourceVersion());
+    }
+
+    @Test
+    void 只有已授权媒体下发地址() {
+        when(reviewedMealReader.browse(0, 20)).thenReturn(List.of(
+                meal("/assets/licensed.jpg", "LICENSED"),
+                meal("/assets/unlicensed.jpg", "NONE")));
+        when(reviewedMealReader.countPublic()).thenReturn(2);
+
+        List<MealBrowseItem> items = service.browse(1, 20).items();
+
+        assertEquals("/assets/licensed.jpg", items.get(0).mediaUrl());
+        assertEquals(null, items.get(1).mediaUrl());
     }
 
     @Test
@@ -176,6 +190,10 @@ class MealBrowseServiceTest {
     }
 
     private ReviewedMeal meal() {
+        return meal(null, "NONE");
+    }
+
+    private ReviewedMeal meal(String mediaUrl, String mediaStatus) {
         Map<String, List<String>> tags = new LinkedHashMap<>();
         tags.put("mealTime", List.of("早餐", "午餐"));
         tags.put("mood", List.of());
@@ -199,7 +217,8 @@ class MealBrowseServiceTest {
                 List.of("鸡蛋"),
                 "REVIEWED",
                 "APPROVED",
-                "NONE",
+                mediaUrl,
+                mediaStatus,
                 null,
                 "foodcom-recipes-and-reviews-v2",
                 "317010",

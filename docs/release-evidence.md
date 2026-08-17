@@ -25,7 +25,7 @@
 
 | 条目 | 证据 |
 |---|---|
-| 审核子集（295 餐食/30 动作/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder` 幂等导入；`DbReviewedResourceProviderTest` |
+| 资源基线（295 餐食/1324 动作目录，其中 30 个 plan_ready/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder`/`LocalMediaCatalogSeeder` 幂等导入；`DbReviewedResourceProviderTest`、`MysqlReviewedReadersIntegrationTest` |
 | 浏览 API 分页边界 | `health/browse` 测试（page 超上限返回 400、size≤50）；浏览器验收第 2/3 节 |
 | hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集（60 条六层，querySetVersion 1.1.0）评估见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准 |
 | 真实 key 下 RAG 对比 | 2026-08-11 的旧 10 条查询集 DashScope 冒烟（292+3 条向量、Recall@3=0.385 vs 0.380）仅作历史背景，不作为当前效果数字；当前唯一数字口径见 `data/reports/rag_evaluation.json`（环境身份：gitCommit/querySetVersion/embedding provider/model/dimension/collection/融合权重） |
@@ -36,7 +36,7 @@
 |---|---|
 | Mifflin-St Jeor 能量区间 | `EnergyCalculatorTest` |
 | 周计划不变量（版本/激活/归档） | `WeeklyPlanServiceTest`（20 个）+ `PlanValidationServiceTest` + `WeeklyPlanComposerServiceTest` |
-| 事务化 + 行锁 + ACTIVE 唯一约束 | 真实 MySQL 集成验证：`src/test/java/com/diet/integration/MysqlTransactionIntegrationTest.java`（18 个用例，`-Ditest.mysql=true` 门控）：V1-V9 干净库迁移、saveProfile/createDraft/activate 写入失败无半成品、并发激活唯一成功、激活后档案版本/能量区间与快照一致、档案版本号连续唯一、MySQL 不可用快速失败 |
+| 事务化 + 行锁 + ACTIVE 唯一约束 | 真实 MySQL 集成验证：`src/test/java/com/diet/integration/MysqlTransactionIntegrationTest.java`（18 个用例，`-Ditest.mysql=true` 门控）：V1-V12 干净库迁移、saveProfile/createDraft/activate 写入失败无半成品、并发激活唯一成功、激活后档案版本/能量区间与快照一致、档案版本号连续唯一、MySQL 不可用快速失败 |
 | 三阶段风险 Guard | `HealthRiskRuleServiceTest`、`RiskRuleCatalogTest`、`PlanValidationServiceTest` |
 | 类型化反馈闭环 | `FeedbackServiceTest`、`health/feedback` 测试；浏览器收藏/喜欢/采纳反馈落库 |
 

@@ -20,7 +20,7 @@ class MealAllergenConstraintTest {
         return new ReviewedMeal(1L, "测试餐", null, List.of(), tags, null, List.of(),
                 new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
                 new ReviewedMeal.Nutrition(null, null, null, null, null, false),
-                allergens, "REVIEWED", "APPROVED", "NONE", null, "src", "s1", "v2", "PUBLIC");
+                allergens, "REVIEWED", "APPROVED", null, "NONE", null, "src", "s1", "v2", "PUBLIC");
     }
 
     @Test

@@ -159,7 +159,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
                 row.getName(),
                 "DATASET",
                 row.getSourceName(),
-                null,
+                licensedMediaUrl(row.getMediaUrl(), row.getMediaState()),
                 Boolean.TRUE.equals(row.getPlanReady()),
                 tags
         );
@@ -181,7 +181,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
                 row.getName(),
                 row.getSourceType() == null ? "PUBLIC" : row.getSourceType(),
                 "公共餐食库",
-                row.getMediaUrl(),
+                licensedMediaUrl(row.getMediaUrl(), row.getMediaStatus()),
                 false,
                 tags
         );
@@ -249,6 +249,10 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     /** 单个翻译值包装为标签列表；未收录为空列表，不透出英文原始值。 */
     private static List<String> singleZh(String value) {
         return value.isEmpty() ? List.of() : List.of(value);
+    }
+
+    private static String licensedMediaUrl(String mediaUrl, String mediaStatus) {
+        return "LICENSED".equals(mediaStatus) ? mediaUrl : null;
     }
 
     /** 资源 ID 转主键，非法返回 null（空库/脏数据不抛异常）。 */

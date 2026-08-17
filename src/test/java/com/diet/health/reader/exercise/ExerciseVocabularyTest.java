@@ -37,6 +37,7 @@ class ExerciseVocabularyTest {
         assertEquals("徒手", ExerciseVocabulary.equipmentZh("body weight"));
         assertEquals("哑铃", ExerciseVocabulary.equipmentZh("dumbbell"));
         assertEquals("弹力带", ExerciseVocabulary.equipmentZh("band"));
+        assertEquals("壶铃", ExerciseVocabulary.equipmentZh("kettlebell"));
     }
 
     @Test

@@ -11,11 +11,14 @@
 import { escapeHtml, formatTime } from "../util/dom.js";
 import { getResource } from "../store.js";
 import { renderFeedbackControl } from "./feedback-control.js";
+import { renderMedia } from "./media-state.js";
 
 const root = document.getElementById("drawer-root");
 let drawerContext = null;
+let openerElement = null;
 
 export function openDrawer(key, context) {
+    openerElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     drawerContext = context || {};
     const resource = getResource(key);
     if (!resource) {
@@ -63,13 +66,19 @@ export function openDrawer(key, context) {
     `;
     root.classList.add("open");
     root.setAttribute("aria-hidden", "false");
+    root.querySelector("[data-drawer-close]")?.focus({ preventScroll: true });
 }
 
-export function closeDrawer() {
+export function closeDrawer(options) {
+    const restoreFocus = !options || options.restoreFocus !== false;
     root.classList.remove("open");
     root.setAttribute("aria-hidden", "true");
     root.innerHTML = "";
     drawerContext = null;
+    if (restoreFocus && openerElement && openerElement.isConnected) {
+        openerElement.focus({ preventScroll: true });
+    }
+    openerElement = null;
 }
 
 export function isDrawerOpen() {
@@ -77,12 +86,12 @@ export function isDrawerOpen() {
 }
 
 let drawerBound = false;
-let openerBound = false;
+const openerContainers = new WeakSet();
 
 /** 页面级绑定（drawer 根元素独立于页面容器；两类监听都只注册一次）。 */
 export function bindDrawer(container) {
-    if (!openerBound) {
-        openerBound = true;
+    if (!openerContainers.has(container)) {
+        openerContainers.add(container);
         container.addEventListener("click", (event) => {
             const opener = event.target.closest("[data-action='open-resource']");
             if (opener && getResource(opener.dataset.key)) {
@@ -99,6 +108,10 @@ export function bindDrawer(container) {
     }
     drawerBound = true;
     root.addEventListener("click", (event) => {
+        if (event.target === root) {
+            closeDrawer();
+            return;
+        }
         if (event.target.closest("[data-drawer-close]")) {
             closeDrawer();
             return;
@@ -144,12 +157,7 @@ function renderMealBody(meal) {
     const tags = meal.tags ? Object.entries(meal.tags).flatMap(([key, values]) => values.map((v) => `${key}：${v}`)) : [];
     const serving = meal.serving ? `${meal.serving.count || 1} 份${meal.serving.size != null ? ` · ${meal.serving.size} ${meal.serving.unit || "g"}` : ""}` : "";
     return `
-        ${meal.mediaUrl || meal.mediaStatus !== undefined
-            ? `<figure class="media-frame" style="max-height:220px;">${meal.mediaUrl
-                ? `<img src="${escapeHtml(meal.mediaUrl)}" alt="${escapeHtml(meal.name)}"
-                        onerror="this.remove(); this.closest('.media-frame').innerHTML = '<span class=\\"media-placeholder\\"><span class=\\"media-mark\\">图</span><span>无图</span></span>';">`
-                : `<span class="media-placeholder"><span class="media-mark">图</span><span>${escapeHtml(meal.name)} · 无图</span></span>`}</figure>`
-            : ""}
+        ${meal.mediaUrl || meal.mediaStatus !== undefined ? renderMedia(meal.mediaUrl || null, meal.name, { credit: meal.mediaCredit }) : ""}
         <div class="kv-list">
             <div class="kv"><span>营养（估算）</span><span>
                 ${nutrition.caloriesKcal != null ? `${nutrition.caloriesKcal} kcal` : "-"} ·
@@ -180,6 +188,7 @@ function renderExerciseBody(exercise) {
         exercise.movementPattern ? `动作模式：${exercise.movementPattern}` : ""
     ].filter(Boolean);
     return `
+        ${exercise.mediaUrl || exercise.mediaState !== undefined ? renderMedia(exercise.mediaUrl || null, exercise.name, { credit: exercise.mediaCredit }) : ""}
         ${exercise.planReady ? `<span class="badge">已通过周计划资格审核（plan_ready）</span>` : `<span class="badge warn">仅供浏览与单次推荐</span>`}
         <div class="kv-list">
             <div class="kv"><span>目标肌群</span><span>${escapeHtml((exercise.targetMuscles || []).join("、") || "-")}</span></div>

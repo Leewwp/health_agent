@@ -15,7 +15,7 @@ const FILTER_FIELDS = [
 
 export const render = createBrowsePage({
     title: "健身动作库",
-    subtitle: "已审核动作，难度与媒体状态均为示意信息。",
+    subtitle: "1324 条真实动作资料；仅标记为可入周计划的动作会参与自动计划。",
     route: "/exercises",
     load: listExercises,
     filterFields: FILTER_FIELDS,

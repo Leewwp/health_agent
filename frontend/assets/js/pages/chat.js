@@ -202,8 +202,9 @@ async function sendMessage(message, retried) {
             state.sessionId = null;
             return sendMessage(message, true);
         }
-        showToast(error.message || "聊天请求失败", "error");
-        state.messages.push({ role: "assistant", text: "这轮请求失败了，请稍后重试。" });
+        const message = error.message || "聊天请求失败，请稍后重试。";
+        showToast(message, "error");
+        state.messages.push({ role: "assistant", text: message });
     } finally {
         state.sending = false;
         render(document.getElementById("app"));

@@ -42,10 +42,13 @@ build/
 data/meal/raw/
 data/meal/processed/
 
-# 本地环境变量与密钥覆盖
+# 本地环境变量与密钥覆盖（任意目录，含 deploy/.env；仅保留 .env.example 模板）
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
 # 动作原始数据集（可经 jsDelivr 重新下载，见 scripts/build_reviewed_resources.py）
 data/exercise/raw/exercises.json

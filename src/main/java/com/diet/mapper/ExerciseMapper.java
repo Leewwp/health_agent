@@ -10,10 +10,10 @@ import java.util.List;
 @Mapper
 public interface ExerciseMapper {
 
-    /** 浏览页：全部审核通过动作，按 id 升序分页。 */
+    /** 动作资料库浏览：审核集与未审核资料均可展示，审核状态随行返回。 */
     List<ExerciseItemRow> browse(@Param("offset") int offset, @Param("size") int size);
 
-    /** 动作总数（浏览分页用）。 */
+    /** 动作资料库总数（浏览分页用）。 */
     int count();
 
     /** 全部审核通过动作（Provider 用，与浏览同审核条件），按 id 升序。 */

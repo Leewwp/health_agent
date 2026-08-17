@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * 餐食浏览服务（规格 6.2）。
  * 只暴露审核通过（review_status=APPROVED）的公共餐食；分页参数：page≥1、1≤size≤50。
- * 无媒体许可的餐食以稳定无图状态展示（mediaUrl 不下发）。
+ * 仅 LICENSED 媒体下发地址，无许可餐食保持稳定无图状态。
  * 数据读取经 {@link ReviewedMealReader}（方案 B），本层不接触 Mapper 行对象。
  */
 @Service
@@ -81,11 +81,16 @@ public class MealBrowseService {
                 meal.allergens(),
                 meal.allergenStatus(),
                 meal.reviewStatus(),
+                licensedMediaUrl(meal.mediaUrl(), meal.mediaStatus()),
                 meal.mediaStatus(),
                 meal.mediaCredit(),
                 meal.sourceName(),
                 meal.sourceId(),
                 meal.sourceVersion()
         );
+    }
+
+    private static String licensedMediaUrl(String mediaUrl, String mediaStatus) {
+        return "LICENSED".equals(mediaStatus) ? mediaUrl : null;
     }
 }

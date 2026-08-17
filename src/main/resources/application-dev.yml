@@ -6,6 +6,9 @@ spring:
 # #61：dev 显式放行缺失 Origin（curl/MCP Inspector/受控服务端客户端本地流程）；
 # 生产不继承该配置，缺失 Origin 默认 fail-closed
 diet:
+  seed:
+    # 本地完整动作资料库与餐食媒体映射，缺少生成种子时仅记录告警。
+    local-media-catalog: ${DIET_LOCAL_MEDIA_CATALOG_ENABLED:true}
   mcp:
     allow-missing-origin: true
 

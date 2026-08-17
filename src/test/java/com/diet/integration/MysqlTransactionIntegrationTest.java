@@ -52,7 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段；#74 补 traceId 归因）：
- * 在独立测试库 diet_db_itest 上验证 V1-V9 迁移、saveProfile/createDraft/activate
+ * 在独立测试库 diet_db_itest 上验证 V1-V12 迁移、saveProfile/createDraft/activate
  * 任一步写入失败时数据库无半成品、并发激活只产生一个有效 ACTIVE、
  * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一、风险档案阻断后无残留。
  * <p>
@@ -171,14 +171,14 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V9迁移全部成功() {
+    void 干净库V1至V12迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(9, rows.size(), "干净库应执行 V1-V9 共 9 条迁移");
+        assertEquals(12, rows.size(), "干净库应执行 V1-V12 共 12 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("9", String.valueOf(rows.get(8).get("version")), "V9 最后执行");
+        assertEquals("12", String.valueOf(rows.get(11).get("version")), "V12 最后执行");
     }
 
     @Test
@@ -248,6 +248,18 @@ class MysqlTransactionIntegrationTest {
                         + " AND table_name = 'diet_request_trace' AND column_name = 'expected_health_json'",
                 String.class);
         assertEquals("json", evalColumnType, "expected_health_json 必须为 JSON 类型（V9）");
+        List<String> mediaColumns = jdbc.queryForList(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'exercise_item'"
+                        + " AND column_name IN ('media_url','thumbnail_url')",
+                String.class);
+        assertEquals(2, mediaColumns.size(), "V10/V11 动作详情媒体与缩略图列必须存在");
+        Integer sourceVersionLength = jdbc.queryForObject(
+                "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns"
+                        + " WHERE table_schema = 'diet_db_itest' AND table_name = 'exercise_item'"
+                        + " AND column_name = 'source_version'",
+                Integer.class);
+        assertEquals(64, sourceVersionLength, "V12 source_version 必须容纳完整来源 revision");
     }
 
     // ---------- 39 号票验收点：任一步失败数据库无半成品 ----------

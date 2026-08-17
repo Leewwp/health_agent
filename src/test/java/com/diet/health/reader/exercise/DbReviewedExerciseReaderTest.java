@@ -77,12 +77,13 @@ class DbReviewedExerciseReaderTest {
         assertEquals(List.of("手臂", "腿"), exercise.secondaryMuscles());
         assertEquals("徒手", exercise.equipment());
         assertEquals("进阶", exercise.difficulty(), "中级归一到进阶");
+        assertEquals("/assets/test-exercise.gif", exercise.mediaUrl());
     }
 
     @Test
     void 未收录原始值不透出() {
         ExerciseItemRow row = row(1L);
-        row.setEquipment("kettlebell");
+        row.setEquipment("cable machine");
         row.setTargetMuscles("[\"unknown-muscle\"]");
         row.setDifficulty("expert");
         when(exerciseMapper.browse(0, 10)).thenReturn(List.of(row));
@@ -193,6 +194,7 @@ class DbReviewedExerciseReaderTest {
         row.setPlanReady(true);
         row.setInstructionsZh("平躺，膝盖弯曲，双脚平放在地上。收紧腹肌，慢慢将上半身抬离地面。");
         row.setStepsJson("[\"步骤一：准备姿势\",\"步骤二：完成动作\"]");
+        row.setMediaUrl("/assets/test-exercise.gif");
         row.setMediaState("NONE");
         row.setMediaCredit("© Gym visual — https://gymvisual.com/");
         return row;

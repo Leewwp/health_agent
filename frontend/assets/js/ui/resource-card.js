@@ -51,7 +51,7 @@ export function renderResourceCard(resource, options) {
             </header>
             ${media}
             ${meta.chips ? `<div class="chips">${meta.chips}</div>` : ""}
-            <p class="muted" style="margin:0;font-size:13px;line-height:1.55;">${escapeHtml(meta.desc)}</p>
+            ${meta.desc ? `<p class="muted" style="margin:0;font-size:13px;line-height:1.55;">${escapeHtml(meta.desc)}</p>` : ""}
             ${meta.source ? `<p class="media-credit" style="margin:0;">来源：${meta.source}</p>` : ""}
             <div class="button-row">
                 <button class="btn soft" data-action="open-resource" data-key="${key}">详情</button>
@@ -67,7 +67,8 @@ export function renderResourceCard(resource, options) {
 }
 
 function renderCardMedia(resource) {
-    return renderMedia(resource.mediaUrl || null, resource.name, { credit: resource.mediaCredit });
+    const url = resource.thumbnailUrl || resource.mediaUrl || null;
+    return renderMedia(url, resource.name, { credit: resource.mediaCredit });
 }
 
 function buildCardMeta(resource, resourceType) {
@@ -79,7 +80,9 @@ function buildCardMeta(resource, resourceType) {
         return {
             badge: kcal,
             chips: tags.slice(0, 6).map((tag) => `<span class="chip selected">${escapeHtml(tag)}</span>`).join(""),
-            desc: (resource.description || "").slice(0, 80) || (resource.sourceName ? "" : ""),
+            desc: resource.ingredients && resource.ingredients.length
+                ? `食材：${resource.ingredients.slice(0, 5).join("、")}${resource.ingredients.length > 5 ? "…" : ""}`
+                : "",
             source: resource.sourceName || (resource.sourceType ? resource.sourceType : "")
         };
     }

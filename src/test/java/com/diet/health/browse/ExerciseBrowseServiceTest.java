@@ -109,14 +109,35 @@ class ExerciseBrowseServiceTest {
         assertEquals("APPROVED", item.reviewStatus());
         assertTrue(item.steps().size() >= 2);
         assertTrue(item.instructionsZh().length() > 10);
+        assertEquals(null, item.thumbnailUrl());
+        assertEquals(null, item.mediaUrl());
         assertEquals("NONE", item.mediaState());
         assertTrue(item.mediaCredit().contains("Gym visual"));
         assertEquals("gym-visual-exercises-dataset", item.sourceName());
         assertEquals("0662", item.sourceId());
     }
 
+    @Test
+    void 只有已授权媒体下发地址() {
+        when(reviewedExerciseReader.browse(0, 20)).thenReturn(List.of(
+                exercise("/assets/licensed.gif", "LICENSED"),
+                exercise("/assets/unlicensed.gif", "NONE")));
+        when(reviewedExerciseReader.count()).thenReturn(2);
+
+        List<ExerciseBrowseItem> items = service.browse(1, 20).items();
+
+        assertEquals("/assets/licensed.gif", items.get(0).mediaUrl());
+        assertEquals("/assets/licensed.gif", items.get(0).thumbnailUrl());
+        assertEquals(null, items.get(1).mediaUrl());
+        assertEquals(null, items.get(1).thumbnailUrl());
+    }
+
     /** 读取模型（#64）：槽位字段已是归一中文，浏览服务原样透传。 */
     private ReviewedExercise exercise() {
+        return exercise(null, "NONE");
+    }
+
+    private ReviewedExercise exercise(String mediaUrl, String mediaState) {
         return new ReviewedExercise(
                 9001L,
                 "俯卧撑",
@@ -135,7 +156,9 @@ class ExerciseBrowseServiceTest {
                 true,
                 "平躺，膝盖弯曲，双脚平放在地上。收紧腹肌，慢慢将上半身抬离地面。",
                 List.of("步骤一：准备姿势", "步骤二：完成动作"),
-                "NONE",
+                mediaUrl,
+                mediaUrl,
+                mediaState,
                 "© Gym visual — https://gymvisual.com/",
                 "gym-visual-exercises-dataset",
                 "0662",

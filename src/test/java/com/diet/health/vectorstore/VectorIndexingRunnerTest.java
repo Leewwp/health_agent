@@ -165,7 +165,7 @@ class VectorIndexingRunnerTest {
                 new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
                 new ReviewedMeal.Nutrition(null, null, null, null, null, false),
                 allergens == null ? List.of() : allergens,
-                "REVIEWED", reviewStatus, "NONE", null,
+                "REVIEWED", reviewStatus, null, "NONE", null,
                 "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", sourceType
         );
     }
