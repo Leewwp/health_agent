@@ -55,9 +55,10 @@ class HealthEvalRunnerTest {
         com.diet.health.intent.HealthSlotDictionary dictionary =
                 new com.diet.health.intent.HealthSlotDictionary(
                         com.diet.health.TestSupport.slotOptionService());
+        com.diet.health.intent.HealthInputNormalizer normalizer = new com.diet.health.intent.HealthInputNormalizer();
         HealthIntentAgentService intent = new HealthIntentAgentService(
                 contract, new com.diet.agent.loader.PromptLoader(), dictionary,
-                new IntentRuleService(dictionary), "qwen-turbo", "v1", 1000);
+                new IntentRuleService(normalizer), normalizer, "qwen-turbo", "v1", 1000);
         HealthClarifyRuleService clarifyRule = new HealthClarifyRuleService();
         HealthClarifyAgentService clarifyAgent = new HealthClarifyAgentService(
                 contract, new com.diet.agent.loader.PromptLoader(), clarifyRule, "qwen-turbo", "v1", 1000);
@@ -105,13 +106,20 @@ class HealthEvalRunnerTest {
         assertEquals(36, report.get("dataset").get("sampleCount").asInt());
 
         var metrics = report.get("metrics");
+        var domainMismatches = new java.util.ArrayList<String>();
+        report.get("cases").forEach(item -> {
+            if (item.has("domainMatch") && !item.get("domainMatch").asBoolean()) {
+                domainMismatches.add(item.get("caseId").asText() + ":" + item.get("predictedDomain").asText());
+            }
+        });
+        assertTrue(domainMismatches.isEmpty(), "领域不匹配样本: " + domainMismatches);
         // 域/任务：32 条聊天样本全部命中（含 COMPOSITE/RISK_BLOCK 的 domain/task）
         assertMetric(metrics.get("domainAccuracy"), 1.0, 32, 32);
         assertMetric(metrics.get("taskAccuracy"), 1.0, 32, 32);
         assertMetric(metrics.get("domainTaskExactMatch"), 1.0, 32, 32);
-        // 槽位：MEAL-04（allergen 未提取，FN=1）与 RT-06（臆造 wakeTime，FP=1）→ 38/39 微 F1
-        assertMetric(metrics.get("slotExactMatch"), 30.0 / 32.0, 30, 32);
-        assertMetric(metrics.get("slotMicro").get("precision"), 38.0 / 39.0, 38, 39);
+        // 槽位：只剩 MEAL-04 的 allergen 未提取（FN=1）；RT-06 不再臆造 wakeTime
+        assertMetric(metrics.get("slotExactMatch"), 31.0 / 32.0, 31, 32);
+        assertMetric(metrics.get("slotMicro").get("precision"), 1.0, 38, 38);
         assertMetric(metrics.get("slotMicro").get("recall"), 38.0 / 39.0, 38, 39);
         // 风险：NORMAL/ADVISORY/BLOCK_PLAN 三级全对，BLOCK_PLAN Recall=1（3/3）
         assertMetric(metrics.get("risk").get("accuracy"), 1.0, 32, 32);

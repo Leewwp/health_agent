@@ -8,6 +8,8 @@ import com.diet.health.clarify.HealthClarifyAgentService;
 import com.diet.health.clarify.HealthClarifyRuleService;
 import com.diet.health.feedback.PreferenceService;
 import com.diet.health.intent.HealthIntentAgentService;
+import com.diet.health.intent.HealthInputNormalizer;
+import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.intent.IntentRuleService;
 import com.diet.health.enums.HealthResponseType;
@@ -129,7 +131,9 @@ class HealthOrchestratorServiceTest {
         ReflectionTestUtils.setField(sessionService, "sessionSecret", "test-secret");
         AgentContractModule contract = new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper), trace);
         HealthSlotDictionary dictionary = new HealthSlotDictionary(TestSupport.slotOptionService());
-        HealthIntentAgentService intent = new HealthIntentAgentService(contract, new PromptLoader(), dictionary, new IntentRuleService(dictionary), "qwen-turbo", "v1", 1000);
+        HealthInputNormalizer normalizer = new HealthInputNormalizer();
+        HealthIntentAgentService intent = new HealthIntentAgentService(contract, new PromptLoader(), dictionary,
+                new IntentRuleService(normalizer), normalizer, "qwen-turbo", "v1", 1000);
         HealthClarifyAgentService clarify = new HealthClarifyAgentService(contract, new PromptLoader(), new HealthClarifyRuleService(), "qwen-turbo", "v1", 1000);
         HealthRecommendResponseService recommend = new HealthRecommendResponseService(contract, new PromptLoader(), "qwen-max", "v1", 1000);
 
@@ -140,7 +144,8 @@ class HealthOrchestratorServiceTest {
         ));
 
         orchestrator = new HealthOrchestratorService(
-                sessionService, messageService, intent, new HealthClarifyRuleService(), clarify,
+                sessionService, messageService, intent, new HealthIntentRevisionService(normalizer), normalizer,
+                new HealthClarifyRuleService(), clarify,
                 new HealthRiskRuleService(), mealModule, new ExerciseModule(new SeedResourceProvider(), preferenceService),
                 new RoutineModule(new SeedResourceProvider()), new SeedResourceProvider(),
                 recommend, trace, objectMapper);
@@ -233,11 +238,27 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
+    void 咖啡事实在餐食历史后仍直接返回作息来源() {
+        String sessionId = "sess_meal_to_routine";
+        assertEquals("MEAL", chatInSession(sessionId, "午餐想吃清淡的").domain().name());
+
+        HealthChatResponse response = chatInSession(sessionId, "晚上几点前停止喝咖啡？");
+        assertEquals(HealthResponseType.ANSWER, response.responseType());
+        assertEquals("ROUTINE", response.domain().name());
+        assertEquals("RECOMMEND", response.task().name());
+        assertTrue(response.missingSlots().isEmpty());
+        assertFalse(response.displayBlocks().isEmpty());
+        assertTrue(response.displayBlocks().stream().allMatch(block ->
+                "ROUTINE".equals(block.resourceType()) && block.sourceName() != null));
+    }
+
+    @Test
     void 信息不足先澄清再继续会话() {
         String sessionId = "sess_clarify_continue";
         HealthChatResponse first = chatInSession(sessionId, "帮我推荐");
         assertEquals(HealthResponseType.CLARIFY, first.responseType());
-        assertEquals(List.of("mealTime"), first.missingSlots());
+        assertEquals("OTHER", first.domain().name());
+        assertEquals(List.of("domain"), first.missingSlots());
         assertNotNull(first.clarifyQuestion());
 
         HealthChatResponse second = chatInSession(sessionId, "午餐");
@@ -262,6 +283,69 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
+    void 新手轻量训练经常见部位短答完成健身推荐() {
+        for (String bodyPart : List.of("胸肌", "胸部", "胸大肌", "大腿", "小腿", "腿部", "臀部", "臀肌", "臀大肌")) {
+            String sessionId = "sess_exercise_alias_" + bodyPart;
+            HealthChatResponse first = chatInSession(sessionId, "帮我推荐一份适合新手的轻量训练");
+            assertEquals(HealthResponseType.CLARIFY, first.responseType());
+            assertEquals("EXERCISE", first.domain().name());
+            assertEquals(List.of("bodyParts"), first.missingSlots());
+
+            HealthChatResponse second = chatInSession(sessionId, bodyPart);
+            assertEquals(HealthResponseType.ANSWER, second.responseType(), bodyPart);
+            assertEquals("EXERCISE", second.domain().name(), bodyPart);
+            assertFalse(second.displayBlocks().isEmpty(), bodyPart);
+            assertTrue(second.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())), bodyPart);
+        }
+    }
+
+    @Test
+    void 否定部位不作为正向约束并继续澄清() {
+        HealthChatResponse response = chat("不要练胸，推荐一个训练");
+        assertEquals(HealthResponseType.CLARIFY, response.responseType());
+        assertEquals("EXERCISE", response.domain().name());
+        assertTrue(response.displayBlocks().isEmpty());
+    }
+
+    @Test
+    void 无关对话走OTHER且不返回健康资源() {
+        for (String input : List.of("推荐电影", "你是 AI 吗")) {
+            HealthChatResponse response = chat(input);
+            assertEquals(HealthResponseType.ANSWER, response.responseType());
+            assertEquals("OTHER", response.domain().name());
+            assertEquals("CHAT", response.task().name());
+            assertTrue(response.displayBlocks().isEmpty());
+        }
+    }
+
+    @Test
+    void 健身切换餐食时检索只接收餐食槽位() {
+        String sessionId = "sess_exercise_to_meal";
+        assertEquals("EXERCISE", chatInSession(sessionId, "想练胸").domain().name());
+
+        org.mockito.ArgumentCaptor<Map<String, List<String>>> slots = org.mockito.ArgumentCaptor.forClass(Map.class);
+        when(mealModule.recommendMeals(slots.capture(), any(), anyString())).thenReturn(List.of(
+                new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of())
+        ));
+        HealthChatResponse meal = chatInSession(sessionId, "午餐想吃清淡的");
+        assertEquals("MEAL", meal.domain().name());
+        assertTrue(meal.displayBlocks().stream().allMatch(block -> "MEAL".equals(block.resourceType())));
+        assertTrue(slots.getValue().keySet().stream().allMatch(HealthSlotDictionary.MEAL_SLOTS::contains));
+        assertFalse(slots.getValue().containsKey("bodyParts"));
+    }
+
+    @Test
+    void 餐食切换健身不携带餐食资源或澄清() {
+        String sessionId = "sess_meal_to_exercise";
+        assertEquals("MEAL", chatInSession(sessionId, "午餐想吃清淡的").domain().name());
+
+        HealthChatResponse exercise = chatInSession(sessionId, "适合新手的胸肌训练");
+        assertEquals(HealthResponseType.ANSWER, exercise.responseType());
+        assertEquals("EXERCISE", exercise.domain().name());
+        assertTrue(exercise.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())));
+    }
+
+    @Test
     void 风险信号被拦截返回固定文案() {
         HealthChatResponse response = chat("我怀孕了怎么安排饮食");
         assertEquals(HealthResponseType.BLOCKED, response.responseType());
@@ -282,6 +366,17 @@ class HealthOrchestratorServiceTest {
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
                 orchestrator.healthChat(1L, new HealthChatRequest(null, "plan-no-write-" + System.nanoTime(),
                         "帮我安排一周的计划", Map.of())));
+    }
+
+    @Test
+    void 一周健身计划复用计划页面入口() {
+        HealthChatResponse response = chat("一周健身计划");
+        assertEquals(HealthResponseType.ANSWER, response.responseType());
+        assertEquals("EXERCISE", response.domain().name());
+        assertEquals("PLAN", response.task().name());
+        assertEquals("RESPOND", response.phase().name());
+        assertTrue(response.displayBlocks().isEmpty());
+        assertTrue(response.speechText().contains("我的计划"));
     }
 
     @Test

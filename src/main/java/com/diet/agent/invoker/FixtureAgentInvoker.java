@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 public class FixtureAgentInvoker implements AgentInvoker {
 
     /** 当前固定夹具集版本。 */
-    public static final String FIXTURE_VERSION = "2026-08-10-v1";
+    public static final String FIXTURE_VERSION = "2026-08-17-v2";
 
     /** 从输入文本解析固定响应的策略。 */
     public interface FixtureResolver {
@@ -88,11 +88,14 @@ public class FixtureAgentInvoker implements AgentInvoker {
     /** 意图固定结果：风险 / 综合 / 健身 / 作息 / 计划 / 饮食 场景，槽位按 Prompt 关键词提取。 */
     private static String intentFixture(String prompt) {
         String riskFlag = riskFlag(prompt);
+        if (containsAny(prompt, "推荐电影", "电影推荐", "你是 AI", "你是AI", "你是 ai", "你是ai")) {
+            return intentJson("OTHER", "CHAT", "", riskFlag);
+        }
         if (containsAny(prompt, "综合", "整体")) {
             return intentJson("COMPOSITE", "RECOMMEND", "", riskFlag);
         }
-        if (containsAny(prompt, "安排一周", "周计划", "一周的计划", "一周安排", "帮我安排一周")) {
-            return intentJson("MEAL", "PLAN", "", riskFlag);
+        if (containsAny(prompt, "安排一周", "周计划", "一周计划", "一周健身计划", "一周训练计划", "一周的计划", "一周安排", "帮我安排一周")) {
+            return intentJson(containsAny(prompt, "训练", "健身") ? "EXERCISE" : "MEAL", "PLAN", "", riskFlag);
         }
         if (containsAny(prompt, "换一批", "换换", "不要", "去掉")) {
             // #76 ADJUST 场景：任务按当前领域路由（MEAL/EXERCISE），排除集由编排器从会话历史类型化引用取
@@ -101,13 +104,16 @@ public class FixtureAgentInvoker implements AgentInvoker {
         }
         String domain;
         StringBuilder slots = new StringBuilder();
-        if (containsAny(prompt, "训练", "健身", "俯卧撑", "深蹲", "练")) {
-            domain = "EXERCISE";
-            appendSlot(slots, "bodyParts", pickOne(prompt, "胸", "背", "腿", "核心", "手臂", "臀"));
-            appendSlot(slots, "trainingGoal", pickOne(prompt, "增肌", "减脂", "耐力", "柔韧", "力量"));
-        } else if (containsAny(prompt, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "生物钟")) {
+        if (containsAny(prompt, "咖啡", "咖啡因", "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "训练时段")) {
             domain = "ROUTINE";
-            slots.append("\"wakeTime\":[\"07:00\"]");
+            appendSlot(slots, "wakeTime", containsAny(prompt, "七点起", "7点起", "07:00") ? "07:00" : null);
+        } else if (containsAny(prompt, "训练", "健身", "动作", "俯卧撑", "深蹲", "练", "胸肌", "胸部", "胸大肌",
+                "大腿", "小腿", "腿部", "臀部", "臀肌", "臀大肌", "初学者", "新手", "轻量", "自重", "无器械", "不用器械")) {
+            domain = "EXERCISE";
+            appendSlot(slots, "bodyParts", exerciseBodyPart(prompt));
+            appendSlot(slots, "trainingGoal", containsAny(prompt, "减肥", "瘦身") ? "减脂" : pickOne(prompt, "增肌", "减脂", "耐力", "柔韧", "力量"));
+            appendSlot(slots, "difficulty", containsAny(prompt, "初学者", "新手", "轻量") ? "入门" : pickOne(prompt, "入门", "进阶", "挑战"));
+            appendSlot(slots, "equipment", containsAny(prompt, "自重", "无器械", "不用器械") ? "徒手" : pickOne(prompt, "徒手", "哑铃", "杠铃", "弹力带", "壶铃"));
         } else {
             domain = "MEAL";
             String mealTime = pickOne(prompt, "早餐", "午餐", "晚餐");
@@ -123,6 +129,17 @@ public class FixtureAgentInvoker implements AgentInvoker {
                     containsAny(prompt, "快的", "快点", "快速") ? "快速" : pickOne(prompt, "慢享", "外带方便"));
         }
         return intentJson(domain, "RECOMMEND", slots.toString(), riskFlag);
+    }
+
+    private static String exerciseBodyPart(String prompt) {
+        if (containsAny(prompt, "胸大肌", "胸肌", "胸部", "胸")) return "胸";
+        if (containsAny(prompt, "背部", "背肌", "背")) return "背";
+        if (containsAny(prompt, "大腿", "小腿", "腿部", "腿")) return "腿";
+        if (containsAny(prompt, "臀大肌", "臀肌", "臀部", "臀")) return "臀";
+        if (containsAny(prompt, "腹部", "腹肌", "腰腹", "核心")) return "核心";
+        if (containsAny(prompt, "手臂", "胳膊")) return "手臂";
+        if (containsAny(prompt, "肩部", "肩膀", "肩")) return "肩";
+        return null;
     }
 
     /** 按风险关键词返回对应 flag（44 号票：来自 RiskRuleCatalog 唯一事实来源，命中首个规则）。 */

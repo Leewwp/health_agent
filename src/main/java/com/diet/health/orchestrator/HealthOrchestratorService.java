@@ -10,7 +10,9 @@ import com.diet.health.enums.HealthResponseType;
 import com.diet.health.enums.HealthRiskLevel;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.intent.HealthIntentAgentService;
+import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentResult;
+import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.model.HealthChatRequest;
 import com.diet.health.model.HealthChatResponse;
 import com.diet.health.model.HealthDisplayBlock;
@@ -53,6 +55,8 @@ public class HealthOrchestratorService {
     private final HealthSessionService sessionService;
     private final SessionService messageService;
     private final HealthIntentAgentService intentAgentService;
+    private final HealthIntentRevisionService intentRevisionService;
+    private final HealthInputNormalizer inputNormalizer;
     private final HealthClarifyRuleService clarifyRuleService;
     private final HealthClarifyAgentService clarifyAgentService;
     private final HealthRiskRuleService riskRuleService;
@@ -71,6 +75,8 @@ public class HealthOrchestratorService {
             HealthSessionService sessionService,
             SessionService messageService,
             HealthIntentAgentService intentAgentService,
+            HealthIntentRevisionService intentRevisionService,
+            HealthInputNormalizer inputNormalizer,
             HealthClarifyRuleService clarifyRuleService,
             HealthClarifyAgentService clarifyAgentService,
             HealthRiskRuleService riskRuleService,
@@ -85,6 +91,8 @@ public class HealthOrchestratorService {
         this.sessionService = sessionService;
         this.messageService = messageService;
         this.intentAgentService = intentAgentService;
+        this.intentRevisionService = intentRevisionService;
+        this.inputNormalizer = inputNormalizer;
         this.clarifyRuleService = clarifyRuleService;
         this.clarifyAgentService = clarifyAgentService;
         this.riskRuleService = riskRuleService;
@@ -142,7 +150,9 @@ public class HealthOrchestratorService {
         messageService.appendMessage(sessionId, "user", userInput, null, traceId);
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", userInput, Map.of("sessionId", sessionId));
 
-        HealthIntentResult intent = intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId));
+        HealthIntentResult rawIntent = intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId));
+        HealthIntentRevisionService.Revision revision = intentRevisionService.revise(userInput, state, rawIntent);
+        HealthIntentResult intent = revision.intent();
         Map<String, Object> intentPayload = new LinkedHashMap<>();
         intentPayload.put("domain", intent.domain());
         intentPayload.put("task", intent.task());
@@ -150,6 +160,8 @@ public class HealthOrchestratorService {
         intentPayload.put("confidence", intent.confidence());
         intentPayload.put("degraded", intent.degraded());
         intentPayload.put("fallbackReason", intent.fallbackReason());
+        intentPayload.put("rawDomain", rawIntent.domain());
+        intentPayload.put("rawTask", rawIntent.task());
         agentTraceService.recordEvent("INTENT_RECOGNIZED", "INTENT", userInput, intentPayload);
 
         // 风险信号跨轮累积：会话历史信号 + 本轮意图信号，由 Java 规则统一确认
@@ -169,6 +181,19 @@ public class HealthOrchestratorService {
         Map<String, List<String>> mergedSlots = mergeSlots(state.slots(), intent.slots());
         agentTraceService.recordEvent("SLOTS_MERGED", "SLOT", Map.of("stateSlots", state.slots(), "intentSlots", intent.slots()), mergedSlots);
 
+        if (revision.clarifyDomain()) {
+            HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.OTHER,
+                    HealthTask.CHAT, risk.matchedFlags(), "你想看餐食推荐、健身动作，还是查询作息建议？", List.of("domain"));
+            return persistAndRespond(state, intent, mergedSlots, clarify, traceId);
+        }
+
+        if (intent.domain() == HealthDomain.OTHER || intent.task() == HealthTask.CHAT) {
+            HealthChatResponse chat = HealthChatResponse.answer(sessionId, traceId, HealthDomain.OTHER,
+                    HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
+                    "我可以帮你处理饮食、健身和作息相关的问题。这个问题不在当前健康助手的能力范围内。", List.of());
+            return persistAndRespond(state, intent, mergedSlots, chat, traceId);
+        }
+
         if (intent.domain() == HealthDomain.COMPOSITE || intent.task() == HealthTask.PLAN || intent.task() == HealthTask.BROWSE) {
             String copy = switch (intent.domain()) {
                 case COMPOSITE -> "我可以分别帮你安排饮食、训练和作息，也可以先从其中一个方面开始，你想先看哪个？";
@@ -186,28 +211,41 @@ public class HealthOrchestratorService {
         List<String> excludeIds = intent.task() == HealthTask.ADJUST
                 ? state.excludeIdsFor(intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL")
                 : List.of();
-        return handleRecommend(sessionId, traceId, state, intent, mergedSlots, excludeIds,
-                risk.matchedFlags(), advisoryCopy, userInput);
+        boolean switchedDomain = state.domain() != null && state.domain() != intent.domain();
+        Map<String, List<String>> activeSlots = inputNormalizer.project(intent.domain(),
+                switchedDomain ? intent.slots() : mergedSlots);
+        agentTraceService.recordEvent("DOMAIN_SLOTS_PROJECTED", "SLOT",
+                Map.of("domain", intent.domain(), "switchedDomain", switchedDomain), activeSlots);
+        return handleRecommend(sessionId, traceId, state, intent, mergedSlots, activeSlots, excludeIds,
+                risk.matchedFlags(), advisoryCopy, userInput, revision.clarifyUnsafe());
     }
 
     /** 单品类推荐主链路：澄清 → 检索 → 解释候选。 */
     private HealthChatResponse handleRecommend(String sessionId, String traceId, HealthSessionState state,
                                                HealthIntentResult intent, Map<String, List<String>> mergedSlots,
+                                               Map<String, List<String>> activeSlots,
                                                List<String> excludeIds, List<String> riskFlags, String advisoryCopy,
-                                               String userInput) {
+                                               String userInput, boolean clarifyUnsafe) {
         HealthDomain domain = intent.domain();
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("domain", domain, "task", intent.task()));
 
-        List<String> missing = clarifyRuleService.missingSlots(domain, mergedSlots);
-        agentTraceService.recordEvent("CLARIFY_DECISION", "CLARIFY", mergedSlots, missing);
+        List<String> missing = domain == HealthDomain.ROUTINE && routineModule.supportsFactQuery(userInput)
+                ? List.of()
+                : clarifyRuleService.missingSlots(domain, activeSlots);
+        if (clarifyUnsafe && missing.isEmpty()) {
+            missing = List.of(domain == HealthDomain.EXERCISE ? "bodyParts" : "mealTime");
+        }
+        agentTraceService.recordEvent("CLARIFY_DECISION", "CLARIFY", activeSlots, missing);
         if (!missing.isEmpty()) {
-            String question = clarifyAgentService.wording(domain, userInput, missing, mergedSlots);
+            String question = clarifyAgentService.wording(domain, userInput, missing, activeSlots);
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, domain, intent.task(),
                     riskFlags, question, missing);
             return persistAndRespond(state, intent, mergedSlots, clarify, traceId);
         }
 
-        List<HealthResource> candidates = retrieve(domain, mergedSlots, excludeIds, userInput);
+        List<HealthResource> candidates = retrieve(domain, activeSlots, excludeIds, userInput).stream()
+                .filter(candidate -> expectedResourceType(domain).equals(candidate.resourceType()))
+                .toList();
         agentTraceService.recordEvent("CANDIDATES_RETRIEVED", "RETRIEVE",
                 Map.of("domain", domain, "providerMode", resourceProvider.providerMode().name(),
                         "resourceVersion", resourceProvider.resourceVersion(), "excludeIds", excludeIds),
@@ -277,7 +315,7 @@ public class HealthOrchestratorService {
                 .withSlots(mergedSlots)
                 .withPreferenceSignals(intent.preferenceSignals());
         if (response.responseType() == HealthResponseType.ANSWER) {
-            saved = saved.appendLastResources(response.displayBlocks().stream()
+            saved = saved.replaceLastResources(response.displayBlocks().stream()
                     .map(block -> new SessionResourceRef(block.resourceType(), block.resourceId()))
                     .toList());
         }
@@ -325,7 +363,16 @@ public class HealthOrchestratorService {
             case MEAL -> "餐食库里暂时没有匹配的结果，可以补充口味、菜系或换个说法试试。";
             case EXERCISE -> "当前动作库里暂时没有匹配的动作，可以换一下部位或器材试试。";
             case ROUTINE -> "暂时没有找到对应的作息建议，可以换个说法试试。";
-            default -> "暂时没有找到匹配的内容。";
+            case OTHER, COMPOSITE -> "暂时没有找到匹配的内容。";
+        };
+    }
+
+    private String expectedResourceType(HealthDomain domain) {
+        return switch (domain) {
+            case MEAL -> "MEAL";
+            case EXERCISE -> "EXERCISE";
+            case ROUTINE -> "ROUTINE";
+            case OTHER, COMPOSITE -> "";
         };
     }
 

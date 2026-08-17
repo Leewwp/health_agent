@@ -62,6 +62,29 @@ public record HealthSessionState(
     }
 
     /**
+     * 用本轮结果替换同类型的上一轮结果，其他类型保留用于兼容跨领域历史。
+     * ADJUST 因此只排除最近一轮同领域资源，不会无限累积整段会话。
+     */
+    public HealthSessionState replaceLastResources(List<SessionResourceRef> newRefs) {
+        if (newRefs == null || newRefs.isEmpty()) {
+            return this;
+        }
+        Set<String> replacedTypes = newRefs.stream()
+                .map(SessionResourceRef::type)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        List<SessionResourceRef> merged = new ArrayList<>();
+        for (SessionResourceRef ref : lastResources) {
+            if (ref.type() == null || !replacedTypes.contains(ref.type())) {
+                merged.add(ref);
+            }
+        }
+        newRefs.stream().distinct().forEach(merged::add);
+        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
+                List.copyOf(merged), preferenceSignals);
+    }
+
+    /**
      * 排除引用提取（43 号票 + #69 类型化契约）：只取指定类型（MEAL/EXERCISE）的
      * 类型化字符串 resourceId；type 为 null 的旧版遗留引用按双类型兼容排除；
      * ROUTINE 不参与。fixture 种子 ID（M1-M9/9001 等）原样返回，不做数值强转；

@@ -6,7 +6,6 @@ import com.diet.health.risk.RiskRuleCatalog;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,11 +19,11 @@ public class IntentRuleService {
     /** 风险关键词 → flag 映射（44 号票：来自 RiskRuleCatalog 唯一事实来源，不得复制规则语义）。 */
     private static final Map<String, String> RISK_KEYWORDS = RiskRuleCatalog.keywordToFlag();
 
-    /** 槽位字典，兜底槽位提取以字典为唯一来源。 */
-    private final HealthSlotDictionary slotDictionary;
+    /** 模型与兜底路径共用的输入归一器。 */
+    private final HealthInputNormalizer normalizer;
 
-    public IntentRuleService(HealthSlotDictionary slotDictionary) {
-        this.slotDictionary = slotDictionary;
+    public IntentRuleService(HealthInputNormalizer normalizer) {
+        this.normalizer = normalizer;
     }
 
     /** 意图降级后的确定性结果（含轻量槽位提取）。 */
@@ -36,52 +35,34 @@ public class IntentRuleService {
                 riskFlags.add(entry.getValue());
             }
         }
-        HealthDomain domain = HealthDomain.MEAL;
+        HealthDomain domain = HealthDomain.OTHER;
         HealthTask task = HealthTask.CHAT;
-        if (containsAny(text, "安排一周", "周计划", "一周的计划", "一周安排", "帮我安排一周")) {
-            domain = HealthDomain.MEAL;
+        if (containsAny(text, "安排一周", "周计划", "一周计划", "一周健身计划", "一周训练计划", "一周的计划", "一周安排", "帮我安排一周")) {
+            domain = containsAny(text, "训练", "健身") ? HealthDomain.EXERCISE : HealthDomain.MEAL;
             task = HealthTask.PLAN;
-        } else if (containsAny(text, "训练", "健身", "俯卧撑", "深蹲", "练")) {
-            domain = HealthDomain.EXERCISE;
-            task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "生物钟")) {
+        } else if (containsAny(text, "推荐电影", "电影推荐", "你是 AI", "你是AI", "你是 ai", "你是ai")) {
+            domain = HealthDomain.OTHER;
+            task = HealthTask.CHAT;
+        } else if (isRoutineFact(text)) {
             domain = HealthDomain.ROUTINE;
             task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "吃什么", "推荐", "早餐", "午餐", "晚餐", "想吃", "饿")) {
+        } else if (containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿")) {
             domain = HealthDomain.MEAL;
+            task = HealthTask.RECOMMEND;
+        } else if (containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练")
+                || !normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots().isEmpty()) {
+            domain = HealthDomain.EXERCISE;
+            task = HealthTask.RECOMMEND;
+        } else if (containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")) {
+            domain = HealthDomain.ROUTINE;
             task = HealthTask.RECOMMEND;
         } else if (containsAny(text, "换一批", "换换", "不要", "去掉")) {
             domain = knownExercise(knownSlots) ? HealthDomain.EXERCISE : HealthDomain.MEAL;
             task = HealthTask.ADJUST;
-        } else if (containsAny(text, "你好", "你是谁", "谢谢", "再见")) {
-            task = HealthTask.CHAT;
         }
-        Map<String, List<String>> slots = extractSlots(text, domain);
+        Map<String, List<String>> slots = normalizer.normalize(domain, text, Map.of()).slots();
         return HealthIntentResult.degraded(domain, task, riskFlags, slots, List.of(),
                 fallbackReason == null ? "KEYWORD_FALLBACK" : fallbackReason);
-    }
-
-    /**
-     * 从用户原文中按字典提取命中槽位（用于关键词降级时让模板追问可继续会话）。
-     * 只提取当前领域的槽位；作息时间/时长等结构化槽位无法从关键词提取，保持追问。
-     */
-    private Map<String, List<String>> extractSlots(String text, HealthDomain domain) {
-        Map<String, List<String>> slots = new LinkedHashMap<>();
-        List<String> slotNames = switch (domain) {
-            case MEAL -> HealthSlotDictionary.MEAL_SLOTS;
-            case EXERCISE -> HealthSlotDictionary.FITNESS_SLOTS;
-            default -> List.of();
-        };
-        Map<String, List<String>> legalValues = slotDictionary.legalValues();
-        for (String slot : slotNames) {
-            List<String> hits = legalValues.getOrDefault(slot, List.of()).stream()
-                    .filter(text::contains)
-                    .toList();
-            if (!hits.isEmpty()) {
-                slots.put(slot, hits);
-            }
-        }
-        return slots;
     }
 
     private boolean knownExercise(Map<String, List<String>> knownSlots) {
@@ -89,6 +70,11 @@ public class IntentRuleService {
             return false;
         }
         return knownSlots.containsKey("bodyParts") || knownSlots.containsKey("trainingGoal");
+    }
+
+    private boolean isRoutineFact(String text) {
+        return containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")
+                || (containsAny(text, "训练", "运动") && containsAny(text, "什么时候", "几点", "时段", "时间"));
     }
 
     private boolean containsAny(String text, String... keywords) {

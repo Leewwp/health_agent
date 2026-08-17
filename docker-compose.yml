@@ -4,7 +4,8 @@
 #   1. 复制 .env 模板并填写生产必需变量（prod 缺少必要配置时启动失败是特性）：
 #        cp deploy/.env.example .env
 #      （DASHSCOPE_API_KEY / DIET_SESSION_SECRET / ADMIN_TOKEN 均必填，
-#      占位符 "请填入自己的apiKey" 会被 ProductionConfigurationValidator 拒绝）
+#      全部只经环境变量注入；未配置 / 空值会被 ProductionConfigurationValidator 拒绝。
+#      .env 已被 .gitignore 忽略，真实 key 不得写入仓库内任何文件）
 #   2. docker compose up -d --build
 #   3. 打开 http://localhost（Nginx 托管 frontend/ 并同源反代 /api/，健康检查在 /actuator/health）
 #
@@ -47,7 +48,9 @@ services:
       mysql:
         condition: service_healthy
       # qdrant 仅保证启动顺序不阻塞：in-memory 模式不需要它，qdrant 模式不可用时应降级而非阻塞
-      - qdrant
+      qdrant:
+        condition: service_started
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DATABASE_URL: jdbc:mysql://mysql:3306/diet_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true

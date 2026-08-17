@@ -177,6 +177,7 @@
                 <otherwise>
                     source_type = 'PUBLIC'
                     AND owner_user_id IS NULL
+                    AND review_status = 'APPROVED'
                 </otherwise>
             </choose>
             AND (#{mealTimeJson} = '[]' OR JSON_OVERLAPS(meal_time, #{mealTimeJson}))

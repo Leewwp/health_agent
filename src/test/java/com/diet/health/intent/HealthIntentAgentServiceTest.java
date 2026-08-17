@@ -29,7 +29,8 @@ class HealthIntentAgentServiceTest {
     private HealthIntentAgentService service(AgentInvoker invoker) {
         AgentContractModule module = new AgentContractModule(invoker, new LlmJsonService(new ObjectMapper()), mock(AgentTraceService.class));
         HealthSlotDictionary dictionary = new HealthSlotDictionary(TestSupport.slotOptionService());
-        return new HealthIntentAgentService(module, new PromptLoader(), dictionary, new IntentRuleService(dictionary),
+        HealthInputNormalizer normalizer = new HealthInputNormalizer();
+        return new HealthIntentAgentService(module, new PromptLoader(), dictionary, new IntentRuleService(normalizer), normalizer,
                 "qwen-turbo", "v1", 1000);
     }
 
@@ -74,7 +75,7 @@ class HealthIntentAgentServiceTest {
         HealthIntentResult result = service(illegalSlot).recognize("想练胸", Map.of(), List.of());
         assertTrue(result.degraded());
         assertEquals(HealthDomain.EXERCISE, result.domain());
-        assertTrue(result.slots().isEmpty());
+        assertTrue(result.slots().isEmpty(), "非法模型槽位应丢弃，不用原文覆盖同名模型字段");
     }
 
     @Test
@@ -90,6 +91,23 @@ class HealthIntentAgentServiceTest {
         HealthIntentResult result = service(routineInvoker).recognize("几点起合适", Map.of(), List.of());
         assertFalse(result.degraded());
         assertEquals(List.of("07:00"), result.slots().get("wakeTime"));
+    }
+
+    @Test
+    void 模型输出健身别名仍归一为规范值() {
+        AgentInvoker synonym = invokerReturning("{\"domain\":\"EXERCISE\",\"task\":\"RECOMMEND\",\"riskFlags\":[],\"slots\":{\"bodyParts\":[\"胸肌\"],\"difficulty\":[\"初学者\"]},\"preferenceSignals\":[],\"confidence\":0.9}");
+        HealthIntentResult result = service(synonym).recognize("想做初学者胸肌训练", Map.of(), List.of());
+        assertEquals(List.of("胸"), result.slots().get("bodyParts"));
+        assertEquals(List.of("入门"), result.slots().get("difficulty"));
+    }
+
+    @Test
+    void 模型跨领域槽位被过滤() {
+        AgentInvoker mixed = invokerReturning("{\"domain\":\"MEAL\",\"task\":\"RECOMMEND\",\"riskFlags\":[],\"slots\":{\"mealTime\":[\"午餐\"],\"bodyParts\":[\"胸\"]},\"preferenceSignals\":[],\"confidence\":0.9}");
+        HealthIntentResult result = service(mixed).recognize("午餐吃什么", Map.of(), List.of());
+        assertEquals(List.of("午餐"), result.slots().get("mealTime"));
+        assertFalse(result.slots().containsKey("bodyParts"));
+        assertTrue(result.degraded());
     }
 
     private AgentInvoker invokerReturning(String text) {

@@ -1,0 +1,190 @@
+package com.diet.health.intent;
+
+import com.diet.health.enums.HealthDomain;
+import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 健康聊天输入归一器：只处理现有槽位词汇的最小别名、领域投影和否定安全，不执行任何 I/O。
+ * 模型输出与确定性降级路径必须共用本类，避免两条路径接受不同的用户说法。
+ */
+@Component
+public class HealthInputNormalizer {
+
+    private static final Map<String, List<String>> SLOT_ALIASES = createAliases();
+    private static final Set<String> NEGATION_WORDS = Set.of("不要", "不用", "不想", "别", "避免", "排除", "不练");
+
+    /** 归一用户原文和上游槽位，并只保留当前领域允许的槽位。 */
+    public NormalizationResult normalize(HealthDomain domain, String userInput,
+                                         Map<String, List<String>> rawSlots) {
+        Map<String, LinkedHashSet<String>> collected = new LinkedHashMap<>();
+        boolean unsafe = false;
+        String text = compact(userInput);
+
+        if (rawSlots != null) {
+            for (Map.Entry<String, List<String>> entry : rawSlots.entrySet()) {
+                if (!slotsFor(domain).contains(entry.getKey()) || entry.getValue() == null) {
+                    continue;
+                }
+                for (String rawValue : entry.getValue()) {
+                    String canonical = canonicalValue(entry.getKey(), rawValue);
+                    if (canonical == null) {
+                        continue;
+                    }
+                    if (isNegated(text, entry.getKey(), canonical)) {
+                        unsafe = true;
+                        continue;
+                    }
+                    collected.computeIfAbsent(entry.getKey(), key -> new LinkedHashSet<>()).add(canonical);
+                }
+            }
+        }
+
+        for (String slot : slotsFor(domain)) {
+            if (collected.containsKey(slot)) {
+                continue;
+            }
+            for (Map.Entry<String, String> alias : aliasesFor(slot).entrySet()) {
+                if (!text.contains(alias.getKey())) {
+                    continue;
+                }
+                if (isBodyweightPhrase(alias.getKey())) {
+                    collected.computeIfAbsent("equipment", key -> new LinkedHashSet<>()).add("徒手");
+                } else if ("equipment".equals(slot) && "器械".equals(alias.getKey()) && containsBodyweightPhrase(text)) {
+                    continue;
+                } else if (isNegatedOccurrence(text, alias.getKey())) {
+                    unsafe = true;
+                } else {
+                    collected.computeIfAbsent(slot, key -> new LinkedHashSet<>()).add(alias.getValue());
+                }
+            }
+        }
+
+        Map<String, List<String>> normalized = new LinkedHashMap<>();
+        collected.forEach((slot, values) -> {
+            if (!values.isEmpty()) {
+                normalized.put(slot, List.copyOf(values));
+            }
+        });
+        return new NormalizationResult(Map.copyOf(normalized), unsafe);
+    }
+
+    /** 当前领域允许的槽位集合。 */
+    public List<String> slotsFor(HealthDomain domain) {
+        if (domain == null) {
+            return List.of();
+        }
+        return switch (domain) {
+            case MEAL -> HealthSlotDictionary.MEAL_SLOTS;
+            case EXERCISE -> HealthSlotDictionary.FITNESS_SLOTS;
+            case ROUTINE -> HealthSlotDictionary.ROUTINE_SLOTS;
+            case COMPOSITE, OTHER -> List.of();
+        };
+    }
+
+    /** 只投影当前领域槽位，不改变持久化的历史槽位。 */
+    public Map<String, List<String>> project(HealthDomain domain, Map<String, List<String>> slots) {
+        Map<String, List<String>> projected = new LinkedHashMap<>();
+        if (slots == null) {
+            return projected;
+        }
+        for (String slot : slotsFor(domain)) {
+            List<String> values = slots.get(slot);
+            if (values != null && !values.isEmpty()) {
+                projected.put(slot, List.copyOf(values));
+            }
+        }
+        return projected;
+    }
+
+    private String canonicalValue(String slot, String value) {
+        String normalized = compact(value);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        for (Map.Entry<String, String> alias : aliasesFor(slot).entrySet()) {
+            if (normalized.equals(alias.getKey()) || normalized.equals(alias.getValue())) {
+                return alias.getValue();
+            }
+        }
+        return normalized;
+    }
+
+    private boolean isNegated(String text, String slot, String canonical) {
+        if (text.isEmpty()) {
+            return false;
+        }
+        return aliasesFor(slot).entrySet().stream()
+                .filter(entry -> canonical.equals(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .anyMatch(alias -> text.contains(alias) && isNegatedOccurrence(text, alias));
+    }
+
+    private boolean isNegatedOccurrence(String text, String alias) {
+        int from = 0;
+        while (from < text.length()) {
+            int index = text.indexOf(alias, from);
+            if (index < 0) {
+                return false;
+            }
+            String prefix = text.substring(Math.max(0, index - 4), index);
+            if (NEGATION_WORDS.stream().anyMatch(prefix::contains)) {
+                return true;
+            }
+            from = index + alias.length();
+        }
+        return false;
+    }
+
+    private boolean isBodyweightPhrase(String alias) {
+        return "无器械".equals(alias) || "不用器械".equals(alias) || "不使用器械".equals(alias);
+    }
+
+    private boolean containsBodyweightPhrase(String text) {
+        return text.contains("无器械") || text.contains("不用器械") || text.contains("不使用器械");
+    }
+
+    private Map<String, String> aliasesFor(String slot) {
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String entry : SLOT_ALIASES.getOrDefault(slot, List.of())) {
+            String[] parts = entry.split("=", 2);
+            result.put(parts[0], parts[1]);
+        }
+        return result;
+    }
+
+    private String compact(String value) {
+        return value == null ? "" : value.trim().replaceAll("\\s+", "");
+    }
+
+    private static Map<String, List<String>> createAliases() {
+        Map<String, List<String>> aliases = new LinkedHashMap<>();
+        aliases.put("bodyParts", List.of(
+                "胸大肌=胸", "胸肌=胸", "胸部=胸", "胸=胸",
+                "背部=背", "背肌=背", "背=背",
+                "大腿=腿", "小腿=腿", "腿部=腿", "腿=腿",
+                "肩部=肩", "肩膀=肩", "肩=肩",
+                "手臂=手臂", "胳膊=手臂",
+                "腰腹=核心", "腹部=核心", "腹肌=核心", "核心=核心",
+                "臀大肌=臀", "臀肌=臀", "臀部=臀", "臀=臀", "全身=全身"));
+        aliases.put("difficulty", List.of("初学者=入门", "新手=入门", "轻量=入门", "入门=入门", "进阶=进阶", "挑战=挑战"));
+        aliases.put("trainingGoal", List.of("减肥=减脂", "瘦身=减脂", "减脂=减脂", "增肌=增肌", "耐力=耐力",
+                "力量=力量", "柔韧=柔韧", "保持健康=保持健康"));
+        aliases.put("equipment", List.of("不使用器械=徒手", "不用器械=徒手", "无器械=徒手", "自重=徒手", "徒手=徒手",
+                "哑铃=哑铃", "杠铃=杠铃", "弹力带=弹力带", "壶铃=壶铃", "器械=器械"));
+        aliases.put("mealTime", List.of("早餐=早餐", "早饭=早餐", "午餐=午餐", "午饭=午餐", "中饭=午餐", "中午=午餐",
+                "晚餐=晚餐", "晚饭=晚餐"));
+        aliases.put("healthGoal", List.of("清淡点=清淡", "清淡=清淡", "减肥=减脂", "瘦身=减脂", "减脂=减脂",
+                "高蛋白=高蛋白", "养胃=养胃", "均衡=均衡"));
+        return Collections.unmodifiableMap(aliases);
+    }
+
+    public record NormalizationResult(Map<String, List<String>> slots, boolean requiresClarification) {
+    }
+}
