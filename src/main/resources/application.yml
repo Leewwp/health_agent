@@ -43,8 +43,9 @@ diet:
     # 本地完整媒体目录默认不导入；dev profile 在媒体包存在时显式启用。
     local-media-catalog: ${DIET_LOCAL_MEDIA_CATALOG_ENABLED:false}
   llm:
-    main-model: deepseek-v4-flash-0731
-    light-model: deepseek-v4-flash-0731
+    # 主生成与轻量意图模型可由环境覆盖；默认使用当前百炼账号已授权的 Qwen 3.7 系列。
+    main-model: ${DIET_LLM_MAIN_MODEL:qwen3.7-plus}
+    light-model: ${DIET_LLM_LIGHT_MODEL:qwen3.7-flash}
     # 聊天端点形态：false=agentscope 原生 DashScope 端点（默认）；true=OpenAI 兼容端点
     # （/chat/completions，适配只开放兼容端点的 DashScope 专属空间）
     openai-compatible: true
