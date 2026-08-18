@@ -1,11 +1,11 @@
 # P1：实现三品类统一健康评估与可复现报告
 
 - Type: task
-- Status: open
-- Triage: ready-for-agent
+- Status: resolved
+- Triage: ready-for-human
 - Priority: P1
 - Estimate: 3-5 天（含 36 条样本编制与单人两遍复核）
-- Blocked by: local 04 ([GitHub #74](https://github.com/Leewwp/health_agent/issues/74)); local 03 ([GitHub #75](https://github.com/Leewwp/health_agent/issues/75)) 已 resolved
+- Blocked by: none（local 04 与 local 03 均已 resolved）
 - GitHub: https://github.com/Leewwp/health_agent/issues/73
 
 ## Question
@@ -36,3 +36,7 @@
 4. 版本化 JSON 报告和 Markdown 摘要；
 5. `TRACE_AUDIT` 与 #74 精确/回退反馈读取；
 6. 最后运行 `LIVE_MODEL` 生成可引用证据，真实模型结果不作为普通 CI 门禁。
+
+## Answer
+
+已在提交 `6374494`（报告重生成见 `9b85a42`）完成 V9 迁移、health-eval-v2 内核、36 条 REVIEWED fixture 与版本化报告；domain/task=1.0、slotExact=0.9375、BLOCK_PLAN Recall=1 可由 JSON 复现。

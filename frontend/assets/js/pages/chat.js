@@ -10,7 +10,13 @@
 import { escapeHtml, newRequestId } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
 import { healthChat } from "../api.js";
-import { getChatSessionId, setChatSessionId, clearChatSession, getOrCreateClientSessionId } from "../store.js";
+import {
+    getChatSessionId,
+    setChatSessionId,
+    clearChatSession,
+    createChatSessionId,
+    getOrCreateClientSessionId
+} from "../store.js";
 import { renderResourceCard } from "../ui/resource-card.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
@@ -212,8 +218,7 @@ async function sendMessage(message, retried) {
 }
 
 function resetChat() {
-    clearChatSession();
-    state.sessionId = null;
+    state.sessionId = createChatSessionId();
     state.messages = [
         {
             role: "assistant",

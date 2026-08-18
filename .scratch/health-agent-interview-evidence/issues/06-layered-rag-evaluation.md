@@ -1,8 +1,8 @@
 # P2：扩充分层 RAG 评测并完成融合消融
 
 - Type: task
-- Status: open
-- Triage: ready-for-agent
+- Status: resolved
+- Triage: ready-for-human
 - Priority: P2
 - Estimate: 2-3 天
 - Blocked by: local 01 ([GitHub #76](https://github.com/Leewwp/health_agent/issues/76))
@@ -31,3 +31,7 @@
 - JSON 报告是唯一数字事实来源；`docs/research/meal-rag-evaluation.md`、README、release evidence 和面试材料只引用同一报告版本。
 - `LIVE_MODEL` 报告至少记录 Git commit、query-set version、审核资源版本、embedding provider/model/version/dimension、collection、融合权重和运行时间。
 - 无 API key/Qdrant 的降级运行只能证明降级正确性，不能作为 Hybrid 效果数字；对外效果只引用零降级或明确分层说明的真实运行。
+
+## Answer
+
+已在提交 `6374494`（报告重生成见 `9b85a42`）完成 60 条六层查询集、分层指标、降级分布及三组融合权重/查询文本消融；`data/reports/rag_evaluation.json` 为唯一数字事实来源，线上默认权重仍为 0.5。

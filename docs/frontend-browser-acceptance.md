@@ -84,7 +84,7 @@
 
 ## 64/65/61 号票补充验收（2026-08-13，动作浏览槽位归一、收藏/取消收藏、MCP 经 Nginx 安全边界）
 
-- 验收环境：本地后端重启为最新代码（杀掉 2026-08-12 启动的旧进程，仓库根 `nohup mvn spring-boot:run`，`diet_db` 正式库，端口 8080；启动时注入 `MCP_API_TOKEN=acceptance-mcp-token-2026`、`MCP_ALLOWED_ORIGINS=http://localhost:8090`，dev profile 默认 `allow-missing-origin=true`）+ `health-nginx-test` 容器（8090→80，静态托管 `frontend/`）+ ego-browser 真实 Chromium；桌面 1710×983（emulation override 后 `innerWidth=1710`）+ 移动端 390×844 两种视口。
+- 验收环境：本地后端重启为最新代码（杀掉 2026-08-12 启动的旧进程，仓库根 `nohup mvn spring-boot:run`，`diet_db` 正式库，端口 8080；MCP token 与 Origin allowlist 仅通过环境变量注入，具体值不记录；dev profile 默认 `allow-missing-origin=true`）+ `health-nginx-test` 容器（8090→80，静态托管 `frontend/`）+ ego-browser 真实 Chromium；桌面 1710×983（emulation override 后 `innerWidth=1710`）+ 移动端 390×844 两种视口。
 - 环境修复（验收前置）：`health-nginx-test` 容器挂载的 `/var/folders/.../opencode/nginx-local.conf` 是 29 小时前的旧版本（无 `/mcp` location，`POST /mcp` 直接 nginx 405），已按当前 `deploy/nginx.conf` 重新生成（`127.0.0.1:8080` → `host.docker.internal:8080`）并 `nginx -s reload` 后恢复。
 - #61 MCP 经 Nginx（`curl -X POST http://localhost:8090/mcp`）：无 Authorization → 401 `{"error":"缺少或无效的 MCP Bearer token"}`；错误 token → 401 同上；合法 token + `Origin: http://evil.example` → 403 `{"error":"Origin 不在允许列表"}`；合法 token + `Origin: http://localhost:8090` + `Accept: application/json, text/event-stream` → 200 initialize JSON-RPC（`serverInfo: health-agent-mcp 0.1.0`）；带 `Mcp-Session-Id` 续调 `tools/list` → 200，4 个工具（calculate_targets / get_meal_detail / search_meals / get_routine_facts）全中文 schema 描述。全程经 Nginx 反代，无直连。
 - #64 动作浏览页（URL `http://localhost:8090/#/exercises`，桌面 + 移动）：
@@ -117,3 +117,24 @@
 - `tools/list` 返回 4 个工具，均同时包含 `inputSchema` 与 `outputSchema`，对象 schema 均为封闭对象（`additionalProperties=false`）。
 - 四次连续调用全部成功且返回 `structuredContent`：`search_meals(slots.mealTime=早餐, limit=1)` 返回 1 条；`get_meal_detail(mealId=2310)` 返回黑豆千层面；`get_routine_facts(keyword=睡多久)` 返回 3 条；`calculate_targets(age=30, sex=MALE, heightCm=175, weightKg=70, activityLevel=MODERATE, goal=MAINTAIN)` 返回 2450-2700 kcal。
 - Authorization、Origin 与 session 均通过同一 MCP endpoint 验证；token 仅注入本地进程，未写入仓库或文档。
+
+## #78–#82 健康聊天稳定化 Agent 模式降级复验（2026-08-18）
+
+- 验收环境：当前工作树 Spring Boot（AgentScope 模式，后端端口 `18081`）+ `health-agent-media-ui` Nginx 同源入口 + ego-browser 真实 Chromium，URL `http://127.0.0.1:18090/#/chat`，视口 1710×983；使用新的匿名浏览器会话，凭证只从 gitignore 配置读取，未输出或写入仓库。
+- 健身闭环：发送“帮我推荐一份适合新手的轻量训练”→ `EXERCISE / RECOMMEND / CLARIFY`，只追问训练部位；回复“胸肌”→ `EXERCISE / RECOMMEND / RESPOND`，显示靠墙俯卧撑、俯卧撑、双杠臂屈伸 3 张动作卡，均来自 `gym-visual-exercises-dataset`，无餐食卡。
+- 跨域餐食：在同一会话发送“中午吃什么”→ 显式切换为 `MEAL / RECOMMEND / CLARIFY`，未继承胸部等动作槽位；回复“清淡点”→ `MEAL / RECOMMEND / RESPOND`，只显示清蒸鱼、柠檬腌梅蒸鲳鱼 2 张审核公共餐食卡，无动作卡。
+- 作息事实：发送“晚上几点前应该停止喝咖啡？”→ `ROUTINE / RECOMMEND / RESPOND`，直接返回睡前约 6 小时停止咖啡因的事实卡，并显示 Drake 等 J Clin Sleep Med 2013 双盲 RCT 来源，无餐食或动作卡。
+- 无关问题：发送“推荐一部电影”→ `OTHER / CHAT / RESPOND`，明确说明超出健康助手范围，未显示任何健康资源卡。
+- 配套门控：`docker compose config --quiet` 通过；普通 Maven 套件 656 个测试中 619 通过、37 个环境门控跳过；启用真实 MySQL 8.4 门控后 653 通过、仅 3 个 Qdrant 门控跳过。当前 macOS/JDK 21 通过显式加载项目已有 Byte Buddy agent 运行 Mockito，未修改生产代码。
+- live model 状态：进程退出日志显示本轮 `qwen3.7-flash` 调用均为 `request timed out`，Embedding 调用为 HTTP 404；上述页面行为由现有确定性降级完成，不能作为“真实模型成功”证据。#82/#78 保持开放，待维护者提供当前网络/账号可访问的 DashScope 配置后补一次成功的结构化 live smoke。
+
+## #82 真实 Chromium 全链最终验收（2026-08-18）
+
+- 环境：当前分支 Spring Boot `18081`，仅通过绝对路径 `spring.config.import` 读取主工作区 gitignore `.env`；临时 Nginx `http://127.0.0.1:18091` 明确挂载当前 worktree 的 `frontend/`。命令行未覆盖 MaaS URL 或超时，未输出、复制或提交凭证。桌面 Chromium 1710×983。
+- 配置回归：`application.yml` 现在显式消费 `DIET_AGENT_TIMEOUT_MS`/`DIET_EMBEDDING_TIMEOUT_MS`；`DotenvConfigDataTest` 以临时无密钥配置验证 workspace chat/embedding URL 与 60000/10000 ms 超时均进入 Spring Environment。
+- PLAN：点击“新会话”后生成新的显式 `sess_web_*`，发送“帮我安排一下这周的健身计划”→ `EXERCISE / PLAN / RESPOND`、无资源卡，显示“进入周计划页面”；点击后到达 `#/plans`，页面显示“还没有周计划”，证明聊天未创建草稿。
+- 健身与跨域餐食：在第二个隔离会话发送“帮我推荐一份适合新手的轻量训练”→ `EXERCISE / RECOMMEND / CLARIFY`；回复“大腿”→ 3 张 EXERCISE 卡；随后“中午吃什么”→ `MEAL / RECOMMEND / CLARIFY`，回复“清淡点”→ 2 张 MEAL 卡，无跨类型资源。
+- 作息/越界/风险：“晚上几点前应该停止喝咖啡？”返回 `ROUTINE / RECOMMEND / RESPOND` 与 Drake 2013 来源；“推荐一部电影”返回 `OTHER / CHAT / RESPOND` 且无卡；“我现在胸痛，但还想做高强度训练”返回 `EXERCISE / RECOMMEND / BLOCKED` 与固定安全文案。
+- live Trace：两个新会话共 8 条 Trace 全为 SUCCESS。IntentAgent=`qwen3.7-flash`（10.5–18.7 秒），RecommendResponseAgent=`qwen3.7-plus`（18.2–21.8 秒）；全部 Agent event error 为空，意图 `degraded=false/fallbackReason=null`，三次响应 Agent `fallbackReason=null`，无 timeout。餐食检索的 Embedding 不再是 `embedding_unavailable`；因本次启动显式关闭 index-on-startup，向量库无命中时按契约记录 `no_vector_hits` 并回到 STRUCTURED。
+- 自动化：PLAN/配置聚焦 39/39；普通全量 657（620 通过 + 37 环境门控跳过）；真实 MySQL 门控 657（654 通过 + 3 个 Qdrant 门控跳过）；`docker compose config --quiet` 通过。
+- 清理：后端与临时 `health-agent-issue82-ui` 容器均已停止；浏览器任务空间在 GitHub 关票完成后关闭。

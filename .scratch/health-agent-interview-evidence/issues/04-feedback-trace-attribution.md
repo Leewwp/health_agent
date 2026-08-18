@@ -1,8 +1,8 @@
 # P1：为健康反馈增加 traceId 精确归因
 
 - Type: task
-- Status: open
-- Triage: ready-for-agent
+- Status: resolved
+- Triage: ready-for-human
 - Priority: P1
 - Estimate: 1 天
 - GitHub: https://github.com/Leewwp/health_agent/issues/74
@@ -33,3 +33,7 @@
 - 不补造旧数据的 traceId；旧饮食接口继续写 NULL。
 - 精确归因只接受最终响应实际展示过的资源卡；不得仅凭同一 user/session 建立关联。
 - 评估读取和聚合必须能区分精确归因与兼容回退，不能把回退结果伪装成精确反馈。
+
+## Answer
+
+已在提交 `6374494` 完成 V8 `trace_id` 迁移、健康反馈归属校验、精确/旧数据回退标记及前端资源卡透传；越权与资源不匹配路径均有自动化和浏览器验收证据。

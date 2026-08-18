@@ -377,6 +377,12 @@ class HealthOrchestratorServiceTest {
         assertEquals("RESPOND", response.phase().name());
         assertTrue(response.displayBlocks().isEmpty());
         assertTrue(response.speechText().contains("我的计划"));
+
+        HealthChatResponse currentWeekResponse = chat("帮我安排一下这周的健身计划");
+        assertEquals("PLAN", currentWeekResponse.task().name(), "前端快捷问题必须进入周计划入口");
+        assertEquals(HealthResponseType.ANSWER, currentWeekResponse.responseType());
+        assertTrue(currentWeekResponse.displayBlocks().isEmpty());
+        assertTrue(currentWeekResponse.speechText().contains("我的计划"));
     }
 
     @Test

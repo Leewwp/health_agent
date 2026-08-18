@@ -42,6 +42,27 @@ class DotenvConfigDataTest {
         }
     }
 
+    @Test
+    void 应用配置消费Dotenv端点与超时() throws IOException {
+        Path dotenv = tempDir.resolve(".env");
+        Files.writeString(dotenv, """
+                DASHSCOPE_BASE_URL=https://workspace.example/compatible-mode/v1
+                DASHSCOPE_EMBEDDING_BASE_URL=https://workspace.example/api/v1
+                DIET_AGENT_TIMEOUT_MS=60000
+                DIET_EMBEDDING_TIMEOUT_MS=10000
+                """);
+
+        try (ConfigurableApplicationContext context = startApplicationConfig(dotenv)) {
+            Environment environment = context.getEnvironment();
+            assertEquals("https://workspace.example/compatible-mode/v1",
+                    environment.getProperty("agentscope.dashscope.base-url"));
+            assertEquals("https://workspace.example/api/v1",
+                    environment.getProperty("diet.embedding.base-url"));
+            assertEquals("60000", environment.getProperty("diet.agent.timeout-ms"));
+            assertEquals("10000", environment.getProperty("diet.embedding.timeout-ms"));
+        }
+    }
+
     private Path writeDotenv(String apiKey) throws IOException {
         Path dotenv = tempDir.resolve(".env");
         Files.writeString(dotenv, "DASHSCOPE_API_KEY=" + apiKey + System.lineSeparator());
@@ -59,6 +80,17 @@ class DotenvConfigDataTest {
                 .web(WebApplicationType.NONE)
                 .logStartupInfo(false)
                 .run(args);
+    }
+
+    private ConfigurableApplicationContext startApplicationConfig(Path dotenv) {
+        return new SpringApplicationBuilder(TestApplication.class)
+                .web(WebApplicationType.NONE)
+                .logStartupInfo(false)
+                .run(
+                        "--spring.config.name=application",
+                        "--spring.config.import=file:" + dotenv.toAbsolutePath() + "[.properties]",
+                        "--spring.main.banner-mode=off"
+                );
     }
 
     @TestConfiguration(proxyBeanMethods = false)
