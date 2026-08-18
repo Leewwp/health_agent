@@ -3,6 +3,7 @@ package com.diet.health.plan;
 import com.diet.agent.contract.AgentContractModule;
 import com.diet.agent.contract.AgentFailureException;
 import com.diet.agent.contract.AgentFailureType;
+import com.diet.agent.invoker.AgentInvoker;
 import com.diet.agent.loader.PromptLoader;
 import com.diet.health.profile.HealthProfileService.HealthProfileView;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -41,7 +42,7 @@ public class HealthPlanResponseAgentService {
     public HealthPlanResponseAgentService(
             AgentContractModule contractModule,
             PromptLoader promptLoader,
-            @Value("${diet.llm.main-model:qwen-max}") String modelName,
+            @Value("${diet.llm.main-model:qwen-turbo}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
     ) {
@@ -61,6 +62,7 @@ public class HealthPlanResponseAgentService {
         AgentContractModule.ContractResult<PlanExplanation> result = contractModule.call(
                 new AgentContractModule.AgentContractRequest<>(
                         "PlanResponseAgent",
+                        AgentInvoker.ModelRole.MAIN,
                         modelName,
                         promptVersion,
                         "plan-response-v1",

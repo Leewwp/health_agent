@@ -3,6 +3,7 @@ package com.diet.health.recommend;
 import com.diet.agent.contract.AgentContractModule;
 import com.diet.agent.contract.AgentFailureException;
 import com.diet.agent.contract.AgentFailureType;
+import com.diet.agent.invoker.AgentInvoker;
 import com.diet.agent.loader.PromptLoader;
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.module.HealthResource;
@@ -37,7 +38,7 @@ public class HealthRecommendResponseService {
     public HealthRecommendResponseService(
             AgentContractModule contractModule,
             PromptLoader promptLoader,
-            @Value("${diet.llm.main-model:qwen-max}") String modelName,
+            @Value("${diet.llm.main-model:qwen-turbo}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
     ) {
@@ -57,6 +58,7 @@ public class HealthRecommendResponseService {
         AgentContractModule.ContractResult<RecommendOutcome> result = contractModule.call(
                 new AgentContractModule.AgentContractRequest<>(
                         "RecommendResponseAgent",
+                        AgentInvoker.ModelRole.MAIN,
                         modelName,
                         promptVersion,
                         "recommend-response-v1",

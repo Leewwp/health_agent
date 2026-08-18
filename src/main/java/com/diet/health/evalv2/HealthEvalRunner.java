@@ -132,8 +132,8 @@ public class HealthEvalRunner implements ApplicationRunner {
             @Value("${diet.evalv2.trace-window-days:30}") int traceWindowDays,
             @Value("${diet.evalv2.trace-limit:100}") int traceLimit,
             @Value("${diet.agent.mode:agentscope}") String agentMode,
-            @Value("${diet.llm.main-model:qwen-max}") String mainModel,
-            @Value("${diet.llm.light-model:qwen-turbo}") String lightModel
+            @Value("${diet.llm.main-model:qwen-turbo}") String mainModel,
+            @Value("${diet.llm.light-model:qwen3.7-flash}") String lightModel
     ) {
         this.objectMapper = objectMapper;
         this.intentAgentService = intentAgentService;

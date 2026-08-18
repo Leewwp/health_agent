@@ -135,6 +135,7 @@
 - PLAN：点击“新会话”后生成新的显式 `sess_web_*`，发送“帮我安排一下这周的健身计划”→ `EXERCISE / PLAN / RESPOND`、无资源卡，显示“进入周计划页面”；点击后到达 `#/plans`，页面显示“还没有周计划”，证明聊天未创建草稿。
 - 健身与跨域餐食：在第二个隔离会话发送“帮我推荐一份适合新手的轻量训练”→ `EXERCISE / RECOMMEND / CLARIFY`；回复“大腿”→ 3 张 EXERCISE 卡；随后“中午吃什么”→ `MEAL / RECOMMEND / CLARIFY`，回复“清淡点”→ 2 张 MEAL 卡，无跨类型资源。
 - 作息/越界/风险：“晚上几点前应该停止喝咖啡？”返回 `ROUTINE / RECOMMEND / RESPOND` 与 Drake 2013 来源；“推荐一部电影”返回 `OTHER / CHAT / RESPOND` 且无卡；“我现在胸痛，但还想做高强度训练”返回 `EXERCISE / RECOMMEND / BLOCKED` 与固定安全文案。
-- live Trace：两个新会话共 8 条 Trace 全为 SUCCESS。IntentAgent=`qwen3.7-flash`（10.5–18.7 秒），RecommendResponseAgent=`qwen3.7-plus`（18.2–21.8 秒）；全部 Agent event error 为空，意图 `degraded=false/fallbackReason=null`，三次响应 Agent `fallbackReason=null`，无 timeout。餐食检索的 Embedding 不再是 `embedding_unavailable`；因本次启动显式关闭 index-on-startup，向量库无命中时按契约记录 `no_vector_hits` 并回到 STRUCTURED。
-- 自动化：PLAN/配置聚焦 39/39；普通全量 657（620 通过 + 37 环境门控跳过）；真实 MySQL 门控 657（654 通过 + 3 个 Qdrant 门控跳过）；`docker compose config --quiet` 通过。
+- live Trace：两个新会话共 8 条 Trace 全为 SUCCESS。IntentAgent=`qwen3.7-flash`（10.5–18.7 秒），RecommendResponseAgent 请求配置名=`qwen-turbo`（18.2–21.8 秒）；全部 Agent event error 为空，意图 `degraded=false/fallbackReason=null`，三次响应 Agent `fallbackReason=null`，无 timeout。餐食检索的 Embedding 不再是 `embedding_unavailable`；因本次启动显式关闭 index-on-startup，向量库无命中时按契约记录 `no_vector_hits` 并回到 STRUCTURED。
+- 证据校正：后续审计发现旧 `AgentScopeInvoker` 以历史名称 `qwen-max` 判断是否选择主模型 Bean，因此上述 Trace 能证明真实 Agent 调用成功和请求配置名，但不能单独证明响应 Agent 底层使用了主模型 Bean。现已改为显式 `MAIN/LIGHT` 职责路由并增加回归测试；修复后的主模型 live 延迟证据由 #84 重新采集。
+- 自动化：PLAN/配置聚焦 39/39；普通全量 658（621 通过 + 37 环境门控跳过）；真实 MySQL 门控 658（655 通过 + 3 个 Qdrant 门控跳过）；`docker compose config --quiet` 通过。
 - 清理：后端与临时 `health-agent-issue82-ui` 容器均已停止；浏览器任务空间在 GitHub 关票完成后关闭。

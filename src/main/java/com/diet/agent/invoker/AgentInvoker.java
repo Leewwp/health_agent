@@ -10,6 +10,12 @@ import java.time.Duration;
  */
 public interface AgentInvoker {
 
+    /** 模型职责；路由不得依赖某个历史模型名称。 */
+    enum ModelRole {
+        MAIN,
+        LIGHT
+    }
+
     /**
      * 执行一次 Agent 调用并返回原始文本结果。
      *
@@ -27,7 +33,8 @@ public interface AgentInvoker {
     /** 一次 Agent 调用的完整入参。Prompt/契约版本由契约层负责记录 Trace，不入调用参数。 */
     record AgentInvocation(
             String agentRole,        // 角色名，如 IntentAgent / ClarifyAgent / RecommendResponseAgent
-            String modelName,        // 模型名，如 qwen-max / qwen-turbo
+            ModelRole modelRole,     // 模型职责，如 MAIN / LIGHT
+            String modelName,        // 配置解析后的实际模型名
             String promptText,       // 完整用户消息
             Duration timeout         // 单次调用超时
     ) {

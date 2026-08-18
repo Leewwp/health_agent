@@ -50,7 +50,7 @@ public class AgentScopeInvoker implements AgentInvoker {
     @Override
     public AgentInvocationResult invoke(AgentInvocation invocation) {
         long startedAt = System.nanoTime();
-        Model model = "qwen-max".equals(invocation.modelName()) ? mainModel : lightModel;
+        Model model = selectModel(invocation.modelRole());
         ReActAgent agent = ReActAgent.builder()
                 .name("health_" + invocation.agentRole().toLowerCase())
                 .model(model)
@@ -82,6 +82,14 @@ public class AgentScopeInvoker implements AgentInvoker {
         } catch (RuntimeException error) {
             throw new AgentInvocationException("Agent 调用失败: " + invocation.agentRole(), error);
         }
+    }
+
+    /** 按稳定职责选择模型，允许环境变量自由替换实际模型名称。 */
+    Model selectModel(ModelRole modelRole) {
+        return switch (modelRole) {
+            case MAIN -> mainModel;
+            case LIGHT -> lightModel;
+        };
     }
 
     @Override
