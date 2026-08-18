@@ -3,6 +3,7 @@ package com.diet.health.intent;
 import com.diet.agent.contract.AgentContractModule;
 import com.diet.agent.contract.AgentFailureException;
 import com.diet.agent.contract.AgentFailureType;
+import com.diet.agent.invoker.AgentInvoker;
 import com.diet.agent.loader.PromptLoader;
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthTask;
@@ -46,7 +47,7 @@ public class HealthIntentAgentService {
             HealthSlotDictionary slotDictionary,
             IntentRuleService intentRuleService,
             HealthInputNormalizer inputNormalizer,
-            @Value("${diet.llm.light-model:qwen-turbo}") String modelName,
+            @Value("${diet.llm.light-model:qwen3.7-flash}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
     ) {
@@ -67,6 +68,7 @@ public class HealthIntentAgentService {
         AgentContractModule.ContractResult<HealthIntentResult> result = contractModule.call(
                 new AgentContractModule.AgentContractRequest<>(
                         "IntentAgent",
+                        AgentInvoker.ModelRole.LIGHT,
                         modelName,
                         promptVersion,
                         "intent-v1",

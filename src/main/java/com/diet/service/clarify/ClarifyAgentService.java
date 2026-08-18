@@ -34,7 +34,7 @@ public class ClarifyAgentService {
             AgentFactory agentFactory,
             ClarifyRuleService clarifyRuleService,
             AgentTraceService agentTraceService,
-            @Value("${diet.llm.light-model:qwen-turbo}") String modelName
+            @Value("${diet.llm.light-model:qwen3.7-flash}") String modelName
     ) {
         this.agentFactory = agentFactory;
         this.clarifyRuleService = clarifyRuleService;

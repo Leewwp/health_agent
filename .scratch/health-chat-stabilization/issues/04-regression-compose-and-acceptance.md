@@ -26,4 +26,6 @@
 
 2026-08-18 最终 live 验收已通过。修复 `.env` 属性文件中的 Agent/Embedding 超时变量未被 `application.yml` 消费的问题，并补齐“这周/本周的健身计划”PLAN 表达；真实浏览器同时发现“新会话”只清空前端 ID、后端仍恢复匿名默认会话并继承旧风险信号，现改为每次显式生成新的 `sess_web_*` 会话 ID。Chromium 在 `http://127.0.0.1:18091/#/chat` 验证 PLAN 入口、健身两轮、健身→餐食、作息、OTHER 与风险阻断；PLAN 点击进入 `#/plans` 后仍显示无计划，证明聊天不创建草稿。
 
-本轮 8 条 Trace 全为 SUCCESS：IntentAgent=`qwen3.7-flash`、RecommendResponseAgent=`qwen3.7-plus`，Agent 调用耗时 10.5–21.8 秒；意图 `degraded=false/fallbackReason=null`，三次响应 Agent `fallbackReason=null`，整批无 timeout/error。Embedding 不再出现 `embedding_unavailable`；因验收启动参数关闭向量索引，餐食检索仅按设计记录 `no_vector_hits` 后走 STRUCTURED。最终门控：聚焦 39/39、普通全量 657（620 通过 + 37 环境门控跳过）、MySQL 门控 657（654 通过 + 3 个 Qdrant 门控跳过）、Compose 静态解析全部通过。本票可关闭。
+本轮 8 条 Trace 全为 SUCCESS：IntentAgent=`qwen3.7-flash`、RecommendResponseAgent 请求配置名=`qwen-turbo`，Agent 调用耗时 10.5–21.8 秒；意图 `degraded=false/fallbackReason=null`，三次响应 Agent `fallbackReason=null`，整批无 timeout/error。Embedding 不再出现 `embedding_unavailable`；因验收启动参数关闭向量索引，餐食检索仅按设计记录 `no_vector_hits` 后走 STRUCTURED。本票可关闭。
+
+后续开发前审计发现旧 `AgentScopeInvoker` 以历史名称 `qwen-max` 判断是否选择主模型 Bean，因此上述 Trace 能证明真实 Agent 调用成功，但不能证明 `RecommendResponseAgent` 底层实际使用了主模型 Bean。现已改为显式 `MAIN/LIGHT` 职责路由并增加回归测试；最新门控为普通全量 658（621 通过 + 37 环境门控跳过）、真实 MySQL 门控 658（655 通过 + 3 个 Qdrant 门控跳过）、Compose 静态解析通过。修复后的主模型 live 延迟证据由 #84 重新采集，不回写夸大本轮历史证据。

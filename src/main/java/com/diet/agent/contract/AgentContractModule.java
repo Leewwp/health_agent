@@ -32,6 +32,7 @@ public class AgentContractModule {
     /** 一次受契约约束的 Agent 调用。 */
     public record AgentContractRequest<T>(
             String agentRole,
+            AgentInvoker.ModelRole modelRole,
             String modelName,
             String promptVersion,
             String contractVersion,
@@ -82,7 +83,7 @@ public class AgentContractModule {
         AgentInvoker.AgentInvocationResult raw;
         try {
             raw = agentInvoker.invoke(new AgentInvoker.AgentInvocation(
-                    request.agentRole(), request.modelName(), request.promptText(), request.timeout()));
+                    request.agentRole(), request.modelRole(), request.modelName(), request.promptText(), request.timeout()));
         } catch (AgentTimeoutException error) {
             return degraded(request, AgentFailureType.TIMEOUT, elapsedMs(startedAt), "调用超时");
         } catch (AgentInvocationException error) {

@@ -30,7 +30,7 @@ public class EvaluationJudgeService {
             AgentTraceService agentTraceService,
             LlmJsonService llmJsonService,
             ObjectMapper objectMapper,
-            @Value("${diet.llm.light-model:qwen-turbo}") String modelName
+            @Value("${diet.llm.light-model:qwen3.7-flash}") String modelName
     ) {
         this.agentBuilder = agentBuilder;
         this.agentTraceService = agentTraceService;

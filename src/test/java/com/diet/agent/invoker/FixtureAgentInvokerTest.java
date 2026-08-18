@@ -15,7 +15,8 @@ class FixtureAgentInvokerTest {
     private final FixtureAgentInvoker invoker = new FixtureAgentInvoker();
 
     private AgentInvoker.AgentInvocation invocation(String role, String prompt) {
-        return new AgentInvoker.AgentInvocation(role, "qwen-turbo", prompt, Duration.ofSeconds(1));
+        return new AgentInvoker.AgentInvocation(
+                role, AgentInvoker.ModelRole.LIGHT, "qwen-turbo", prompt, Duration.ofSeconds(1));
     }
 
     @Test

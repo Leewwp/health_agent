@@ -39,7 +39,7 @@ class AgentContractModuleTest {
 
     private AgentContractModule.AgentContractRequest<StringOutcome> request() {
         return new AgentContractModule.AgentContractRequest<>(
-                "TestAgent", "qwen-turbo", "v1", "test-v1", "prompt",
+                "TestAgent", AgentInvoker.ModelRole.LIGHT, "qwen-turbo", "v1", "test-v1", "prompt",
                 Duration.ofSeconds(1),
                 root -> new StringOutcome(root.path("value").asText(null)),
                 null, null);
@@ -73,7 +73,7 @@ class AgentContractModuleTest {
         org.mockito.Mockito.when(invoker.invoke(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new AgentInvoker.AgentInvocationResult("{\"value\":null}", "qwen-turbo", 5));
         AgentContractModule.AgentContractRequest<StringOutcome> strict = new AgentContractModule.AgentContractRequest<>(
-                "TestAgent", "qwen-turbo", "v1", "test-v1", "prompt", Duration.ofSeconds(1),
+                "TestAgent", AgentInvoker.ModelRole.LIGHT, "qwen-turbo", "v1", "test-v1", "prompt", Duration.ofSeconds(1),
                 root -> {
                     if (root.path("value").asText(null) == null) {
                         throw new AgentFailureException(AgentFailureType.SCHEMA_VIOLATION, "value 缺失");
@@ -91,7 +91,7 @@ class AgentContractModuleTest {
         org.mockito.Mockito.when(invoker.invoke(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new AgentInvoker.AgentInvocationResult("{\"value\":\"999\"}", "qwen-turbo", 5));
         AgentContractModule.AgentContractRequest<StringOutcome> whitelist = new AgentContractModule.AgentContractRequest<>(
-                "TestAgent", "qwen-turbo", "v1", "test-v1", "prompt", Duration.ofSeconds(1),
+                "TestAgent", AgentInvoker.ModelRole.LIGHT, "qwen-turbo", "v1", "test-v1", "prompt", Duration.ofSeconds(1),
                 root -> new StringOutcome(root.path("value").asText()),
                 List.of("1", "2"),
                 outcome -> List.of(outcome.value()));
