@@ -52,7 +52,7 @@ diet:
   agent:
     # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
     mode: agentscope
-    timeout-ms: 15000
+    timeout-ms: ${DIET_AGENT_TIMEOUT_MS:15000}
   resource:
     # reviewed=数据库审核子集（正式）；fixture=内存种子（离线演示/测试，prod 禁止）
     mode: reviewed
@@ -70,7 +70,7 @@ diet:
     base-url: ${DASHSCOPE_EMBEDDING_BASE_URL:}
     model: text-embedding-v3
     dimensions: 1024
-    timeout-ms: 5000
+    timeout-ms: ${DIET_EMBEDDING_TIMEOUT_MS:5000}
     # 启动时是否离线生成餐食向量（需要真实 API key，默认关闭）
     generate-on-startup: false
   vectorstore:

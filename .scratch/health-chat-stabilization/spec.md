@@ -129,4 +129,4 @@
 - The requirement “不出现矛盾冲突或无关内容” is enforced at two boundaries: projected slots before clarification/retrieval, and typed display-block validation before response persistence. Prompt wording alone is not sufficient.
 - The estimated implementation effort is approximately 3–4.5 person-days: 1 day for intent/normalization, 1 day for orchestration isolation, 0.5–1 day for routine/query/Compose boundaries, and 0.5–1.5 days for regression and browser acceptance. This estimate assumes no schema migration and preserves the current resource architecture.
 - Completion means the basic flows work with fixture and live-model smoke coverage, not that natural-language understanding is universally correct. The deterministic fallback must be honest about low confidence and must prefer clarification over cross-domain guessing.
-- Triage: ready-for-agent.
+- Completion: resolved（#79–#82 均完成，2026-08-18 live model + Chromium + Trace 验收通过）。

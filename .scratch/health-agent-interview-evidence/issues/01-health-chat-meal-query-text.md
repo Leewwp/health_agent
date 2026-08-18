@@ -1,8 +1,8 @@
 # P0：健康聊天餐食检索透传用户原始语义
 
 - Type: task
-- Status: open
-- Triage: ready-for-agent
+- Status: resolved
+- Triage: ready-for-human
 - Priority: P0
 - Estimate: 0.5 天
 - GitHub: https://github.com/Leewwp/health_agent/issues/76
@@ -22,3 +22,7 @@
 ## Done when
 
 健康聊天餐食请求的原始文本进入 `MealRetrievalQuery.text`；相关单元测试通过，普通全量测试保持绿；fixture 和结构化降级行为无回归。
+
+## Answer
+
+已在提交 `6374494` 完成：编排层透传用户原话，覆盖推荐、调整排除项、fixture 与结构化降级回归。

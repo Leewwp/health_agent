@@ -1,8 +1,8 @@
 # P0：将健康聊天 PLAN 意图衔接到已上线周计划流程
 
 - Type: task
-- Status: open
-- Triage: ready-for-agent
+- Status: resolved
+- Triage: ready-for-human
 - Priority: P0
 - Estimate: 0.5-1 天
 - GitHub: https://github.com/Leewwp/health_agent/issues/72
@@ -30,3 +30,9 @@
 - 后端 PLAN 文案应说明“进入周计划页面；如未完善档案先完善档案”，不得出现“即将上线”。
 - 前端按钮由 `task === "PLAN"` 派生，目标固定为 `#/plans`；不依赖新增后端字段。
 - 契约测试断言 PLAN 响应仍为非写入的 `ANSWER`，且聊天请求不会调用 `WeeklyPlanService.createDraft`。
+
+## Answer
+
+已在提交 `6374494` 完成 PLAN 文案、意图关键词收紧、`#/plans` 导航按钮及会话 4xx 重试；真实浏览器已验证入口导航且聊天不创建草稿。
+
+2026-08-18 #82 live 验收补充覆盖前端快捷问题“帮我安排一下这周的健身计划”：模型与兜底路径共享 PLAN 匹配器，返回 `EXERCISE / PLAN / RESPOND`；点击入口到达 `#/plans` 且无草稿写入。验收中一并修复“新会话”复用匿名默认会话、继承历史风险信号的问题。

@@ -84,6 +84,21 @@ export function clearChatSession() {
 }
 
 /**
+ * 显式创建新的聊天会话 ID。
+ *
+ * 后端在 sessionId 为空时会按匿名身份恢复稳定默认会话，因此“新会话”不能只清空
+ * localStorage，否则会继续继承旧会话的槽位与风险信号。
+ */
+export function createChatSessionId() {
+    const suffix = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const sessionId = `sess_web_${suffix}`;
+    localStorage.setItem(SESSION_KEY, sessionId);
+    return sessionId;
+}
+
+/**
  * 反馈所需的会话上下文：优先使用真实聊天会话，否则生成一个稳定的
  * 客户端会话 ID（浏览页收藏/反馈同样需要后端 sessionId 字段）。
  */

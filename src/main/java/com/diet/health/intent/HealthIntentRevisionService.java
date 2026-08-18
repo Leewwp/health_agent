@@ -31,7 +31,7 @@ public class HealthIntentRevisionService {
             return new Revision(composite, false, false);
         }
         HealthDomain explicitDomain = explicitDomain(text);
-        boolean plan = containsAny(text, "安排一周", "周计划", "一周计划", "一周健身计划", "一周训练计划", "一周的计划", "一周安排");
+        boolean plan = HealthPlanIntentMatcher.matches(text);
         boolean adjust = containsAny(text, "换一批", "换换", "再来一批", "再换", "调整一下");
         boolean genericRecommendation = containsAny(text, "帮我推荐一下", "帮我推荐", "推荐一下")
                 && explicitDomain == null;

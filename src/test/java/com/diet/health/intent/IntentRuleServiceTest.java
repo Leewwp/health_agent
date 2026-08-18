@@ -45,6 +45,9 @@ class IntentRuleServiceTest {
 
         HealthIntentResult exercisePlan = rules.fallback("帮我安排一周的训练", Map.of(), null);
         assertEquals(HealthTask.PLAN, exercisePlan.task(), "训练与周计划关键词并存时按 PLAN 处理");
+
+        HealthIntentResult currentWeekExercisePlan = rules.fallback("帮我安排一下这周的健身计划", Map.of(), null);
+        assertEquals(HealthTask.PLAN, currentWeekExercisePlan.task(), "前端快捷问题的本周表达必须按 PLAN 处理");
     }
 
     @Test
