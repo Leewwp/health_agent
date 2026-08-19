@@ -143,7 +143,7 @@ public class AgentContractModule {
         }
         agentTraceService.recordAgentEvent(
                 "AGENT_CALL", "AGENT",
-                request.agentRole(), request.modelName(),
+                request.agentRole(), raw == null || raw.modelName() == null ? request.modelName() : raw.modelName(),
                 input, output,
                 raw == null ? null : raw.latencyMs()
         );

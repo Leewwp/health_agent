@@ -42,19 +42,27 @@ export function renderResourceCard(resource, options) {
 
     return `
         <article class="meal-card">
-            <header>
-                <div>
-                    <h3>${escapeHtml(name)}</h3>
-                    ${meta.badge ? `<p class="muted" style="margin-top:4px;">${meta.badge}</p>` : ""}
-                </div>
-                ${score}
-            </header>
-            ${media}
-            ${meta.chips ? `<div class="chips">${meta.chips}</div>` : ""}
-            ${meta.desc ? `<p class="muted" style="margin:0;font-size:13px;line-height:1.55;">${escapeHtml(meta.desc)}</p>` : ""}
-            ${meta.source ? `<p class="media-credit" style="margin:0;">来源：${meta.source}</p>` : ""}
-            <div class="button-row">
-                <button class="btn soft" data-action="open-resource" data-key="${key}">详情</button>
+            <div class="resource-card-body" data-action="open-resource" data-key="${key}"
+                 data-session-id="${escapeHtml(opts.sessionId || "")}" data-plan-id="${escapeHtml(opts.planId || "")}"
+                 data-plan-item-id="${escapeHtml(opts.planItemId || "")}"
+                 role="button" tabindex="0" aria-label="查看${escapeHtml(name)}详情">
+                <header>
+                    <div>
+                        <h3>${escapeHtml(name)}</h3>
+                        ${meta.badge ? `<p class="muted" style="margin-top:4px;">${meta.badge}</p>` : ""}
+                    </div>
+                    ${score}
+                </header>
+                ${media}
+                ${meta.chips ? `<div class="chips">${meta.chips}</div>` : ""}
+                ${meta.desc ? `<p class="muted" style="margin:0;font-size:13px;line-height:1.55;">${escapeHtml(meta.desc)}</p>` : ""}
+                ${meta.source ? `<p class="media-credit" style="margin:0;">来源：${meta.source}</p>` : ""}
+            </div>
+            <div class="resource-card-actions">
+                <button class="btn soft" data-action="open-resource" data-key="${key}"
+                        data-session-id="${escapeHtml(opts.sessionId || "")}"
+                        data-plan-id="${escapeHtml(opts.planId || "")}"
+                        data-plan-item-id="${escapeHtml(opts.planItemId || "")}">详情</button>
                 ${renderFeedbackControl(resourceType, resourceId, {
                     sessionId: opts.sessionId,
                     traceId: opts.traceId,

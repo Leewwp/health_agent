@@ -233,7 +233,7 @@ public class HealthEvalRunner implements ApplicationRunner {
                 new HealthIntentRevisionService(inputNormalizer), inputNormalizer,
                 clarifyRuleService, clarifyAgentService,
                 riskRuleService, mealModule, exerciseModule, routineModule, resourceProvider,
-                recommendResponseService, traceService, objectMapper);
+                recommendResponseService, traceService, objectMapper, false);
         return new HealthEvalExecution(orchestrator, traceMapper, evalUserId);
     }
 

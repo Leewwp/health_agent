@@ -53,6 +53,9 @@ diet:
     # agentscope=真实 DashScope；fixture=固定夹具（离线演示/测试，无 API key）
     mode: agentscope
     timeout-ms: ${DIET_AGENT_TIMEOUT_MS:15000}
+  request:
+    # 整轮健康聊天截止时间；模型调用必须消费剩余预算。
+    timeout-ms: ${DIET_REQUEST_TIMEOUT_MS:5000}
   resource:
     # reviewed=数据库审核子集（正式）；fixture=内存种子（离线演示/测试，prod 禁止）
     mode: reviewed

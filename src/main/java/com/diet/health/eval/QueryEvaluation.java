@@ -24,6 +24,12 @@ public record QueryEvaluation(
         double precisionAt3,
         double hardConstraintHitRate,
         String mode,
-        List<String> topKSourceIds
+        List<String> topKSourceIds,
+        int structuredCandidateCount,
+        int vectorCandidateCount,
+        int fusedCandidateCount,
+        String vectorStatus,
+        double vectorLatencyMs,
+        double totalLatencyMs
 ) {
 }

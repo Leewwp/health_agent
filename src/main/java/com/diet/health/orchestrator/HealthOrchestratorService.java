@@ -2,6 +2,7 @@ package com.diet.health.orchestrator;
 
 import com.diet.agent.contract.AgentContractModule;
 import com.diet.exception.DietException;
+import com.diet.exception.HealthApiException;
 import com.diet.health.clarify.HealthClarifyAgentService;
 import com.diet.health.clarify.HealthClarifyRuleService;
 import com.diet.health.enums.HealthDomain;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 
 /**
  * 健康编排器：统一健康聊天主流程。
@@ -67,10 +69,15 @@ public class HealthOrchestratorService {
     private final HealthRecommendResponseService recommendResponseService;
     private final AgentTraceService agentTraceService;
     private final ObjectMapper objectMapper;
+    private final boolean intentFastPathEnabled;
+
+    @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
+    private long requestTimeoutMs = 5000L;
 
     /** 会话级锁，保证同一 session 串行写状态。 */
     private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public HealthOrchestratorService(
             HealthSessionService sessionService,
             SessionService messageService,
@@ -88,6 +95,30 @@ public class HealthOrchestratorService {
             AgentTraceService agentTraceService,
             ObjectMapper objectMapper
     ) {
+        this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
+                clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, true);
+    }
+
+    /** 可关闭快路径供模型契约基准使用；线上默认开启。 */
+    public HealthOrchestratorService(
+            HealthSessionService sessionService,
+            SessionService messageService,
+            HealthIntentAgentService intentAgentService,
+            HealthIntentRevisionService intentRevisionService,
+            HealthInputNormalizer inputNormalizer,
+            HealthClarifyRuleService clarifyRuleService,
+            HealthClarifyAgentService clarifyAgentService,
+            HealthRiskRuleService riskRuleService,
+            MealModule mealModule,
+            ExerciseModule exerciseModule,
+            RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
+            HealthRecommendResponseService recommendResponseService,
+            AgentTraceService agentTraceService,
+            ObjectMapper objectMapper,
+            boolean intentFastPathEnabled
+    ) {
         this.sessionService = sessionService;
         this.messageService = messageService;
         this.intentAgentService = intentAgentService;
@@ -103,6 +134,7 @@ public class HealthOrchestratorService {
         this.recommendResponseService = recommendResponseService;
         this.agentTraceService = agentTraceService;
         this.objectMapper = objectMapper;
+        this.intentFastPathEnabled = intentFastPathEnabled;
     }
 
     /** 处理一轮健康聊天。 */
@@ -130,7 +162,8 @@ public class HealthOrchestratorService {
                     }
                     long startedAt = System.nanoTime();
                     agentTraceService.recordEvent("REQUEST_RECEIVED", "HTTP", request, initialState);
-                    HealthChatResponse response = handleTurn(userId, request, initialState, traceId);
+                    HealthChatResponse response = handleTurn(userId, request, initialState, traceId,
+                            System.nanoTime() + requestTimeoutMs * 1_000_000L);
                     scope.setResponse(response);
                     agentTraceService.recordEvent("REQUEST_FINISHED", "HTTP", request, response, ChatIdempotencySupport.elapsedMs(startedAt));
                     scope.close();
@@ -144,13 +177,19 @@ public class HealthOrchestratorService {
     }
 
     /** 一轮完整状态机。 */
-    private HealthChatResponse handleTurn(Long userId, HealthChatRequest request, HealthSessionState state, String traceId) {
+    private HealthChatResponse handleTurn(Long userId, HealthChatRequest request, HealthSessionState state, String traceId,
+                                           long deadlineNanos) {
         String userInput = request.message();
         String sessionId = state.sessionId();
         messageService.appendMessage(sessionId, "user", userInput, null, traceId);
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", userInput, Map.of("sessionId", sessionId));
 
-        HealthIntentResult rawIntent = intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId));
+        HealthIntentAgentService.Recognition recognition = intentFastPathEnabled
+                ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
+                recentHistory(userId, sessionId), remaining(deadlineNanos))
+                : new HealthIntentAgentService.Recognition(
+                intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId)), "AGENT");
+        HealthIntentResult rawIntent = recognition.result();
         HealthIntentRevisionService.Revision revision = intentRevisionService.revise(userInput, state, rawIntent);
         HealthIntentResult intent = revision.intent();
         Map<String, Object> intentPayload = new LinkedHashMap<>();
@@ -160,6 +199,7 @@ public class HealthOrchestratorService {
         intentPayload.put("confidence", intent.confidence());
         intentPayload.put("degraded", intent.degraded());
         intentPayload.put("fallbackReason", intent.fallbackReason());
+        intentPayload.put("resolutionSource", recognition.source());
         intentPayload.put("rawDomain", rawIntent.domain());
         intentPayload.put("rawTask", rawIntent.task());
         agentTraceService.recordEvent("INTENT_RECOGNIZED", "INTENT", userInput, intentPayload);
@@ -173,7 +213,7 @@ public class HealthOrchestratorService {
         if (risk.blocked()) {
             HealthChatResponse blocked = HealthChatResponse.blocked(sessionId, traceId, intent.domain(), intent.task(),
                     risk.matchedFlags(), risk.copy() == null ? HealthRiskRuleService.BLOCK_PLAN_COPY : risk.copy());
-            return persistAndRespond(state, intent, state.slots(), blocked, traceId);
+            return persistAndRespond(state, intent, state.slots(), blocked, traceId, deadlineNanos);
         }
         // ADVISORY 等级不阻止单次推荐，但在最终回复中透出固定提示文案
         String advisoryCopy = risk.level() == HealthRiskLevel.ADVISORY ? risk.copy() : null;
@@ -184,14 +224,14 @@ public class HealthOrchestratorService {
         if (revision.clarifyDomain()) {
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.OTHER,
                     HealthTask.CHAT, risk.matchedFlags(), "你想看餐食推荐、健身动作，还是查询作息建议？", List.of("domain"));
-            return persistAndRespond(state, intent, mergedSlots, clarify, traceId);
+            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
         }
 
         if (intent.domain() == HealthDomain.OTHER || intent.task() == HealthTask.CHAT) {
             HealthChatResponse chat = HealthChatResponse.answer(sessionId, traceId, HealthDomain.OTHER,
                     HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
                     "我可以帮你处理饮食、健身和作息相关的问题。这个问题不在当前健康助手的能力范围内。", List.of());
-            return persistAndRespond(state, intent, mergedSlots, chat, traceId);
+            return persistAndRespond(state, intent, mergedSlots, chat, traceId, deadlineNanos);
         }
 
         if (intent.domain() == HealthDomain.COMPOSITE || intent.task() == HealthTask.PLAN || intent.task() == HealthTask.BROWSE) {
@@ -203,7 +243,7 @@ public class HealthOrchestratorService {
             };
             HealthChatResponse notice = HealthChatResponse.answer(sessionId, traceId, intent.domain(), intent.task(),
                     risk.matchedFlags(), HealthPhase.RESPOND, withAdvisory(copy, advisoryCopy), List.of());
-            return persistAndRespond(state, intent, mergedSlots, notice, traceId);
+            return persistAndRespond(state, intent, mergedSlots, notice, traceId, deadlineNanos);
         }
 
         // ADJUST 排除（43 号票 + #69 类型化契约）：只取 MEAL/EXERCISE 类型化字符串 resourceId，
@@ -217,7 +257,7 @@ public class HealthOrchestratorService {
         agentTraceService.recordEvent("DOMAIN_SLOTS_PROJECTED", "SLOT",
                 Map.of("domain", intent.domain(), "switchedDomain", switchedDomain), activeSlots);
         return handleRecommend(sessionId, traceId, state, intent, mergedSlots, activeSlots, excludeIds,
-                risk.matchedFlags(), advisoryCopy, userInput, revision.clarifyUnsafe());
+                risk.matchedFlags(), advisoryCopy, userInput, revision.clarifyUnsafe(), deadlineNanos);
     }
 
     /** 单品类推荐主链路：澄清 → 检索 → 解释候选。 */
@@ -225,7 +265,7 @@ public class HealthOrchestratorService {
                                                HealthIntentResult intent, Map<String, List<String>> mergedSlots,
                                                Map<String, List<String>> activeSlots,
                                                List<String> excludeIds, List<String> riskFlags, String advisoryCopy,
-                                               String userInput, boolean clarifyUnsafe) {
+                                               String userInput, boolean clarifyUnsafe, long deadlineNanos) {
         HealthDomain domain = intent.domain();
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("domain", domain, "task", intent.task()));
 
@@ -240,7 +280,7 @@ public class HealthOrchestratorService {
             String question = clarifyAgentService.wording(domain, userInput, missing, activeSlots);
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, domain, intent.task(),
                     riskFlags, question, missing);
-            return persistAndRespond(state, intent, mergedSlots, clarify, traceId);
+            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
         }
 
         List<HealthResource> candidates = retrieve(domain, activeSlots, excludeIds, userInput).stream()
@@ -253,18 +293,19 @@ public class HealthOrchestratorService {
         if (candidates.isEmpty()) {
             HealthChatResponse empty = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
                     riskFlags, HealthPhase.RESPOND, withAdvisory(emptyCopy(domain), advisoryCopy), List.of());
-            return persistAndRespond(state, intent, mergedSlots, empty, traceId);
+            return persistAndRespond(state, intent, mergedSlots, empty, traceId, deadlineNanos);
         }
 
         List<HealthResource> topN = candidates.stream().limit(TOP_N).toList();
-        HealthRecommendResponseService.RecommendOutcome outcome = recommendResponseService.respond(domain,
-                userInput, topN);
+        HealthRecommendResponseService.RecommendOutcome outcome = deterministicOutcome(topN);
         Map<String, Object> responseAgentInput = new LinkedHashMap<>();
         responseAgentInput.put("domain", domain);
         responseAgentInput.put("candidateIds", topN.stream().map(HealthResource::resourceId).toList());
         Map<String, Object> responseAgentOutput = new LinkedHashMap<>();
         responseAgentOutput.put("fallbackReason", outcome.fallbackReason());
         responseAgentOutput.put("referencedIds", outcome.reasons().keySet());
+        responseAgentOutput.put("generationSource", "DETERMINISTIC_FAST_PATH");
+        // 保留既有事件名供评估读取，generationSource 明确这是确定性快路径而非模型解释。
         agentTraceService.recordEvent("RESPONSE_AGENT_RESULT", "RESPONSE", responseAgentInput, responseAgentOutput);
 
         List<HealthDisplayBlock> blocks = topN.stream()
@@ -281,7 +322,20 @@ public class HealthOrchestratorService {
                 .toList();
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
                 riskFlags, HealthPhase.RESPOND, withAdvisory(outcome.speechText(), advisoryCopy), blocks);
-        return persistAndRespond(state, intent, mergedSlots, response, traceId);
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos);
+    }
+
+    private HealthRecommendResponseService.RecommendOutcome deterministicOutcome(List<HealthResource> candidates) {
+        StringBuilder text = new StringBuilder("根据你的需求，为你推荐了");
+        Map<String, String> reasons = new LinkedHashMap<>();
+        for (int i = 0; i < candidates.size(); i++) {
+            if (i > 0) text.append("、");
+            HealthResource candidate = candidates.get(i);
+            text.append(candidate.name());
+            reasons.put(candidate.resourceId(), "匹配你选择的偏好条件");
+        }
+        text.append("。");
+        return new HealthRecommendResponseService.RecommendOutcome(text.toString(), reasons, null);
     }
 
     /** 拼接 ADVISORY 固定提示文案（有值才拼）。 */
@@ -308,7 +362,8 @@ public class HealthOrchestratorService {
     /** 统一收尾：保存会话状态 → 落库助手消息 → Trace → 返回。 */
     private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
                                                  Map<String, List<String>> mergedSlots, HealthChatResponse response,
-                                                 String traceId) {
+                                                 String traceId, long deadlineNanos) {
+        ensureBeforePersistence(deadlineNanos);
         HealthSessionState saved = state
                 .withPhase(response.phase())
                 .withIntent(intent.domain(), intent.task(), mergeFlags(state.riskFlags(), intent.riskFlags()))
@@ -323,6 +378,19 @@ public class HealthOrchestratorService {
         messageService.appendMessage(state.sessionId(), "assistant", response.speechText(), null, traceId);
         agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", saved, response);
         return response;
+    }
+
+    private void ensureBeforePersistence(long deadlineNanos) {
+        if (System.nanoTime() >= deadlineNanos) {
+            agentTraceService.recordEvent("REQUEST_DEADLINE_EXCEEDED", "HTTP",
+                    Map.of("requestTimeoutMs", requestTimeoutMs), Map.of("persisted", false));
+            throw new HealthApiException(HealthApiException.CODE_TIMEOUT, "请求处理超时，请重试");
+        }
+    }
+
+    private Duration remaining(long deadlineNanos) {
+        long nanos = deadlineNanos - System.nanoTime();
+        return nanos <= 0 ? Duration.ofMillis(1) : Duration.ofNanos(nanos);
     }
 
     private List<String> recentHistory(Long userId, String sessionId) {

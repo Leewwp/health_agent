@@ -22,6 +22,7 @@ import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
 import { navigate } from "../router.js";
 import { devConfig } from "../config.js";
+import { createChatRequestController } from "./chat-request.js";
 
 const QUICK_PROMPTS = [
     "今晚想吃得清淡一点，有什么推荐？",
@@ -64,6 +65,19 @@ const state = {
     ]
 };
 
+const requestController = createChatRequestController({
+    request: ({ message }, signal) => requestHealthChat(message, signal),
+    onPendingChange: (pending) => {
+        state.sending = pending;
+        render(document.getElementById("app"));
+    },
+    onSuccess: appendChatResponse,
+    onFailure: (message) => {
+        showToast(message, "error");
+        state.messages.push({ role: "assistant", text: message });
+    }
+});
+
 export async function render(app) {
     app.innerHTML = `
         <section class="chat-layout">
@@ -77,10 +91,10 @@ export async function render(app) {
                         <button class="btn ghost" data-action="new-session">新会话</button>
                     </div>
                 </div>
-                <div id="messages" class="messages">${state.messages.map(renderMessage).join("")}</div>
-                <form id="chatForm" class="composer">
-                    <textarea name="message" placeholder="例如：今晚想吃清淡一点，有什么推荐？" required></textarea>
-                    <button class="btn primary" type="submit">${state.sending ? "发送中..." : "发送"}</button>
+                <div id="messages" class="messages" aria-live="polite">${state.messages.map(renderMessage).join("")}${renderWaitingMessage()}</div>
+                <form id="chatForm" class="composer" aria-busy="${state.sending}">
+                    <textarea name="message" placeholder="例如：今晚想吃清淡一点，有什么推荐？" required ${state.sending ? "disabled" : ""}></textarea>
+                    <button class="btn primary" type="submit" ${state.sending ? "disabled" : ""}>${state.sending ? '<span class="loading-spinner" aria-hidden="true"></span>等待中' : "发送"}</button>
                 </form>
             </div>
             <aside class="grid">
@@ -110,6 +124,11 @@ export async function render(app) {
     const messages = document.getElementById("messages");
     messages.scrollTop = messages.scrollHeight;
     bind(app);
+}
+
+function renderWaitingMessage() {
+    if (!state.sending) return "";
+    return `<article class="message assistant chat-waiting" role="status"><div class="bubble"><span class="loading-spinner" aria-hidden="true"></span>正在等待推荐结果，请稍候…</div></article>`;
 }
 
 let listenersBound = false;
@@ -171,50 +190,46 @@ async function submitChat(form) {
     }
     state.messages.push({ role: "user", text: message });
     messageInput.value = "";
-    await sendMessage(message);
+    await requestController.submit({ message });
 }
 
 /**
  * 发送消息；后端在会话不存在（如后端数据重置后本地残留旧 sessionId）
  * 时返回 404，此时清空本地会话并以新会话重试一次。
  */
-async function sendMessage(message, retried) {
-    state.sending = true;
-    render(document.getElementById("app"));
+async function requestHealthChat(message, signal, retried) {
     try {
-        const response = await healthChat({
+        return await healthChat({
             sessionId: state.sessionId || undefined,
             requestId: newRequestId(),
             message,
             context: {}
-        });
-        state.sessionId = response.sessionId || state.sessionId;
-        setChatSessionId(state.sessionId);
-        state.messages.push({
-            role: "assistant",
-            text: response.clarifyQuestion || response.speechText || "我已经处理完这轮请求。",
-            blocks: response.displayBlocks || [],
-            missingSlots: response.missingSlots || [],
-            traceId: response.traceId,
-            domain: response.domain,
-            task: response.task,
-            phase: response.phase
-        });
+        }, { signal });
     } catch (error) {
         // 会话相关失败（后端数据重置/匿名身份轮换后本地残留旧 sessionId）可能以 4xx 返回
         // （当前「会话不存在或无权访问」为 400）：统一清空本地会话后重试一次
         if (!retried && error.status >= 400 && error.status < 500) {
             clearChatSession();
             state.sessionId = null;
-            return sendMessage(message, true);
+            return requestHealthChat(message, signal, true);
         }
-        const message = error.message || "聊天请求失败，请稍后重试。";
-        showToast(message, "error");
-        state.messages.push({ role: "assistant", text: message });
-    } finally {
-        state.sending = false;
-        render(document.getElementById("app"));
+        throw error;
     }
+}
+
+function appendChatResponse(response) {
+    state.sessionId = response.sessionId || state.sessionId;
+    setChatSessionId(state.sessionId);
+    state.messages.push({
+        role: "assistant",
+        text: response.clarifyQuestion || response.speechText || "我已经处理完这轮请求。",
+        blocks: response.displayBlocks || [],
+        missingSlots: response.missingSlots || [],
+        traceId: response.traceId,
+        domain: response.domain,
+        task: response.task,
+        phase: response.phase
+    });
 }
 
 function resetChat() {

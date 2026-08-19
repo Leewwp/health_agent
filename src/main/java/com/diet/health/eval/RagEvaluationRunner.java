@@ -161,6 +161,15 @@ public class RagEvaluationRunner implements ApplicationRunner {
         report.put("environment", environment);
         report.put("structured", structured);
         report.put("hybrid", defaultHybrid);
+        report.put("runClassification", classify(defaultHybrid, queries.size()));
+        report.put("metricComparison", metricComparison(structured, defaultHybrid));
+        report.put("fallbackEvidence", Map.of(
+                "structuredIsHardConstraintBaseline", true,
+                "hybridDegradedCount", defaultHybrid.degradedCount(),
+                "degradationDistribution", defaultHybrid.degradationDistribution(),
+                "interpretation", defaultHybrid.degradedCount() > 0
+                        ? "本次运行包含结构化故障降级；Hybrid 指标不可单独作为零降级效果数字"
+                        : "本次运行无故障降级；结构化基线仍保留用于对照"));
         report.put("ablations", ablations);
 
         Path target = Path.of(reportPath);
@@ -177,5 +186,23 @@ public class RagEvaluationRunner implements ApplicationRunner {
                 defaultHybrid.avgRecallAt3(), defaultHybrid.avgMrr(), defaultHybrid.avgNdcgAt3(),
                 defaultHybrid.avgPrecisionAt3(), defaultHybrid.hardConstraintHitRate(),
                 defaultHybrid.degradedCount(), defaultHybrid.p95LatencyMs(), reportPath);
+    }
+
+    private String classify(RetrieverEvaluation hybrid, int queryCount) {
+        if (hybrid.degradedCount() == 0) {
+            return "REAL_HYBRID";
+        }
+        return hybrid.degradedCount() == queryCount ? "FALLBACK_ONLY" : "PARTIAL_HYBRID";
+    }
+
+    private Map<String, Object> metricComparison(RetrieverEvaluation structured,
+                                                  RetrieverEvaluation hybrid) {
+        Map<String, Object> comparison = new LinkedHashMap<>();
+        comparison.put("recallAt3Delta", hybrid.avgRecallAt3() - structured.avgRecallAt3());
+        comparison.put("mrrDelta", hybrid.avgMrr() - structured.avgMrr());
+        comparison.put("ndcgAt3Delta", hybrid.avgNdcgAt3() - structured.avgNdcgAt3());
+        comparison.put("precisionAt3Delta", hybrid.avgPrecisionAt3() - structured.avgPrecisionAt3());
+        comparison.put("p95LatencyMsDelta", hybrid.p95LatencyMs() - structured.p95LatencyMs());
+        return comparison;
     }
 }

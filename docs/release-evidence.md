@@ -27,8 +27,8 @@
 |---|---|
 | 资源基线（295 餐食/1324 动作目录，其中 30 个 plan_ready/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder`/`LocalMediaCatalogSeeder` 幂等导入；`DbReviewedResourceProviderTest`、`MysqlReviewedReadersIntegrationTest` |
 | 浏览 API 分页边界 | `health/browse` 测试（page 超上限返回 400、size≤50）；浏览器验收第 2/3 节 |
-| hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集（60 条六层，querySetVersion 1.1.0）评估见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准 |
-| 真实 key 下 RAG 对比 | 2026-08-11 的旧 10 条查询集 DashScope 冒烟（292+3 条向量、Recall@3=0.385 vs 0.380）仅作历史背景，不作为当前效果数字；当前唯一数字口径见 `data/reports/rag_evaluation.json`（环境身份：gitCommit/querySetVersion/embedding provider/model/dimension/collection/融合权重） |
+| hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集（60 条六层，querySetVersion 1.1.0）评估见 `docs/research/meal-rag-evaluation.md`。当前报告已记录 Structured/Vector/Fused 数量、向量状态、阶段延迟，并区分 `REAL_HYBRID`、`PARTIAL_HYBRID`、`FALLBACK_ONLY`。 |
+| 真实 key 下 RAG 对比 | 2026-08-19 本地 MySQL + Qdrant 1.17.0 实跑：295/295 条索引、60/60 条零降级，`REAL_HYBRID`；Recall@3 Structured/Hybrid 均为 0.351，硬约束命中率均为 1.0，Hybrid P95 为 159.407 ms。结果详见 `data/reports/rag_evaluation.json`，不宣称效果提升。 |
 
 ## M3：健康档案、周计划、风险校验与反馈
 
