@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.net.http.HttpTimeoutException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 基于 AgentScope/DashScope 的真实模型适配器。
@@ -58,11 +60,13 @@ public class AgentScopeInvoker implements AgentInvoker {
                 .memory(new InMemoryMemory())
                 .build();
         try {
+            Duration effectiveTimeout = invocation.timeout() == null ? timeout : invocation.timeout();
             Msg response = agent.call(Msg.builder()
                             .role(MsgRole.USER)
                             .textContent(invocation.promptText())
                             .build())
-                    .block(invocation.timeout() == null ? timeout : invocation.timeout());
+                    .timeout(effectiveTimeout)
+                    .block();
             if (response == null) {
                 // block(Duration) 超时返回 null
                 throw new AgentTimeoutException("Agent 调用超时: " + invocation.agentRole(), null);
@@ -80,6 +84,9 @@ public class AgentScopeInvoker implements AgentInvoker {
         } catch (AgentInvocationException error) {
             throw error;
         } catch (RuntimeException error) {
+            if (isTimeout(error)) {
+                throw new AgentTimeoutException("Agent 调用超时: " + invocation.agentRole(), error);
+            }
             throw new AgentInvocationException("Agent 调用失败: " + invocation.agentRole(), error);
         }
     }
@@ -95,5 +102,16 @@ public class AgentScopeInvoker implements AgentInvoker {
     @Override
     public boolean configured() {
         return apiKey != null && !apiKey.isBlank() && !PLACEHOLDER_KEY.equals(apiKey);
+    }
+
+    private boolean isTimeout(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof TimeoutException || current instanceof HttpTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

@@ -14,6 +14,7 @@ import io.agentscope.core.model.ToolSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -23,6 +24,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * OpenAI 兼容聊天端点适配（兼容-mode/v1/chat/completions）。
@@ -71,12 +74,35 @@ public class OpenAiCompatibleChatModel implements Model {
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(body, java.nio.charset.StandardCharsets.UTF_8))
                     .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                throw new IllegalStateException("OpenAI 兼容端点返回 " + response.statusCode() + ": "
-                        + truncate(response.body()));
-            }
-            return Flux.just(parseResponse(response.body()));
+            CompletableFuture<HttpResponse<String>> future = httpClient.sendAsync(
+                    request, HttpResponse.BodyHandlers.ofString());
+            AtomicBoolean cancelled = new AtomicBoolean();
+            return Mono.<ChatResponse>create(sink -> {
+                sink.onCancel(() -> {
+                    cancelled.set(true);
+                    future.cancel(true);
+                });
+                future.whenComplete((response, error) -> {
+                    if (cancelled.get()) {
+                        return;
+                    }
+                    if (error != null) {
+                        sink.error(error);
+                        return;
+                    }
+                    try {
+                        if (response.statusCode() / 100 != 2) {
+                            throw new IllegalStateException("OpenAI 兼容端点返回 " + response.statusCode() + ": "
+                                    + truncate(response.body()));
+                        }
+                        sink.success(parseResponse(response.body()));
+                    } catch (Exception parseError) {
+                        sink.error(new IllegalStateException("OpenAI 兼容响应解析失败", parseError));
+                    }
+                });
+            })
+                    .doOnError(error -> log.warn("OpenAI 兼容模型调用失败（{}）: {}", modelName, error.getMessage()))
+                    .flux();
         } catch (Exception e) {
             log.warn("OpenAI 兼容模型调用失败（{}）: {}", modelName, e.getMessage());
             return Flux.error(e);

@@ -1,6 +1,7 @@
 package com.diet.health.rag;
 
 import com.diet.model.MealItem;
+import com.diet.health.reader.meal.ReviewedMeal;
 
 /**
  * 单条检索结果。
@@ -9,5 +10,9 @@ import com.diet.model.MealItem;
  * @param semanticScore   语义余弦分（[0,1]，纯结构化路径为 null）
  * @param mergedScore     合并分（结构化路径=结构化分；hybrid=0.5*归一结构分+0.5*语义分）
  */
-public record RetrievalItem(MealItem meal, double structuredScore, Double semanticScore, double mergedScore) {
+public record RetrievalItem(MealItem meal, double structuredScore, Double semanticScore, double mergedScore,
+                            ReviewedMeal reviewedMeal) {
+    public RetrievalItem(MealItem meal, double structuredScore, Double semanticScore, double mergedScore) {
+        this(meal, structuredScore, semanticScore, mergedScore, null);
+    }
 }

@@ -1,5 +1,6 @@
 package com.diet.health.module;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -16,10 +17,20 @@ public record HealthResource(
         String sourceName,
         String mediaUrl,
         boolean planReady,
-        Map<String, List<String>> tags
+        Map<String, List<String>> tags,
+        List<String> ingredients,
+        Nutrition nutrition
 ) {
     public HealthResource {
         tags = tags == null ? Map.of() : Map.copyOf(tags);
+        ingredients = ingredients == null ? List.of() : List.copyOf(ingredients);
+    }
+
+    public HealthResource(String resourceType, String resourceId, String name, String sourceType,
+                          String sourceName, String mediaUrl, boolean planReady,
+                          Map<String, List<String>> tags) {
+        this(resourceType, resourceId, name, sourceType, sourceName, mediaUrl, planReady,
+                tags, List.of(), null);
     }
 
     /** 供响应 Agent 与 Trace 使用的紧凑描述。 */
@@ -30,5 +41,9 @@ public record HealthResource(
                 "name", name,
                 "planReady", planReady
         );
+    }
+
+    public record Nutrition(BigDecimal caloriesKcal, BigDecimal proteinG, BigDecimal fatG,
+                            BigDecimal carbohydrateG, String basis, boolean estimated) {
     }
 }

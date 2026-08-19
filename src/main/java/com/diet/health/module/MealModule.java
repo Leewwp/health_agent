@@ -9,6 +9,7 @@ import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalResult;
 import com.diet.health.reader.meal.ReviewedMealIds;
 import com.diet.health.resource.HealthResourceProvider;
+import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.vectorstore.VectorStoreIdentity;
 import com.diet.model.MealItem;
 import com.diet.model.MealRankRequest;
@@ -113,16 +114,21 @@ public class MealModule {
         traceDetail.put("candidates", result.items().stream().map(RetrievalItem::meal).toList());
         agentTraceService.recordEvent("MEAL_RETRIEVED", "RETRIEVE", healthSlots, traceDetail);
         List<HealthResource> resources = result.items().stream()
-                .map(item -> new HealthResource(
+                .map(item -> {
+                    ReviewedMeal reviewed = item.reviewedMeal();
+                    return new HealthResource(
                         "MEAL",
                         String.valueOf(item.meal().id()),
                         item.meal().name(),
-                        item.meal().sourceType() == null ? "PUBLIC" : item.meal().sourceType().name(),
-                        "公共餐食库",
-                        null,
+                        reviewed == null ? (item.meal().sourceType() == null ? "PUBLIC" : item.meal().sourceType().name()) : reviewed.sourceType(),
+                        reviewed == null ? "公共餐食库" : reviewed.sourceName(),
+                        reviewed == null ? null : reviewed.mediaUrl(),
                         false,
-                        slotsToTags(item.meal().slots())
-                ))
+                        reviewed == null ? slotsToTags(item.meal().slots()) : reviewed.tags(),
+                        reviewed == null ? List.of() : reviewed.ingredients(),
+                        reviewed == null ? null : toNutrition(reviewed.nutrition())
+                    );
+                })
                 .toList();
         return preferenceService.applyPreference(resources);
     }
@@ -211,5 +217,13 @@ public class MealModule {
     }
 
     private record Scored(PlanMealCandidate candidate, double score) {
+    }
+
+    private HealthResource.Nutrition toNutrition(ReviewedMeal.Nutrition nutrition) {
+        if (nutrition == null) {
+            return null;
+        }
+        return new HealthResource.Nutrition(nutrition.caloriesKcal(), nutrition.proteinG(), nutrition.fatG(),
+                nutrition.carbohydrateG(), nutrition.basis(), nutrition.estimated());
     }
 }

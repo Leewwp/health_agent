@@ -153,7 +153,7 @@ public class HybridMealRetriever implements MealRetriever {
             double normalized = maxStructured > 0 ? structuredScore / maxStructured : 0;
             double finalScore = fusionWeight * normalized + (1 - fusionWeight) * (semantic == null ? 0 : semantic);
             MealItem mealItem = structured == null ? MealDomainMapper.toMealItem(meal) : structured.meal();
-            merged.add(new RetrievalItem(mealItem, structuredScore, semantic, finalScore));
+            merged.add(new RetrievalItem(mealItem, structuredScore, semantic, finalScore, meal));
         }
         merged.sort(Comparator.comparingDouble(RetrievalItem::mergedScore).reversed()
                 .thenComparing(item -> item.meal().id()));

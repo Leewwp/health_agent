@@ -5,6 +5,7 @@ import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.service.meal.MealRankService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -68,6 +70,19 @@ class StructuredMealRetrieverTest {
                         List.of(), List.of(), "鲜味晚餐"),
                 10);
         assertEquals(2L, result.items().get(0).meal().id(), "标签命中多的必须排前面");
+    }
+
+    @Test
+    void 数据库召回只使用餐次硬条件其余偏好留给重排() {
+        when(reviewedMealReader.recallStructured(anyMap(), anyInt())).thenReturn(List.of());
+        retriever.retrieve(new MealRetrievalQuery(
+                Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("高蛋白"),
+                        "taste", List.of("清淡"), "cuisine", List.of("粤菜")),
+                List.of(), List.of(), "高蛋白清淡粤菜晚餐"), 10);
+
+        ArgumentCaptor<Map<String, List<String>>> slots = ArgumentCaptor.forClass(Map.class);
+        verify(reviewedMealReader).recallStructured(slots.capture(), anyInt());
+        assertEquals(Map.of("mealTime", List.of("晚餐")), slots.getValue());
     }
 
     @Test

@@ -27,8 +27,14 @@ public class HealthClarifyRuleService {
                 }
             }
             case EXERCISE -> {
-                if (isEmpty(safe.get("bodyParts")) && isEmpty(safe.get("trainingGoal"))) {
+                if (isEmpty(safe.get("trainingGoal"))) {
+                    missing.add("trainingGoal");
+                } else if (isEmpty(safe.get("bodyParts"))) {
                     missing.add("bodyParts");
+                } else if (isEmpty(safe.get("equipment"))) {
+                    missing.add("equipment");
+                } else if (isEmpty(safe.get("difficulty"))) {
+                    missing.add("difficulty");
                 }
             }
             case ROUTINE -> {
@@ -61,9 +67,13 @@ public class HealthClarifyRuleService {
             case MEAL -> "mealTime".equals(first)
                     ? "这顿主要是早餐、午餐还是晚餐？"
                     : "这顿更想清淡点、顶饱点，还是按口味来？";
-            case EXERCISE -> "bodyParts".equals(first)
-                    ? "你今天想练哪个部位？"
-                    : "这次训练想侧重增肌、减脂还是耐力？";
+            case EXERCISE -> switch (first) {
+                case "trainingGoal" -> "这次训练想侧重增肌、减脂还是耐力？";
+                case "bodyParts" -> "你今天想练哪个部位？";
+                case "equipment" -> "你现在可以使用徒手、哑铃还是其他器械？";
+                case "difficulty" -> "你希望动作难度是入门、进阶还是挑战？";
+                default -> "可以再具体说说这次训练需求吗？";
+            };
             case ROUTINE -> "wakeTime".equals(first)
                     ? "你平时大概几点睡、几点起？"
                     : "你希望我帮你规划睡眠时长还是作息安排？";

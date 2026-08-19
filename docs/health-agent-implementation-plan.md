@@ -1,6 +1,6 @@
 # 健康 Agent 实施计划
 
-> 当前交付补充（2026-08-19）：面试演示核心流程 #85-#87 已在本地完成。训练计划使用独立 `planBrief`、审核 `plan_ready` 候选、确定性 Guard/fallback 和 V13/V14 迁移；Trace 工作台复用现有 `diet_request_trace` 并展示可脱敏诊断信息。fixture/fallback 与双门控测试已通过，真实模型成功 smoke 保留为 #89 发布验收前的待补外部证据。
+> 当前交付补充（2026-08-19）：面试演示核心流程 #85-#87 已在本地完成。训练计划使用独立 `planBrief`、审核 `plan_ready` 候选、确定性 Guard/fallback 和 V13/V14 迁移；Trace 工作台复用现有 `diet_request_trace` 并展示可脱敏诊断信息。fixture/fallback、双门控、真实 `qwen-turbo` smoke 和本地浏览器 Agent 成功链路均已通过；公网部署仍由 #89 验收。
 
 ## 1. 目标与范围
 

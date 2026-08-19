@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 健康意图修正：以当前轮明确证据优先，随后处理澄清继承、调整上下文和安全澄清。
@@ -22,9 +23,40 @@ public class HealthIntentRevisionService {
         this.normalizer = normalizer;
     }
 
+    /**
+     * 在模型调用前处理状态机续轮。澄清短答和训练简报字段只解析当前缺失信息，
+     * 不重新识别领域；用户明确切换领域时返回空，由完整意图链处理。
+     */
+    public Optional<HealthIntentResult> continueBeforeAgent(String userInput, HealthSessionState state) {
+        if (state == null || state.domain() == null || state.task() == null) {
+            return Optional.empty();
+        }
+        String text = userInput == null ? "" : userInput.trim();
+        HealthDomain explicit = explicitDomain(text);
+        if (explicit != null && explicit != state.domain()) {
+            return Optional.empty();
+        }
+        boolean planContinuation = state.domain() == HealthDomain.EXERCISE && state.task() == HealthTask.PLAN;
+        boolean clarifyContinuation = state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain());
+        if (!planContinuation && !clarifyContinuation) {
+            return Optional.empty();
+        }
+        Map<String, List<String>> slots = normalizer.normalize(state.domain(), text, Map.of()).slots();
+        return Optional.of(HealthIntentResult.parsed(
+                state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
+    }
+
     public Revision revise(String userInput, HealthSessionState state, HealthIntentResult raw) {
         String text = userInput == null ? "" : userInput.trim();
+        boolean genericRecommendation = containsAny(text, "帮我推荐一下", "帮我推荐", "推荐一下")
+                && explicitDomain(text) == null;
         if (raw.domain() == HealthDomain.COMPOSITE) {
+            if (genericRecommendation) {
+                HealthIntentResult clarify = new HealthIntentResult(
+                        HealthDomain.OTHER, HealthTask.CHAT, raw.riskFlags(), Map.of(), raw.preferenceSignals(),
+                        raw.confidence(), raw.degraded(), raw.fallbackReason());
+                return new Revision(clarify, true, false);
+            }
             HealthIntentResult composite = new HealthIntentResult(
                     HealthDomain.COMPOSITE, raw.task(), raw.riskFlags(), Map.of(), raw.preferenceSignals(),
                     raw.confidence(), raw.degraded(), raw.fallbackReason());
@@ -33,14 +65,11 @@ public class HealthIntentRevisionService {
         HealthDomain explicitDomain = explicitDomain(text);
         boolean plan = HealthPlanIntentMatcher.matches(text);
         boolean adjust = containsAny(text, "换一批", "换换", "再来一批", "再换", "调整一下");
-        boolean genericRecommendation = containsAny(text, "帮我推荐一下", "帮我推荐", "推荐一下")
-                && explicitDomain == null;
-
         HealthDomain domain = raw.domain();
         HealthTask task = raw.task();
         boolean planContinuation = state.task() == HealthTask.PLAN
                 && state.domain() == HealthDomain.EXERCISE
-                && isPlanContinuation(text);
+                && (state.phase() == HealthPhase.CLARIFY || isPlanContinuation(text));
         if (explicitDomain != null) {
             domain = explicitDomain;
             task = domain == HealthDomain.OTHER ? HealthTask.CHAT

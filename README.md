@@ -136,7 +136,7 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 | `DASHSCOPE_BASE_URL` | DashScope 兼容端点 | 官方地址 |
 | `DASHSCOPE_EMBEDDING_BASE_URL` | Embedding 原生端点（专属 MaaS 空间与聊天兼容端点不同时需单独配置） | 回退聊天端点 |
 | `DIET_LLM_MAIN_MODEL` | 推荐/计划等主生成模型 | `qwen-turbo` |
-| `DIET_LLM_LIGHT_MODEL` | 意图/澄清等轻量模型 | `qwen3.7-flash` |
+| `DIET_LLM_LIGHT_MODEL` | 意图/澄清等轻量模型 | `qwen-turbo` |
 | `DIET_SESSION_SECRET` | 匿名 Cookie HMAC 密钥 | `dev-only-change-me` |
 | `ADMIN_TOKEN` | admin 调试入口 token | 空（dev 不启用保护） |
 | `DATABASE_URL/USERNAME/PASSWORD` | prod 数据源 | dev 用本地 root/123456 |

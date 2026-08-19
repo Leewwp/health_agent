@@ -34,13 +34,17 @@ class HealthClarifyRuleServiceTest {
     }
 
     @Test
-    void 健身无部位无目标时追问部位() {
-        assertEquals(List.of("bodyParts"), rules.missingSlots(HealthDomain.EXERCISE, Map.of()));
-    }
-
-    @Test
-    void 健身有部位即可继续() {
-        assertTrue(rules.missingSlots(HealthDomain.EXERCISE, Map.of("bodyParts", List.of("胸"))).isEmpty());
+    void 健身按目标部位器械难度依次确认() {
+        assertEquals(List.of("trainingGoal"), rules.missingSlots(HealthDomain.EXERCISE, Map.of()));
+        assertEquals(List.of("bodyParts"), rules.missingSlots(HealthDomain.EXERCISE,
+                Map.of("trainingGoal", List.of("减脂"))));
+        assertEquals(List.of("equipment"), rules.missingSlots(HealthDomain.EXERCISE,
+                Map.of("trainingGoal", List.of("减脂"), "bodyParts", List.of("胸"))));
+        assertEquals(List.of("difficulty"), rules.missingSlots(HealthDomain.EXERCISE,
+                Map.of("trainingGoal", List.of("减脂"), "bodyParts", List.of("胸"), "equipment", List.of("徒手"))));
+        assertTrue(rules.missingSlots(HealthDomain.EXERCISE,
+                Map.of("trainingGoal", List.of("减脂"), "bodyParts", List.of("胸"),
+                        "equipment", List.of("徒手"), "difficulty", List.of("入门"))).isEmpty());
     }
 
     @Test

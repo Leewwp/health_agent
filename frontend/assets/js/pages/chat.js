@@ -20,9 +20,10 @@ import {
 import { renderResourceCard } from "../ui/resource-card.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
+import { renderPlanActions } from "../ui/plan-actions.js";
 import { navigate } from "../router.js";
 import { devConfig } from "../config.js";
-import { createChatRequestController } from "./chat-request.js";
+import { createChatRequestController, submitPresetChatMessage } from "./chat-request.js";
 
 const QUICK_PROMPTS = [
     "今晚想吃得清淡一点，有什么推荐？",
@@ -32,6 +33,7 @@ const QUICK_PROMPTS = [
 ];
 
 const SLOT_LABELS = {
+    domain: "推荐类型",
     mealTime: "用餐时间",
     mood: "心情状态",
     scene: "用餐场景",
@@ -44,7 +46,10 @@ const SLOT_LABELS = {
     goal: "训练目标",
     bodyParts: "训练部位",
     trainingGoal: "训练目标",
-    difficulty: "难度"
+    difficulty: "难度",
+    weekStart: "目标周",
+    trainingDays: "训练日期",
+    timeWindow: "训练时段"
 };
 
 /** 缺失槽位的中文标签；未知槽位名兜底为通用中文标签，不暴露内部字段名。 */
@@ -175,23 +180,6 @@ function renderMessage(message) {
     `;
 }
 
-function renderPlanActions(message) {
-    if (message.task !== "PLAN") return "";
-    const actions = message.actions || [];
-    if (!actions.length) {
-        return `<div class="button-row" style="margin-top:8px;"><a class="btn ghost" href="#/profile">完善健康档案</a></div>`;
-    }
-    return `<div class="plan-brief" aria-label="训练计划需求简报">
-        <strong>训练计划需求简报</strong>
-        ${message.planBriefSummary ? `<p>${escapeHtml(message.planBriefSummary)}</p>` : ""}
-        <div class="button-row">
-            ${actions.map((action) => action.type === "COMPLETE_PROFILE"
-                ? `<a class="btn primary" href="#/profile">${escapeHtml(action.label)}</a>`
-                : `<button class="btn ${action.type === "GENERATE_PLAN" ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
-        </div>
-    </div>`;
-}
-
 async function submitChat(form) {
     const messageInput = form.elements.message;
     const message = messageInput.value.trim();
@@ -285,11 +273,9 @@ function handleClick(event) {
     } else if (target.dataset.action === "plan-action") {
         const action = target.dataset.planAction;
         if (action === "CONFIRM_PLAN_BRIEF") {
-            const input = document.querySelector("#chatForm textarea[name=message]");
-            if (input) {
-                input.value = "确认训练偏好";
-                input.focus();
-            }
+            submitPresetChatMessage(requestController, "确认训练偏好", (message) => {
+                state.messages.push({ role: "user", text: message });
+            });
         } else if (action === "GENERATE_PLAN") {
             const requestId = target.dataset.requestId || "";
             navigate(`/plans?generate=1${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);

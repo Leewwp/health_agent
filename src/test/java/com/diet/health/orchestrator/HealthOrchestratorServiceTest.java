@@ -220,7 +220,7 @@ class HealthOrchestratorServiceTest {
 
     @Test
     void 健身链路返回planReady动作与署名() {
-        HealthChatResponse response = chat("想练胸");
+        HealthChatResponse response = chat("想减脂练胸，徒手入门");
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertEquals("EXERCISE", response.domain().name());
         assertFalse(response.displayBlocks().isEmpty());
@@ -277,18 +277,22 @@ class HealthOrchestratorServiceTest {
         String sessionId = "sess_exercise_continue";
         HealthChatResponse first = chatInSession(sessionId, "推荐健身动作");
         assertEquals(HealthResponseType.CLARIFY, first.responseType());
-        assertEquals(List.of("bodyParts"), first.missingSlots());
+        assertEquals(List.of("trainingGoal"), first.missingSlots());
 
-        HealthChatResponse second = chatInSession(sessionId, "练背");
-        assertEquals(HealthResponseType.ANSWER, second.responseType());
-        assertTrue(second.displayBlocks().stream().anyMatch(block -> block.name().contains("划船")));
+        assertEquals(List.of("bodyParts"), chatInSession(sessionId, "减脂").missingSlots());
+        assertEquals(List.of("equipment"), chatInSession(sessionId, "练背").missingSlots());
+        assertEquals(List.of("difficulty"), chatInSession(sessionId, "徒手").missingSlots());
+        HealthChatResponse completed = chatInSession(sessionId, "入门");
+        assertEquals(HealthResponseType.ANSWER, completed.responseType());
+        assertFalse(completed.displayBlocks().isEmpty());
+        assertTrue(completed.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())));
     }
 
     @Test
     void 新手轻量训练经常见部位短答完成健身推荐() {
         for (String bodyPart : List.of("胸肌", "胸部", "胸大肌", "大腿", "小腿", "腿部", "臀部", "臀肌", "臀大肌")) {
             String sessionId = "sess_exercise_alias_" + bodyPart;
-            HealthChatResponse first = chatInSession(sessionId, "帮我推荐一份适合新手的轻量训练");
+            HealthChatResponse first = chatInSession(sessionId, "帮我推荐一份减脂、徒手、适合新手的轻量训练");
             assertEquals(HealthResponseType.CLARIFY, first.responseType());
             assertEquals("EXERCISE", first.domain().name());
             assertEquals(List.of("bodyParts"), first.missingSlots());
@@ -323,7 +327,7 @@ class HealthOrchestratorServiceTest {
     @Test
     void 健身切换餐食时检索只接收餐食槽位() {
         String sessionId = "sess_exercise_to_meal";
-        assertEquals("EXERCISE", chatInSession(sessionId, "想练胸").domain().name());
+        assertEquals("EXERCISE", chatInSession(sessionId, "想减脂练胸，徒手入门").domain().name());
 
         org.mockito.ArgumentCaptor<Map<String, List<String>>> slots = org.mockito.ArgumentCaptor.forClass(Map.class);
         when(mealModule.recommendMeals(slots.capture(), any(), anyString())).thenReturn(List.of(
@@ -341,7 +345,7 @@ class HealthOrchestratorServiceTest {
         String sessionId = "sess_meal_to_exercise";
         assertEquals("MEAL", chatInSession(sessionId, "午餐想吃清淡的").domain().name());
 
-        HealthChatResponse exercise = chatInSession(sessionId, "适合新手的胸肌训练");
+        HealthChatResponse exercise = chatInSession(sessionId, "适合新手减脂的徒手胸肌训练");
         assertEquals(HealthResponseType.ANSWER, exercise.responseType());
         assertEquals("EXERCISE", exercise.domain().name());
         assertTrue(exercise.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())));
@@ -353,6 +357,34 @@ class HealthOrchestratorServiceTest {
         assertEquals(HealthResponseType.BLOCKED, response.responseType());
         assertEquals(HealthRiskRuleService.BLOCK_PLAN_COPY, response.speechText());
         assertTrue(response.riskFlags().contains("PREGNANCY"));
+    }
+
+    @Test
+    void 历史风险导致拦截时Trace记录风险来源() throws Exception {
+        String sessionId = "sess_historical_risk_trace";
+        chatInSession(sessionId, "我胸痛");
+
+        HealthChatResponse response = chatInSession(sessionId, "帮我推荐晚餐");
+        assertEquals(HealthResponseType.BLOCKED, response.responseType());
+
+        JsonNode root = objectMapper.readTree(insertedTraces.get(1).getTraceJson());
+        JsonNode riskInput = null;
+        for (JsonNode event : root.path("events")) {
+            if ("RISK_ASSESSED".equals(event.path("eventType").asText())) {
+                riskInput = objectMapper.readTree(event.path("inputPayload").asText());
+                break;
+            }
+        }
+        assertNotNull(riskInput);
+        assertEquals(List.of("ACUTE_SYMPTOMS"), objectMapper.convertValue(
+                riskInput.path("historicalRiskFlags"), objectMapper.getTypeFactory()
+                        .constructCollectionType(List.class, String.class)));
+        assertEquals(List.of(), objectMapper.convertValue(
+                riskInput.path("intentRiskFlags"), objectMapper.getTypeFactory()
+                        .constructCollectionType(List.class, String.class)));
+        assertEquals(List.of("ACUTE_SYMPTOMS"), objectMapper.convertValue(
+                riskInput.path("assessedRiskFlags"), objectMapper.getTypeFactory()
+                        .constructCollectionType(List.class, String.class)));
     }
 
     @Test
@@ -421,12 +453,12 @@ class HealthOrchestratorServiceTest {
     @Test
     void 风险信号跨轮累积并透出ADVISORY文案() {
         String sessionId = "sess_senior_advisory";
-        HealthChatResponse first = chatInSession(sessionId, "65岁老人想练胸");
+        HealthChatResponse first = chatInSession(sessionId, "65岁老人想减脂练胸，徒手入门");
         assertEquals(HealthResponseType.ANSWER, first.responseType());
         assertTrue(first.riskFlags().contains("SENIOR"));
         assertTrue(first.speechText().contains("仅供参考"), "ADVISORY 文案应透出");
 
-        HealthChatResponse second = chatInSession(sessionId, "练背");
+        HealthChatResponse second = chatInSession(sessionId, "想减脂练背，徒手入门");
         assertEquals(HealthResponseType.ANSWER, second.responseType());
         assertTrue(second.riskFlags().contains("SENIOR"), "历史风险信号应跨轮保留");
         assertTrue(second.speechText().contains("仅供参考"), "ADVISORY 文案应透出");

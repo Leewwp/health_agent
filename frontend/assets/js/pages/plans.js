@@ -15,6 +15,8 @@ import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { requestConfirmation, requestText } from "../ui/modal.js";
 import { currentRoute, navigate } from "../router.js";
+import { devConfig } from "../config.js";
+import { planGenerationRequestKey, runPlanGenerationRequest } from "./plan-generation-request.js";
 
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const RESOURCE_TYPE_LABELS = { MEAL: "餐", EXERCISE: "练", ROUTINE: "息" };
@@ -29,17 +31,20 @@ const state = {
     saving: false,
     generating: false,
     generationError: null,
-    generationAttempted: false
+    generationAttemptedKey: null,
+    generationTraceId: null,
+    generationPlanId: null
 };
 
 export async function render(app) {
-    if (hasGenerateRequest() && !state.generationAttempted) {
-        state.generationAttempted = true;
+    const generationRequestKey = planGenerationRequestKey(location.hash);
+    if (generationRequestKey && state.generationAttemptedKey !== generationRequestKey) {
+        state.generationAttemptedKey = generationRequestKey;
         startTrainingPlanGeneration(app);
         return;
     }
-    if (!hasGenerateRequest()) {
-        state.generationAttempted = false;
+    if (!generationRequestKey) {
+        state.generationAttemptedKey = null;
         state.generationError = null;
     }
     if (state.generating) {
@@ -100,11 +105,6 @@ export async function render(app) {
     bind(app);
 }
 
-function hasGenerateRequest() {
-    const hash = location.hash || "";
-    return new URLSearchParams(hash.split("?")[1] || "").get("generate") === "1";
-}
-
 function renderGenerationWaiting() {
     return `
         <section class="section plan-generation-state" aria-live="polite" aria-busy="true">
@@ -139,13 +139,15 @@ async function startTrainingPlanGeneration(app) {
     render(app);
     try {
         const query = new URLSearchParams((location.hash || "").split("?")[1] || "");
-        const result = await generateTrainingPlan({
+        const result = await runPlanGenerationRequest((payload, signal) => generateTrainingPlan(payload, { signal }), {
             sessionId: getChatSessionId(),
             requestId: query.get("requestId") || newRequestId()
         });
         state.generating = false;
         state.detail = result.plan;
         state.selectedId = result.plan?.id || null;
+        state.generationTraceId = result.traceId || null;
+        state.generationPlanId = result.plan?.id || result.planId || null;
         state.summaries = await listPlans();
         state.loaded = true;
         state.error = null;
@@ -242,6 +244,8 @@ function renderDetail(plan) {
             <div class="button-row">
                 ${plan.status === "DRAFT" ? `<button class="btn primary" data-action="activate-plan" data-plan-id="${escapeHtml(plan.id)}">激活计划</button>` : ""}
                 ${plan.status === "ACTIVE" ? `<button class="btn ghost" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑副本</button>` : ""}
+                ${devConfig.enableDevTraceLink && state.generationTraceId && String(state.generationPlanId) === String(plan.id)
+                    ? `<button class="btn ghost" data-action="open-generation-trace" data-trace-id="${escapeHtml(state.generationTraceId)}">查看本次 Trace</button>` : ""}
             </div>
         </div>
         ${plan.calorieLow != null ? `
@@ -329,7 +333,6 @@ function handleClick(event) {
         state.loaded = false;
         render(document.getElementById("app"));
     } else if (action === "retry-generation") {
-        state.generationAttempted = true;
         startTrainingPlanGeneration(document.getElementById("app"));
     } else if (action === "select-plan") {
         selectPlan(target.dataset.planId);
@@ -341,6 +344,9 @@ function handleClick(event) {
         activate(target.dataset.planId);
     } else if (action === "edit-plan") {
         editAsDraft(target.dataset.planId);
+    } else if (action === "open-generation-trace") {
+        window.healthPendingTraceId = target.dataset.traceId;
+        navigate("/admin/traces");
     }
 }
 

@@ -55,7 +55,8 @@ public class TrainingPlanGenerationService {
     private final AgentTraceService traceService;
     private final ObjectMapper objectMapper;
     private final String modelName;
-    private final Duration timeout;
+    private final Duration applicationTimeout;
+    private final Duration modelTimeout;
     private final Map<String, Object> requestLocks = new ConcurrentHashMap<>();
 
     public TrainingPlanGenerationService(
@@ -71,7 +72,7 @@ public class TrainingPlanGenerationService {
             AgentTraceService traceService,
             ObjectMapper objectMapper,
             @Value("${diet.llm.main-model:qwen-turbo}") String modelName,
-            @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
+            @Value("${diet.plan-generation.timeout-ms:15000}") long timeoutMs
     ) {
         this.sessionService = sessionService;
         this.profileService = profileService;
@@ -85,7 +86,11 @@ public class TrainingPlanGenerationService {
         this.traceService = traceService;
         this.objectMapper = objectMapper;
         this.modelName = modelName;
-        this.timeout = Duration.ofMillis(timeoutMs);
+        if (timeoutMs < 2) {
+            throw new IllegalArgumentException("训练计划生成截止时间至少为 2ms");
+        }
+        this.applicationTimeout = Duration.ofMillis(timeoutMs);
+        this.modelTimeout = Duration.ofMillis(Math.max(1, timeoutMs * 4 / 5));
     }
 
     public TrainingPlanGenerationResponse generate(Long userId, GenerateTrainingPlanRequest request) {
@@ -107,10 +112,12 @@ public class TrainingPlanGenerationService {
                 // 锁内重读，确保 Agent 使用用户最新确认/纠正后的简报，而不是入口快照。
                 HealthSessionState session = sessionService.loadOrCreate(initialSession.sessionId(), userId);
                 String traceId = "trace_" + java.util.UUID.randomUUID().toString().replace("-", "");
+                long deadlineNanos = System.nanoTime() + applicationTimeout.toNanos();
                 try (AgentTraceService.TraceScope scope = traceService.openTrace(traceId, session.sessionId(), userId, requestId)) {
                 traceService.recordEvent("PLAN_GENERATION_STARTED", "PLAN", Map.of("requestId", requestId),
                         Map.of("guardVersion", GUARD_VERSION, "promptVersion", PROMPT_VERSION,
-                                "contractVersion", CONTRACT_VERSION));
+                                "contractVersion", CONTRACT_VERSION, "applicationTimeoutMs", applicationTimeout.toMillis(),
+                                "modelTimeoutMs", modelTimeout.toMillis()));
                 HealthProfileView profile = requireProfile(userId);
                 PlanBrief brief = requireConfirmedBrief(session);
                 HealthRiskRuleService.RiskDecision risk = riskRuleService.assessProfile(
@@ -121,23 +128,31 @@ public class TrainingPlanGenerationService {
                     throw new HealthApiException(HealthApiException.CODE_RISK_BLOCKED, risk.copy());
                 }
 
-                List<HealthResource> candidates = filterCandidates(brief);
+                CandidateSelection candidateSelection = filterCandidates(brief);
+                List<HealthResource> candidates = candidateSelection.resources();
                 traceService.recordEvent("PLAN_CANDIDATES_FILTERED", "RETRIEVE", brief,
                         Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList(),
-                                "resourceVersion", resourceProvider.resourceVersion()));
+                                "resourceVersion", resourceProvider.resourceVersion(),
+                                "goalRelaxed", candidateSelection.goalRelaxed()));
                 if (candidates.isEmpty()) {
                     throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有同时满足训练目标和偏好的动作");
                 }
 
                 String source = "AGENT";
                 String fallbackReason = null;
+                String actualModel = "";
                 List<PlanItemDraft> trainingItems;
                 try {
-                    PlanAgentOutput agentOutput = callAgent(brief, profile, candidates);
+                    PlanAgentOutput agentOutput = callAgent(brief, profile, candidates, deadlineNanos);
+                    actualModel = modelName;
                     trainingItems = guardAgentOutput(brief, candidates, agentOutput);
                     // 在写入前复用同一套计划 Guard，覆盖时间冲突、连续部位和其他组合不变量。
                     validateForPersistence(profile, trainingItems);
                 } catch (RuntimeException error) {
+                    if (!(error instanceof AgentFailureException failure)
+                            || failure.type() != AgentFailureType.MISSING_CONFIG) {
+                        actualModel = modelName;
+                    }
                     source = "FALLBACK";
                     fallbackReason = "MODEL_OR_GUARD_FAILED: " + error.getMessage();
                     trainingItems = fallback(brief, candidates);
@@ -157,9 +172,11 @@ public class TrainingPlanGenerationService {
                         Map.of("source", source, "fallbackReason", fallbackReason == null ? "" : fallbackReason),
                         Map.of("source", source, "itemCount", allItems.size(), "trainingCount", trainingItems.size(), "guardVersion", GUARD_VERSION,
                                 "fallbackReason", fallbackReason == null ? "" : fallbackReason));
+                ensureBeforeDeadline(deadlineNanos);
                 PlanView plan = weeklyPlanService.persistGeneratedDraft(userId,
                         new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null),
-                        allItems, source, generationMetadata(brief, candidates, fallbackReason),
+                        allItems, source, generationMetadata(brief, candidates, candidateSelection.goalRelaxed(),
+                                source, modelName, actualModel, fallbackReason),
                         deterministicExplanation(source, trainingItems));
                 traceService.recordEvent("PLAN_PERSISTED", "PERSIST", Map.of("planId", plan.id()),
                         Map.of("status", plan.status(), "generationSource", source));
@@ -177,11 +194,14 @@ public class TrainingPlanGenerationService {
         }
     }
 
-    private PlanAgentOutput callAgent(PlanBrief brief, HealthProfileView profile, List<HealthResource> candidates) {
+    private PlanAgentOutput callAgent(PlanBrief brief, HealthProfileView profile, List<HealthResource> candidates,
+                                     long deadlineNanos) {
         String prompt = buildPrompt(brief, profile, candidates);
+        Duration remaining = remainingBudget(deadlineNanos);
+        Duration callTimeout = remaining.compareTo(modelTimeout) < 0 ? remaining : modelTimeout;
         AgentContractModule.ContractResult<PlanAgentOutput> result = contractModule.call(
                 new AgentContractModule.AgentContractRequest<>("TrainingPlanAgent", AgentInvoker.ModelRole.MAIN,
-                        modelName, PROMPT_VERSION, CONTRACT_VERSION, prompt, timeout,
+                        modelName, PROMPT_VERSION, CONTRACT_VERSION, prompt, callTimeout,
                         this::parseOutput, candidates.stream().map(HealthResource::resourceId).toList(),
                         value -> value.schedule().stream().map(PlanAgentOutput.ScheduledExercise::exerciseId).toList()));
         if (!result.parsed()) {
@@ -280,22 +300,33 @@ public class TrainingPlanGenerationService {
                 Map.of("bodyPart", bodyPart, "sets", sets, "reps", reps, "durationMinutes", Duration.between(start, end).toMinutes()));
     }
 
-    private List<HealthResource> filterCandidates(PlanBrief brief) {
+    private CandidateSelection filterCandidates(PlanBrief brief) {
         Set<String> excludedParts = Set.copyOf(brief.hardConstraints().getOrDefault("excludeBodyParts", List.of()));
         Set<String> excludedEquipment = Set.copyOf(brief.hardConstraints().getOrDefault("excludeEquipment", List.of()));
-        return resourceProvider.planReadyExercises().stream().filter(resource -> {
+        Set<String> excludedExercises = Set.copyOf(brief.hardConstraints().getOrDefault("excludeExercises", List.of()));
+        boolean allBody = brief.bodyParts().contains("全身");
+        List<HealthResource> safeCandidates = resourceProvider.planReadyExercises().stream().filter(resource -> {
             List<String> parts = resource.tags().getOrDefault("bodyParts", List.of());
             List<String> equipment = resource.tags().getOrDefault("equipment", List.of());
-            List<String> goals = resource.tags().getOrDefault("trainingGoal", List.of());
             List<String> difficulties = resource.tags().getOrDefault("difficulty", List.of());
             return resource.planReady()
-                    && brief.bodyParts().stream().anyMatch(parts::contains)
+                    && (allBody || brief.bodyParts().stream().anyMatch(parts::contains))
                     && brief.equipment().stream().anyMatch(equipment::contains)
                     && difficulties.contains(brief.difficulty())
-                    && goals.contains(brief.trainingGoal())
                     && excludedParts.stream().noneMatch(parts::contains)
-                    && excludedEquipment.stream().noneMatch(equipment::contains);
+                    && excludedEquipment.stream().noneMatch(equipment::contains)
+                    && excludedExercises.stream().noneMatch(excluded -> excluded.equalsIgnoreCase(resource.resourceId())
+                            || excluded.equalsIgnoreCase(resource.name()));
         }).toList();
+        List<HealthResource> strictGoal = safeCandidates.stream()
+                .filter(resource -> resource.tags().getOrDefault("trainingGoal", List.of()).contains(brief.trainingGoal()))
+                .toList();
+        return strictGoal.isEmpty()
+                ? new CandidateSelection(safeCandidates, !safeCandidates.isEmpty())
+                : new CandidateSelection(strictGoal, false);
+    }
+
+    private record CandidateSelection(List<HealthResource> resources, boolean goalRelaxed) {
     }
 
     private void validateForPersistence(HealthProfileView profile, List<PlanItemDraft> items) {
@@ -317,11 +348,41 @@ public class TrainingPlanGenerationService {
         return session.planBrief();
     }
 
-    private Map<String, Object> generationMetadata(PlanBrief brief, List<HealthResource> candidates, String fallbackReason) {
-        return Map.of("briefConfirmationVersion", brief.confirmationVersion(), "candidateIds",
-                candidates.stream().map(HealthResource::resourceId).toList(), "resourceVersion", resourceProvider.resourceVersion(),
-                "promptVersion", PROMPT_VERSION, "contractVersion", CONTRACT_VERSION, "guardVersion", GUARD_VERSION,
-                "fallbackReason", fallbackReason == null ? "" : fallbackReason);
+    private Map<String, Object> generationMetadata(PlanBrief brief, List<HealthResource> candidates,
+                                                   boolean goalRelaxed,
+                                                   String generationSource, String requestedModel, String actualModel,
+                                                   String fallbackReason) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("briefConfirmationVersion", brief.confirmationVersion());
+        metadata.put("candidateIds", candidates.stream().map(HealthResource::resourceId).toList());
+        metadata.put("goalRelaxed", goalRelaxed);
+        metadata.put("resourceVersion", resourceProvider.resourceVersion());
+        metadata.put("generationSource", generationSource);
+        metadata.put("requestedModel", requestedModel);
+        metadata.put("actualModel", actualModel);
+        metadata.put("promptVersion", PROMPT_VERSION);
+        metadata.put("contractVersion", CONTRACT_VERSION);
+        metadata.put("guardVersion", GUARD_VERSION);
+        metadata.put("fallbackReason", fallbackReason == null ? "" : fallbackReason);
+        return Map.copyOf(metadata);
+    }
+
+    private Duration remainingBudget(long deadlineNanos) {
+        long remainingNanos = deadlineNanos - System.nanoTime();
+        if (remainingNanos <= 0) {
+            throw timeout();
+        }
+        return Duration.ofNanos(remainingNanos);
+    }
+
+    private void ensureBeforeDeadline(long deadlineNanos) {
+        if (deadlineNanos - System.nanoTime() <= 0) {
+            throw timeout();
+        }
+    }
+
+    private HealthApiException timeout() {
+        return new HealthApiException(HealthApiException.CODE_TIMEOUT, "训练计划生成已超过应用截止时间，请重试");
     }
 
     private String deterministicExplanation(String source, List<PlanItemDraft> items) {

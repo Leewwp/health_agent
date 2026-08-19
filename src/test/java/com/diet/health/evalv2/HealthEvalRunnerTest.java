@@ -126,11 +126,11 @@ class HealthEvalRunnerTest {
         assertMetric(metrics.get("risk").get("blockPlanRecall"), 1.0, 3, 3);
         assertEquals(3, metrics.get("risk").get("confusionMatrix").get("BLOCK_PLAN").get("BLOCK_PLAN").asInt());
         assertEquals(1, metrics.get("risk").get("confusionMatrix").get("ADVISORY").get("ADVISORY").asInt());
-        // 澄清：BLOCKED 不进分母 → 29/29；4 个 CLARIFY gold 的 missingSlotF1=1
+        // 澄清：BLOCKED 不进分母 → 29/29；健身必要信息收紧后 12 个 CLARIFY gold 的 missingSlotF1=1
         assertMetric(metrics.get("clarify").get("clarifyDecisionAccuracy"), 1.0, 29, 29);
-        assertMetric(metrics.get("clarify").get("missingSlotF1"), 1.0, 4, 4);
-        // 候选引用合规：23 张资源卡全部来自本轮候选（RISK-04 ADVISORY 返回动作卡）
-        assertMetric(metrics.get("candidateCitationCompliance"), 1.0, 23, 23);
+        assertMetric(metrics.get("clarify").get("missingSlotF1"), 1.0, 12, 12);
+        // 候选引用合规：信息完整后返回的 15 张资源卡全部来自本轮候选
+        assertMetric(metrics.get("candidateCitationCompliance"), 1.0, 15, 15);
         // 计划：4 条样本 1 条 OK，硬错误 UNDERAGE/SCHEDULE_OVERLAP 各 1
         assertMetric(metrics.get("planValidation").get("passRate"), 0.25, 1, 4);
         assertEquals(1, metrics.get("planValidation").get("hardErrorCountByRule").get("UNDERAGE").asInt());

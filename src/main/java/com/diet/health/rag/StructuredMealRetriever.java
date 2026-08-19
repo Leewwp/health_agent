@@ -11,6 +11,8 @@ import com.diet.service.meal.MealRankService;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,7 +42,7 @@ public class StructuredMealRetriever implements MealRetriever {
     @Override
     public RetrievalResult retrieve(MealRetrievalQuery query, int limit) {
         SlotBundle slots = toSlotBundle(query == null ? null : query.slots());
-        List<ReviewedMeal> meals = reviewedMealReader.recallStructured(query.slots(), SEARCH_LIMIT);
+        List<ReviewedMeal> meals = reviewedMealReader.recallStructured(hardRecallSlots(query.slots()), SEARCH_LIMIT);
         Set<Long> excludeIds = new HashSet<>(query.excludeIds() == null ? List.of() : query.excludeIds());
         List<String> allergens = query.allergenTags() == null ? List.of() : query.allergenTags();
 
@@ -52,9 +54,11 @@ public class StructuredMealRetriever implements MealRetriever {
                 .toList();
 
         List<MealItem> ranked = mealRankService.rank(new MealRankRequest(candidates, slots, query.excludeIds()));
+        Map<Long, ReviewedMeal> sourceById = meals.stream()
+                .collect(Collectors.toMap(ReviewedMeal::id, Function.identity(), (left, right) -> left));
         List<RetrievalItem> items = ranked.stream()
                 .limit(Math.max(limit, 0))
-                .map(item -> new RetrievalItem(item, item.matchScore(), null, item.matchScore()))
+                .map(item -> new RetrievalItem(item, item.matchScore(), null, item.matchScore(), sourceById.get(item.id())))
                 .toList();
         return new RetrievalResult(items, RetrievalMode.STRUCTURED, null);
     }
@@ -62,5 +66,13 @@ public class StructuredMealRetriever implements MealRetriever {
     /** 健康槽位 Map → 旧链路 SlotBundle（与 MealModule 同口径）。 */
     public SlotBundle toSlotBundle(Map<String, List<String>> healthSlots) {
         return SlotBundle.fromHealthSlots(healthSlots);
+    }
+
+    /** 餐次用于缩小候选集；口味、菜系和目标是排序偏好，不应在 SQL 中叠加为 AND。 */
+    private Map<String, List<String>> hardRecallSlots(Map<String, List<String>> slots) {
+        if (slots == null || slots.getOrDefault("mealTime", List.of()).isEmpty()) {
+            return Map.of();
+        }
+        return Map.of("mealTime", slots.get("mealTime"));
     }
 }

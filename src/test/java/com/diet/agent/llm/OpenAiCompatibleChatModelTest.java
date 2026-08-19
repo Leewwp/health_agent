@@ -6,10 +6,15 @@ import io.agentscope.core.model.ChatResponse;
 import io.agentscope.core.model.GenerateOptions;
 import org.junit.jupiter.api.Test;
 
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -59,5 +64,36 @@ class OpenAiCompatibleChatModelTest {
     @Test
     void getModelName_返回配置模型名() {
         assertEquals("qwen-test", model.getModelName());
+    }
+
+    @Test
+    void 外层截止时间可以取消正在等待的HTTP请求() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/chat/completions", exchange -> {
+            try {
+                Thread.sleep(800);
+                byte[] body = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+                        .getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, body.length);
+                exchange.getResponseBody().write(body);
+            } catch (Exception ignored) {
+                // 客户端按截止时间取消后，服务端写回失败属于预期。
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        try {
+            OpenAiCompatibleChatModel slow = new OpenAiCompatibleChatModel("sk-test",
+                    "http://127.0.0.1:" + server.getAddress().getPort(), "qwen-test", 5000);
+            Msg user = Msg.builder().role(MsgRole.USER).textContent("hi").build();
+            long started = System.nanoTime();
+            assertThrows(RuntimeException.class, () -> slow.stream(List.of(user), List.of(), null)
+                    .timeout(Duration.ofMillis(100)).blockLast());
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000;
+            assertTrue(elapsedMs < 500, "外层截止时间应取消请求，实际耗时=" + elapsedMs + "ms");
+        } finally {
+            server.stop(0);
+        }
     }
 }

@@ -25,8 +25,8 @@ public class DietAgentScopeConfig {
     @Value("${diet.llm.main-model:qwen-turbo}")
     private String mainModelName;
 
-    /** 轻量模型用于意图识别和澄清追问，默认使用 qwen3.7-flash。 */
-    @Value("${diet.llm.light-model:qwen3.7-flash}")
+    /** 轻量模型用于意图识别和澄清追问，默认使用低延迟 qwen-turbo。 */
+    @Value("${diet.llm.light-model:qwen-turbo}")
     private String lightModelName;
 
     /** 真实调用超时（毫秒），OpenAI 兼容模型使用。 */

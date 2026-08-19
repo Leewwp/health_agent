@@ -7,9 +7,18 @@ import com.diet.health.plan.HealthPlanResponseAgentService;
 import com.diet.health.plan.PatchItemRequest;
 import com.diet.health.plan.PlanValidationService;
 import com.diet.health.plan.PlanView;
+import com.diet.health.plan.GenerateTrainingPlanRequest;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.TrainingPlanGenerationResponse;
+import com.diet.health.plan.TrainingPlanGenerationService;
+import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.health.plan.WeeklyPlanComposerService;
 import com.diet.health.plan.WeeklyPlanService;
+import com.diet.agent.contract.AgentContractModule;
+import com.diet.agent.invoker.AgentInvoker;
+import com.diet.agent.loader.PromptLoader;
 import com.diet.health.module.PlanMealCandidate;
+import com.diet.health.module.HealthResource;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.resource.ResourceMode;
@@ -18,6 +27,7 @@ import com.diet.health.session.HealthSessionService;
 import com.diet.mapper.HealthProfileMapper;
 import com.diet.mapper.WeeklyPlanMapper;
 import com.diet.service.trace.AgentTraceService;
+import com.diet.util.LlmJsonService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,13 +39,20 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
 import org.springframework.transaction.interceptor.TransactionInterceptor;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.time.DayOfWeek;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -92,6 +109,10 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     private HealthSessionService sessionService;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private WeeklyPlanService weeklyPlanService;
+    @Autowired
+    private TrainingPlanGenerationService trainingPlanGenerationService;
 
     private JdbcTemplate jdbc;
 
@@ -132,6 +153,129 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 30, null, 175.0, 70.0,
                 com.diet.health.enums.ActivityLevel.LIGHT,
                 com.diet.health.enums.ProfileGoal.MAINTAIN, "Asia/Shanghai", null, null));
+    }
+
+    private PlanBrief saveConfirmedBrief(String sessionId) {
+        HealthResource candidate = resourceProvider.planReadyExercises().stream()
+                .filter(item -> !item.tags().getOrDefault("trainingGoal", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("bodyParts", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("equipment", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("difficulty", List.of()).isEmpty())
+                .findFirst().orElseThrow();
+        PlanBrief brief = new PlanBrief(
+                candidate.tags().get("trainingGoal").get(0),
+                List.of(candidate.tags().get("bodyParts").get(0)),
+                List.of(candidate.tags().get("equipment").get(0)),
+                candidate.tags().get("difficulty").get(0),
+                MON,
+                List.of(DayOfWeek.MONDAY),
+                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
+                Map.of(), true, 1, LocalDateTime.now());
+        sessionService.save(com.diet.health.session.HealthSessionState.fresh(sessionId, USER).withPlanBrief(brief));
+        return brief;
+    }
+
+    private TrainingPlanGenerationService generationService(AgentInvoker invoker) {
+        AgentContractModule contract = new AgentContractModule(invoker, new LlmJsonService(objectMapper), traceService);
+        return new TrainingPlanGenerationService(sessionService, realProfileService, riskRuleService,
+                resourceProvider, validationService, composer, weeklyPlanService, contract, new PromptLoader(),
+                traceService, objectMapper, "mysql-integration-model", 1000);
+    }
+
+    // ---------- #86 真实 MySQL：生成事务、并发幂等与慢模型事务边界 ----------
+
+    @Test
+    void 同一生成requestId并发请求只落一份草稿() throws Exception {
+        saveProfile();
+        String sessionId = "sess-plan-concurrent";
+        saveConfirmedBrief(sessionId);
+        GenerateTrainingPlanRequest request = new GenerateTrainingPlanRequest(sessionId, "mysql-plan-concurrent");
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(2);
+        List<TrainingPlanGenerationResponse> responses = java.util.Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> failures = java.util.Collections.synchronizedList(new ArrayList<>());
+        for (int i = 0; i < 2; i++) {
+            new Thread(() -> {
+                try {
+                    start.await();
+                    responses.add(trainingPlanGenerationService.generate(USER, request));
+                } catch (Throwable error) {
+                    failures.add(error);
+                } finally {
+                    done.countDown();
+                }
+            }).start();
+        }
+
+        start.countDown();
+        assertTrue(done.await(10, TimeUnit.SECONDS));
+        assertTrue(failures.isEmpty(), "并发生成不应失败: " + failures);
+        assertEquals(2, responses.size());
+        assertEquals(responses.get(0).planId(), responses.get(1).planId());
+        assertEquals(responses.get(0).traceId(), responses.get(1).traceId());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM weekly_plan WHERE user_id = ?", Integer.class, USER));
+    }
+
+    @Test
+    void 慢模型调用发生在数据库事务之外() {
+        saveProfile();
+        String sessionId = "sess-plan-slow-agent";
+        PlanBrief brief = saveConfirmedBrief(sessionId);
+        HealthResource candidate = resourceProvider.planReadyExercises().stream()
+                .filter(item -> item.tags().getOrDefault("trainingGoal", List.of()).contains(brief.trainingGoal()))
+                .filter(item -> item.tags().getOrDefault("bodyParts", List.of()).contains(brief.bodyParts().get(0)))
+                .filter(item -> item.tags().getOrDefault("equipment", List.of()).contains(brief.equipment().get(0)))
+                .filter(item -> item.tags().getOrDefault("difficulty", List.of()).contains(brief.difficulty()))
+                .findFirst().orElseThrow();
+        AtomicBoolean transactionActiveDuringModel = new AtomicBoolean(true);
+        AgentInvoker slowInvoker = new AgentInvoker() {
+            @Override
+            public AgentInvocationResult invoke(AgentInvocation invocation) {
+                transactionActiveDuringModel.set(TransactionSynchronizationManager.isActualTransactionActive());
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                }
+                String output = "{\"schedule\":[{\"exerciseId\":\"" + candidate.resourceId()
+                        + "\",\"localDate\":\"" + MON
+                        + "\",\"startTime\":\"19:00\",\"durationMinutes\":45}]}";
+                return new AgentInvocationResult(output, invocation.modelName(), 50);
+            }
+
+            @Override
+            public boolean configured() {
+                return true;
+            }
+        };
+
+        TrainingPlanGenerationResponse response = generationService(slowInvoker).generate(USER,
+                new GenerateTrainingPlanRequest(sessionId, "mysql-plan-slow-agent"));
+
+        assertFalse(transactionActiveDuringModel.get(), "外部模型等待期间不得持有数据库事务");
+        assertEquals("AGENT", response.generationSource());
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM weekly_plan WHERE user_id = ?", Integer.class, USER));
+    }
+
+    @Test
+    void 生成项目写入失败时计划版本和项目全部回滚() {
+        saveProfile();
+        String sessionId = "sess-plan-rollback";
+        saveConfirmedBrief(sessionId);
+        String trigger = "itest_fail_weekly_plan_item";
+        jdbc.execute("DROP TRIGGER IF EXISTS " + trigger);
+        jdbc.execute("CREATE TRIGGER " + trigger + " BEFORE INSERT ON weekly_plan_item FOR EACH ROW "
+                + "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'integration forced item failure'");
+        try {
+            assertThrows(RuntimeException.class, () -> trainingPlanGenerationService.generate(USER,
+                    new GenerateTrainingPlanRequest(sessionId, "mysql-plan-rollback")));
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS " + trigger);
+        }
+
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM weekly_plan WHERE user_id = ?", Integer.class, USER));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM weekly_plan_version v JOIN weekly_plan p ON p.id = v.plan_id WHERE p.user_id = ?", Integer.class, USER));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM weekly_plan_item i JOIN weekly_plan p ON p.id = i.plan_id WHERE p.user_id = ?", Integer.class, USER));
     }
 
     // ---------- 57 号票验收：餐食候选与浏览/推荐/反馈同源 ----------

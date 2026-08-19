@@ -11,6 +11,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** 训练简报的确定性合并、日期/星期和确认失效规则。 */
@@ -53,5 +54,30 @@ class PlanBriefServiceTest {
     @Test
     void 空简报可以安全生成摘要() {
         assertNotNull(service.summary(PlanBrief.empty()));
+    }
+
+    @Test
+    void 明确排除的动作进入可执行硬约束() {
+        PlanBriefService.UpdateResult result = service.update(PlanBrief.empty(), "不要做俯卧撑");
+
+        assertEquals(List.of("俯卧撑"), result.brief().hardConstraints().get("excludeExercises"));
+    }
+
+    @Test
+    void 多轮硬约束按类型合并而不覆盖() {
+        PlanBrief first = service.update(PlanBrief.empty(), "不要用哑铃").brief();
+        PlanBrief second = service.update(first, "不要做俯卧撑").brief();
+
+        assertEquals(List.of("哑铃"), second.hardConstraints().get("excludeEquipment"));
+        assertEquals(List.of("俯卧撑"), second.hardConstraints().get("excludeExercises"));
+    }
+
+    @Test
+    void 无法确定性执行的自由文本硬约束明确拒绝() {
+        com.diet.exception.HealthApiException error = assertThrows(com.diet.exception.HealthApiException.class,
+                () -> service.update(PlanBrief.empty(), "训练时不要让我太累"));
+
+        assertEquals(com.diet.exception.HealthApiException.CODE_BAD_REQUEST, error.code());
+        assertTrue(error.getMessage().contains("暂不支持"));
     }
 }

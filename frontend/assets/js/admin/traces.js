@@ -6,6 +6,7 @@
  * （diet.security.admin-protected=false）无需 token，生产由 X-Admin-Token 保护。
  */
 import { escapeHtml, safeJson, toLocalInputValue } from "../util/dom.js";
+import { renderRawTraceJson } from "./trace-detail-view.js";
 import { showToast } from "../ui/toast.js";
 import {
     listTraces,
@@ -39,6 +40,7 @@ const state = {
 };
 
 export async function render(app) {
+    openPendingTrace(app);
     const selected = state.selected;
     app.innerHTML = `
         <section class="split">
@@ -88,6 +90,22 @@ export async function render(app) {
         </section>
     `;
     bind(app);
+}
+
+/** 从聊天或计划页进入时直接打开指定 Trace，不要求用户再次执行列表查询。 */
+function openPendingTrace(app) {
+    const traceId = window.healthPendingTraceId;
+    if (!traceId) return;
+    window.healthPendingTraceId = null;
+    state.loading = true;
+    getTrace(traceId).then((trace) => {
+        state.selected = trace;
+    }).catch((error) => {
+        showToast(error.message || "Trace 详情加载失败", "error");
+    }).finally(() => {
+        state.loading = false;
+        render(app);
+    });
 }
 
 let listenersBound = false;
@@ -149,7 +167,7 @@ function renderTraceTable() {
     `;
 }
 
-function renderTraceDetail(trace) {
+export function renderTraceDetail(trace) {
     const models = (trace.modelNames || []).join("、") || "未提供";
     const fallbacks = (trace.fallbackReasons || []).filter(Boolean);
     const tokenStatus = {
@@ -175,10 +193,7 @@ function renderTraceDetail(trace) {
                 ${fallbacks.length ? `<p class="trace-warning">降级原因：${escapeHtml(fallbacks.join("；"))}</p>` : ""}
             </div>
             ${renderTimeline(trace.timeline)}
-            <details open>
-                <summary>脱敏原始 JSON（Agent 路由、校验与降级）</summary>
-                <pre class="json-box">${escapeHtml(safeJson(trace.traceJson))}</pre>
-            </details>
+            ${renderRawTraceJson(escapeHtml(safeJson(trace.traceJson)))}
             <form id="traceLabelForm" class="form-grid">
                 <input type="hidden" name="traceId" value="${escapeHtml(trace.traceId)}">
                 <div class="field">

@@ -1,5 +1,6 @@
 package com.diet.health.plan;
 
+import com.diet.exception.HealthApiException;
 import com.diet.health.intent.HealthInputNormalizer;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class PlanBriefService {
     private static final Pattern ISO_DATE = Pattern.compile("(20\\d{2}-\\d{2}-\\d{2})");
     private static final Pattern TIME_RANGE = Pattern.compile("([01]?\\d|2[0-3])[:：]([0-5]\\d)\\s*[-到至~～]\s*([01]?\\d|2[0-3])[:：]([0-5]\\d)");
     private static final Pattern TIME_SINGLE = Pattern.compile("(?<!\\d)([01]?\\d|2[0-3])[:：]([0-5]\\d)(?!\\d)");
+    private static final Pattern EXCLUDED_EXERCISE = Pattern.compile("(?:不要做|不做|排除动作[：:]?)([\\p{IsHan}A-Za-z0-9（）()·-]{2,30})");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final Map<String, DayOfWeek> DAY_NAMES = dayNames();
 
@@ -67,6 +69,8 @@ public class PlanBriefService {
         List<DayOfWeek> days = parseDays(text);
         TrainingTimeWindow window = parseWindow(text);
         Map<String, List<String>> hardConstraints = parseHardConstraints(text);
+        rejectUnsupportedHardConstraints(text);
+        Map<String, List<String>> mergedConstraints = mergeHardConstraints(base.hardConstraints(), hardConstraints);
 
         PlanBrief merged = new PlanBrief(
                 goal == null ? base.trainingGoal() : goal,
@@ -76,7 +80,7 @@ public class PlanBriefService {
                 weekStart == null ? base.weekStart() : weekStart,
                 days.isEmpty() ? base.trainingDays() : days,
                 window == null ? base.timeWindow() : window,
-                hardConstraints.isEmpty() ? base.hardConstraints() : hardConstraints,
+                mergedConstraints,
                 false, base.confirmationVersion(), null);
         return new UpdateResult(merged, false, missing(merged));
     }
@@ -157,11 +161,48 @@ public class PlanBriefService {
 
     private Map<String, List<String>> parseHardConstraints(String text) {
         Map<String, List<String>> constraints = new LinkedHashMap<>();
-        if (text.contains("不要练胸") || text.contains("不练胸")) constraints.put("excludeBodyParts", List.of("胸"));
-        if (text.contains("不要练腿") || text.contains("不练腿")) constraints.put("excludeBodyParts", List.of("腿"));
-        if (text.contains("不要用哑铃") || text.contains("不用哑铃")) constraints.put("excludeEquipment", List.of("哑铃"));
-        if (text.contains("不要用杠铃") || text.contains("不用杠铃")) constraints.put("excludeEquipment", List.of("杠铃"));
+        List<String> excludedParts = new ArrayList<>();
+        if (text.contains("不要练胸") || text.contains("不练胸")) excludedParts.add("胸");
+        if (text.contains("不要练腿") || text.contains("不练腿")) excludedParts.add("腿");
+        if (!excludedParts.isEmpty()) constraints.put("excludeBodyParts", List.copyOf(excludedParts));
+        List<String> excludedEquipment = new ArrayList<>();
+        if (text.contains("不要用哑铃") || text.contains("不用哑铃")) excludedEquipment.add("哑铃");
+        if (text.contains("不要用杠铃") || text.contains("不用杠铃")) excludedEquipment.add("杠铃");
+        if (!excludedEquipment.isEmpty()) constraints.put("excludeEquipment", List.copyOf(excludedEquipment));
+        Matcher exercise = EXCLUDED_EXERCISE.matcher(text);
+        List<String> excludedExercises = new ArrayList<>();
+        while (exercise.find()) {
+            excludedExercises.add(exercise.group(1));
+        }
+        if (!excludedExercises.isEmpty()) constraints.put("excludeExercises", List.copyOf(excludedExercises));
         return constraints;
+    }
+
+    private Map<String, List<String>> mergeHardConstraints(Map<String, List<String>> current,
+                                                           Map<String, List<String>> updates) {
+        Map<String, LinkedHashSet<String>> merged = new LinkedHashMap<>();
+        if (current != null) {
+            current.forEach((key, values) -> merged.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).addAll(values));
+        }
+        if (updates != null) {
+            updates.forEach((key, values) -> merged.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).addAll(values));
+        }
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        merged.forEach((key, values) -> result.put(key, List.copyOf(values)));
+        return Map.copyOf(result);
+    }
+
+    private void rejectUnsupportedHardConstraints(String text) {
+        String remaining = text;
+        for (String supported : List.of("不要练胸", "不练胸", "不要练腿", "不练腿",
+                "不要用哑铃", "不用哑铃", "不要用杠铃", "不用杠铃")) {
+            remaining = remaining.replace(supported, "");
+        }
+        remaining = EXCLUDED_EXERCISE.matcher(remaining).replaceAll("");
+        if (List.of("避免", "不能", "不要", "不练", "不用", "不做", "排除").stream().anyMatch(remaining::contains)) {
+            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST,
+                    "该硬约束暂不支持，请改为排除具体部位、动作、器械或提供明确训练时段");
+        }
     }
 
     private boolean isConfirmation(String text) {

@@ -150,10 +150,9 @@
 
 ## #85-#87 训练计划与 Trace 核心流程（2026-08-19）
 
-- 验收环境：当前工作树 Spring Boot fixture/fallback 后端端口 `18080` + 临时同源 Nginx 端口 `18092` + ego-browser 真实 Chromium；桌面视口 `1710×983`，窄视口 `390×844`。凭证只从本地未提交配置读取，未写入仓库或本文档。
-- 聊天 URL：`http://localhost:18092/#/chat`。多轮输入训练目标、部位、器械、难度、目标周和时间窗口后，页面展示中文简报；纠正字段后确认状态失效；普通餐食/动作推荐未污染 `planBrief`。
-- 缺档案往返：在原会话点击“完善健康档案”，保存后返回同一会话，已收集的训练偏好仍在；确认后出现“生成训练计划”操作。
-- 计划 URL：`http://localhost:18092/#/plans`。点击生成后立即出现等待反馈并阻止重复提交；页面展示“规则降级”、3 个训练项目和七日安排，之后激活草稿并显示“已激活”。
-- Trace URL：`http://localhost:18092/#/admin/traces`。正确管理员鉴权后展示 `SUCCESS + DEGRADED`、`Token：未提供`、FALLBACK 原因、5 步时间线和脱敏嵌套 JSON；无 token/错误 token 的浏览器请求均返回 HTTP 401。
-- 移动端检查：Trace 与计划页面在 `390×844` 下 `documentWidth=390`，无文档级横向溢出，长 ID/JSON 在面板内处理。
-- 外部模型边界：本次闭环使用 fixture/fallback，真实模型成功 smoke 尚未执行；本记录不把规则降级结果描述为真实模型成功。
+- 验收环境：当前工作树 Spring Boot `8082` + 同源 Nginx `8092` + ego-browser 真实 Chromium；桌面 `1710×983`，移动端 `390×844`。凭证只从本地未提交配置读取，未写入仓库或本文档。
+- 聊天 URL：`http://localhost:8092/#/chat`。完整训练偏好生成简报后，“确认训练偏好”单击即提交，输入框保持为空并直接出现“生成训练计划”，无需用户再次手动发送。
+- 计划 URL：`http://localhost:8092/#/plans`。真实 `qwen-turbo` 在约 1.27 秒内从 3 个审核候选生成 `Agent 生成` 草稿；页面展示周一/三/五训练和七日辅助计划。修正偏好产生的新 `requestId` 会真正重试，不复用此前失败状态。
+- Trace URL：计划页“查看本次 Trace”直接打开对应 `trace_adbcd5d4a99d4e558073fcb8ed717562`，展示 `SUCCESS`、模型 `qwen-turbo`、`PARSED`、`PLAN_GUARD_PASSED` 和 5 步时间线；“脱敏原始 JSON”使用关闭的 `<details>`，默认 `open=false`。
+- 移动端检查：计划页 `clientWidth=scrollWidth=390`，来源标签、七日项目和 Trace 入口均存在，无文档级横向溢出。
+- 截图：[Agent 计划桌面](evidence/issue-86-agent-plan-desktop.png) / [Agent Trace 桌面](evidence/issue-86-agent-trace-desktop.png) / [Agent 计划移动端](evidence/issue-86-agent-plan-mobile.png)。
