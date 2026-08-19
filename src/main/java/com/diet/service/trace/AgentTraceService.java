@@ -5,6 +5,7 @@ import com.diet.exception.DietException;
 import com.diet.model.TraceLabelRequest;
 import com.diet.model.RequestTraceRow;
 import com.diet.util.TraceRedactor;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.message.Msg;
@@ -14,9 +15,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -142,14 +146,14 @@ public class AgentTraceService {
 
     /** 按 traceId 查询单条链路追踪记录（供调试 API 使用）。 */
     public RequestTraceRow findByTraceId(Long userId, String traceId) {
-        return agentTraceMapper.findByTraceId(userId, traceId);
+        return decorate(agentTraceMapper.findByTraceId(userId, traceId));
     }
 
     /** 按 sessionId 查询最近 N 条链路追踪，limit 会被 clamp 到 [1, MAX_LIMIT]。 */
     public List<RequestTraceRow> findBySessionId(Long userId, String sessionId, Integer limit) {
         // null 时用 DEFAULT_LIMIT；否则限制在 1~MAX_LIMIT 之间
         int safeLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(MAX_LIMIT, limit));
-        return agentTraceMapper.findBySessionId(userId, sessionId, safeLimit);
+        return decorate(agentTraceMapper.findBySessionId(userId, sessionId, safeLimit));
     }
 
     /** 按时间范围查询 Trace，供后台标注页和评估接口复用。 */
@@ -158,7 +162,160 @@ public class AgentTraceService {
             throw new DietException("Trace 查询时间范围不合法");
         }
         int safeLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(MAX_LIMIT, limit));
-        return agentTraceMapper.findByTimeRange(userId, startAt, endAt, Boolean.TRUE.equals(onlyUnlabeled), safeLimit);
+        return decorate(agentTraceMapper.findByTimeRange(userId, startAt, endAt, Boolean.TRUE.equals(onlyUnlabeled), safeLimit));
+    }
+
+    /** 将事件 JSON 聚合为工作台摘要；解析失败时保留原始 Trace，不影响既有调试接口。 */
+    private RequestTraceRow decorate(RequestTraceRow row) {
+        if (row == null) {
+            return null;
+        }
+        DiagnosticAggregate aggregate = summarize(row);
+        row.setDiagnosticStatus(aggregate.degraded ? "DEGRADED" : "NORMAL");
+        row.setAgentDurationMs(aggregate.agentDurationMs);
+        row.setAgentCallCount(aggregate.agentCallCount);
+        row.setDegradedCount(aggregate.degradedCount);
+        row.setTokenStatus(aggregate.tokenStatus());
+        row.setModelNames(List.copyOf(aggregate.modelNames));
+        row.setParseStatuses(List.copyOf(aggregate.parseStatuses));
+        row.setFallbackReasons(List.copyOf(aggregate.fallbackReasons));
+        row.setGuardResults(List.copyOf(aggregate.guardResults));
+        row.setTimeline(List.copyOf(aggregate.timeline));
+        return row;
+    }
+
+    private List<RequestTraceRow> decorate(List<RequestTraceRow> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return rows == null ? List.of() : rows;
+        }
+        return rows.stream().map(this::decorate).toList();
+    }
+
+    private DiagnosticAggregate summarize(RequestTraceRow row) {
+        DiagnosticAggregate aggregate = new DiagnosticAggregate();
+        try {
+            JsonNode root = objectMapper.readTree(row.getTraceJson());
+            JsonNode events = root == null ? null : root.path("events");
+            if (events == null || !events.isArray()) {
+                return aggregate;
+            }
+            List<JsonNode> orderedEvents = new ArrayList<>();
+            events.forEach(orderedEvents::add);
+            orderedEvents.sort(Comparator.comparingInt(event -> event.path("stepOrder").asInt(0)));
+            for (JsonNode event : orderedEvents) {
+                int stepOrder = event.path("stepOrder").asInt(0);
+                String eventType = text(event, "eventType");
+                String phase = text(event, "phase");
+                String agentName = text(event, "agentName");
+                String modelName = text(event, "modelName");
+                Long latency = event.hasNonNull("latencyMs") ? event.get("latencyMs").asLong() : null;
+                boolean agentEvent = "AGENT".equals(phase) || hasText(agentName);
+                JsonNode output = nestedPayload(event.path("outputPayload"));
+                String parseStatus = text(output, "parseStatus");
+                String fallbackReason = text(output, "fallbackReason");
+                boolean degraded = "DEGRADED".equalsIgnoreCase(parseStatus)
+                        || hasText(fallbackReason)
+                        || output.path("degraded").asBoolean(false)
+                        || "FALLBACK".equalsIgnoreCase(text(output, "source"));
+                if (agentEvent) {
+                    aggregate.agentCallCount++;
+                    aggregate.agentDurationMs += latency == null ? 0 : latency;
+                    if (hasTokenUsage(event)) {
+                        aggregate.tokenProvided = true;
+                    } else {
+                        aggregate.tokenMissing = true;
+                    }
+                    if (hasText(modelName)) {
+                        aggregate.modelNames.add(modelName);
+                    }
+                }
+                if (hasText(parseStatus)) {
+                    aggregate.parseStatuses.add(parseStatus);
+                }
+                if (hasText(fallbackReason)) {
+                    aggregate.fallbackReasons.add(fallbackReason);
+                }
+                if ("GUARD".equals(phase)) {
+                    aggregate.guardResults.add(firstNonBlank(text(output, "decision"), text(output, "passed"),
+                            text(output, "status"), eventType));
+                }
+                if (degraded) {
+                    aggregate.degraded = true;
+                    aggregate.degradedCount++;
+                }
+                aggregate.timeline.add(new RequestTraceRow.TraceTimelineEvent(
+                        stepOrder, eventType, phase, agentName, modelName, latency,
+                        degraded ? "DEGRADED" : (hasText(parseStatus) ? parseStatus : null)));
+            }
+        } catch (Exception ignored) {
+            // 原始 trace_json 已经过脱敏，摘要解析失败时仍允许管理员查看原文。
+        }
+        return aggregate;
+    }
+
+    private JsonNode nestedPayload(JsonNode payload) {
+        if (payload == null || payload.isNull() || payload.isMissingNode()) {
+            return objectMapper.createObjectNode();
+        }
+        if (payload.isObject()) {
+            return payload;
+        }
+        if (payload.isTextual()) {
+            try {
+                JsonNode parsed = objectMapper.readTree(payload.asText());
+                return parsed == null ? objectMapper.createObjectNode() : parsed;
+            } catch (Exception ignored) {
+                return objectMapper.createObjectNode();
+            }
+        }
+        return objectMapper.createObjectNode();
+    }
+
+    private String text(JsonNode node, String field) {
+        if (node == null || !node.hasNonNull(field)) {
+            return null;
+        }
+        String value = node.get(field).asText();
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private boolean hasTokenUsage(JsonNode event) {
+        return event.hasNonNull("inputTokens") || event.hasNonNull("outputTokens")
+                || event.hasNonNull("totalTokens");
+    }
+
+    private static final class DiagnosticAggregate {
+        private long agentDurationMs;
+        private int agentCallCount;
+        private int degradedCount;
+        private boolean degraded;
+        private boolean tokenProvided;
+        private boolean tokenMissing;
+        private final Set<String> modelNames = new LinkedHashSet<>();
+        private final Set<String> parseStatuses = new LinkedHashSet<>();
+        private final Set<String> fallbackReasons = new LinkedHashSet<>();
+        private final List<String> guardResults = new ArrayList<>();
+        private final List<RequestTraceRow.TraceTimelineEvent> timeline = new ArrayList<>();
+
+        private String tokenStatus() {
+            if (agentCallCount == 0 || !tokenProvided) {
+                return "NOT_PROVIDED";
+            }
+            return tokenMissing ? "PARTIAL" : "PROVIDED";
+        }
     }
 
     /** 保存人工标注的标准答案，直接写回 diet_request_trace。 */

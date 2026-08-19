@@ -6,6 +6,7 @@ import com.diet.exception.HealthApiException;
 import com.diet.health.clarify.HealthClarifyAgentService;
 import com.diet.health.clarify.HealthClarifyRuleService;
 import com.diet.health.enums.HealthDomain;
+import com.diet.health.enums.HealthNextAction;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthResponseType;
 import com.diet.health.enums.HealthRiskLevel;
@@ -17,10 +18,14 @@ import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.model.HealthChatRequest;
 import com.diet.health.model.HealthChatResponse;
 import com.diet.health.model.HealthDisplayBlock;
+import com.diet.health.model.HealthAction;
 import com.diet.health.module.ExerciseModule;
 import com.diet.health.module.HealthResource;
 import com.diet.health.module.MealModule;
 import com.diet.health.module.RoutineModule;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.PlanBriefService;
+import com.diet.health.profile.HealthProfileService;
 import com.diet.health.recommend.HealthRecommendResponseService;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
@@ -69,6 +74,8 @@ public class HealthOrchestratorService {
     private final HealthRecommendResponseService recommendResponseService;
     private final AgentTraceService agentTraceService;
     private final ObjectMapper objectMapper;
+    private final PlanBriefService planBriefService;
+    private final HealthProfileService profileService;
     private final boolean intentFastPathEnabled;
 
     @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
@@ -77,7 +84,6 @@ public class HealthOrchestratorService {
     /** 会话级锁，保证同一 session 串行写状态。 */
     private final Map<String, Object> sessionLocks = new ConcurrentHashMap<>();
 
-    @org.springframework.beans.factory.annotation.Autowired
     public HealthOrchestratorService(
             HealthSessionService sessionService,
             SessionService messageService,
@@ -97,7 +103,7 @@ public class HealthOrchestratorService {
     ) {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
-                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, true);
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null, true);
     }
 
     /** 可关闭快路径供模型契约基准使用；线上默认开启。 */
@@ -119,6 +125,57 @@ public class HealthOrchestratorService {
             ObjectMapper objectMapper,
             boolean intentFastPathEnabled
     ) {
+        this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
+                clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null,
+                intentFastPathEnabled);
+    }
+
+    /** Spring 入口：健康档案只用于计划简报的缺档案提示，最终风险仍由计划服务 Guard 决定。 */
+    @org.springframework.beans.factory.annotation.Autowired
+    public HealthOrchestratorService(
+            HealthSessionService sessionService,
+            SessionService messageService,
+            HealthIntentAgentService intentAgentService,
+            HealthIntentRevisionService intentRevisionService,
+            HealthInputNormalizer inputNormalizer,
+            HealthClarifyRuleService clarifyRuleService,
+            HealthClarifyAgentService clarifyAgentService,
+            HealthRiskRuleService riskRuleService,
+            MealModule mealModule,
+            ExerciseModule exerciseModule,
+            RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
+            HealthRecommendResponseService recommendResponseService,
+            AgentTraceService agentTraceService,
+            ObjectMapper objectMapper,
+            HealthProfileService profileService
+    ) {
+        this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
+                clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper,
+                profileService, true);
+    }
+
+    private HealthOrchestratorService(
+            HealthSessionService sessionService,
+            SessionService messageService,
+            HealthIntentAgentService intentAgentService,
+            HealthIntentRevisionService intentRevisionService,
+            HealthInputNormalizer inputNormalizer,
+            HealthClarifyRuleService clarifyRuleService,
+            HealthClarifyAgentService clarifyAgentService,
+            HealthRiskRuleService riskRuleService,
+            MealModule mealModule,
+            ExerciseModule exerciseModule,
+            RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
+            HealthRecommendResponseService recommendResponseService,
+            AgentTraceService agentTraceService,
+            ObjectMapper objectMapper,
+            HealthProfileService profileService,
+            boolean intentFastPathEnabled
+    ) {
         this.sessionService = sessionService;
         this.messageService = messageService;
         this.intentAgentService = intentAgentService;
@@ -134,6 +191,8 @@ public class HealthOrchestratorService {
         this.recommendResponseService = recommendResponseService;
         this.agentTraceService = agentTraceService;
         this.objectMapper = objectMapper;
+        this.planBriefService = new PlanBriefService(inputNormalizer);
+        this.profileService = profileService;
         this.intentFastPathEnabled = intentFastPathEnabled;
     }
 
@@ -234,6 +293,11 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, chat, traceId, deadlineNanos);
         }
 
+        if (intent.task() == HealthTask.PLAN && intent.domain() == HealthDomain.EXERCISE) {
+            return handlePlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
+                    risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+        }
+
         if (intent.domain() == HealthDomain.COMPOSITE || intent.task() == HealthTask.PLAN || intent.task() == HealthTask.BROWSE) {
             String copy = switch (intent.domain()) {
                 case COMPOSITE -> "我可以分别帮你安排饮食、训练和作息，也可以先从其中一个方面开始，你想先看哪个？";
@@ -258,6 +322,58 @@ public class HealthOrchestratorService {
                 Map.of("domain", intent.domain(), "switchedDomain", switchedDomain), activeSlots);
         return handleRecommend(sessionId, traceId, state, intent, mergedSlots, activeSlots, excludeIds,
                 risk.matchedFlags(), advisoryCopy, userInput, revision.clarifyUnsafe(), deadlineNanos);
+    }
+
+    /** 训练简报闭环：解析/合并只在 PLAN 上下文运行，普通推荐不会触碰 planBrief。 */
+    private HealthChatResponse handlePlanBrief(Long userId, HealthSessionState state, HealthIntentResult intent,
+                                                Map<String, List<String>> mergedSlots, String sessionId, String traceId,
+                                                String userInput, List<String> riskFlags, String advisoryCopy,
+                                                String requestId, long deadlineNanos) {
+        PlanBriefService.UpdateResult update = planBriefService.update(state.planBrief(), userInput);
+        PlanBrief brief = update.brief();
+        agentTraceService.recordEvent("PLAN_BRIEF_UPDATED", "PLAN", Map.of("input", userInput),
+                Map.of("brief", brief, "missingFields", update.missingFields(), "confirmedNow", update.confirmedNow()));
+        HealthChatResponse response;
+        if (!brief.isComplete()) {
+            response = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
+                    riskFlags, planBriefService.question(update.missingFields()), update.missingFields())
+                    .withPlanBrief(brief, List.of(), HealthNextAction.ASK_CLARIFY);
+        } else if (!hasHealthProfile(userId)) {
+            response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
+                    riskFlags, HealthPhase.RESPOND,
+                    withAdvisory("我已保留这份训练偏好。请先完善健康档案，保存后可以回到当前会话继续确认。", advisoryCopy), List.of())
+                    .withPlanBrief(brief, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
+                            HealthNextAction.COMPLETE_PROFILE);
+        } else if (brief.isConfirmedAndComplete()) {
+            String generationRequestId = requestId + "-plan";
+            response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
+                    riskFlags, HealthPhase.RESPOND,
+                    withAdvisory("训练偏好已确认，可以生成本周训练计划。", advisoryCopy), List.of())
+                    .withPlanBrief(brief, List.of(new HealthAction("GENERATE_PLAN", "生成训练计划", generationRequestId)),
+                            HealthNextAction.GENERATE_PLAN);
+        } else {
+            response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
+                    riskFlags, HealthPhase.RESPOND,
+                    withAdvisory("训练偏好已整理：" + planBriefService.summary(brief) + "。请确认后生成计划。", advisoryCopy), List.of())
+                    .withPlanBrief(brief, List.of(new HealthAction("CONFIRM_PLAN_BRIEF", "确认训练偏好", requestId)),
+                            HealthNextAction.CONFIRM_PLAN_BRIEF);
+        }
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos, brief);
+    }
+
+    private boolean hasHealthProfile(Long userId) {
+        if (profileService == null) {
+            return true;
+        }
+        try {
+            profileService.getProfile(userId);
+            return true;
+        } catch (HealthApiException error) {
+            if (HealthApiException.CODE_NOT_FOUND.equals(error.code())) {
+                return false;
+            }
+            throw error;
+        }
     }
 
     /** 单品类推荐主链路：澄清 → 检索 → 解释候选。 */
@@ -363,12 +479,19 @@ public class HealthOrchestratorService {
     private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
                                                  Map<String, List<String>> mergedSlots, HealthChatResponse response,
                                                  String traceId, long deadlineNanos) {
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos, state.planBrief());
+    }
+
+    private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
+                                                 Map<String, List<String>> mergedSlots, HealthChatResponse response,
+                                                 String traceId, long deadlineNanos, PlanBrief planBrief) {
         ensureBeforePersistence(deadlineNanos);
         HealthSessionState saved = state
                 .withPhase(response.phase())
                 .withIntent(intent.domain(), intent.task(), mergeFlags(state.riskFlags(), intent.riskFlags()))
                 .withSlots(mergedSlots)
-                .withPreferenceSignals(intent.preferenceSignals());
+                .withPreferenceSignals(intent.preferenceSignals())
+                .withPlanBrief(planBrief);
         if (response.responseType() == HealthResponseType.ANSWER) {
             saved = saved.replaceLastResources(response.displayBlocks().stream()
                     .map(block -> new SessionResourceRef(block.resourceType(), block.resourceId()))

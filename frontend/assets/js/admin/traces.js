@@ -121,6 +121,7 @@ function renderTraceTable() {
                         <th>Trace ID</th>
                         <th>会话</th>
                         <th>状态</th>
+                        <th>诊断</th>
                         <th>事件</th>
                         <th>耗时</th>
                         <th>创建时间</th>
@@ -134,6 +135,7 @@ function renderTraceTable() {
                             <td>${escapeHtml(row.traceId)}</td>
                             <td>${escapeHtml(row.sessionId)}</td>
                             <td>${escapeHtml(row.status || "-")}</td>
+                            <td>${diagnosticBadge(row)}</td>
                             <td>${escapeHtml(row.eventCount ?? "-")}</td>
                             <td>${row.durationMs ? `${escapeHtml(row.durationMs)} ms` : "-"}</td>
                             <td>${escapeHtml(row.createdAt || "-")}</td>
@@ -148,6 +150,13 @@ function renderTraceTable() {
 }
 
 function renderTraceDetail(trace) {
+    const models = (trace.modelNames || []).join("、") || "未提供";
+    const fallbacks = (trace.fallbackReasons || []).filter(Boolean);
+    const tokenStatus = {
+        PROVIDED: "已提供",
+        PARTIAL: "部分提供",
+        NOT_PROVIDED: "未提供"
+    }[trace.tokenStatus] || "未提供";
     return `
         <div class="card-title">
             <div>
@@ -158,10 +167,16 @@ function renderTraceDetail(trace) {
         <div class="grid">
             <div>
                 <span class="badge">${escapeHtml(trace.status || "UNKNOWN")}</span>
-                <p class="muted">Session：${escapeHtml(trace.sessionId || "-")} · Events：${escapeHtml(trace.eventCount ?? "-")} · Duration：${escapeHtml(trace.durationMs ?? "-")} ms</p>
+                ${diagnosticBadge(trace)}
+                <p class="muted">Session：${escapeHtml(trace.sessionId || "-")} · Events：${escapeHtml(trace.eventCount ?? "-")} · 总耗时：${escapeHtml(trace.durationMs ?? "-")} ms</p>
+                <p class="muted">Agent 耗时：${escapeHtml(trace.agentDurationMs ?? 0)} ms · 调用：${escapeHtml(trace.agentCallCount ?? 0)} · 降级：${escapeHtml(trace.degradedCount ?? 0)} · 模型：${escapeHtml(models)} · Token：${escapeHtml(tokenStatus)}</p>
+                <p class="muted">解析：${escapeHtml((trace.parseStatuses || []).join("、") || "未提供")}</p>
+                <p class="muted">Guard：${escapeHtml((trace.guardResults || []).join("、") || "未提供")}</p>
+                ${fallbacks.length ? `<p class="trace-warning">降级原因：${escapeHtml(fallbacks.join("；"))}</p>` : ""}
             </div>
+            ${renderTimeline(trace.timeline)}
             <details open>
-                <summary>Trace JSON（Agent 路由、校验与降级）</summary>
+                <summary>脱敏原始 JSON（Agent 路由、校验与降级）</summary>
                 <pre class="json-box">${escapeHtml(safeJson(trace.traceJson))}</pre>
             </details>
             <form id="traceLabelForm" class="form-grid">
@@ -195,6 +210,31 @@ function renderTraceDetail(trace) {
             </form>
         </div>
     `;
+}
+
+function diagnosticBadge(trace) {
+    const label = trace.diagnosticStatus === "DEGRADED" ? "DEGRADED" : "正常";
+    return `<span class="badge ${trace.diagnosticStatus === "DEGRADED" ? "warn" : ""}">${label}</span>`;
+}
+
+function renderTimeline(timeline) {
+    if (!timeline || !timeline.length) {
+        return `<div class="empty">暂无可解析的事件摘要，原始 JSON 仍可查看。</div>`;
+    }
+    return `<div class="trace-timeline">
+        <h4>事件时间线</h4>
+        ${timeline.slice().sort((left, right) => left.stepOrder - right.stepOrder).map((event) => `
+            <div class="trace-event">
+                <span class="trace-step">${escapeHtml(event.stepOrder)}</span>
+                <div>
+                    <strong>${escapeHtml(event.eventType || "事件")}</strong>
+                    <span class="muted">${escapeHtml(event.phase || "")} ${event.agentName ? `· ${escapeHtml(event.agentName)}` : ""}${event.modelName ? ` · ${escapeHtml(event.modelName)}` : ""}</span>
+                    ${event.latencyMs != null ? `<span class="muted"> · ${escapeHtml(event.latencyMs)} ms</span>` : ""}
+                    ${event.result ? `<div class="trace-event-result">${escapeHtml(event.result)}</div>` : ""}
+                </div>
+            </div>
+        `).join("")}
+    </div>`;
 }
 
 function promptAdminToken() {

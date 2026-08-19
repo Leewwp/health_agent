@@ -152,7 +152,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         tags.put("equipment", singleZh(ExerciseVocabulary.equipmentZh(row.getEquipment())));
         tags.put("difficulty", singleZh(ExerciseVocabulary.difficultyZh(row.getDifficulty())));
         tags.put("movementPattern", List.of(row.getMovementPattern()));
-        tags.put("trainingGoal", List.of());
+        tags.put("trainingGoal", jsonService.fromJsonArray(row.getTrainingGoals()));
         return new HealthResource(
                 "EXERCISE",
                 String.valueOf(row.getId()),

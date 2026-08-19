@@ -5,6 +5,8 @@ import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.intent.PreferenceSignal;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.mapper.SessionMapper;
 import com.diet.model.SessionRow;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -22,6 +24,10 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * 健康会话状态读写服务，复用 diet_sessions 表。
@@ -127,13 +133,39 @@ public class HealthSessionService {
         meta.put("riskFlags", objectMapper.valueToTree(state.riskFlags()));
         meta.put("preferenceSignals", objectMapper.valueToTree(state.preferenceSignals()));
         root.set("_meta", meta);
+        root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
         return root.toString();
+    }
+
+    /** 不依赖 Jackson JavaTime 模块，兼容旧测试和历史运行时的 session JSON。 */
+    private JsonNode planBriefNode(PlanBrief brief) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("trainingGoal", brief.trainingGoal());
+        node.set("bodyParts", objectMapper.valueToTree(brief.bodyParts()));
+        node.set("equipment", objectMapper.valueToTree(brief.equipment()));
+        node.put("difficulty", brief.difficulty());
+        if (brief.weekStart() != null) node.put("weekStart", brief.weekStart().toString());
+        node.set("trainingDays", objectMapper.valueToTree(brief.trainingDays().stream().map(Enum::name).toList()));
+        if (brief.timeWindow() != null) {
+            ObjectNode window = objectMapper.createObjectNode();
+            window.put("start", brief.timeWindow().start().toString());
+            window.put("end", brief.timeWindow().end().toString());
+            node.set("timeWindow", window);
+        }
+        ObjectNode constraints = objectMapper.createObjectNode();
+        brief.hardConstraints().forEach((key, value) -> constraints.set(key, objectMapper.valueToTree(value)));
+        node.set("hardConstraints", constraints);
+        node.put("confirmed", brief.confirmed());
+        node.put("confirmationVersion", brief.confirmationVersion());
+        if (brief.confirmedAt() != null) node.put("confirmedAt", brief.confirmedAt().toString());
+        return node;
     }
 
     private HealthSessionState fromRow(SessionRow row) {
         try {
             JsonNode root = parseObject(row.getSlots());
             JsonNode meta = root.path("_meta");
+            PlanBrief planBrief = readPlanBrief(root.path("planBrief"));
             Map<String, List<String>> slots = new LinkedHashMap<>();
             for (Map.Entry<String, JsonNode> entry : root.properties()) {
                 if ("_meta".equals(entry.getKey()) || !entry.getValue().isArray()) {
@@ -154,11 +186,52 @@ public class HealthSessionService {
                     readStringList(meta.path("riskFlags")),
                     slots,
                     readResourceRefs(row.getLastRecommendations()),
-                    readSignals(meta.path("preferenceSignals"))
+                    readSignals(meta.path("preferenceSignals")),
+                    planBrief
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);
         }
+    }
+
+    private PlanBrief readPlanBrief(JsonNode node) {
+        if (node == null || !node.isObject() || node.isMissingNode()) {
+            return PlanBrief.empty();
+        }
+        try {
+            String goal = textOrNull(node, "trainingGoal");
+            List<String> bodyParts = readStringList(node.path("bodyParts"));
+            List<String> equipment = readStringList(node.path("equipment"));
+            String difficulty = textOrNull(node, "difficulty");
+            LocalDate weekStart = node.hasNonNull("weekStart") ? LocalDate.parse(node.get("weekStart").asText()) : null;
+            List<DayOfWeek> days = new ArrayList<>();
+            if (node.path("trainingDays").isArray()) {
+                node.path("trainingDays").forEach(value -> {
+                    try { days.add(DayOfWeek.valueOf(value.asText())); } catch (Exception ignored) { }
+                });
+            }
+            TrainingTimeWindow window = null;
+            JsonNode windowNode = node.path("timeWindow");
+            if (windowNode.isObject() && windowNode.hasNonNull("start") && windowNode.hasNonNull("end")) {
+                window = new TrainingTimeWindow(LocalTime.parse(windowNode.get("start").asText()), LocalTime.parse(windowNode.get("end").asText()));
+            }
+            Map<String, List<String>> constraints = new LinkedHashMap<>();
+            windowNode = node.path("hardConstraints");
+            if (windowNode.isObject()) {
+                windowNode.fields().forEachRemaining(entry -> constraints.put(entry.getKey(), readStringList(entry.getValue())));
+            }
+            boolean confirmed = node.path("confirmed").asBoolean(false);
+            long version = node.path("confirmationVersion").asLong(0);
+            LocalDateTime confirmedAt = node.hasNonNull("confirmedAt") ? LocalDateTime.parse(node.get("confirmedAt").asText()) : null;
+            return new PlanBrief(goal, bodyParts, equipment, difficulty, weekStart, days, window, constraints,
+                    confirmed, version, confirmedAt);
+        } catch (Exception ignored) {
+            return PlanBrief.empty();
+        }
+    }
+
+    private String textOrNull(JsonNode node, String field) {
+        return node.hasNonNull(field) && !node.get(field).asText().isBlank() ? node.get(field).asText() : null;
     }
 
     /**

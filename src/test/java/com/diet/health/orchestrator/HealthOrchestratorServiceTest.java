@@ -23,6 +23,7 @@ import com.diet.health.recommend.HealthRecommendResponseService;
 import com.diet.health.resource.SeedResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
 import com.diet.health.session.HealthSessionService;
+import com.diet.health.session.HealthSessionState;
 import com.diet.mapper.AgentTraceMapper;
 import com.diet.mapper.FeedbackMapper;
 import com.diet.mapper.SessionMapper;
@@ -106,6 +107,7 @@ class HealthOrchestratorServiceTest {
     private final FakeSessionMapper sessionMapper = new FakeSessionMapper();
     private final PreferenceService preferenceService = new PreferenceService(mock(FeedbackMapper.class));
     private MealModule mealModule;
+    private HealthSessionService sessionService;
     private HealthOrchestratorService orchestrator;
 
     @BeforeEach
@@ -127,7 +129,7 @@ class HealthOrchestratorServiceTest {
 
         AgentTraceService trace = new AgentTraceService(traceMapper, objectMapper);
         SessionService messageService = new SessionService(sessionMapper, new JsonService(objectMapper), 10);
-        HealthSessionService sessionService = new HealthSessionService(sessionMapper, objectMapper);
+        sessionService = new HealthSessionService(sessionMapper, objectMapper);
         ReflectionTestUtils.setField(sessionService, "sessionSecret", "test-secret");
         AgentContractModule contract = new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper), trace);
         HealthSlotDictionary dictionary = new HealthSlotDictionary(TestSupport.slotOptionService());
@@ -369,20 +371,51 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
-    void 一周健身计划复用计划页面入口() {
+    void 一周健身计划先进入训练简报澄清闭环() {
         HealthChatResponse response = chat("一周健身计划");
-        assertEquals(HealthResponseType.ANSWER, response.responseType());
+        assertEquals(HealthResponseType.CLARIFY, response.responseType());
         assertEquals("EXERCISE", response.domain().name());
         assertEquals("PLAN", response.task().name());
-        assertEquals("RESPOND", response.phase().name());
+        assertEquals("CLARIFY", response.phase().name());
         assertTrue(response.displayBlocks().isEmpty());
-        assertTrue(response.speechText().contains("我的计划"));
+        assertTrue(response.speechText().contains("训练主要"));
+        assertTrue(response.actions().isEmpty());
 
         HealthChatResponse currentWeekResponse = chat("帮我安排一下这周的健身计划");
         assertEquals("PLAN", currentWeekResponse.task().name(), "前端快捷问题必须进入周计划入口");
-        assertEquals(HealthResponseType.ANSWER, currentWeekResponse.responseType());
+        assertEquals(HealthResponseType.CLARIFY, currentWeekResponse.responseType());
         assertTrue(currentWeekResponse.displayBlocks().isEmpty());
-        assertTrue(currentWeekResponse.speechText().contains("我的计划"));
+        assertTrue(currentWeekResponse.speechText().contains("训练主要"));
+    }
+
+    @Test
+    void 训练简报确认后出现生成动作纠正会使确认失效且普通餐食不污染简报() {
+        String sessionId = "sess_plan_brief_flow";
+        HealthChatResponse collected = chatInSession(sessionId,
+                "帮我安排一周健身计划：我想减脂，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
+        assertEquals(HealthResponseType.ANSWER, collected.responseType());
+        assertEquals("CONFIRM_PLAN_BRIEF", collected.nextAction().name());
+        assertEquals("CONFIRM_PLAN_BRIEF", collected.actions().get(0).type());
+        HealthSessionState collectedState = sessionService.loadOrCreate(sessionId, 1L);
+        assertTrue(collectedState.planBrief().isComplete(), collectedState.toString());
+        assertEquals("PLAN", collectedState.task().name(), collectedState.toString());
+        assertEquals("EXERCISE", collectedState.domain().name(), collectedState.toString());
+
+        HealthChatResponse confirmed = chatInSession(sessionId, "确认训练偏好");
+        assertEquals("GENERATE_PLAN", confirmed.nextAction().name(), confirmed.toString());
+        assertTrue(confirmed.planBrief().isConfirmedAndComplete());
+        assertEquals("GENERATE_PLAN", confirmed.actions().get(0).type());
+
+        HealthChatResponse corrected = chatInSession(sessionId, "改成 20:00-21:00");
+        assertEquals("CONFIRM_PLAN_BRIEF", corrected.nextAction().name());
+        assertFalse(corrected.planBrief().confirmed());
+        assertEquals("20:00", corrected.planBrief().timeWindow().start().toString());
+
+        HealthChatResponse meal = chatInSession(sessionId, "午餐想吃清淡的");
+        assertEquals("MEAL", meal.domain().name());
+        assertFalse(meal.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
+        HealthSessionState saved = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals("20:00", saved.planBrief().timeWindow().start().toString(), "餐食推荐不能覆盖训练简报");
     }
 
     @Test

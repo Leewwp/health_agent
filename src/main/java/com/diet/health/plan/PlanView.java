@@ -25,6 +25,7 @@ public record PlanView(
         List<PlanItemView> items,
         boolean profileStale,
         String explanation,
+        String generationSource,
         LocalDateTime updatedAt
 ) {
 }

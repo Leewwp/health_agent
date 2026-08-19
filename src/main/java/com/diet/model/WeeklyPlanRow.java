@@ -21,6 +21,8 @@ public class WeeklyPlanRow {
     private String validationJson;
     private String note;
     private String sourceSessionId;
+    private String generationSource;
+    private String generationMetadataJson;
     private Long currentVersion;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

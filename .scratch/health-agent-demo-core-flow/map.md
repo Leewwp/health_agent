@@ -1,6 +1,6 @@
 # 健康 Agent 面试演示核心流程 — 追踪地图
 
-Status: ready-for-agent
+Status: ready-for-human
 
 ## Destination
 
@@ -15,13 +15,13 @@ Status: ready-for-agent
 ## Delivery graph
 
 1. [01 推荐主流程延迟与交互闭环](issues/01-recommendation-latency-and-ux.md) / [GitHub #84](https://github.com/Leewwp/health_agent/issues/84) — 已完成，等待人工/远端关票。
-2. [02 最小训练计划需求简报与确认](issues/02-minimal-training-plan-brief.md) / [GitHub #85](https://github.com/Leewwp/health_agent/issues/85) — 当前 frontier，无阻塞。
-3. [03 受约束 Agent 训练计划草稿闭环](issues/03-constrained-agent-training-plan.md) / [GitHub #86](https://github.com/Leewwp/health_agent/issues/86) — 被 02 / #85 阻塞。
-4. [04 Trace 最小诊断工作台](issues/04-minimal-trace-workbench.md) / [GitHub #87](https://github.com/Leewwp/health_agent/issues/87) — 被 03 / #86 阻塞。
+2. [02 最小训练计划需求简报与确认](issues/02-minimal-training-plan-brief.md) / [GitHub #85](https://github.com/Leewwp/health_agent/issues/85) — 已完成，等待人工/远端关票。
+3. [03 受约束 Agent 训练计划草稿闭环](issues/03-constrained-agent-training-plan.md) / [GitHub #86](https://github.com/Leewwp/health_agent/issues/86) — 已完成，等待人工/远端关票；真实模型成功 smoke 尚未完成。
+4. [04 Trace 最小诊断工作台](issues/04-minimal-trace-workbench.md) / [GitHub #87](https://github.com/Leewwp/health_agent/issues/87) — 已完成，等待人工/远端关票。
 5. [05 Qdrant 可选 Hybrid RAG 真实证据](issues/05-qdrant-hybrid-rag-evidence.md) / [GitHub #88](https://github.com/Leewwp/health_agent/issues/88) — 已完成，等待人工/远端关票。
-6. [06 云端发布与面试验收](issues/06-cloud-release-and-interview-acceptance.md) / [GitHub #89](https://github.com/Leewwp/health_agent/issues/89) — 被 02–04 / #85–#87 阻塞。
+6. [06 云端发布与面试验收](issues/06-cloud-release-and-interview-acceptance.md) / [GitHub #89](https://github.com/Leewwp/health_agent/issues/89) — 当前 frontier，等待云端发布验收。
 
-当前 frontier：02 / #85。#84 与 #88 的本地实现和证据已完成，#85–#87 仍按依赖顺序推进，#89 等待 #85–#87 完成后进入发布验收。
+当前 frontier：06 / #89 发布验收。#84–#88 的本地实现和证据已完成，#85–#87 的真实模型成功 smoke 仍是发布前待补外部证据，不影响本地确定性闭环验收。
 
 ## Review corrections (2026-08-18)
 
@@ -35,6 +35,14 @@ Status: ready-for-agent
 
 - #84 已完成：确定性意图/Clarify 快路径、统一请求截止时间、前端等待与失败恢复、详情交互和 Trace 来源证据已落地；全量双门控 661/0/0，前端行为测试 11/11，真实 Chromium 补充验收完成。
 - #88 已完成：Qdrant 真实索引 295/295，固定 60 条评估为 `REAL_HYBRID`、零降级；报告与发布证据已同步，结果不宣称召回提升。
+
+## Completion evidence (2026-08-19, #85-#87)
+
+- #85：独立 `planBrief` 会话命名空间、确定性多轮收集/确认/纠正、缺健康档案往返和 V13 训练目标标签迁移已完成；浏览器验证了简报、纠正、档案保存后回到原会话和生成入口。
+- #86：受约束计划生成服务已完成服务端简报重读、审核 `plan_ready` 候选白名单、确定性 Guard、规则 fallback、V14 生成来源/元数据和 requestId 幂等；浏览器验证了 fallback 草稿、七日安排和激活。
+- #87：Trace 诊断摘要、`SUCCESS + DEGRADED`、FALLBACK 原因、事件时间线、token 状态、脱敏 JSON 和 admin 鉴权展示已完成；浏览器验证了正确鉴权展示及无 token/错误 token 的 401 拒绝。
+- 自动化证据：Maven 三组门控均 670 tests、0 failures；普通门控跳过 37 个环境场景，MySQL 门控跳过 3 个 Qdrant 场景，MySQL+Qdrant 门控 0 skipped；前端行为测试 11/11；Compose 配置通过。
+- 外部证据边界：本轮使用 fixture/fallback 完成浏览器闭环，真实模型成功 smoke 尚未执行，不将 fallback 结果描述为真实模型成功。
 
 ## GitHub synchronization
 

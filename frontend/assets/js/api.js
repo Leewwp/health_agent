@@ -130,6 +130,14 @@ export function createPlanDraft(payload) {
     return request(HEALTH_BASE, "/plans/drafts", { method: "POST", body: payload || {} });
 }
 
+export function generateTrainingPlan(payload, options) {
+    return request(HEALTH_BASE, "/plans/generate", {
+        method: "POST",
+        body: payload || {},
+        ...(options || {})
+    });
+}
+
 export function activatePlan(planId) {
     return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/activate`, { method: "POST" });
 }

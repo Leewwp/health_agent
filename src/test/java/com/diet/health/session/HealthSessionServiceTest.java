@@ -5,6 +5,8 @@ import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.intent.PreferenceSignal;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.mapper.SessionMapper;
 import com.diet.model.SessionRow;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +17,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,8 +77,16 @@ class HealthSessionServiceTest {
                 .withIntent(HealthDomain.EXERCISE, HealthTask.RECOMMEND, List.of("ACUTE_SYMPTOMS"))
                 .withSlots(Map.of("bodyParts", List.of("胸"), "wakeTime", List.of("07:00")))
                 .withPreferenceSignals(List.of(new PreferenceSignal("EXERCISE", "9001", "LIKE")));
+        PlanBrief brief = new PlanBrief("增肌", List.of("胸"), List.of("徒手"), "入门",
+                LocalDate.of(2026, 8, 24), List.of(DayOfWeek.MONDAY),
+                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), Map.of(), true, 2, null);
+        saved = saved.withPlanBrief(brief);
         service.save(saved);
         verify(mapper).update(any());
+
+        ArgumentCaptor<SessionRow> rowCaptor = ArgumentCaptor.forClass(SessionRow.class);
+        verify(mapper).update(rowCaptor.capture());
+        assertTrue(rowCaptor.getValue().getSlots().contains("planBrief"));
     }
 
     @Test

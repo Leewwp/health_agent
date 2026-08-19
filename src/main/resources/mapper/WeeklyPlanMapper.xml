@@ -18,6 +18,8 @@
         <result property="validationJson" column="validation_json"/>
         <result property="note" column="note"/>
         <result property="sourceSessionId" column="source_session_id"/>
+        <result property="generationSource" column="generation_source"/>
+        <result property="generationMetadataJson" column="generation_metadata_json"/>
         <result property="currentVersion" column="current_version"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
@@ -37,6 +39,8 @@
         validation_json,
         note,
         source_session_id,
+        generation_source,
+        generation_metadata_json,
         current_version,
         created_at,
         updated_at
@@ -81,11 +85,11 @@
         INSERT INTO weekly_plan (
             user_id, status, week_start, timezone, profile_version_no, calorie_low, calorie_high,
             rules_version, validation_level, validation_json, note, source_session_id, current_version,
-            created_at, updated_at
+            generation_source, generation_metadata_json, created_at, updated_at
         ) VALUES (
             #{userId}, #{status}, #{weekStart}, #{timezone}, #{profileVersionNo}, #{calorieLow}, #{calorieHigh},
             #{rulesVersion}, #{validationLevel}, #{validationJson}, #{note}, #{sourceSessionId}, #{currentVersion},
-            #{createdAt}, #{updatedAt}
+            #{generationSource}, #{generationMetadataJson}, #{createdAt}, #{updatedAt}
         )
     </insert>
 

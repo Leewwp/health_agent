@@ -25,6 +25,7 @@ public class ExerciseItemRow {
     private String alternativeGroup;
     private String reviewStatus;
     private Boolean planReady;
+    private String trainingGoals;
     private String instructionsZh;
     private String stepsJson;
     private String thumbnailUrl;

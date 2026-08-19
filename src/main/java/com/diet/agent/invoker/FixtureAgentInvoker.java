@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,8 +76,48 @@ public class FixtureAgentInvoker implements AgentInvoker {
             if ("RecommendResponseAgent".equals(role)) {
                 return recommendFixture(after(prompt, "候选资源（已排序，只能解释不能新增）: "));
             }
+            if ("TrainingPlanAgent".equals(role)) {
+                return trainingPlanFixture(prompt);
+            }
             return null;
         };
+    }
+
+    /** 训练计划夹具只回显输入候选，并使用输入简报中的训练日和时间窗口。 */
+    private static String trainingPlanFixture(String prompt) {
+        Matcher candidate = Pattern.compile("\\\"exerciseId\\\"\\s*:\\s*\\\"([A-Za-z0-9_-]+)\\\"").matcher(prompt);
+        if (!candidate.find()) return null;
+        String id = candidate.group(1);
+        Matcher week = Pattern.compile("\\\"weekStart\\\"\\s*:\\s*\\\"(20\\d{2}-\\d{2}-\\d{2})\\\"").matcher(prompt);
+        Matcher start = Pattern.compile("\\\"start\\\"\\s*:\\s*\\\"([0-2]\\d:[0-5]\\d)\\\"").matcher(prompt);
+        if (!week.find() || !start.find()) return null;
+        String weekStart = week.group(1);
+        String startTime = start.group(1);
+        StringBuilder schedule = new StringBuilder();
+        Matcher day = Pattern.compile("\\\"trainingDays\\\"\\s*:\\s*\\[(.*?)\\]").matcher(prompt);
+        if (day.find()) {
+            Matcher value = Pattern.compile("\\\"([A-Z]+)\\\"").matcher(day.group(1));
+            int index = 0;
+            while (value.find() && index < 3) {
+                int offset = switch (value.group(1)) {
+                    case "MONDAY" -> 0;
+                    case "TUESDAY" -> 1;
+                    case "WEDNESDAY" -> 2;
+                    case "THURSDAY" -> 3;
+                    case "FRIDAY" -> 4;
+                    case "SATURDAY" -> 5;
+                    case "SUNDAY" -> 6;
+                    default -> 0;
+                };
+                if (schedule.length() > 0) schedule.append(',');
+                schedule.append("{\"exerciseId\":\"").append(id).append("\",\"localDate\":\"")
+                        .append(LocalDate.parse(weekStart).plusDays(offset)).append("\",\"startTime\":\"").append(startTime)
+                        .append("\",\"durationMinutes\":45}");
+                index++;
+            }
+        }
+        if (schedule.length() == 0) return null;
+        return "{\"schedule\":[" + schedule + "]}";
     }
 
     /** 返回最后一个标记之后的内容；无标记返回全文。 */

@@ -4,6 +4,7 @@ import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.intent.PreferenceSignal;
+import com.diet.health.plan.PlanBrief;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -26,28 +27,34 @@ public record HealthSessionState(
         List<String> riskFlags,
         Map<String, List<String>> slots,
         List<SessionResourceRef> lastResources,
-        List<PreferenceSignal> preferenceSignals
+        List<PreferenceSignal> preferenceSignals,
+        PlanBrief planBrief
 ) {
 
     public static HealthSessionState fresh(String sessionId, Long userId) {
         return new HealthSessionState(sessionId, userId, HealthPhase.START, null, null, List.of(),
-                new LinkedHashMap<>(), List.of(), List.of());
+                new LinkedHashMap<>(), List.of(), List.of(), PlanBrief.empty());
     }
 
     public HealthSessionState withPhase(HealthPhase newPhase) {
-        return new HealthSessionState(sessionId, userId, newPhase, domain, task, riskFlags, slots, lastResources, preferenceSignals);
+        return new HealthSessionState(sessionId, userId, newPhase, domain, task, riskFlags, slots, lastResources, preferenceSignals, planBrief);
     }
 
     public HealthSessionState withIntent(HealthDomain newDomain, HealthTask newTask, List<String> newRiskFlags) {
-        return new HealthSessionState(sessionId, userId, phase, newDomain, newTask, newRiskFlags, slots, lastResources, preferenceSignals);
+        return new HealthSessionState(sessionId, userId, phase, newDomain, newTask, newRiskFlags, slots, lastResources, preferenceSignals, planBrief);
     }
 
     public HealthSessionState withSlots(Map<String, List<String>> newSlots) {
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, newSlots, lastResources, preferenceSignals);
+        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, newSlots, lastResources, preferenceSignals, planBrief);
     }
 
     public HealthSessionState withPreferenceSignals(List<PreferenceSignal> newSignals) {
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, newSignals);
+        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, newSignals, planBrief);
+    }
+
+    public HealthSessionState withPlanBrief(PlanBrief newBrief) {
+        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
+                preferenceSignals, newBrief == null ? PlanBrief.empty() : newBrief);
     }
 
     /** 追加本轮类型化资源引用，按 (type, id) 去重并保持顺序。 */
@@ -58,7 +65,7 @@ public record HealthSessionState(
         Set<SessionResourceRef> merged = new LinkedHashSet<>(lastResources);
         merged.addAll(newRefs);
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
-                List.copyOf(merged), preferenceSignals);
+                List.copyOf(merged), preferenceSignals, planBrief);
     }
 
     /**
@@ -81,7 +88,7 @@ public record HealthSessionState(
         }
         newRefs.stream().distinct().forEach(merged::add);
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
-                List.copyOf(merged), preferenceSignals);
+                List.copyOf(merged), preferenceSignals, planBrief);
     }
 
     /**
