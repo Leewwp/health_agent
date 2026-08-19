@@ -6,7 +6,7 @@ GitHub: [#89](https://github.com/Leewwp/health_agent/issues/89)
 
 **What to build:** 将已经完成的核心能力发布到单实例云端环境，并用可重复脚本证明面试官能够完成餐食推荐、动作推荐、Agent 训练计划和 Trace 全流程。
 
-**Blocked by:** 01 — 推荐主流程延迟与交互闭环；02 — 最小训练计划需求简报与确认；03 — 受约束 Agent 训练计划草稿闭环；04 — Trace 最小诊断工作台；05 — Qdrant 可选 Hybrid RAG 真实证据。
+**Blocked by:** 02 — 最小训练计划需求简报与确认；03 — 受约束 Agent 训练计划草稿闭环；04 — Trace 最小诊断工作台。01 / #84 与 05 / #88 已于 2026-08-19 在本地完成。
 
 - [ ] Compose 保持 Nginx、Spring Boot、MySQL 单实例拓扑，不引入 Redis、队列或多实例；面试云端默认 `DIET_VECTORSTORE_MODE=qdrant` 并使用预先完成索引的当前 collection，但 Qdrant 不可用仍自动降级，不成为健康检查或核心流程硬依赖。
 - [ ] 应用、代理和前端截止时间一致，模型或 Qdrant 故障时无代理 504、不可见写入或永久禁用控件。

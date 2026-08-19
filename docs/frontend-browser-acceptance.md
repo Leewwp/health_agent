@@ -118,7 +118,7 @@
 - 四次连续调用全部成功且返回 `structuredContent`：`search_meals(slots.mealTime=早餐, limit=1)` 返回 1 条；`get_meal_detail(mealId=2310)` 返回黑豆千层面；`get_routine_facts(keyword=睡多久)` 返回 3 条；`calculate_targets(age=30, sex=MALE, heightCm=175, weightKg=70, activityLevel=MODERATE, goal=MAINTAIN)` 返回 2450-2700 kcal。
 - Authorization、Origin 与 session 均通过同一 MCP endpoint 验证；token 仅注入本地进程，未写入仓库或文档。
 
-## #78–#82 健康聊天稳定化 Agent 模式降级复验（2026-08-18）
+## #78–#82 健康聊天稳定化 Agent 模式降级复验（历史中间状态，2026-08-18）
 
 - 验收环境：当前工作树 Spring Boot（AgentScope 模式，后端端口 `18081`）+ `health-agent-media-ui` Nginx 同源入口 + ego-browser 真实 Chromium，URL `http://127.0.0.1:18090/#/chat`，视口 1710×983；使用新的匿名浏览器会话，凭证只从 gitignore 配置读取，未输出或写入仓库。
 - 健身闭环：发送“帮我推荐一份适合新手的轻量训练”→ `EXERCISE / RECOMMEND / CLARIFY`，只追问训练部位；回复“胸肌”→ `EXERCISE / RECOMMEND / RESPOND`，显示靠墙俯卧撑、俯卧撑、双杠臂屈伸 3 张动作卡，均来自 `gym-visual-exercises-dataset`，无餐食卡。
@@ -126,7 +126,7 @@
 - 作息事实：发送“晚上几点前应该停止喝咖啡？”→ `ROUTINE / RECOMMEND / RESPOND`，直接返回睡前约 6 小时停止咖啡因的事实卡，并显示 Drake 等 J Clin Sleep Med 2013 双盲 RCT 来源，无餐食或动作卡。
 - 无关问题：发送“推荐一部电影”→ `OTHER / CHAT / RESPOND`，明确说明超出健康助手范围，未显示任何健康资源卡。
 - 配套门控：`docker compose config --quiet` 通过；普通 Maven 套件 656 个测试中 619 通过、37 个环境门控跳过；启用真实 MySQL 8.4 门控后 653 通过、仅 3 个 Qdrant 门控跳过。当前 macOS/JDK 21 通过显式加载项目已有 Byte Buddy agent 运行 Mockito，未修改生产代码。
-- live model 状态：进程退出日志显示本轮 `qwen3.7-flash` 调用均为 `request timed out`，Embedding 调用为 HTTP 404；上述页面行为由现有确定性降级完成，不能作为“真实模型成功”证据。#82/#78 保持开放，待维护者提供当前网络/账号可访问的 DashScope 配置后补一次成功的结构化 live smoke。
+- live model 状态：本段记录的中间运行中 `qwen3.7-flash` 调用均为 `request timed out`，Embedding 调用为 HTTP 404；当时的页面行为由确定性降级完成，不能作为“真实模型成功”证据。随后已在 #82 最终验收和 #84 收尾中补齐可用配置下的运行/降级证据。
 
 ## #82 真实 Chromium 全链最终验收（2026-08-18）
 
@@ -139,3 +139,11 @@
 - 证据校正：后续审计发现旧 `AgentScopeInvoker` 以历史名称 `qwen-max` 判断是否选择主模型 Bean，因此上述 Trace 能证明真实 Agent 调用成功和请求配置名，但不能单独证明响应 Agent 底层使用了主模型 Bean。现已改为显式 `MAIN/LIGHT` 职责路由并增加回归测试；修复后的主模型 live 延迟证据由 #84 重新采集。
 - 自动化：PLAN/配置聚焦 39/39；普通全量 658（621 通过 + 37 环境门控跳过）；真实 MySQL 门控 658（655 通过 + 3 个 Qdrant 门控跳过）；`docker compose config --quiet` 通过。
 - 清理：后端与临时 `health-agent-issue82-ui` 容器均已停止；浏览器任务空间在 GitHub 关票完成后关闭。
+
+## #84/#88 收尾补充验收（2026-08-19）
+
+- #84 临时同源验收入口：`http://127.0.0.1:18092/#/chat`；独立 Spring Boot 运行在 `18080`，验收结束后已停止，不影响既有本地服务。
+- 餐食页加载审核库 295 条；打开首张餐食详情抽屉，抽屉显示营养、来源、过敏原和标签；按 `Escape` 关闭后 `drawer-root[aria-hidden]` 恢复为 `true`。
+- 聊天发送明确作息请求后，页面显示等待文案，表单 `aria-busy=true`，输入框禁用，发送按钮切换为“等待中”；慢请求结束后等待文案消失，控件恢复，显示中文失败提示“暂时无法完成推荐，请稍后重试。”。
+- 前端行为测试 11/11 通过；完整 Maven 双门控 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 为 661 tests、0 failures。Qdrant 真实证据见 `data/reports/rag_evaluation.json`：295/295 索引、60/60 `REAL_HYBRID`、0 降级。
+- 这是本地真实 Chromium 的交互/恢复补充验收；公网 HTTPS、训练计划 Agent 生成和管理员 Trace 全链仍属于 #89 的发布验收范围。

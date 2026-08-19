@@ -6,7 +6,7 @@ GitHub: [#87](https://github.com/Leewwp/health_agent/issues/87)
 
 **What to build:** 让管理员在一个可读页面中解释餐食推荐、动作推荐和训练计划的耗时、模型、解析、Guard 与降级路径，而不建设完整观测平台。
 
-**Blocked by:** 01 — 推荐主流程延迟与交互闭环；03 — 受约束 Agent 训练计划草稿闭环。
+**Blocked by:** 03 — 受约束 Agent 训练计划草稿闭环；01 / #84 已于 2026-08-19 在本地完成。
 
 - [ ] Trace 请求摘要同时展示请求状态和独立诊断结果，支持 `SUCCESS + DEGRADED`。
 - [ ] 展示总耗时、Agent 聚合耗时、调用次数、降级次数、实际模型、token 未提供状态、解析结果和 fallback 原因。

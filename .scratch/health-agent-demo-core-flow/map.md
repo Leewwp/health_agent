@@ -14,14 +14,14 @@ Status: ready-for-agent
 
 ## Delivery graph
 
-1. [01 推荐主流程延迟与交互闭环](issues/01-recommendation-latency-and-ux.md) / [GitHub #84](https://github.com/Leewwp/health_agent/issues/84) — 无阻塞。
-2. [02 最小训练计划需求简报与确认](issues/02-minimal-training-plan-brief.md) / [GitHub #85](https://github.com/Leewwp/health_agent/issues/85) — 被 01 / #84 阻塞。
+1. [01 推荐主流程延迟与交互闭环](issues/01-recommendation-latency-and-ux.md) / [GitHub #84](https://github.com/Leewwp/health_agent/issues/84) — 已完成，等待人工/远端关票。
+2. [02 最小训练计划需求简报与确认](issues/02-minimal-training-plan-brief.md) / [GitHub #85](https://github.com/Leewwp/health_agent/issues/85) — 当前 frontier，无阻塞。
 3. [03 受约束 Agent 训练计划草稿闭环](issues/03-constrained-agent-training-plan.md) / [GitHub #86](https://github.com/Leewwp/health_agent/issues/86) — 被 02 / #85 阻塞。
-4. [04 Trace 最小诊断工作台](issues/04-minimal-trace-workbench.md) / [GitHub #87](https://github.com/Leewwp/health_agent/issues/87) — 被 01、03 / #84、#86 阻塞。
-5. [05 Qdrant 可选 Hybrid RAG 真实证据](issues/05-qdrant-hybrid-rag-evidence.md) / [GitHub #88](https://github.com/Leewwp/health_agent/issues/88) — 无阻塞，可与主线并行。
-6. [06 云端发布与面试验收](issues/06-cloud-release-and-interview-acceptance.md) / [GitHub #89](https://github.com/Leewwp/health_agent/issues/89) — 被 01–05 / #84–#88 阻塞。
+4. [04 Trace 最小诊断工作台](issues/04-minimal-trace-workbench.md) / [GitHub #87](https://github.com/Leewwp/health_agent/issues/87) — 被 03 / #86 阻塞。
+5. [05 Qdrant 可选 Hybrid RAG 真实证据](issues/05-qdrant-hybrid-rag-evidence.md) / [GitHub #88](https://github.com/Leewwp/health_agent/issues/88) — 已完成，等待人工/远端关票。
+6. [06 云端发布与面试验收](issues/06-cloud-release-and-interview-acceptance.md) / [GitHub #89](https://github.com/Leewwp/health_agent/issues/89) — 被 02–04 / #85–#87 阻塞。
 
-当前 frontier：01 / #84、05 / #88。
+当前 frontier：02 / #85。#84 与 #88 的本地实现和证据已完成，#85–#87 仍按依赖顺序推进，#89 等待 #85–#87 完成后进入发布验收。
 
 ## Review corrections (2026-08-18)
 
@@ -31,11 +31,16 @@ Status: ready-for-agent
 - 六票逐项估算合计为 9–14.5 人日。原 7–11 人日与逐票数字不一致，不能继续称为“投入”；Qdrant 并行只能缩短日历时间。
 - 已确认发布门槛：等待反馈 ≤100ms；明确推荐 P95 ≤3 秒且单次 ≤5 秒；歧义 Agent 请求 ≤15 秒；训练计划生成 ≤20 秒并在上限内 fallback。云端主演示默认启用 Qdrant，但始终保留 Structured 降级。
 
+## Completion updates (2026-08-19)
+
+- #84 已完成：确定性意图/Clarify 快路径、统一请求截止时间、前端等待与失败恢复、详情交互和 Trace 来源证据已落地；全量双门控 661/0/0，前端行为测试 11/11，真实 Chromium 补充验收完成。
+- #88 已完成：Qdrant 真实索引 295/295，固定 60 条评估为 `REAL_HYBRID`、零降级；报告与发布证据已同步，结果不宣称召回提升。
+
 ## GitHub synchronization
 
 - Parent issue: [#83 健康 Agent 面试演示核心流程：受约束 Agent 训练计划与可观测降级](https://github.com/Leewwp/health_agent/issues/83)
 - Ticket issues: [#84](https://github.com/Leewwp/health_agent/issues/84)、[#85](https://github.com/Leewwp/health_agent/issues/85)、[#86](https://github.com/Leewwp/health_agent/issues/86)、[#87](https://github.com/Leewwp/health_agent/issues/87)、[#88](https://github.com/Leewwp/health_agent/issues/88)、[#89](https://github.com/Leewwp/health_agent/issues/89)
-- #83–#89 均为 open、`ready-for-agent`；GitHub 原生父子关系与 blocking edges 已建立。
+- GitHub 原生父子关系与 blocking edges 已建立；本地 #84/#88 已标记 `resolved`，远端是否关闭需按人工评审流程同步，不能由本地状态推断。
 
 ## Scope decisions
 
