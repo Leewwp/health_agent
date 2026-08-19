@@ -7,10 +7,10 @@
  * - ACTIVE：编辑先复制为新 DRAFT（POST /edit），激活需确认（POST /activate）；
  * - 生成草稿需要健康档案；校验结果（validationHits）与档案过期标记展示给用户。
  */
-import { escapeHtml, formatTime, formatDateLabel, localDateOf } from "../util/dom.js";
+import { escapeHtml, formatTime, formatDateLabel, localDateOf, newRequestId } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
-import { listPlans, getPlan, createPlanDraft, activatePlan, editPlan, patchPlanItem } from "../api.js";
-import { registerResource, getOrCreateClientSessionId } from "../store.js";
+import { listPlans, getPlan, createPlanDraft, generateTrainingPlan, activatePlan, editPlan, patchPlanItem } from "../api.js";
+import { registerResource, getOrCreateClientSessionId, getChatSessionId } from "../store.js";
 import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { requestConfirmation, requestText } from "../ui/modal.js";
@@ -26,10 +26,32 @@ const state = {
     loading: false,
     loaded: false,
     error: null,
-    saving: false
+    saving: false,
+    generating: false,
+    generationError: null,
+    generationAttempted: false
 };
 
 export async function render(app) {
+    if (hasGenerateRequest() && !state.generationAttempted) {
+        state.generationAttempted = true;
+        startTrainingPlanGeneration(app);
+        return;
+    }
+    if (!hasGenerateRequest()) {
+        state.generationAttempted = false;
+        state.generationError = null;
+    }
+    if (state.generating) {
+        app.innerHTML = renderGenerationWaiting();
+        bind(app);
+        return;
+    }
+    if (state.generationError) {
+        app.innerHTML = renderGenerationError();
+        bind(app);
+        return;
+    }
     if (!state.loaded && !state.loading && !state.error) {
         state.loading = true;
         loadSummaries().then(() => {
@@ -76,6 +98,65 @@ export async function render(app) {
         </section>
     `;
     bind(app);
+}
+
+function hasGenerateRequest() {
+    const hash = location.hash || "";
+    return new URLSearchParams(hash.split("?")[1] || "").get("generate") === "1";
+}
+
+function renderGenerationWaiting() {
+    return `
+        <section class="section plan-generation-state" aria-live="polite" aria-busy="true">
+            <div class="empty">
+                <span class="loading-spinner" aria-hidden="true"></span>
+                <strong>正在生成训练计划草稿</strong>
+                <p class="muted">正在读取已确认简报、筛选审核动作并执行规则校验，请稍候。</p>
+            </div>
+        </section>
+    `;
+}
+
+function renderGenerationError() {
+    return `
+        <section class="section plan-generation-state">
+            <div class="empty">
+                <strong>训练计划生成失败</strong>
+                <p class="muted">${escapeHtml(state.generationError)}</p>
+                <div class="button-row">
+                    <button class="btn primary" data-action="retry-generation">重新生成</button>
+                    <a class="btn ghost" href="#/chat">返回聊天</a>
+                    <a class="btn soft" href="#/profile">完善健康档案</a>
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+async function startTrainingPlanGeneration(app) {
+    state.generating = true;
+    state.generationError = null;
+    render(app);
+    try {
+        const query = new URLSearchParams((location.hash || "").split("?")[1] || "");
+        const result = await generateTrainingPlan({
+            sessionId: getChatSessionId(),
+            requestId: query.get("requestId") || newRequestId()
+        });
+        state.generating = false;
+        state.detail = result.plan;
+        state.selectedId = result.plan?.id || null;
+        state.summaries = await listPlans();
+        state.loaded = true;
+        state.error = null;
+        showToast(result.generationSource === "FALLBACK" ? "计划已生成（规则降级）" : "计划已生成（Agent）");
+        history.replaceState(null, "", "#/plans");
+        render(app);
+    } catch (error) {
+        state.generating = false;
+        state.generationError = error.message || "训练计划生成失败";
+        render(app);
+    }
 }
 
 let listenersBound = false;
@@ -128,7 +209,7 @@ function renderPlanList() {
         return `
             <div class="plan-row ${selected ? "selected" : ""}">
                 <div class="plan-row-meta">
-                    <strong>${escapeHtml(plan.weekStart)} 当周计划 · ${statusBadge(plan.status)}</strong>
+                    <strong>${escapeHtml(plan.weekStart)} 当周计划 · ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}</strong>
                     <span>时区 ${escapeHtml(plan.timezone)} · 版本 v${escapeHtml(plan.currentVersion)} · ${escapeHtml(plan.itemCount)} 项${plan.validationLevel ? ` · 校验 ${escapeHtml(plan.validationLevel)}` : ""}</span>
                 </div>
                 <div class="button-row">
@@ -155,7 +236,7 @@ function renderDetail(plan) {
     return `
         <div class="card-title">
             <div>
-                <h2>${escapeHtml(plan.weekStart)} 当周计划 ${statusBadge(plan.status)}</h2>
+                <h2>${escapeHtml(plan.weekStart)} 当周计划 ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}</h2>
                 <p>时区 ${escapeHtml(plan.timezone)} · 档案版本 v${escapeHtml(plan.profileVersionNo)} · 规则 ${escapeHtml(plan.rulesVersion)} · 当前版本 v${escapeHtml(plan.currentVersion)}${plan.profileStale ? " · 档案已更新，本计划按生成时快照计算" : ""}</p>
             </div>
             <div class="button-row">
@@ -188,6 +269,12 @@ function renderDetail(plan) {
     `;
 }
 
+function sourceBadge(source) {
+    const labels = { AGENT: "Agent 生成", FALLBACK: "规则降级", RULE_COMPOSER: "规则组合" };
+    if (!source || !labels[source]) return "";
+    return ` <span class="badge ${source === "FALLBACK" ? "warn" : ""}">${labels[source]}</span>`;
+}
+
 function buildDays(weekStart) {
     const start = new Date(`${weekStart}T00:00:00`);
     return Array.from({ length: 7 }, (_, index) => {
@@ -197,7 +284,8 @@ function buildDays(weekStart) {
 }
 
 function renderDay(day, index, plan) {
-    const items = (plan.items || []).filter((item) => item.localDate === day);
+    const items = (plan.items || []).filter((item) => item.localDate === day)
+        .sort((left, right) => Number(right.resourceType === "EXERCISE") - Number(left.resourceType === "EXERCISE"));
     const editable = plan.status === "DRAFT";
     return `
         <div class="week-day">
@@ -240,6 +328,9 @@ function handleClick(event) {
         state.selectedId = null;
         state.loaded = false;
         render(document.getElementById("app"));
+    } else if (action === "retry-generation") {
+        state.generationAttempted = true;
+        startTrainingPlanGeneration(document.getElementById("app"));
     } else if (action === "select-plan") {
         selectPlan(target.dataset.planId);
     } else if (action === "open-plan-item") {

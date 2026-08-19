@@ -2,10 +2,13 @@ package com.diet.controller.health;
 
 import com.diet.constants.DietConstants;
 import com.diet.health.plan.DraftPlanRequest;
+import com.diet.health.plan.GenerateTrainingPlanRequest;
 import com.diet.health.plan.PatchItemRequest;
 import com.diet.health.plan.PlanSummaryView;
 import com.diet.health.plan.PlanView;
 import com.diet.health.plan.WeeklyPlanService;
+import com.diet.health.plan.TrainingPlanGenerationResponse;
+import com.diet.health.plan.TrainingPlanGenerationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,9 +30,16 @@ import java.util.List;
 public class HealthPlanController {
 
     private final WeeklyPlanService planService;
+    private final TrainingPlanGenerationService trainingPlanGenerationService;
 
     public HealthPlanController(WeeklyPlanService planService) {
+        this(planService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public HealthPlanController(WeeklyPlanService planService, TrainingPlanGenerationService trainingPlanGenerationService) {
         this.planService = planService;
+        this.trainingPlanGenerationService = trainingPlanGenerationService;
     }
 
     @GetMapping
@@ -41,6 +51,12 @@ public class HealthPlanController {
     public PlanView createDraft(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
                                 @RequestBody(required = false) DraftPlanRequest request) {
         return planService.createDraft(userId, request);
+    }
+
+    @PostMapping("/generate")
+    public TrainingPlanGenerationResponse generate(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
+                                                   @RequestBody GenerateTrainingPlanRequest request) {
+        return trainingPlanGenerationService.generate(userId, request);
     }
 
     @GetMapping("/{planId}")

@@ -23,6 +23,7 @@
         <result property="alternativeGroup" column="alternative_group"/>
         <result property="reviewStatus" column="review_status"/>
         <result property="planReady" column="plan_ready"/>
+        <result property="trainingGoals" column="training_goals"/>
         <result property="instructionsZh" column="instructions_zh"/>
         <result property="stepsJson" column="steps_json"/>
         <result property="thumbnailUrl" column="thumbnail_url"/>
@@ -52,6 +53,7 @@
         alternative_group,
         review_status,
         plan_ready,
+        training_goals,
         instructions_zh,
         steps_json,
         thumbnail_url,

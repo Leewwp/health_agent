@@ -64,6 +64,12 @@ public class ReviewedResourceSeeder implements ApplicationRunner {
             statements++;
         }
         log.info("审核资源导入完成：{} 条语句，影响 {} 行（INSERT IGNORE，幂等）", statements, rows);
+        // #85：seed 只承载审核动作事实，目标标签由可审计的 V13 规则按动作模式补齐，
+        // 每次启动重算以保证 fresh DB 与 legacy DB 的标签结果一致。
+        jdbcTemplate.update("UPDATE exercise_item SET training_goals = CASE "
+                + "WHEN movement_pattern = '有氧' THEN JSON_ARRAY('减脂', '耐力', '保持健康') "
+                + "ELSE JSON_ARRAY('增肌', '力量', '保持健康') END "
+                + "WHERE review_status = 'APPROVED' AND plan_ready = 1");
     }
 
     /** 去掉语句内的 -- 注释行（种子文件头部注释会与第一条语句同段）。 */

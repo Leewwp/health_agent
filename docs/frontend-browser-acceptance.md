@@ -147,3 +147,13 @@
 - 聊天发送明确作息请求后，页面显示等待文案，表单 `aria-busy=true`，输入框禁用，发送按钮切换为“等待中”；慢请求结束后等待文案消失，控件恢复，显示中文失败提示“暂时无法完成推荐，请稍后重试。”。
 - 前端行为测试 11/11 通过；完整 Maven 双门控 `mvn test -Ditest.mysql=true -Ditest.qdrant=true` 为 661 tests、0 failures。Qdrant 真实证据见 `data/reports/rag_evaluation.json`：295/295 索引、60/60 `REAL_HYBRID`、0 降级。
 - 这是本地真实 Chromium 的交互/恢复补充验收；公网 HTTPS、训练计划 Agent 生成和管理员 Trace 全链仍属于 #89 的发布验收范围。
+
+## #85-#87 训练计划与 Trace 核心流程（2026-08-19）
+
+- 验收环境：当前工作树 Spring Boot fixture/fallback 后端端口 `18080` + 临时同源 Nginx 端口 `18092` + ego-browser 真实 Chromium；桌面视口 `1710×983`，窄视口 `390×844`。凭证只从本地未提交配置读取，未写入仓库或本文档。
+- 聊天 URL：`http://localhost:18092/#/chat`。多轮输入训练目标、部位、器械、难度、目标周和时间窗口后，页面展示中文简报；纠正字段后确认状态失效；普通餐食/动作推荐未污染 `planBrief`。
+- 缺档案往返：在原会话点击“完善健康档案”，保存后返回同一会话，已收集的训练偏好仍在；确认后出现“生成训练计划”操作。
+- 计划 URL：`http://localhost:18092/#/plans`。点击生成后立即出现等待反馈并阻止重复提交；页面展示“规则降级”、3 个训练项目和七日安排，之后激活草稿并显示“已激活”。
+- Trace URL：`http://localhost:18092/#/admin/traces`。正确管理员鉴权后展示 `SUCCESS + DEGRADED`、`Token：未提供`、FALLBACK 原因、5 步时间线和脱敏嵌套 JSON；无 token/错误 token 的浏览器请求均返回 HTTP 401。
+- 移动端检查：Trace 与计划页面在 `390×844` 下 `documentWidth=390`，无文档级横向溢出，长 ID/JSON 在面板内处理。
+- 外部模型边界：本次闭环使用 fixture/fallback，真实模型成功 smoke 尚未执行；本记录不把规则降级结果描述为真实模型成功。

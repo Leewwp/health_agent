@@ -38,12 +38,19 @@ public class HealthIntentRevisionService {
 
         HealthDomain domain = raw.domain();
         HealthTask task = raw.task();
+        boolean planContinuation = state.task() == HealthTask.PLAN
+                && state.domain() == HealthDomain.EXERCISE
+                && isPlanContinuation(text);
         if (explicitDomain != null) {
             domain = explicitDomain;
             task = domain == HealthDomain.OTHER ? HealthTask.CHAT
-                    : plan ? HealthTask.PLAN
+                    : (plan || planContinuation) ? HealthTask.PLAN
                     : adjust ? HealthTask.ADJUST
                     : HealthTask.RECOMMEND;
+        } else if (planContinuation) {
+            // 训练简报确认/纠正是当前 PLAN 上下文的继续输入，不能被普通意图兜底改写。
+            domain = HealthDomain.EXERCISE;
+            task = HealthTask.PLAN;
         } else if (adjust && isRecommendDomain(state.domain())) {
             domain = state.domain();
             task = HealthTask.ADJUST;
@@ -105,6 +112,12 @@ public class HealthIntentRevisionService {
 
     private boolean isShortReply(String text) {
         return !text.isBlank() && text.length() <= 12;
+    }
+
+    private boolean isPlanContinuation(String text) {
+        return containsAny(text, "确认训练偏好", "确认简报", "按这个生成", "改成", "换成",
+                "目标周", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
+                "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量");
     }
 
     private boolean containsAny(String text, String... keywords) {

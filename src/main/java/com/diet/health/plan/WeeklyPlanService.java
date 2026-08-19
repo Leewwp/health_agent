@@ -124,6 +124,8 @@ public class WeeklyPlanService {
         plan.setValidationLevel(result.level().name());
         plan.setValidationJson(toJson(ruleHitViews(result)));
         plan.setSourceSessionId(session.sessionId());
+        plan.setGenerationSource("RULE_COMPOSER");
+        plan.setGenerationMetadataJson(toJson(Map.of("source", "legacy-composer")));
         plan.setCurrentVersion(1L);
         LocalDateTime now = LocalDateTime.now();
         plan.setCreatedAt(now);
@@ -133,14 +135,62 @@ public class WeeklyPlanService {
         insertItems(plan, items, now);
 
         String explanation = explain(plan, profile, loadItemViews(plan));
-        return toView(plan, loadItemViews(plan), false, explanation);
+        return toView(plan, loadItemViews(plan), false, explanation, null);
+    }
+
+    /** 训练 Agent 生成后的短事务写入：事务内只重读档案/会话并执行最终 Guard 与版本快照。 */
+    @Transactional
+    public PlanView persistGeneratedDraft(Long userId, DraftPlanRequest request, List<PlanItemDraft> items,
+                                          String generationSource, Map<String, Object> generationMetadata,
+                                          String explanation) {
+        HealthProfileView profile = requireProfileRiskPassed(userId);
+        String timezone = request == null || request.timezone() == null || request.timezone().isBlank()
+                ? DEFAULT_TIMEZONE : request.timezone();
+        LocalDate weekStart = request == null ? null : request.weekStart();
+        if (weekStart == null || weekStart.getDayOfWeek() != DayOfWeek.MONDAY) {
+            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "已确认训练简报的目标周必须从周一开始");
+        }
+        HealthSessionState session = sessionService.loadOrCreate(request.sessionId(), userId);
+        if (session.planBrief() == null || !session.planBrief().isConfirmedAndComplete()
+                || !weekStart.equals(session.planBrief().weekStart())) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "训练简报已变化，请重新确认后生成");
+        }
+        requireItemsInWeek(items, weekStart);
+        PlanValidationService.ValidationResult result = validationService.validate(
+                validationContext(profile), items, resourceCatalog());
+        if (result.blocked()) {
+            throw blocked(result.copy());
+        }
+
+        WeeklyPlanRow plan = new WeeklyPlanRow();
+        plan.setUserId(userId);
+        plan.setStatus(PlanStatus.DRAFT.name());
+        plan.setWeekStart(weekStart);
+        plan.setTimezone(timezone);
+        plan.setProfileVersionNo(profile.versionNo());
+        plan.setCalorieLow(profile.calorieLow());
+        plan.setCalorieHigh(profile.calorieHigh());
+        plan.setRulesVersion(PlanValidationService.RULES_VERSION);
+        plan.setValidationLevel(result.level().name());
+        plan.setValidationJson(toJson(ruleHitViews(result)));
+        plan.setSourceSessionId(session.sessionId());
+        plan.setGenerationSource(generationSource == null || generationSource.isBlank()
+                ? "FALLBACK" : generationSource);
+        plan.setGenerationMetadataJson(toJson(generationMetadata == null ? Map.of() : generationMetadata));
+        plan.setCurrentVersion(1L);
+        plan.setCreatedAt(LocalDateTime.now());
+        plan.setUpdatedAt(plan.getCreatedAt());
+        planMapper.insertPlan(plan);
+        insertVersion(plan, profile, result, plan.getCreatedAt(), items, generationMetadata);
+        insertItems(plan, items, plan.getCreatedAt());
+        return toView(plan, loadItemViews(plan), false, explanation, generationSource);
     }
 
     /** 查询计划（归属校验）。 */
     public PlanView getPlan(Long userId, Long planId) {
         WeeklyPlanRow plan = requirePlan(userId, planId);
         boolean stale = profileStale(userId, plan);
-        return toView(plan, loadItemViews(plan), stale, null);
+        return toView(plan, loadItemViews(plan), stale, null, null);
     }
 
     /** 计划列表：ACTIVE 优先，其次 DRAFT，最后 ARCHIVED。 */
@@ -154,6 +204,7 @@ public class WeeklyPlanService {
                         parseValidationLevel(plan),
                         plan.getCurrentVersion(),
                         planMapper.findItems(plan.getId(), plan.getCurrentVersion()).size(),
+                        plan.getGenerationSource(),
                         plan.getUpdatedAt()
                 ))
                 .toList();
@@ -188,7 +239,7 @@ public class WeeklyPlanService {
             }
             long newVersion = plan.getCurrentVersion() + 1;
             LocalDateTime now = LocalDateTime.now();
-            planMapper.insertVersion(buildVersion(plan, profile, result, now, items, newVersion));
+            planMapper.insertVersion(buildVersion(plan, profile, result, now, items, newVersion, null));
             insertItems(plan, items, now, newVersion);
             plan.setStatus(PlanStatus.ACTIVE.name());
             plan.setCurrentVersion(newVersion);
@@ -203,7 +254,7 @@ public class WeeklyPlanService {
             }
         }
         String explanation = explain(plan, profile, loadItemViews(plan));
-        return toView(plan, loadItemViews(plan), false, explanation);
+        return toView(plan, loadItemViews(plan), false, explanation, null);
     }
 
     /** 编辑：DRAFT 直接返回；ACTIVE 复制为新 DRAFT（规格 6.3）。 */
@@ -212,7 +263,7 @@ public class WeeklyPlanService {
         WeeklyPlanRow plan = requirePlan(userId, planId);
         if (PlanStatus.DRAFT.name().equals(plan.getStatus())) {
             boolean stale = profileStale(userId, plan);
-            return toView(plan, loadItemViews(plan), stale, null);
+            return toView(plan, loadItemViews(plan), stale, null, null);
         }
         if (PlanStatus.ARCHIVED.name().equals(plan.getStatus())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "归档计划不可编辑");
@@ -244,7 +295,7 @@ public class WeeklyPlanService {
         planMapper.insertPlan(copy);
         insertVersion(copy, profile, result, now, items);
         insertItems(copy, items, now);
-        return toView(copy, loadItemViews(copy), false, null);
+        return toView(copy, loadItemViews(copy), false, null, null);
     }
 
     /** PATCH 项目：只允许日期/时间/备注；硬错误拒绝变更不落库。 */
@@ -293,7 +344,7 @@ public class WeeklyPlanService {
         plan.setUpdatedAt(LocalDateTime.now());
         planMapper.updatePlan(plan);
         boolean stale = profileStale(userId, plan);
-        return toView(plan, loadItemViews(plan), stale, null);
+        return toView(plan, loadItemViews(plan), stale, null, null);
     }
 
     /** 生成解释：PlanResponseAgent 只解释已校验结果，输出后 Guard 由服务内部执行。 */
@@ -387,7 +438,13 @@ public class WeeklyPlanService {
     private void insertVersion(WeeklyPlanRow plan, HealthProfileView profile,
                                PlanValidationService.ValidationResult result, LocalDateTime now,
                                List<PlanItemDraft> items) {
-        planMapper.insertVersion(buildVersion(plan, profile, result, now, items, plan.getCurrentVersion()));
+        planMapper.insertVersion(buildVersion(plan, profile, result, now, items, plan.getCurrentVersion(), null));
+    }
+
+    private void insertVersion(WeeklyPlanRow plan, HealthProfileView profile,
+                               PlanValidationService.ValidationResult result, LocalDateTime now,
+                               List<PlanItemDraft> items, Map<String, Object> generationMetadata) {
+        planMapper.insertVersion(buildVersion(plan, profile, result, now, items, plan.getCurrentVersion(), generationMetadata));
     }
 
     /**
@@ -396,7 +453,8 @@ public class WeeklyPlanService {
      */
     private WeeklyPlanVersionRow buildVersion(WeeklyPlanRow plan, HealthProfileView profile,
                                               PlanValidationService.ValidationResult result,
-                                              LocalDateTime now, List<PlanItemDraft> items, long versionNo) {
+                                              LocalDateTime now, List<PlanItemDraft> items, long versionNo,
+                                              Map<String, Object> generationMetadata) {
         WeeklyPlanVersionRow version = new WeeklyPlanVersionRow();
         version.setPlanId(plan.getId());
         version.setVersionNo(versionNo);
@@ -405,7 +463,12 @@ public class WeeklyPlanService {
         version.setRulesVersion(PlanValidationService.RULES_VERSION);
         version.setSourceSessionId(plan.getSourceSessionId());
         version.setFactSourcesJson(toJson(factSources(items)));
-        version.setResourceSnapshotJson(toJson(resourceSnapshot(items)));
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("resources", resourceSnapshot(items));
+        if (generationMetadata != null) {
+            snapshot.put("generation", generationMetadata);
+        }
+        version.setResourceSnapshotJson(toJson(snapshot));
         version.setValidationJson(toJson(ruleHitViews(result)));
         version.setCreatedAt(now);
         return version;
@@ -536,7 +599,8 @@ public class WeeklyPlanService {
         }
     }
 
-    private PlanView toView(WeeklyPlanRow plan, List<PlanItemView> items, boolean profileStale, String explanation) {
+    private PlanView toView(WeeklyPlanRow plan, List<PlanItemView> items, boolean profileStale, String explanation,
+                            String generationSource) {
         return new PlanView(
                 plan.getId(),
                 parseStatus(plan),
@@ -553,6 +617,7 @@ public class WeeklyPlanService {
                 items,
                 profileStale,
                 explanation,
+                generationSource == null ? plan.getGenerationSource() : generationSource,
                 plan.getUpdatedAt()
         );
     }

@@ -151,14 +151,7 @@ function renderMessage(message) {
     const missingSlots = message.missingSlots && message.missingSlots.length
         ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
         : "";
-    // PLAN 意图回复：派生指向周计划页面的入口按钮（不依赖新增后端字段，只负责导航，
-    // 草稿创建仍由计划页内明确的「生成新草稿」按钮触发）
-    const planEntry = message.task === "PLAN"
-        ? `<div class="button-row" style="margin-top:8px;">
-              <a class="btn primary" href="#/plans">进入周计划页面</a>
-              <a class="btn ghost" href="#/profile">完善健康档案</a>
-           </div>`
-        : "";
+    const planEntry = renderPlanActions(message);
     const metaParts = [];
     if (message.traceId) {
         // 开发/演示配置下提供跳转 admin Trace 的入口；生产只展示 traceId 文本
@@ -180,6 +173,23 @@ function renderMessage(message) {
             ${meta}
         </article>
     `;
+}
+
+function renderPlanActions(message) {
+    if (message.task !== "PLAN") return "";
+    const actions = message.actions || [];
+    if (!actions.length) {
+        return `<div class="button-row" style="margin-top:8px;"><a class="btn ghost" href="#/profile">完善健康档案</a></div>`;
+    }
+    return `<div class="plan-brief" aria-label="训练计划需求简报">
+        <strong>训练计划需求简报</strong>
+        ${message.planBriefSummary ? `<p>${escapeHtml(message.planBriefSummary)}</p>` : ""}
+        <div class="button-row">
+            ${actions.map((action) => action.type === "COMPLETE_PROFILE"
+                ? `<a class="btn primary" href="#/profile">${escapeHtml(action.label)}</a>`
+                : `<button class="btn ${action.type === "GENERATE_PLAN" ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
+        </div>
+    </div>`;
 }
 
 async function submitChat(form) {
@@ -229,7 +239,18 @@ function appendChatResponse(response) {
         domain: response.domain,
         task: response.task,
         phase: response.phase
+        ,actions: response.actions || []
+        ,planBriefSummary: summarizePlanBrief(response.planBrief)
     });
+}
+
+function summarizePlanBrief(brief) {
+    if (!brief || (!brief.trainingGoal && !brief.bodyParts?.length)) return "";
+    const days = (brief.trainingDays || []).map((day) => String(day).replace("MONDAY", "周一").replace("TUESDAY", "周二")
+        .replace("WEDNESDAY", "周三").replace("THURSDAY", "周四").replace("FRIDAY", "周五")
+        .replace("SATURDAY", "周六").replace("SUNDAY", "周日")).join("、");
+    const window = brief.timeWindow ? `${brief.timeWindow.start}-${brief.timeWindow.end}` : "未定";
+    return `目标 ${brief.trainingGoal || "未定"} · 部位 ${(brief.bodyParts || []).join("、") || "未定"} · ${days || "未定"} · ${window}`;
 }
 
 function resetChat() {
@@ -261,6 +282,18 @@ function handleClick(event) {
     } else if (target.dataset.action === "open-trace") {
         window.healthPendingTraceId = target.dataset.traceId;
         navigate("/admin/traces");
+    } else if (target.dataset.action === "plan-action") {
+        const action = target.dataset.planAction;
+        if (action === "CONFIRM_PLAN_BRIEF") {
+            const input = document.querySelector("#chatForm textarea[name=message]");
+            if (input) {
+                input.value = "确认训练偏好";
+                input.focus();
+            }
+        } else if (action === "GENERATE_PLAN") {
+            const requestId = target.dataset.requestId || "";
+            navigate(`/plans?generate=1${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
+        }
     }
 }
 
