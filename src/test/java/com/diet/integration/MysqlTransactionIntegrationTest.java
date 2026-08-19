@@ -2,13 +2,19 @@ package com.diet.integration;
 
 import com.diet.constants.DietConstants;
 import com.diet.exception.DietException;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.model.HealthFeedbackRequest;
 import com.diet.health.plan.DraftPlanRequest;
+import com.diet.health.plan.GenerateTrainingPlanRequest;
 import com.diet.health.plan.HealthPlanResponseAgentService;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.PlanItemDraft;
 import com.diet.health.plan.PlanValidationService;
 import com.diet.health.plan.PlanView;
+import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.health.plan.WeeklyPlanComposerService;
 import com.diet.health.plan.WeeklyPlanService;
+import com.diet.health.plan.TrainingPlanGenerationService;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
@@ -37,6 +43,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.sql.DataSource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -52,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段；#74 补 traceId 归因）：
- * 在独立测试库 diet_db_itest 上验证 V1-V14 迁移、saveProfile/createDraft/activate
+ * 在独立测试库 diet_db_itest 上验证 V1-V15 迁移、saveProfile/范围生成/activate
  * 任一步写入失败时数据库无半成品、并发激活只产生一个有效 ACTIVE、
  * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一、风险档案阻断后无残留。
  * <p>
@@ -97,6 +105,8 @@ class MysqlTransactionIntegrationTest {
     @Autowired
     private HealthSessionService sessionService;
     @Autowired
+    private TrainingPlanGenerationService trainingPlanGenerationService;
+    @Autowired
     private ObjectMapper objectMapper;
     @Autowired
     private com.diet.mapper.FeedbackMapper realFeedbackMapper;
@@ -110,7 +120,9 @@ class MysqlTransactionIntegrationTest {
     @BeforeEach
     void cleanTables() {
         jdbc = new JdbcTemplate(dataSource);
-        // 顺序敏感：weekly_plan / health_profile 删除时级联清理其 version/item（V4 外键 ON DELETE CASCADE）
+        // 按外键依赖顺序清理计划项目、版本和根记录，覆盖真实 MySQL 的测试数据边界。
+        jdbc.update("DELETE FROM weekly_plan_item WHERE plan_id IN (SELECT id FROM weekly_plan WHERE user_id >= 880000)");
+        jdbc.update("DELETE FROM weekly_plan_version WHERE plan_id IN (SELECT id FROM weekly_plan WHERE user_id >= 880000)");
         jdbc.update("DELETE FROM weekly_plan WHERE user_id >= 880000");
         jdbc.update("DELETE FROM health_profile WHERE user_id >= 880000");
         jdbc.update("DELETE FROM diet_sessions WHERE user_id >= 880000");
@@ -153,6 +165,44 @@ class MysqlTransactionIntegrationTest {
         profileService().saveProfile(USER, profileInput());
     }
 
+    private String saveConfirmedBrief(String sessionId) {
+        var candidate = resourceProvider.planReadyExercises().stream()
+                .filter(item -> !item.tags().getOrDefault("trainingGoal", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("bodyParts", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("equipment", List.of()).isEmpty())
+                .filter(item -> !item.tags().getOrDefault("difficulty", List.of()).isEmpty())
+                .findFirst().orElseThrow();
+        PlanBrief brief = new PlanBrief(
+                candidate.tags().get("trainingGoal").get(0),
+                List.of(candidate.tags().get("bodyParts").get(0)),
+                List.of(candidate.tags().get("equipment").get(0)),
+                candidate.tags().get("difficulty").get(0), MON,
+                List.of(DayOfWeek.MONDAY),
+                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
+                Map.of(), true, 1, LocalDateTime.now());
+        sessionService.save(HealthSessionState.fresh(sessionId, USER).withPlanBrief(brief));
+        return sessionId;
+    }
+
+    private PlanView persistExerciseDraft(WeeklyPlanService service, String sessionId) {
+        var resource = resourceProvider.planReadyExercises().stream()
+                .filter(item -> !item.tags().getOrDefault("bodyParts", List.of()).isEmpty())
+                .findFirst().orElseThrow();
+        String bodyPart = resource.tags().getOrDefault("primaryBodyPart",
+                resource.tags().getOrDefault("bodyParts", List.of("全身"))).get(0);
+        PlanItemDraft item = new PlanItemDraft("EXERCISE", resource.resourceId(), resource.name(), MON,
+                LocalTime.of(19, 0), LocalTime.of(20, 0), null,
+                Map.of("bodyPart", bodyPart, "sets", 2, "reps", 10, "durationMinutes", 60));
+        return service.persistScopedGeneratedDraft(USER,
+                new DraftPlanRequest(sessionId, MON, "Asia/Shanghai", null, PlanScope.EXERCISE),
+                PlanScope.EXERCISE, List.of(item), "FALLBACK", Map.of("planScope", "EXERCISE"), "规则生成");
+    }
+
+    private PlanView createExerciseDraft(WeeklyPlanService service, String sessionId) {
+        saveConfirmedBrief(sessionId);
+        return persistExerciseDraft(service, sessionId);
+    }
+
     private int count(String table, String column, long userId) {
         Integer value = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?", Integer.class, userId);
@@ -171,18 +221,18 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V14迁移全部成功() {
+    void 干净库V1至V16迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(14, rows.size(), "干净库应执行 V1-V14 共 14 条迁移");
+        assertEquals(16, rows.size(), "干净库应执行 V1-V16 共 16 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("14", String.valueOf(rows.get(13).get("version")), "V14 最后执行");
+        assertEquals("16", String.valueOf(rows.get(15).get("version")), "V16 最后执行");
     }
 
     @Test
-    void 风险档案createDraft被阻断时计划版本与项目均无残留() {
+    void 风险档案范围生成被阻断时计划版本与项目均无残留() {
         profileService().saveProfile(USER, new HealthProfileService.HealthProfileInput(
                 30, null, 175.0, 70.0,
                 com.diet.health.enums.ActivityLevel.LIGHT,
@@ -193,10 +243,11 @@ class MysqlTransactionIntegrationTest {
         assertTrue(stored != null && stored.contains("CHRONIC_CONDITION"),
                 "结构化风险条件必须落库，实际: " + stored);
 
-        WeeklyPlanService service = planService(realPlanMapper);
+        String sessionId = saveConfirmedBrief("sess-risk-scoped-plan");
         com.diet.exception.HealthApiException error = assertThrows(com.diet.exception.HealthApiException.class,
-                () -> service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null)),
-                "风险档案创建计划必须被阻断");
+                () -> trainingPlanGenerationService.generate(USER,
+                        new GenerateTrainingPlanRequest(sessionId, "mysql-risk-scoped-plan", PlanScope.EXERCISE)),
+                "风险档案范围生成必须被阻断");
         assertEquals("RISK_BLOCKED", error.code());
         assertEquals(0, count("weekly_plan", "user_id", USER), "计划不得残留半成品");
         assertEquals(0, countByPlan("weekly_plan_version", USER), "版本不得残留半成品");
@@ -260,6 +311,12 @@ class MysqlTransactionIntegrationTest {
                         + " AND column_name = 'source_version'",
                 Integer.class);
         assertEquals(64, sourceVersionLength, "V12 source_version 必须容纳完整来源 revision");
+        Integer generationSourceLength = jdbc.queryForObject(
+                "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.columns"
+                        + " WHERE table_schema = 'diet_db_itest' AND table_name = 'weekly_plan'"
+                        + " AND column_name = 'generation_source'",
+                Integer.class);
+        assertEquals(64, generationSourceLength, "V16 generation_source 必须容纳范围生成来源");
     }
 
     // ---------- 39 号票验收点：任一步失败数据库无半成品 ----------
@@ -277,13 +334,13 @@ class MysqlTransactionIntegrationTest {
     }
 
     @Test
-    void createDraft项目写入失败时计划版本与项目均无残留() {
+    void 范围计划项目写入失败时计划版本与项目均无残留() {
         saveProfile();
         FaultyWeeklyPlanMapper mapper = new FaultyWeeklyPlanMapper(realPlanMapper);
         mapper.failInsertItem = true;
         WeeklyPlanService service = planService(mapper);
         assertThrows(IllegalStateException.class,
-                () -> service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null)),
+                () -> createExerciseDraft(service, "sess-item-write-failure"),
                 "项目写入失败必须抛出异常");
         assertEquals(0, count("weekly_plan", "user_id", USER), "计划不得残留半成品");
         assertEquals(0, countByPlan("weekly_plan_version", USER), "版本不得残留半成品");
@@ -294,7 +351,7 @@ class MysqlTransactionIntegrationTest {
     void 激活版本快照写入失败时计划保持DRAFT且无ACTIVE() {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
-        PlanView draft = service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        PlanView draft = createExerciseDraft(service, "sess-activate-version-failure");
         FaultyWeeklyPlanMapper mapper = new FaultyWeeklyPlanMapper(realPlanMapper);
         mapper.failInsertVersion = true;
         WeeklyPlanService failing = planService(mapper);
@@ -312,9 +369,9 @@ class MysqlTransactionIntegrationTest {
     void 激活归档旧ACTIVE失败时旧计划保持ACTIVE() {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
-        PlanView first = service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        PlanView first = createExerciseDraft(service, "sess-activate-archive-first");
         service.activate(USER, first.id());
-        PlanView second = service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        PlanView second = createExerciseDraft(service, "sess-activate-archive-second");
         FaultyWeeklyPlanMapper mapper = new FaultyWeeklyPlanMapper(realPlanMapper);
         mapper.failUpdatePlan = true;
         WeeklyPlanService failing = planService(mapper);
@@ -334,7 +391,7 @@ class MysqlTransactionIntegrationTest {
     void 并发激活同一草稿只有一个成功() throws Exception {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
-        PlanView draft = service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        PlanView draft = createExerciseDraft(service, "sess-concurrent-activate");
         int threads = 2;
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
@@ -367,7 +424,7 @@ class MysqlTransactionIntegrationTest {
         HealthProfileService.HealthProfileView profile =
                 profileService().saveProfile(USER, profileInput());
         WeeklyPlanService service = planService(realPlanMapper);
-        PlanView draft = service.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        PlanView draft = createExerciseDraft(service, "sess-activation-snapshot");
         PlanView active = service.activate(USER, draft.id());
         Map<String, Object> row = jdbc.queryForMap(
                 "SELECT profile_version_no, calorie_low, calorie_high FROM weekly_plan WHERE id = ?",
@@ -442,8 +499,10 @@ class MysqlTransactionIntegrationTest {
     }
 
     @Test
-    void 并发首次创建周计划草稿时默认会话竞态自动恢复() throws Exception {
+    void 并发首次创建范围计划时默认会话竞态自动恢复() throws Exception {
         saveProfile();
+        String sessionId = sessionService.loadOrCreate(null, USER).sessionId();
+        saveConfirmedBrief(sessionId);
         int threads = 2;
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
@@ -454,7 +513,7 @@ class MysqlTransactionIntegrationTest {
             new Thread(() -> {
                 try {
                     start.await();
-                    plans.add(instance.createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null)));
+                    plans.add(persistExerciseDraft(instance, sessionId));
                 } catch (Exception error) {
                     failures.incrementAndGet();
                 } finally {

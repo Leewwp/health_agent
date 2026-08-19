@@ -2,6 +2,7 @@ package com.diet.health.plan;
 
 import com.diet.health.enums.PlanStatus;
 import com.diet.health.enums.PlanValidationLevel;
+import com.diet.health.enums.PlanScope;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -26,6 +27,15 @@ public record PlanView(
         boolean profileStale,
         String explanation,
         String generationSource,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        PlanScope planScope
 ) {
+    public PlanView(Long id, PlanStatus status, LocalDate weekStart, String timezone, Long profileVersionNo,
+                    Integer calorieLow, Integer calorieHigh, String rulesVersion, PlanValidationLevel validationLevel,
+                    List<RuleHitView> validationHits, String note, Long currentVersion, List<PlanItemView> items,
+                    boolean profileStale, String explanation, String generationSource, LocalDateTime updatedAt) {
+        this(id, status, weekStart, timezone, profileVersionNo, calorieLow, calorieHigh, rulesVersion,
+                validationLevel, validationHits, note, currentVersion, items, profileStale, explanation,
+                generationSource, updatedAt, PlanScope.EXERCISE);
+    }
 }

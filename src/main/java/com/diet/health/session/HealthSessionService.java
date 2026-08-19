@@ -6,6 +6,7 @@ import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.intent.PreferenceSignal;
 import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.MealPlanBrief;
 import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.mapper.SessionMapper;
 import com.diet.model.SessionRow;
@@ -134,6 +135,7 @@ public class HealthSessionService {
         meta.put("preferenceSignals", objectMapper.valueToTree(state.preferenceSignals()));
         root.set("_meta", meta);
         root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
+        root.set("mealPlanBrief", mealPlanBriefNode(state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief()));
         return root.toString();
     }
 
@@ -158,6 +160,20 @@ public class HealthSessionService {
         node.put("confirmed", brief.confirmed());
         node.put("confirmationVersion", brief.confirmationVersion());
         if (brief.confirmedAt() != null) node.put("confirmedAt", brief.confirmedAt().toString());
+        if (brief.expectedField() != null) node.put("expectedField", brief.expectedField());
+        node.put("failedAttempts", brief.failedAttempts());
+        if (brief.partialStartTime() != null) node.put("partialStartTime", brief.partialStartTime().toString());
+        return node;
+    }
+
+    private JsonNode mealPlanBriefNode(MealPlanBrief brief) {
+        ObjectNode node = objectMapper.createObjectNode();
+        if (brief.weekStart() != null) node.put("weekStart", brief.weekStart().toString());
+        node.set("mealTimes", objectMapper.valueToTree(brief.mealTimes()));
+        node.put("healthGoal", brief.healthGoal());
+        node.put("confirmed", brief.confirmed());
+        node.put("confirmationVersion", brief.confirmationVersion());
+        if (brief.confirmedAt() != null) node.put("confirmedAt", brief.confirmedAt().toString());
         return node;
     }
 
@@ -166,6 +182,7 @@ public class HealthSessionService {
             JsonNode root = parseObject(row.getSlots());
             JsonNode meta = root.path("_meta");
             PlanBrief planBrief = readPlanBrief(root.path("planBrief"));
+            MealPlanBrief mealPlanBrief = readMealPlanBrief(root.path("mealPlanBrief"));
             Map<String, List<String>> slots = new LinkedHashMap<>();
             for (Map.Entry<String, JsonNode> entry : root.properties()) {
                 if ("_meta".equals(entry.getKey()) || !entry.getValue().isArray()) {
@@ -187,7 +204,8 @@ public class HealthSessionService {
                     slots,
                     readResourceRefs(row.getLastRecommendations()),
                     readSignals(meta.path("preferenceSignals")),
-                    planBrief
+                    planBrief,
+                    mealPlanBrief
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);
@@ -223,10 +241,30 @@ public class HealthSessionService {
             boolean confirmed = node.path("confirmed").asBoolean(false);
             long version = node.path("confirmationVersion").asLong(0);
             LocalDateTime confirmedAt = node.hasNonNull("confirmedAt") ? LocalDateTime.parse(node.get("confirmedAt").asText()) : null;
+            String expectedField = textOrNull(node, "expectedField");
+            int failedAttempts = node.path("failedAttempts").asInt(0);
+            LocalTime partialStartTime = node.hasNonNull("partialStartTime")
+                    ? LocalTime.parse(node.get("partialStartTime").asText()) : null;
             return new PlanBrief(goal, bodyParts, equipment, difficulty, weekStart, days, window, constraints,
-                    confirmed, version, confirmedAt);
+                    confirmed, version, confirmedAt, expectedField, failedAttempts, partialStartTime);
         } catch (Exception ignored) {
             return PlanBrief.empty();
+        }
+    }
+
+    private MealPlanBrief readMealPlanBrief(JsonNode node) {
+        if (node == null || !node.isObject() || node.isMissingNode()) return MealPlanBrief.empty();
+        try {
+            LocalDate weekStart = node.hasNonNull("weekStart") ? LocalDate.parse(node.get("weekStart").asText()) : null;
+            List<String> mealTimes = readStringList(node.path("mealTimes"));
+            String goal = textOrNull(node, "healthGoal");
+            boolean confirmed = node.path("confirmed").asBoolean(false);
+            long version = node.path("confirmationVersion").asLong(0);
+            LocalDateTime confirmedAt = node.hasNonNull("confirmedAt")
+                    ? LocalDateTime.parse(node.get("confirmedAt").asText()) : null;
+            return new MealPlanBrief(weekStart, mealTimes, goal, confirmed, version, confirmedAt);
+        } catch (Exception ignored) {
+            return MealPlanBrief.empty();
         }
     }
 

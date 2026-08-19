@@ -156,3 +156,19 @@
 - Trace URL：计划页“查看本次 Trace”直接打开对应 `trace_adbcd5d4a99d4e558073fcb8ed717562`，展示 `SUCCESS`、模型 `qwen-turbo`、`PARSED`、`PLAN_GUARD_PASSED` 和 5 步时间线；“脱敏原始 JSON”使用关闭的 `<details>`，默认 `open=false`。
 - 移动端检查：计划页 `clientWidth=scrollWidth=390`，来源标签、七日项目和 Trace 入口均存在，无文档级横向溢出。
 - 截图：[Agent 计划桌面](evidence/issue-86-agent-plan-desktop.png) / [Agent Trace 桌面](evidence/issue-86-agent-trace-desktop.png) / [Agent 计划移动端](evidence/issue-86-agent-plan-mobile.png)。
+
+## #90–#94 计划语义收敛验收（2026-08-20）
+
+- 验收环境：当前工作树 Spring Boot `8091` + Nginx 同源代理 `8090` + ego-browser 真实 Chromium，任务空间 `38`；计划相关 URL 为 `http://localhost:8090/#/chat`、`#/profile`、`#/plans`、`#/admin/traces`。凭证只由本地未提交配置注入，未输出或写入本文档。
+- 口语简报与中断续轮：在聊天页输入训练计划请求，使用“三天，二四六”“下午六点至七点”完成日期/时间澄清；切换到“今晚清淡的晚餐”后只进入餐食推荐链，发送“回到训练计划”后原训练简报继续显示，未重置已收集字段。
+- 缺档案往返：训练简报确认后触发缺档案入口，进入 `#/profile` 保存档案，再返回聊天确认；简报仍存在，确认后出现对应的训练计划生成操作。
+- 范围正向链路：分别走训练、餐食和综合计划确认/生成；计划详情显示训练计划无餐食/作息项目、餐食计划无训练/作息项目，综合计划显示 3 个训练项目 + 21 个餐食项目，共 24 个项目。综合计划“全部/训练/餐食”筛选结果分别为 24/3/21。
+- 计划与 Trace：在 `#/plans` 查看并激活训练、餐食、综合计划，打开现有详情编辑抽屉完成一次副本编辑；进入 `#/admin/traces` 查看综合 Trace `trace_236d0cd9fabd4071a1098bf91e644d45`，时间线包含 `PLAN_PERSISTED`，详情显示 `planScope=COMPOSITE`。
+- 响应式矩阵：桌面 `1710px`、中等宽度 `1024px`、平板 `768px`，以及移动 `414/390/375/320px` 均检查 `document.documentElement.clientWidth === scrollWidth`；计划详情为主宽度，历史计划收敛为紧凑选择器，移动端按日期纵向展示。1、3、21、29 项目数据、长中文餐名/动作名、状态标签和按钮均未叠加、裁切或产生不可达内容。
+- 可访问性与交互：计划选择器、综合分段筛选、计划项目和详情抽屉均可通过键盘聚焦/操作；Escape 可关闭详情抽屉；没有使用 `overflow-x: clip` 掩盖布局问题。浏览器控制台未发现本轮页面的渲染错误。
+- 截图：[计划桌面](evidence/issue-90/plan-desktop.png) / [计划移动端](evidence/issue-90/plan-mobile.png) / [综合筛选](evidence/issue-90/composite-filter.png)。
+
+## 本地 #89 交接边界
+
+- #90 及 #91–#94 的本地开发、自动化门控、真实模型 smoke 和真实浏览器验收已具备解除 #89 阻塞的证据；完整测试数字和迁移证据见 `docs/release-evidence.md`。
+- 本记录不包含公网 URL、HTTPS、DNS/TLS、云服务器、远端 Compose、生产数据库或云端密钥结果；这些均明确留给 #89，当前任务在此停止。

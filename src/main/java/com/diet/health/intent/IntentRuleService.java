@@ -38,7 +38,8 @@ public class IntentRuleService {
         HealthDomain domain = HealthDomain.OTHER;
         HealthTask task = HealthTask.CHAT;
         if (HealthPlanIntentMatcher.matches(text)) {
-            domain = containsAny(text, "训练", "健身") ? HealthDomain.EXERCISE : HealthDomain.MEAL;
+            domain = HealthPlanIntentMatcher.matchesComposite(text) ? HealthDomain.COMPOSITE
+                    : containsAny(text, "训练", "健身") ? HealthDomain.EXERCISE : HealthDomain.MEAL;
             task = HealthTask.PLAN;
         } else if (containsAny(text, "推荐电影", "电影推荐", "你是 AI", "你是AI", "你是 ai", "你是ai")) {
             domain = HealthDomain.OTHER;

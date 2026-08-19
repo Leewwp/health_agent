@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class WeeklyPlanRow {
     private Long id;
     private Long userId;
+    private String planScope;
     private String status;
     private LocalDate weekStart;
     private String timezone;

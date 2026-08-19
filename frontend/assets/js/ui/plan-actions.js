@@ -5,13 +5,16 @@ export function renderPlanActions(message) {
     if (message.task !== "PLAN") return "";
     const actions = message.actions || [];
     if (!actions.length) return "";
-    return `<div class="plan-brief" aria-label="训练计划需求简报">
-        <strong>训练计划需求简报</strong>
-        ${message.planBriefSummary ? `<p>${escapeHtml(message.planBriefSummary)}</p>` : ""}
+    const scope = message.planScope || (message.domain === "MEAL" ? "MEAL" : message.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE");
+    const title = scope === "MEAL" ? "餐食计划需求简报" : scope === "COMPOSITE" ? "综合计划需求简报" : "训练计划需求简报";
+    const summary = [message.planBriefSummary, message.mealPlanBriefSummary].filter(Boolean).join(" · ");
+    return `<div class="plan-brief" aria-label="${escapeHtml(title)}">
+        <strong>${escapeHtml(title)}</strong>
+        ${summary ? `<p>${escapeHtml(summary)}</p>` : ""}
         <div class="button-row">
             ${actions.map((action) => action.type === "COMPLETE_PROFILE"
                 ? `<a class="btn primary" href="#/profile">${escapeHtml(action.label)}</a>`
-                : `<button class="btn ${action.type === "GENERATE_PLAN" ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
+                : `<button class="btn ${action.type === "GENERATE_PLAN" ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-plan-scope="${escapeHtml(scope)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
         </div>
     </div>`;
 }

@@ -2,6 +2,7 @@ package com.diet.health.plan;
 
 import com.diet.exception.HealthApiException;
 import com.diet.health.enums.PlanStatus;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.enums.PlanValidationLevel;
 import com.diet.health.module.HealthResource;
 import com.diet.health.profile.HealthProfileService;
@@ -61,10 +62,12 @@ public class WeeklyPlanService {
     private final AgentTraceService agentTraceService;
     private final HealthSessionService sessionService;
     private final ObjectMapper objectMapper;
+    private final PlanScopeGuard scopeGuard;
 
     /** 用户级锁，保证同用户激活/归档串行（单实例实现，规格 27 号）。 */
     private final Map<Long, Object> userLocks = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public WeeklyPlanService(
             HealthProfileService profileService,
             HealthRiskRuleService riskRuleService,
@@ -77,6 +80,23 @@ public class WeeklyPlanService {
             HealthSessionService sessionService,
             ObjectMapper objectMapper
     ) {
+        this(profileService, riskRuleService, composer, validationService, planMapper, resourceProvider,
+                planResponseAgent, agentTraceService, sessionService, objectMapper, new PlanScopeGuard());
+    }
+
+    public WeeklyPlanService(
+            HealthProfileService profileService,
+            HealthRiskRuleService riskRuleService,
+            WeeklyPlanComposerService composer,
+            PlanValidationService validationService,
+            WeeklyPlanMapper planMapper,
+            HealthResourceProvider resourceProvider,
+            HealthPlanResponseAgentService planResponseAgent,
+            AgentTraceService agentTraceService,
+            HealthSessionService sessionService,
+            ObjectMapper objectMapper,
+            PlanScopeGuard scopeGuard
+    ) {
         this.profileService = profileService;
         this.riskRuleService = riskRuleService;
         this.composer = composer;
@@ -87,55 +107,14 @@ public class WeeklyPlanService {
         this.agentTraceService = agentTraceService;
         this.sessionService = sessionService;
         this.objectMapper = objectMapper;
+        this.scopeGuard = scopeGuard;
     }
 
     /** 生成周计划草稿：候选前 Guard → 组合 → 组合时校验 → 持久化（硬错误不落库）。 */
     @Transactional
     public PlanView createDraft(Long userId, DraftPlanRequest request) {
-        HealthProfileView profile = requireProfileRiskPassed(userId);
-        String timezone = request == null || request.timezone() == null || request.timezone().isBlank()
-                ? DEFAULT_TIMEZONE : request.timezone();
-        LocalDate weekStart = request != null && request.weekStart() != null
-                ? request.weekStart() : nextMonday(timezone);
-        if (weekStart.getDayOfWeek() != DayOfWeek.MONDAY) {
-            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "周起始日期必须是周一");
-        }
-        // 缺省 sessionId 按匿名身份 HMAC 派生稳定默认会话（43 号票），版本生成依据落库
-        HealthSessionState session = sessionService.loadOrCreate(
-                request == null ? null : request.sessionId(), userId);
-        List<PlanItemDraft> items = composer.compose(profile.calorieLow(), profile.calorieHigh(), weekStart,
-                timezone, request == null ? null : request.trainingFocus());
-        requireItemsInWeek(items, weekStart);
-        PlanValidationService.ValidationResult result = validationService.validate(
-                validationContext(profile), items, resourceCatalog());
-        if (result.blocked()) {
-            throw blocked(result.copy());
-        }
-
-        WeeklyPlanRow plan = new WeeklyPlanRow();
-        plan.setUserId(userId);
-        plan.setStatus(PlanStatus.DRAFT.name());
-        plan.setWeekStart(weekStart);
-        plan.setTimezone(timezone);
-        plan.setProfileVersionNo(profile.versionNo());
-        plan.setCalorieLow(profile.calorieLow());
-        plan.setCalorieHigh(profile.calorieHigh());
-        plan.setRulesVersion(PlanValidationService.RULES_VERSION);
-        plan.setValidationLevel(result.level().name());
-        plan.setValidationJson(toJson(ruleHitViews(result)));
-        plan.setSourceSessionId(session.sessionId());
-        plan.setGenerationSource("RULE_COMPOSER");
-        plan.setGenerationMetadataJson(toJson(Map.of("source", "legacy-composer")));
-        plan.setCurrentVersion(1L);
-        LocalDateTime now = LocalDateTime.now();
-        plan.setCreatedAt(now);
-        plan.setUpdatedAt(now);
-        planMapper.insertPlan(plan);
-        insertVersion(plan, profile, result, now, items, generationMetadata(plan));
-        insertItems(plan, items, now);
-
-        String explanation = explain(plan, profile, loadItemViews(plan));
-        return toView(plan, loadItemViews(plan), false, explanation, null);
+        throw new HealthApiException(HealthApiException.CODE_CONFLICT,
+                "旧的通用草稿入口已移除，请先在聊天中完成对应范围简报并使用范围生成入口");
     }
 
     /** 训练 Agent 生成后的短事务写入：事务内只重读档案/会话并执行最终 Guard 与版本快照。 */
@@ -143,6 +122,15 @@ public class WeeklyPlanService {
     public PlanView persistGeneratedDraft(Long userId, DraftPlanRequest request, List<PlanItemDraft> items,
                                           String generationSource, Map<String, Object> generationMetadata,
                                           String explanation) {
+        return persistScopedGeneratedDraft(userId, request, PlanScope.EXERCISE, items,
+                generationSource, generationMetadata, explanation);
+    }
+
+    /** 范围生成的唯一事务写入口；调用者在事务外完成对应子计划生成。 */
+    @Transactional
+    public PlanView persistScopedGeneratedDraft(Long userId, DraftPlanRequest request, PlanScope scope,
+                                                List<PlanItemDraft> items, String generationSource,
+                                                Map<String, Object> generationMetadata, String explanation) {
         HealthProfileView profile = requireProfileRiskPassed(userId);
         String timezone = request == null || request.timezone() == null || request.timezone().isBlank()
                 ? DEFAULT_TIMEZONE : request.timezone();
@@ -150,10 +138,23 @@ public class WeeklyPlanService {
         if (weekStart == null || weekStart.getDayOfWeek() != DayOfWeek.MONDAY) {
             throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "已确认训练简报的目标周必须从周一开始");
         }
+        if (request != null && request.planScope() != null && request.planScope() != scope) {
+            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "请求范围与写入范围不一致");
+        }
+        scopeGuard.requireCompatible(scope, items);
         HealthSessionState session = sessionService.loadOrCreate(request.sessionId(), userId);
-        if (session.planBrief() == null || !session.planBrief().isConfirmedAndComplete()
-                || !weekStart.equals(session.planBrief().weekStart())) {
-            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "训练简报已变化，请重新确认后生成");
+        boolean briefConfirmed = switch (scope) {
+            case EXERCISE -> session.planBrief() != null && session.planBrief().isConfirmedAndComplete()
+                    && weekStart.equals(session.planBrief().weekStart());
+            case MEAL -> session.mealPlanBrief() != null && session.mealPlanBrief().isConfirmedAndComplete()
+                    && weekStart.equals(session.mealPlanBrief().weekStart());
+            case COMPOSITE -> session.planBrief() != null && session.planBrief().isConfirmedAndComplete()
+                    && session.mealPlanBrief() != null && session.mealPlanBrief().isConfirmedAndComplete()
+                    && weekStart.equals(session.planBrief().weekStart())
+                    && weekStart.equals(session.mealPlanBrief().weekStart());
+        };
+        if (!briefConfirmed) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "计划简报已变化，请重新确认后生成");
         }
         requireItemsInWeek(items, weekStart);
         PlanValidationService.ValidationResult result = validationService.validate(
@@ -164,6 +165,7 @@ public class WeeklyPlanService {
 
         WeeklyPlanRow plan = new WeeklyPlanRow();
         plan.setUserId(userId);
+        plan.setPlanScope(scope.name());
         plan.setStatus(PlanStatus.DRAFT.name());
         plan.setWeekStart(weekStart);
         plan.setTimezone(timezone);
@@ -205,7 +207,8 @@ public class WeeklyPlanService {
                         plan.getCurrentVersion(),
                         planMapper.findItems(plan.getId(), plan.getCurrentVersion()).size(),
                         plan.getGenerationSource(),
-                        plan.getUpdatedAt()
+                        plan.getUpdatedAt(),
+                        scopeGuard.parse(plan.getPlanScope())
                 ))
                 .toList();
     }
@@ -218,11 +221,13 @@ public class WeeklyPlanService {
     @Transactional
     public PlanView activate(Long userId, Long planId) {
         WeeklyPlanRow plan = requirePlanForUpdate(userId, planId);
+        PlanScope scope = scopeGuard.parse(plan.getPlanScope());
         if (plan.getStatus() == null || !PlanStatus.DRAFT.name().equals(plan.getStatus())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "只有 DRAFT 计划可以激活");
         }
         HealthProfileView profile = requireProfileRiskPassed(userId);
         List<PlanItemDraft> items = loadDrafts(plan);
+        scopeGuard.requireCompatible(scope, items);
         requireItemsInWeek(items, plan.getWeekStart());
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
@@ -261,7 +266,9 @@ public class WeeklyPlanService {
     @Transactional
     public PlanView edit(Long userId, Long planId) {
         WeeklyPlanRow plan = requirePlan(userId, planId);
+        PlanScope scope = scopeGuard.parse(plan.getPlanScope());
         if (PlanStatus.DRAFT.name().equals(plan.getStatus())) {
+            scopeGuard.requireCompatible(scope, loadDrafts(plan));
             boolean stale = profileStale(userId, plan);
             return toView(plan, loadItemViews(plan), stale, null, null);
         }
@@ -278,6 +285,7 @@ public class WeeklyPlanService {
         }
         WeeklyPlanRow copy = new WeeklyPlanRow();
         copy.setUserId(userId);
+        copy.setPlanScope(plan.getPlanScope());
         copy.setStatus(PlanStatus.DRAFT.name());
         copy.setWeekStart(plan.getWeekStart());
         copy.setTimezone(plan.getTimezone());
@@ -335,6 +343,7 @@ public class WeeklyPlanService {
             allItems.add(row.getId().equals(itemId) ? toDraft(updated) : toDraft(row));
         }
         requireItemsInWeek(allItems, plan.getWeekStart());
+        scopeGuard.requireCompatible(scopeGuard.parse(plan.getPlanScope()), allItems);
         PlanValidationService.ValidationResult result = validationService.validate(
                 validationContext(plan, profile.age()), allItems, resourceCatalog());
         if (result.blocked()) {
@@ -459,6 +468,7 @@ public class WeeklyPlanService {
                                               Map<String, Object> generationMetadata) {
         WeeklyPlanVersionRow version = new WeeklyPlanVersionRow();
         version.setPlanId(plan.getId());
+        version.setPlanScope(plan.getPlanScope());
         version.setVersionNo(versionNo);
         version.setProfileVersionNo(profile.versionNo());
         version.setProfileSnapshotJson(HealthProfileService.profileSnapshot(profile, objectMapper));
@@ -636,7 +646,8 @@ public class WeeklyPlanService {
                 profileStale,
                 explanation,
                 generationSource == null ? plan.getGenerationSource() : generationSource,
-                plan.getUpdatedAt()
+                plan.getUpdatedAt(),
+                scopeGuard.parse(plan.getPlanScope())
         );
     }
 

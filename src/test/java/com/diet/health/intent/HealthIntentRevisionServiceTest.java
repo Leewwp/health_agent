@@ -56,4 +56,41 @@ class HealthIntentRevisionServiceTest {
                 HealthDomain.EXERCISE, HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(), null);
         assertTrue(service.continueBeforeAgent("改为推荐晚餐", state).isEmpty());
     }
+
+    @Test
+    void 计划中切到同领域餐食推荐时不误续为餐食计划() {
+        HealthSessionState state = new HealthSessionState("s", 1L, HealthPhase.CLARIFY,
+                HealthDomain.MEAL, HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(), null);
+        assertTrue(service.continueBeforeAgent("先帮我看看今晚清淡的晚餐", state).isEmpty());
+
+        HealthIntentResult raw = HealthIntentResult.parsed(HealthDomain.MEAL, HealthTask.PLAN,
+                List.of(), Map.of(), List.of(), 1.0);
+        HealthIntentRevisionService.Revision revision =
+                service.revise("先帮我看看今晚清淡的晚餐", state, raw);
+        assertEquals(HealthTask.RECOMMEND, revision.intent().task());
+    }
+
+    @Test
+    void 从餐食话题返回训练计划时恢复PLAN上下文() {
+        HealthSessionState state = new HealthSessionState("s", 1L, HealthPhase.RESPOND,
+                HealthDomain.MEAL, HealthTask.RECOMMEND, List.of(), Map.of(), List.of(), List.of(), null);
+        HealthIntentResult raw = HealthIntentResult.parsed(HealthDomain.EXERCISE, HealthTask.PLAN,
+                List.of(), Map.of(), List.of(), 1.0);
+        HealthIntentRevisionService.Revision revision =
+                service.revise("回到训练计划，目标增肌，周一二三，下午六点至七点", state, raw);
+        assertEquals(HealthDomain.EXERCISE, revision.intent().domain());
+        assertEquals(HealthTask.PLAN, revision.intent().task());
+    }
+
+    @Test
+    void 明确训练加餐食计划被修正为COMPOSITE_PLAN() {
+        HealthSessionState state = HealthSessionState.fresh("s", 1L);
+        HealthIntentResult raw = HealthIntentResult.parsed(HealthDomain.MEAL, HealthTask.RECOMMEND,
+                List.of(), Map.of(), List.of(), 1.0);
+
+        HealthIntentRevisionService.Revision revision = service.revise("帮我安排一周训练和餐食计划", state, raw);
+
+        assertEquals(HealthDomain.COMPOSITE, revision.intent().domain());
+        assertEquals(HealthTask.PLAN, revision.intent().task());
+    }
 }

@@ -9,11 +9,11 @@
  */
 import { escapeHtml, formatTime, formatDateLabel, localDateOf, newRequestId } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
-import { listPlans, getPlan, createPlanDraft, generateTrainingPlan, activatePlan, editPlan, patchPlanItem } from "../api.js";
+import { listPlans, getPlan, generateTrainingPlan, activatePlan, editPlan, patchPlanItem } from "../api.js";
 import { registerResource, getOrCreateClientSessionId, getChatSessionId } from "../store.js";
 import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
-import { requestConfirmation, requestText } from "../ui/modal.js";
+import { requestConfirmation } from "../ui/modal.js";
 import { currentRoute, navigate } from "../router.js";
 import { devConfig } from "../config.js";
 import { planGenerationRequestKey, runPlanGenerationRequest } from "./plan-generation-request.js";
@@ -33,7 +33,8 @@ const state = {
     generationError: null,
     generationAttemptedKey: null,
     generationTraceId: null,
-    generationPlanId: null
+    generationPlanId: null,
+    detailFilter: "ALL"
 };
 
 export async function render(app) {
@@ -81,25 +82,22 @@ export async function render(app) {
     }
 
     app.innerHTML = `
-        <section class="split">
-            <div class="section">
-                <div class="card-title">
-                    <div>
-                        <h2>我的计划</h2>
-                        <p>每周计划草稿、激活与历史版本。</p>
-                    </div>
-                    <button class="btn primary" data-action="create-draft">生成新草稿</button>
+        <section class="plans-page" aria-labelledby="plans-title">
+            <header class="plans-header">
+                <div>
+                    <p class="eyebrow">每周节奏</p>
+                    <h1 id="plans-title">我的计划</h1>
+                    <p class="plans-lede">把已确认的训练与餐食安排放在同一张周表里，按天查看和调整。</p>
                 </div>
-                <div class="plan-list">
-                    ${state.summaries.length ? renderPlanList() : `<div class="empty">还没有周计划。完善健康档案后生成第一份草稿。</div>`}
+                <div class="button-row plans-header-actions">
+                    <a class="btn primary" href="#/chat">从聊天生成</a>
+                    <a class="btn ghost" href="#/profile">健康档案</a>
                 </div>
-                <div class="button-row" style="margin-top:14px;">
-                    <a class="btn ghost" href="#/profile">完善健康档案</a>
-                </div>
-            </div>
-            <div class="section">
-                ${state.detail ? renderDetail(state.detail) : `<div class="empty">选择一个计划查看七天视图。</div>`}
-            </div>
+            </header>
+            ${state.summaries.length ? renderPlanSelector() : ""}
+            ${state.summaries.length
+                ? `<section class="plans-detail-section">${state.detail ? renderDetail(state.detail) : `<div class="empty">选择一个计划查看七天视图。</div>`}</section>`
+                : `<section class="plans-empty"><div class="empty"><strong>还没有周计划</strong><p>先在聊天中完成训练或餐食简报，确认后再生成第一份草稿。</p><a class="btn primary" href="#/chat">开始简报</a></div></section>`}
         </section>
     `;
     bind(app);
@@ -110,8 +108,8 @@ function renderGenerationWaiting() {
         <section class="section plan-generation-state" aria-live="polite" aria-busy="true">
             <div class="empty">
                 <span class="loading-spinner" aria-hidden="true"></span>
-                <strong>正在生成训练计划草稿</strong>
-                <p class="muted">正在读取已确认简报、筛选审核动作并执行规则校验，请稍候。</p>
+                <strong>正在生成计划草稿</strong>
+                <p class="muted">正在读取已确认简报、筛选审核资源并执行范围校验，请稍候。</p>
             </div>
         </section>
     `;
@@ -121,7 +119,7 @@ function renderGenerationError() {
     return `
         <section class="section plan-generation-state">
             <div class="empty">
-                <strong>训练计划生成失败</strong>
+                <strong>计划生成失败</strong>
                 <p class="muted">${escapeHtml(state.generationError)}</p>
                 <div class="button-row">
                     <button class="btn primary" data-action="retry-generation">重新生成</button>
@@ -139,9 +137,11 @@ async function startTrainingPlanGeneration(app) {
     render(app);
     try {
         const query = new URLSearchParams((location.hash || "").split("?")[1] || "");
+        const planScope = query.get("scope") || "EXERCISE";
         const result = await runPlanGenerationRequest((payload, signal) => generateTrainingPlan(payload, { signal }), {
             sessionId: getChatSessionId(),
-            requestId: query.get("requestId") || newRequestId()
+            requestId: query.get("requestId") || newRequestId(),
+            planScope
         });
         state.generating = false;
         state.detail = result.plan;
@@ -169,6 +169,7 @@ function bind(app) {
     }
     listenersBound = true;
     app.addEventListener("click", handleClick);
+    app.addEventListener("change", handleChange);
     bindDrawer(app);
     bindFeedbackControl(app);
 }
@@ -198,6 +199,9 @@ async function loadDetail(planId) {
     try {
         state.detail = await getPlan(planId);
         state.selectedId = planId;
+        if (state.detail.planScope !== "COMPOSITE") {
+            state.detailFilter = "ALL";
+        }
     } catch (error) {
         showToast(error.message || "计划详情加载失败", "error");
     }
@@ -205,23 +209,24 @@ async function loadDetail(planId) {
 
 /* ---------------- 渲染 ---------------- */
 
-function renderPlanList() {
-    return state.summaries.map((plan) => {
-        const selected = String(plan.id) === String(state.selectedId);
-        return `
-            <div class="plan-row ${selected ? "selected" : ""}">
-                <div class="plan-row-meta">
-                    <strong>${escapeHtml(plan.weekStart)} 当周计划 · ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}</strong>
-                    <span>时区 ${escapeHtml(plan.timezone)} · 版本 v${escapeHtml(plan.currentVersion)} · ${escapeHtml(plan.itemCount)} 项${plan.validationLevel ? ` · 校验 ${escapeHtml(plan.validationLevel)}` : ""}</span>
-                </div>
-                <div class="button-row">
-                    <button class="btn soft" data-action="select-plan" data-plan-id="${escapeHtml(plan.id)}">查看</button>
-                    ${plan.status === "ACTIVE" ? `<button class="btn ghost" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑副本</button>` : ""}
-                    ${plan.status === "DRAFT" ? `<button class="btn primary" data-action="activate-plan" data-plan-id="${escapeHtml(plan.id)}">激活</button>` : ""}
-                </div>
-            </div>
-        `;
-    }).join("");
+function renderPlanSelector() {
+    return `
+        <div class="plan-selector" aria-label="计划选择">
+            <label for="plan-select">当前计划</label>
+            <select id="plan-select" data-action="select-plan-select">
+                ${state.summaries.map((plan) => `<option value="${escapeHtml(plan.id)}" ${String(plan.id) === String(state.selectedId) ? "selected" : ""}>${escapeHtml(plan.weekStart)} · ${scopeLabel(plan.planScope)} · ${statusLabel(plan.status)}</option>`).join("")}
+            </select>
+            <span class="plan-selector-count">${state.summaries.length} 份计划，按更新时间排序</span>
+        </div>
+    `;
+}
+
+function statusLabel(status) {
+    return { ACTIVE: "已激活", DRAFT: "草稿", ARCHIVED: "历史" }[status] || status || "";
+}
+
+function scopeLabel(scope) {
+    return { EXERCISE: "训练", MEAL: "餐食", COMPOSITE: "综合" }[scope] || "计划";
 }
 
 function statusBadge(status) {
@@ -235,33 +240,31 @@ function statusBadge(status) {
 
 function renderDetail(plan) {
     const days = buildDays(plan.weekStart);
+    const scope = plan.planScope || "EXERCISE";
     return `
-        <div class="card-title">
+        <div class="plans-detail-head">
             <div>
-                <h2>${escapeHtml(plan.weekStart)} 当周计划 ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}</h2>
-                <p>时区 ${escapeHtml(plan.timezone)} · 档案版本 v${escapeHtml(plan.profileVersionNo)} · 规则 ${escapeHtml(plan.rulesVersion)} · 当前版本 v${escapeHtml(plan.currentVersion)}${plan.profileStale ? " · 档案已更新，本计划按生成时快照计算" : ""}</p>
+                <div class="plan-kicker"><span>${scopeLabel(scope)}计划</span><span>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(days[6])}</span></div>
+                <h2>${escapeHtml(plan.weekStart)} 当周安排 ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}</h2>
+                <p>时区 ${escapeHtml(plan.timezone)} · 档案 v${escapeHtml(plan.profileVersionNo)} · 规则 ${escapeHtml(plan.rulesVersion)} · 版本 v${escapeHtml(plan.currentVersion)}${plan.profileStale ? " · 档案已更新，当前计划仍按生成快照计算" : ""}</p>
             </div>
-            <div class="button-row">
+            <div class="button-row plans-detail-actions">
                 ${plan.status === "DRAFT" ? `<button class="btn primary" data-action="activate-plan" data-plan-id="${escapeHtml(plan.id)}">激活计划</button>` : ""}
                 ${plan.status === "ACTIVE" ? `<button class="btn ghost" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">编辑副本</button>` : ""}
                 ${devConfig.enableDevTraceLink && state.generationTraceId && String(state.generationPlanId) === String(plan.id)
                     ? `<button class="btn ghost" data-action="open-generation-trace" data-trace-id="${escapeHtml(state.generationTraceId)}">查看本次 Trace</button>` : ""}
             </div>
         </div>
-        ${plan.calorieLow != null ? `
-            <div class="calorie-range">
-                <div class="stat-card"><span class="muted">每日能量下限（估算）</span><strong>${escapeHtml(plan.calorieLow)} kcal</strong></div>
-                <div class="stat-card"><span class="muted">每日能量上限（估算）</span><strong>${escapeHtml(plan.calorieHigh)} kcal</strong></div>
-            </div>
-        ` : ""}
+        ${renderPlanStats(plan, scope)}
+        ${scope === "COMPOSITE" ? renderScopeFilter() : ""}
         ${plan.validationHits && plan.validationHits.length ? `
-            <div class="card" style="margin-bottom:16px;">
-                <h3 style="margin:0 0 10px;">计划校验结果</h3>
+            <div class="plan-validation">
+                <h3>计划校验结果</h3>
                 <div class="chips">
                     ${plan.validationHits.map((hit) => `<span class="chip ${hit.severity === "BLOCK_PLAN" ? "warn" : "selected"}">${escapeHtml(hit.ruleCode)} · ${escapeHtml(hit.decision)}</span>`).join("")}
                 </div>
                 ${plan.validationHits.map((hit) => `
-                    <p class="muted" style="line-height:1.6;margin:8px 0 0;">${escapeHtml(hit.copy)}${hit.detail ? `（${escapeHtml(hit.detail)}）` : ""}</p>
+                    <p class="muted">${escapeHtml(hit.copy)}${hit.detail ? `（${escapeHtml(hit.detail)}）` : ""}</p>
                 `).join("")}
             </div>
         ` : ""}
@@ -273,8 +276,32 @@ function renderDetail(plan) {
     `;
 }
 
+function renderPlanStats(plan, scope) {
+    const items = plan.items || [];
+    const exerciseCount = items.filter((item) => item.resourceType === "EXERCISE").length;
+    const mealCount = items.filter((item) => item.resourceType === "MEAL").length;
+    const cards = scope === "EXERCISE"
+        ? [`<strong>${exerciseCount}</strong><span>训练项目</span>`, `<strong>${new Set(items.filter((item) => item.resourceType === "EXERCISE").map((item) => item.localDate)).size}</strong><span>训练日</span>`]
+        : scope === "MEAL"
+            ? [`<strong>${mealCount}</strong><span>餐食项目</span>`, `<strong>${new Set(items.filter((item) => item.resourceType === "MEAL").map((item) => item.localDate)).size}</strong><span>覆盖天数</span>`]
+            : [`<strong>${items.length}</strong><span>全部项目</span>`, `<strong>${exerciseCount}</strong><span>训练项目</span>`, `<strong>${mealCount}</strong><span>餐食项目</span>`];
+    return `<div class="plan-stats">${cards.map((card) => `<div class="plan-stat">${card}</div>`).join("")}</div>`;
+}
+
+function renderScopeFilter() {
+    return `<div class="scope-filter" role="tablist" aria-label="综合计划筛选">
+        ${[["ALL", "全部"], ["EXERCISE", "训练"], ["MEAL", "餐食"]].map(([value, label]) => `<button class="scope-filter-btn ${state.detailFilter === value ? "active" : ""}" role="tab" aria-selected="${state.detailFilter === value}" data-action="filter-items" data-filter="${value}">${label}</button>`).join("")}
+    </div>`;
+}
+
 function sourceBadge(source) {
-    const labels = { AGENT: "Agent 生成", FALLBACK: "规则降级", RULE_COMPOSER: "规则组合" };
+    const labels = {
+        AGENT: "Agent 生成",
+        FALLBACK: "规则降级",
+        RULE_COMPOSER: "规则组合",
+        RULE_MEAL_COMPOSER: "餐食规则组合",
+        COMPOSITE_RULE_MERGE: "综合规则合并"
+    };
     if (!source || !labels[source]) return "";
     return ` <span class="badge ${source === "FALLBACK" ? "warn" : ""}">${labels[source]}</span>`;
 }
@@ -289,6 +316,7 @@ function buildDays(weekStart) {
 
 function renderDay(day, index, plan) {
     const items = (plan.items || []).filter((item) => item.localDate === day)
+        .filter((item) => state.detailFilter === "ALL" || item.resourceType === state.detailFilter)
         .sort((left, right) => Number(right.resourceType === "EXERCISE") - Number(left.resourceType === "EXERCISE"));
     const editable = plan.status === "DRAFT";
     return `
@@ -305,7 +333,7 @@ function renderPlanItem(item, editable) {
     const params = item.params || {};
     const kcal = params.caloriesKcal != null ? ` · ${escapeHtml(params.caloriesKcal)} kcal` : "";
     return `
-        <button class="plan-item ${String(item.resourceType || "").toLowerCase()}" data-action="open-plan-item" data-item-key="${key}">
+        <button class="plan-item ${String(item.resourceType || "").toLowerCase()}" aria-label="查看${escapeHtml(item.name)}详情" data-action="open-plan-item" data-item-key="${key}">
             <span>
                 <span class="plan-item-type">${escapeHtml(type)}</span>
                 <strong>${escapeHtml(item.name)}</strong>
@@ -336,10 +364,11 @@ function handleClick(event) {
         startTrainingPlanGeneration(document.getElementById("app"));
     } else if (action === "select-plan") {
         selectPlan(target.dataset.planId);
+    } else if (action === "filter-items") {
+        state.detailFilter = target.dataset.filter || "ALL";
+        render(document.getElementById("app"));
     } else if (action === "open-plan-item") {
         openPlanItem(target.dataset.itemKey);
-    } else if (action === "create-draft") {
-        createDraft();
     } else if (action === "activate-plan") {
         activate(target.dataset.planId);
     } else if (action === "edit-plan") {
@@ -347,6 +376,12 @@ function handleClick(event) {
     } else if (action === "open-generation-trace") {
         window.healthPendingTraceId = target.dataset.traceId;
         navigate("/admin/traces");
+    }
+}
+
+function handleChange(event) {
+    if (event.target.matches("[data-action='select-plan-select']")) {
+        selectPlan(event.target.value);
     }
 }
 
@@ -438,38 +473,6 @@ async function savePlanItem(item, values) {
     }
 }
 
-async function createDraft() {
-    const weekStart = nextMonday();
-    const focus = await requestText({
-        title: `生成 ${weekStart} 当周草稿`,
-        description: "系统会根据当前健康档案生成七天安排。",
-        label: "训练重点（可选）",
-        placeholder: "例如：胸、核心或全身",
-        confirmLabel: "生成草稿"
-    });
-    if (focus === null) {
-        return;
-    }
-    try {
-        const plan = await createPlanDraft({
-            weekStart,
-            timezone: "Asia/Shanghai",
-            trainingFocus: focus || null
-        });
-        state.summaries = await listPlans();
-        state.detail = plan;
-        state.selectedId = plan.id;
-        showToast("草稿已生成");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "草稿生成失败", "error");
-        if (error.status === 404) {
-            showToast("请先完善健康档案", "error");
-            navigate("/profile");
-        }
-    }
-}
-
 async function activate(planId) {
     const plan = state.detail && String(state.detail.id) === String(planId) ? state.detail : null;
     const label = plan ? `${plan.weekStart} 当周计划` : "该计划";
@@ -515,11 +518,4 @@ async function editAsDraft(planId) {
 
 function closeDrawerFromSave() {
     closeDrawer();
-}
-
-function nextMonday() {
-    const now = new Date();
-    const day = now.getDay() === 0 ? 7 : now.getDay();
-    const monday = new Date(now.getTime() + (8 - day) * 24 * 60 * 60 * 1000);
-    return localDateOf(monday);
 }
