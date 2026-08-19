@@ -229,6 +229,8 @@ function appendChatResponse(response) {
         phase: response.phase
         ,actions: response.actions || []
         ,planBriefSummary: summarizePlanBrief(response.planBrief)
+        ,mealPlanBriefSummary: summarizeMealPlanBrief(response.mealPlanBrief)
+        ,planScope: response.domain === "MEAL" ? "MEAL" : response.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE"
     });
 }
 
@@ -239,6 +241,11 @@ function summarizePlanBrief(brief) {
         .replace("SATURDAY", "周六").replace("SUNDAY", "周日")).join("、");
     const window = brief.timeWindow ? `${brief.timeWindow.start}-${brief.timeWindow.end}` : "未定";
     return `目标 ${brief.trainingGoal || "未定"} · 部位 ${(brief.bodyParts || []).join("、") || "未定"} · ${days || "未定"} · ${window}`;
+}
+
+function summarizeMealPlanBrief(brief) {
+    if (!brief || (!brief.weekStart && !brief.mealTimes?.length)) return "";
+    return `餐食目标周 ${brief.weekStart || "未定"} · ${brief.mealTimes?.join("、") || "餐次未定"}${brief.healthGoal ? ` · ${brief.healthGoal}` : ""}`;
 }
 
 function resetChat() {
@@ -276,9 +283,14 @@ function handleClick(event) {
             submitPresetChatMessage(requestController, "确认训练偏好", (message) => {
                 state.messages.push({ role: "user", text: message });
             });
+        } else if (action === "CONFIRM_MEAL_PLAN_BRIEF") {
+            submitPresetChatMessage(requestController, "确认餐食计划", (message) => {
+                state.messages.push({ role: "user", text: message });
+            });
         } else if (action === "GENERATE_PLAN") {
             const requestId = target.dataset.requestId || "";
-            navigate(`/plans?generate=1${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
+            const scope = target.dataset.planScope || "EXERCISE";
+            navigate(`/plans?generate=1&scope=${encodeURIComponent(scope)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
         }
     }
 }

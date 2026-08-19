@@ -410,7 +410,7 @@ class HealthOrchestratorServiceTest {
         assertEquals("PLAN", response.task().name());
         assertEquals("CLARIFY", response.phase().name());
         assertTrue(response.displayBlocks().isEmpty());
-        assertTrue(response.speechText().contains("训练主要"));
+        assertTrue(response.speechText().contains("训练主要"), response.speechText());
         assertTrue(response.actions().isEmpty());
 
         HealthChatResponse currentWeekResponse = chat("帮我安排一下这周的健身计划");
@@ -418,6 +418,49 @@ class HealthOrchestratorServiceTest {
         assertEquals(HealthResponseType.CLARIFY, currentWeekResponse.responseType());
         assertTrue(currentWeekResponse.displayBlocks().isEmpty());
         assertTrue(currentWeekResponse.speechText().contains("训练主要"));
+    }
+
+    @Test
+    void 一周餐食计划进入独立餐食简报并单独确认() {
+        String sessionId = "sess_meal_plan_brief";
+        HealthChatResponse first = chatInSession(sessionId, "一周餐食计划");
+        assertEquals(HealthResponseType.CLARIFY, first.responseType());
+        assertEquals("MEAL", first.domain().name());
+        assertEquals("PLAN", first.task().name());
+        assertTrue(first.speechText().contains("目标周") || first.speechText().contains("餐次"));
+
+        HealthChatResponse collected = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
+        assertFalse(collected.actions().isEmpty(), collected.toString());
+        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", collected.actions().get(0).type());
+        assertEquals(List.of("早餐", "午餐", "晚餐"), collected.mealPlanBrief().mealTimes());
+        assertTrue(collected.planBrief().bodyParts().isEmpty());
+
+        HealthChatResponse confirmed = chatInSession(sessionId, "确认餐食计划");
+        assertEquals("GENERATE_PLAN", confirmed.actions().get(0).type());
+        assertTrue(confirmed.mealPlanBrief().isConfirmedAndComplete());
+    }
+
+    @Test
+    void 综合计划必须分别确认训练和餐食简报() {
+        String sessionId = "sess_composite_plan_brief";
+        HealthChatResponse first = chatInSession(sessionId, "一周训练和餐食计划");
+        assertEquals("COMPOSITE", first.domain().name());
+        assertEquals("PLAN", first.task().name());
+        assertEquals(HealthResponseType.CLARIFY, first.responseType());
+
+        HealthChatResponse training = chatInSession(sessionId,
+                "减脂，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
+        assertEquals("CONFIRM_PLAN_BRIEF", training.actions().get(0).type());
+        HealthChatResponse confirmedTraining = chatInSession(sessionId, "确认训练偏好");
+        assertTrue(confirmedTraining.speechText().contains("餐食"));
+        assertTrue(confirmedTraining.actions().isEmpty());
+
+        HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐");
+        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", meal.actions().get(0).type());
+        HealthChatResponse confirmedMeal = chatInSession(sessionId, "确认餐食计划");
+        assertEquals("GENERATE_PLAN", confirmedMeal.actions().get(0).type());
+        assertTrue(confirmedMeal.mealPlanBrief().isConfirmedAndComplete(), confirmedMeal.toString());
+        assertTrue(confirmedMeal.planBrief().isConfirmedAndComplete(), confirmedMeal.toString());
     }
 
     @Test

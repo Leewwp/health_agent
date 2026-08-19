@@ -1,6 +1,5 @@
 package com.diet.health.plan;
 
-import com.diet.health.module.HealthResource;
 import com.diet.health.resource.HealthResourceProvider;
 import org.springframework.stereotype.Service;
 
@@ -11,69 +10,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 周计划确定性组合器（34 号，规格 8.2）：
- * 一周按本地周一至周日落位作息、三餐与训练；训练只使用 plan_ready 动作，
- * 安排在周一/三/五且主训练部位不连续；餐食按日能量预算挑选。组合结果必须经过
- * PlanValidationService 校验后才能持久化或激活。
- * 资源一律来自统一审核资源 Provider：作息项目按 topic 解析睡眠事实（不再硬编码种子 ID），
- * 训练项目只用 plan_ready 动作；Provider 空库时跳过对应项目，仍可生成餐食计划。
- */
+/** 餐食子计划的确定性组合器，只生成 MEAL 项目，不附带训练或作息。 */
 @Service
 public class WeeklyPlanComposerService {
 
-    /** 每日作息引用的睡眠事实主题（正式模式匹配审核子集 topic，fixture 模式匹配种子类别）。 */
-    private static final String SLEEP_FACT_TOPIC = "睡眠时长";
-    private static final String SLEEP_NAME = "睡眠";
-    private static final LocalTime SLEEP_START = LocalTime.of(23, 0);
-    private static final LocalTime SLEEP_END = LocalTime.of(7, 0);
-
-    /** 三餐时段（早餐/午餐/晚餐）。 */
     private static final List<SlotWindow> MEAL_WINDOWS = List.of(
             new SlotWindow("早餐", LocalTime.of(8, 0), LocalTime.of(8, 30)),
             new SlotWindow("午餐", LocalTime.of(12, 0), LocalTime.of(13, 0)),
             new SlotWindow("晚餐", LocalTime.of(18, 0), LocalTime.of(19, 0))
     );
 
-    /** 训练日：周一/三/五（一周内偏移 0/2/4）。 */
-    private static final List<Integer> TRAINING_DAY_OFFSETS = List.of(0, 2, 4);
-    private static final LocalTime TRAINING_START = LocalTime.of(19, 30);
-    private static final LocalTime TRAINING_END = LocalTime.of(21, 0);
-
-    /** 确定性训练剂量（Java 决定，LLM 不参与）。 */
-    private static final int TRAINING_SETS = 3;
-    private static final int TRAINING_REPS = 12;
-
-    private final HealthResourceProvider resourceProvider;
     private final MealPlanPicker mealPlanPicker;
 
     public WeeklyPlanComposerService(HealthResourceProvider resourceProvider, MealPlanPicker mealPlanPicker) {
-        this.resourceProvider = resourceProvider;
         this.mealPlanPicker = mealPlanPicker;
     }
 
-    /** 组合一周计划：weekStart 为本地周一；trainingFocus 为可选主训练部位偏好。 */
-    public List<PlanItemDraft> compose(int calorieLow, int calorieHigh, LocalDate weekStart,
-                                       String timezone, String trainingFocus) {
+    /** 按日预算生成餐食项目；结果只包含 MEAL。 */
+    public List<PlanItemDraft> composeMeals(int calorieLow, int calorieHigh, LocalDate weekStart) {
         List<PlanItemDraft> items = new ArrayList<>();
         for (int offset = 0; offset < 7; offset++) {
             LocalDate date = weekStart.plusDays(offset);
-            sleepItem(date).ifPresent(items::add);
             for (MealPlanPicker.MealPick pick : mealPlanPicker.pickForDay(calorieLow, calorieHigh)) {
                 items.add(mealItem(date, pick));
             }
-            if (TRAINING_DAY_OFFSETS.contains(offset)) {
-                items.addAll(trainingItem(date, trainingFocus));
-            }
         }
         return items;
-    }
-
-    /** 每日作息：按 topic 解析睡眠事实引用（无事实时跳过，不阻塞计划生成）。 */
-    private java.util.Optional<PlanItemDraft> sleepItem(LocalDate date) {
-        return resourceProvider.routineFactByTopic(SLEEP_FACT_TOPIC)
-                .map(fact -> new PlanItemDraft("ROUTINE", fact.factId(), SLEEP_NAME, date,
-                        SLEEP_START, SLEEP_END, null, Map.of()));
     }
 
     private PlanItemDraft mealItem(LocalDate date, MealPlanPicker.MealPick pick) {
@@ -86,42 +48,6 @@ public class WeeklyPlanComposerService {
         params.put("caloriesKcal", pick.caloriesKcal());
         return new PlanItemDraft("MEAL", pick.resourceId(), pick.name(), date,
                 window.start(), window.end(), null, params);
-    }
-
-    /** 训练日挑选：按主训练部位轮转，保证连续训练日部位不重复；无 plan_ready 动作时返回空。 */
-    private List<PlanItemDraft> trainingItem(LocalDate date, String trainingFocus) {
-        List<HealthResource> planReady = resourceProvider.planReadyExercises();
-        if (planReady.isEmpty()) {
-            return List.of();
-        }
-        List<String> parts = orderedDistinctParts(planReady);
-        if (parts.isEmpty()) {
-            return List.of();
-        }
-        int trainingIndex = Math.max(0, TRAINING_DAY_OFFSETS.indexOf(date.getDayOfWeek().getValue() - 1));
-        int startIndex = trainingFocus == null ? 0 : Math.max(0, parts.indexOf(trainingFocus));
-        String part = parts.get((startIndex + trainingIndex) % parts.size());
-        HealthResource exercise = planReady.stream()
-                .filter(item -> item.tags().getOrDefault("primaryBodyPart", List.of()).contains(part))
-                .findFirst()
-                .orElse(planReady.get(0));
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("bodyPart", part);
-        params.put("sets", TRAINING_SETS);
-        params.put("reps", TRAINING_REPS);
-        return List.of(new PlanItemDraft("EXERCISE", exercise.resourceId(), exercise.name(), date,
-                TRAINING_START, TRAINING_END, null, params));
-    }
-
-    /** 主训练部位按出现顺序去重（保持确定性）。 */
-    private List<String> orderedDistinctParts(List<HealthResource> planReady) {
-        LinkedHashMap<String, Boolean> seen = new LinkedHashMap<>();
-        for (HealthResource item : planReady) {
-            for (String part : item.tags().getOrDefault("primaryBodyPart", List.of())) {
-                seen.putIfAbsent(part, Boolean.TRUE);
-            }
-        }
-        return List.copyOf(seen.keySet());
     }
 
     private record SlotWindow(String name, LocalTime start, LocalTime end) {

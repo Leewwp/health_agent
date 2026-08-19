@@ -9,6 +9,9 @@ import com.diet.health.plan.PlanView;
 import com.diet.health.plan.WeeklyPlanService;
 import com.diet.health.plan.TrainingPlanGenerationResponse;
 import com.diet.health.plan.TrainingPlanGenerationService;
+import com.diet.health.plan.MealPlanGenerationService;
+import com.diet.health.plan.CompositePlanGenerationService;
+import com.diet.health.enums.PlanScope;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,15 +34,21 @@ public class HealthPlanController {
 
     private final WeeklyPlanService planService;
     private final TrainingPlanGenerationService trainingPlanGenerationService;
+    private final MealPlanGenerationService mealPlanGenerationService;
+    private final CompositePlanGenerationService compositePlanGenerationService;
 
     public HealthPlanController(WeeklyPlanService planService) {
-        this(planService, null);
+        this(planService, null, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    public HealthPlanController(WeeklyPlanService planService, TrainingPlanGenerationService trainingPlanGenerationService) {
+    public HealthPlanController(WeeklyPlanService planService, TrainingPlanGenerationService trainingPlanGenerationService,
+                                MealPlanGenerationService mealPlanGenerationService,
+                                CompositePlanGenerationService compositePlanGenerationService) {
         this.planService = planService;
         this.trainingPlanGenerationService = trainingPlanGenerationService;
+        this.mealPlanGenerationService = mealPlanGenerationService;
+        this.compositePlanGenerationService = compositePlanGenerationService;
     }
 
     @GetMapping
@@ -50,12 +59,20 @@ public class HealthPlanController {
     @PostMapping("/drafts")
     public PlanView createDraft(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
                                 @RequestBody(required = false) DraftPlanRequest request) {
-        return planService.createDraft(userId, request);
+        throw new com.diet.exception.HealthApiException(com.diet.exception.HealthApiException.CODE_CONFLICT,
+                "旧的通用草稿入口已移除，请从聊天简报进入范围生成");
     }
 
     @PostMapping("/generate")
     public TrainingPlanGenerationResponse generate(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
                                                    @RequestBody GenerateTrainingPlanRequest request) {
+        PlanScope scope = request == null ? null : request.planScope();
+        if (scope == PlanScope.MEAL) {
+            return mealPlanGenerationService.generate(userId, request);
+        }
+        if (scope == PlanScope.COMPOSITE) {
+            return compositePlanGenerationService.generate(userId, request);
+        }
         return trainingPlanGenerationService.generate(userId, request);
     }
 

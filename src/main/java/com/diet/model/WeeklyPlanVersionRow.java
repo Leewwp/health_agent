@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class WeeklyPlanVersionRow {
     private Long id;
     private Long planId;
+    private String planScope;
     private Long versionNo;
     private Long profileVersionNo;
     private String profileSnapshotJson;

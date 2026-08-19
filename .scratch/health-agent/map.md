@@ -8,6 +8,13 @@
 
 ## Notes
 
+## #90–#94 计划语义收敛（2026-08-20）
+
+- **已完成本地实现**：#91 口语化简报与可中断续轮、#92 EXERCISE/MEAL/COMPOSITE 范围契约与 V15/V16 迁移、#93 计划详情优先响应式布局、#94 全链回归与交接证据。
+- **自动化证据**：前端行为测试 20/20；普通 Maven 662（621 通过、41 环境门控跳过）；MySQL 门控 662（658 通过、4 独立门控跳过，37 个真实 MySQL 场景执行）；MySQL+Qdrant 门控 662（661 通过、1 个 live-model 门控跳过）；有 key 时 `LiveTrainingPlanSmokeTest` 1/1；Compose 静态配置通过。
+- **真实浏览器证据**：`http://localhost:8090/#/chat` → `#/profile` → `#/plans` → `#/admin/traces` 完成口语简报、话题切换/恢复、缺档案往返、三种范围生成/查看/激活/Trace；1710/1024/768/414/390/375/320px 无横向滚动，详情编辑抽屉和综合筛选通过。详细记录：`docs/frontend-browser-acceptance.md`。
+- **本地状态**：#90、#91、#92、#93、#94 `resolved` / `ready-for-human`，待 GitHub 留证后关闭；#89 保持 open，仅标记为本地完成、允许开始云端部署的交接目标。本 Goal 不执行 #89 的任何公网步骤。
+
 - 全部规格/评论/代码注释用中文（AGENTS.md 约定）。
 - 原始时间预算为 1-2 周；复核后拆成两级门槛：31-32 先形成可面试演示的 Agent 垂直闭环，31-36 全部通过才是完整 MVP。目标仍是公开部署，但不能用资源数量和页面数量替代主流程完成度。
 - 现有架构尽量**延伸而非重写**：intent→slot→clarify→recommend/plan→risk→persist 状态机、`diet_slot_option` 字典、`meal_item` 标签 JSON、单页 vanilla 前端。

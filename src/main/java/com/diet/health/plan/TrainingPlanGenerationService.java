@@ -7,6 +7,7 @@ import com.diet.agent.invoker.AgentInvoker;
 import com.diet.agent.loader.PromptLoader;
 import com.diet.exception.HealthApiException;
 import com.diet.health.module.HealthResource;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.profile.HealthProfileService.HealthProfileView;
 import com.diet.health.resource.HealthResourceProvider;
@@ -94,6 +95,9 @@ public class TrainingPlanGenerationService {
     }
 
     public TrainingPlanGenerationResponse generate(Long userId, GenerateTrainingPlanRequest request) {
+        if (request == null || request.planScope() == null || request.planScope() != PlanScope.EXERCISE) {
+            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "训练生成入口只接受 EXERCISE 范围");
+        }
         String requestId = normalizeRequestId(request == null ? null : request.requestId());
         HealthSessionState initialSession = sessionService.loadOrCreate(request == null ? null : request.sessionId(), userId);
         RequestTraceRow previous = traceService.findByRequestId(userId, initialSession.sessionId(), requestId);
@@ -163,10 +167,7 @@ public class TrainingPlanGenerationService {
                     trainingItems = fallback(brief, candidates);
                 }
 
-                List<PlanItemDraft> support = composer.compose(profile.calorieLow(), profile.calorieHigh(), brief.weekStart(),
-                        profile.timezone(), null).stream().filter(item -> !item.isExercise()).toList();
-                List<PlanItemDraft> allItems = new ArrayList<>(support);
-                allItems.addAll(trainingItems);
+                List<PlanItemDraft> allItems = new ArrayList<>(trainingItems);
                 validateForPersistence(profile, allItems);
                 traceService.recordEvent("PLAN_GUARD_PASSED", "GUARD",
                         Map.of("source", source, "fallbackReason", fallbackReason == null ? "" : fallbackReason),
@@ -174,7 +175,8 @@ public class TrainingPlanGenerationService {
                                 "fallbackReason", fallbackReason == null ? "" : fallbackReason));
                 ensureBeforeDeadline(deadlineNanos);
                 PlanView plan = weeklyPlanService.persistGeneratedDraft(userId,
-                        new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null),
+                        new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null,
+                                PlanScope.EXERCISE),
                         allItems, source, generationMetadata(brief, candidates, candidateSelection.goalRelaxed(),
                                 source, modelName, actualModel, fallbackReason),
                         deterministicExplanation(source, trainingItems));
@@ -191,6 +193,26 @@ public class TrainingPlanGenerationService {
             }
         } finally {
             requestLocks.remove(lockKey, requestLock);
+        }
+    }
+
+    /** 综合计划使用的训练子计划生成：只返回已约束的 EXERCISE 项目，不负责持久化。 */
+    public List<PlanItemDraft> generateExerciseItemsForComposite(Long userId, HealthSessionState session) {
+        HealthProfileView profile = requireProfile(userId);
+        PlanBrief brief = requireConfirmedBrief(session);
+        CandidateSelection selection = filterCandidates(brief);
+        if (selection.resources().isEmpty()) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有满足训练简报的候选");
+        }
+        try {
+            List<PlanItemDraft> items = guardAgentOutput(brief, selection.resources(),
+                    callAgent(brief, profile, selection.resources(), System.nanoTime() + applicationTimeout.toNanos()));
+            validateForPersistence(profile, items);
+            return items;
+        } catch (RuntimeException error) {
+            List<PlanItemDraft> fallbackItems = fallback(brief, selection.resources());
+            validateForPersistence(profile, fallbackItems);
+            return fallbackItems;
         }
     }
 
@@ -354,6 +376,7 @@ public class TrainingPlanGenerationService {
                                                    String fallbackReason) {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("briefConfirmationVersion", brief.confirmationVersion());
+        metadata.put("planScope", PlanScope.EXERCISE.name());
         metadata.put("candidateIds", candidates.stream().map(HealthResource::resourceId).toList());
         metadata.put("goalRelaxed", goalRelaxed);
         metadata.put("resourceVersion", resourceProvider.resourceVersion());

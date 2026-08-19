@@ -25,7 +25,7 @@
 
 html,
 body {
-    overflow-x: clip;
+    overflow-x: visible;
 }
 
 body {
@@ -1053,11 +1053,232 @@ tr:last-child td {
     gap: 10px;
 }
 
+/* Hallmark · redesign: 计划详情优先工作台 · designed-as-app · vanilla */
+
 /* ---------- 周计划 ---------- */
+
+.plans-page,
+.plans-detail-section,
+.plans-header,
+.plans-detail-head,
+.plan-selector,
+.plan-validation {
+    min-width: 0;
+}
+
+.plans-page {
+    display: grid;
+    gap: 18px;
+}
+
+.plans-header {
+    display: flex;
+    gap: 22px;
+    align-items: end;
+    justify-content: space-between;
+    padding: 8px 2px 2px;
+}
+
+.plans-header h1 {
+    margin: 0;
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 1.08;
+}
+
+.plans-lede {
+    max-width: 660px;
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.eyebrow,
+.plan-kicker {
+    margin: 0 0 8px;
+    color: var(--primary-dark);
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.plans-header-actions {
+    justify-content: flex-end;
+}
+
+.plan-selector {
+    display: grid;
+    grid-template-columns: auto minmax(220px, 420px) 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.plan-selector label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.plan-selector select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+    color: var(--text);
+    background: var(--surface);
+}
+
+.plan-selector-count {
+    justify-self: end;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.plans-detail-section {
+    padding: 24px 26px 30px;
+    border: 1px solid rgba(220, 235, 228, 0.95);
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: var(--shadow);
+}
+
+.plans-empty {
+    display: grid;
+    min-height: 320px;
+    place-items: center;
+    padding: 36px 18px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.plans-empty .empty {
+    max-width: 520px;
+}
+
+.plans-empty .empty p {
+    max-width: 440px;
+    margin: 10px auto 18px;
+    line-height: 1.65;
+}
+
+.plans-detail-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 20px;
+    align-items: start;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+}
+
+.plans-detail-head h2 {
+    margin: 0;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.plans-detail-head p {
+    max-width: 850px;
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.plan-kicker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--muted);
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.plan-kicker span:first-child {
+    color: var(--primary-dark);
+}
+
+.plans-detail-actions {
+    justify-content: flex-end;
+}
+
+.plan-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 10px;
+    margin: 18px 0;
+}
+
+.plan-stat {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 12px 14px;
+    border-left: 3px solid var(--primary);
+    background: var(--surface-soft);
+}
+
+.plan-stat strong {
+    font-size: 24px;
+    line-height: 1.1;
+}
+
+.plan-stat span {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.scope-filter {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 16px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+}
+
+.scope-filter-btn {
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--muted);
+    background: transparent;
+}
+
+.scope-filter-btn.active,
+.scope-filter-btn:hover {
+    color: var(--primary-dark);
+    background: var(--surface);
+    box-shadow: 0 2px 8px rgba(39, 92, 70, 0.09);
+}
+
+.plan-validation {
+    margin: 0 0 18px;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.plan-validation h3 {
+    margin: 0 0 10px;
+}
+
+.plan-validation p {
+    margin: 8px 0 0;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
 
 .week-grid {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(128px, 1fr));
     gap: 10px;
 }
 
@@ -1086,6 +1307,7 @@ tr:last-child td {
 }
 
 .plan-item {
+    width: 100%;
     display: grid;
     gap: 4px;
     padding: 8px 10px;
@@ -1103,9 +1325,8 @@ tr:last-child td {
 
 .plan-item strong {
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .plan-item .plan-item-time {
@@ -1210,6 +1431,14 @@ tr:last-child td {
     .week-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .plans-detail-head {
+        grid-template-columns: 1fr;
+    }
+
+    .plans-detail-actions {
+        justify-content: flex-start;
+    }
 }
 
 @media (max-width: 620px) {
@@ -1269,6 +1498,28 @@ tr:last-child td {
 
     .week-grid {
         grid-template-columns: 1fr;
+    }
+
+    .plans-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .plans-header-actions {
+        justify-content: flex-start;
+    }
+
+    .plan-selector {
+        grid-template-columns: 1fr;
+    }
+
+    .plan-selector-count {
+        justify-self: start;
+    }
+
+    .plans-detail-section {
+        padding: 18px;
+        border-radius: 20px;
     }
 
     .kv-list .kv {

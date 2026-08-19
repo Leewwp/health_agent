@@ -33,10 +33,15 @@ public class HealthIntentRevisionService {
         }
         String text = userInput == null ? "" : userInput.trim();
         HealthDomain explicit = explicitDomain(text);
-        if (explicit != null && explicit != state.domain()) {
+        boolean compositePlanReply = state.domain() == HealthDomain.COMPOSITE
+                && state.task() == HealthTask.PLAN && isCompositeBriefReply(text);
+        if (explicit != null && explicit != state.domain() && !compositePlanReply) {
             return Optional.empty();
         }
-        boolean planContinuation = state.domain() == HealthDomain.EXERCISE && state.task() == HealthTask.PLAN;
+        boolean planContinuation = isPlanDomain(state.domain()) && state.task() == HealthTask.PLAN;
+        if (planContinuation && looksLikeRecommendationRequest(text)) {
+            return Optional.empty();
+        }
         boolean clarifyContinuation = state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain());
         if (!planContinuation && !clarifyContinuation) {
             return Optional.empty();
@@ -68,8 +73,10 @@ public class HealthIntentRevisionService {
         HealthDomain domain = raw.domain();
         HealthTask task = raw.task();
         boolean planContinuation = state.task() == HealthTask.PLAN
-                && state.domain() == HealthDomain.EXERCISE
-                && (state.phase() == HealthPhase.CLARIFY || isPlanContinuation(text));
+                && isPlanDomain(state.domain())
+                && (state.phase() == HealthPhase.CLARIFY || isPlanContinuation(text)
+                || HealthPlanIntentMatcher.matches(text))
+                && !looksLikeRecommendationRequest(text);
         if (explicitDomain != null) {
             domain = explicitDomain;
             task = domain == HealthDomain.OTHER ? HealthTask.CHAT
@@ -91,7 +98,10 @@ public class HealthIntentRevisionService {
             }
         }
 
-        if (plan && domain != HealthDomain.OTHER) {
+        if (HealthPlanIntentMatcher.matchesComposite(text)) {
+            domain = HealthDomain.COMPOSITE;
+            task = HealthTask.PLAN;
+        } else if (plan && domain != HealthDomain.OTHER) {
             task = HealthTask.PLAN;
         }
         if (domain == null) {
@@ -120,6 +130,9 @@ public class HealthIntentRevisionService {
                 "天气怎么样", "写代码", "讲个笑话")) {
             return HealthDomain.OTHER;
         }
+        if (HealthPlanIntentMatcher.matchesComposite(text)) {
+            return HealthDomain.COMPOSITE;
+        }
         if (containsAny(text, "咖啡", "咖啡因", "睡眠", "作息", "睡多久", "几点睡", "几点起", "午睡", "午休",
                 "生物钟", "训练时段")
                 || (containsAny(text, "训练", "运动") && containsAny(text, "什么时候", "几点", "时段", "时间"))) {
@@ -146,7 +159,27 @@ public class HealthIntentRevisionService {
     private boolean isPlanContinuation(String text) {
         return containsAny(text, "确认训练偏好", "确认简报", "按这个生成", "改成", "换成",
                 "目标周", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
-                "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量");
+                "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量",
+                "确认餐食", "确认饮食", "早餐", "午餐", "晚餐", "下周", "本周", "这周");
+    }
+
+    private boolean isPlanDomain(HealthDomain domain) {
+        return domain == HealthDomain.EXERCISE || domain == HealthDomain.MEAL || domain == HealthDomain.COMPOSITE;
+    }
+
+    private boolean isCompositeBriefReply(String text) {
+        if (containsAny(text, "推荐", "吃什么", "浏览", "换一批")) return false;
+        return containsAny(text, "训练", "健身", "练", "胸", "背", "腿", "核心", "徒手", "哑铃", "杠铃",
+                "入门", "进阶", "挑战", "早餐", "午餐", "晚餐", "下周", "本周", "这周", "确认", "目标周",
+                "一三五", "二四六", "时间", "点", ":");
+    }
+
+    private boolean looksLikeRecommendationRequest(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        return containsAny(text, "推荐", "吃什么", "先帮我看看", "看看今晚", "浏览")
+                && !containsAny(text, "计划", "安排");
     }
 
     private boolean containsAny(String text, String... keywords) {

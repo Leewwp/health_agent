@@ -1,9 +1,11 @@
 package com.diet.integration;
 
 import com.diet.exception.HealthApiException;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.enums.PlanValidationLevel;
-import com.diet.health.plan.DraftPlanRequest;
 import com.diet.health.plan.HealthPlanResponseAgentService;
+import com.diet.health.plan.MealPlanBrief;
+import com.diet.health.plan.MealPlanGenerationService;
 import com.diet.health.plan.PatchItemRequest;
 import com.diet.health.plan.PlanValidationService;
 import com.diet.health.plan.PlanView;
@@ -113,12 +115,16 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     private WeeklyPlanService weeklyPlanService;
     @Autowired
     private TrainingPlanGenerationService trainingPlanGenerationService;
+    @Autowired
+    private MealPlanGenerationService mealPlanGenerationService;
 
     private JdbcTemplate jdbc;
 
     @BeforeEach
     void cleanTables() {
         jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("DELETE FROM weekly_plan_item WHERE plan_id IN (SELECT id FROM weekly_plan WHERE user_id >= 880000)");
+        jdbc.update("DELETE FROM weekly_plan_version WHERE plan_id IN (SELECT id FROM weekly_plan WHERE user_id >= 880000)");
         jdbc.update("DELETE FROM weekly_plan WHERE user_id >= 880000");
         jdbc.update("DELETE FROM health_profile WHERE user_id >= 880000");
         jdbc.update("DELETE FROM diet_sessions WHERE user_id >= 880000");
@@ -175,6 +181,20 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         return brief;
     }
 
+    private MealPlanBrief saveConfirmedMealBrief(String sessionId) {
+        MealPlanBrief brief = new MealPlanBrief(MON, List.of("早餐", "午餐", "晚餐"), "保持健康",
+                true, 1, LocalDateTime.now());
+        sessionService.save(com.diet.health.session.HealthSessionState.fresh(sessionId, USER)
+                .withMealPlanBrief(brief));
+        return brief;
+    }
+
+    private PlanView generateMealDraft(String sessionId, String requestId) {
+        return mealPlanGenerationService.generate(USER,
+                        new GenerateTrainingPlanRequest(sessionId, requestId, PlanScope.MEAL))
+                .plan();
+    }
+
     private TrainingPlanGenerationService generationService(AgentInvoker invoker) {
         AgentContractModule contract = new AgentContractModule(invoker, new LlmJsonService(objectMapper), traceService);
         return new TrainingPlanGenerationService(sessionService, realProfileService, riskRuleService,
@@ -189,7 +209,8 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         saveProfile();
         String sessionId = "sess-plan-concurrent";
         saveConfirmedBrief(sessionId);
-        GenerateTrainingPlanRequest request = new GenerateTrainingPlanRequest(sessionId, "mysql-plan-concurrent");
+        GenerateTrainingPlanRequest request = new GenerateTrainingPlanRequest(sessionId, "mysql-plan-concurrent",
+                PlanScope.EXERCISE);
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(2);
         List<TrainingPlanGenerationResponse> responses = java.util.Collections.synchronizedList(new ArrayList<>());
@@ -250,7 +271,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         };
 
         TrainingPlanGenerationResponse response = generationService(slowInvoker).generate(USER,
-                new GenerateTrainingPlanRequest(sessionId, "mysql-plan-slow-agent"));
+                new GenerateTrainingPlanRequest(sessionId, "mysql-plan-slow-agent", PlanScope.EXERCISE));
 
         assertFalse(transactionActiveDuringModel.get(), "外部模型等待期间不得持有数据库事务");
         assertEquals("AGENT", response.generationSource());
@@ -268,7 +289,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 + "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'integration forced item failure'");
         try {
             assertThrows(RuntimeException.class, () -> trainingPlanGenerationService.generate(USER,
-                    new GenerateTrainingPlanRequest(sessionId, "mysql-plan-rollback")));
+                    new GenerateTrainingPlanRequest(sessionId, "mysql-plan-rollback", PlanScope.EXERCISE)));
         } finally {
             jdbc.execute("DROP TRIGGER IF EXISTS " + trigger);
         }
@@ -287,7 +308,9 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         List<PlanMealCandidate> candidates = resourceProvider.planMealCandidates();
         assertFalse(candidates.isEmpty(), "审核子集必须提供计划餐食候选");
 
-        PlanView plan = planService().createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        String sessionId = "sess-meal-candidates";
+        saveConfirmedMealBrief(sessionId);
+        PlanView plan = generateMealDraft(sessionId, "mysql-meal-candidates");
 
         Set<String> candidateIds = candidates.stream().map(PlanMealCandidate::resourceId).collect(Collectors.toSet());
         List<String> mealIds = plan.items().stream()
@@ -321,7 +344,9 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     @Test
     void 审核模式计划快照与项目来源字段同源() {
         saveProfile();
-        PlanView plan = planService().createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        String sessionId = "sess-meal-snapshot";
+        saveConfirmedMealBrief(sessionId);
+        PlanView plan = generateMealDraft(sessionId, "mysql-meal-snapshot");
 
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT i.resource_type, i.resource_id, i.name FROM weekly_plan_item i"
@@ -360,7 +385,9 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     @Test
     void 审核模式计划餐食ID在反馈与浏览之间可互认() {
         saveProfile();
-        PlanView plan = planService().createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        String sessionId = "sess-meal-feedback";
+        saveConfirmedMealBrief(sessionId);
+        PlanView plan = generateMealDraft(sessionId, "mysql-meal-feedback");
         String mealId = plan.items().stream()
                 .filter(item -> "MEAL".equals(item.resourceType()))
                 .findFirst().orElseThrow().resourceId();
@@ -375,7 +402,11 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     @Test
     void 时间不变量失败不产生新版本或半成品项目() {
         saveProfile();
-        PlanView plan = planService().createDraft(USER, new DraftPlanRequest(null, MON, "Asia/Shanghai", null));
+        String sessionId = "sess-exercise-patch";
+        saveConfirmedBrief(sessionId);
+        PlanView plan = trainingPlanGenerationService.generate(USER,
+                        new GenerateTrainingPlanRequest(sessionId, "mysql-exercise-patch", PlanScope.EXERCISE))
+                .plan();
         com.diet.health.plan.PlanItemView exercise = plan.items().stream()
                 .filter(item -> "EXERCISE".equals(item.resourceType()))
                 .filter(item -> item.localDate().equals(MON))
@@ -387,10 +418,10 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 new PatchItemRequest(MON.plusDays(7), LocalTime.of(20, 0), LocalTime.of(21, 0), "越界到次周一")));
         assertEquals(HealthApiException.CODE_BAD_REQUEST, outOfRange.code());
 
-        // 2) 跨午夜冲突（挪到周二早晨与前一晚跨午夜睡眠重叠）：HARD_ERROR，回滚且不落库
+        // 2) 零时长区间：新范围计划不再隐式附带 ROUTINE，改由确定性时间 Guard 拒绝。
         HealthApiException overlap = assertThrows(HealthApiException.class, () -> planService().patchItem(USER,
                 plan.id(), exercise.id(),
-                new PatchItemRequest(MON.plusDays(1), LocalTime.of(6, 0), LocalTime.of(7, 0), "早起训练")));
+                new PatchItemRequest(null, LocalTime.of(19, 30), LocalTime.of(19, 30), "零时长训练")));
         assertEquals(HealthApiException.CODE_RISK_BLOCKED, overlap.code());
 
         // 3) 数据库无半成品：项目保持原日期/时间，版本数与计划状态不变
@@ -399,8 +430,8 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                         + " TIME_FORMAT(end_time, '%H:%i') AS e FROM weekly_plan_item WHERE id = ?",
                 exercise.id());
         assertEquals(MON.toString(), String.valueOf(row.get("d")), "失败 PATCH 不得改动项目日期");
-        assertEquals("19:30", String.valueOf(row.get("s")), "失败 PATCH 不得改动开始时间");
-        assertEquals("21:00", String.valueOf(row.get("e")), "失败 PATCH 不得改动结束时间");
+        assertEquals("19:00", String.valueOf(row.get("s")), "失败 PATCH 不得改动开始时间");
+        assertEquals("19:45", String.valueOf(row.get("e")), "失败 PATCH 不得改动结束时间");
         Integer versionCount = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM weekly_plan_version v JOIN weekly_plan p ON p.id = v.plan_id"
                         + " WHERE p.user_id = ?",

@@ -87,6 +87,19 @@ class HealthSessionServiceTest {
         ArgumentCaptor<SessionRow> rowCaptor = ArgumentCaptor.forClass(SessionRow.class);
         verify(mapper).update(rowCaptor.capture());
         assertTrue(rowCaptor.getValue().getSlots().contains("planBrief"));
+
+        PlanBrief partial = brief.withProgress("timeWindowEnd", 2, LocalTime.of(17, 0));
+        HealthSessionState partialState = saved.withPlanBrief(partial);
+        service.save(partialState);
+        ArgumentCaptor<SessionRow> partialCaptor = ArgumentCaptor.forClass(SessionRow.class);
+        verify(mapper, times(2)).update(partialCaptor.capture());
+        row.setSlots(partialCaptor.getAllValues().get(1).getSlots());
+        when(mapper.findById("sess_roundtrip", 7L)).thenReturn(row);
+
+        HealthSessionState reloaded = service.loadOrCreate("sess_roundtrip", 7L);
+        assertEquals("timeWindowEnd", reloaded.planBrief().expectedField());
+        assertEquals(2, reloaded.planBrief().failedAttempts());
+        assertEquals(LocalTime.of(17, 0), reloaded.planBrief().partialStartTime());
     }
 
     @Test

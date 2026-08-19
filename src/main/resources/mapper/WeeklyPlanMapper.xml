@@ -7,6 +7,7 @@
     <resultMap id="WeeklyPlanRowMap" type="com.diet.model.WeeklyPlanRow">
         <id property="id" column="id"/>
         <result property="userId" column="user_id"/>
+        <result property="planScope" column="plan_scope"/>
         <result property="status" column="status"/>
         <result property="weekStart" column="week_start"/>
         <result property="timezone" column="timezone"/>
@@ -28,6 +29,7 @@
     <sql id="PlanColumns">
         id,
         user_id,
+        plan_scope,
         status,
         week_start,
         timezone,
@@ -83,11 +85,11 @@
 
     <insert id="insertPlan" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO weekly_plan (
-            user_id, status, week_start, timezone, profile_version_no, calorie_low, calorie_high,
+            user_id, plan_scope, status, week_start, timezone, profile_version_no, calorie_low, calorie_high,
             rules_version, validation_level, validation_json, note, source_session_id, current_version,
             generation_source, generation_metadata_json, created_at, updated_at
         ) VALUES (
-            #{userId}, #{status}, #{weekStart}, #{timezone}, #{profileVersionNo}, #{calorieLow}, #{calorieHigh},
+            #{userId}, #{planScope}, #{status}, #{weekStart}, #{timezone}, #{profileVersionNo}, #{calorieLow}, #{calorieHigh},
             #{rulesVersion}, #{validationLevel}, #{validationJson}, #{note}, #{sourceSessionId}, #{currentVersion},
             #{generationSource}, #{generationMetadataJson}, #{createdAt}, #{updatedAt}
         )
@@ -121,6 +123,7 @@
     <resultMap id="WeeklyPlanVersionRowMap" type="com.diet.model.WeeklyPlanVersionRow">
         <id property="id" column="id"/>
         <result property="planId" column="plan_id"/>
+        <result property="planScope" column="plan_scope"/>
         <result property="versionNo" column="version_no"/>
         <result property="profileVersionNo" column="profile_version_no"/>
         <result property="profileSnapshotJson" column="profile_snapshot_json"/>
@@ -134,11 +137,11 @@
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO weekly_plan_version (
-            plan_id, version_no, profile_version_no, profile_snapshot_json,
+            plan_id, plan_scope, version_no, profile_version_no, profile_snapshot_json,
             rules_version, source_session_id, fact_sources_json, resource_snapshot_json,
             validation_json, created_at
         ) VALUES (
-            #{planId}, #{versionNo}, #{profileVersionNo}, #{profileSnapshotJson},
+            #{planId}, #{planScope}, #{versionNo}, #{profileVersionNo}, #{profileSnapshotJson},
             #{rulesVersion}, #{sourceSessionId}, #{factSourcesJson}, #{resourceSnapshotJson},
             #{validationJson}, #{createdAt}
         )

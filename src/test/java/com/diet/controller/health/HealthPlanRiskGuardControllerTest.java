@@ -3,10 +3,15 @@ package com.diet.controller.health;
 import com.diet.constants.DietConstants;
 import com.diet.exception.HealthApiExceptionHandler;
 import com.diet.health.enums.ActivityLevel;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.enums.ProfileGoal;
 import com.diet.health.plan.HealthPlanResponseAgentService;
 import com.diet.health.plan.MealPlanPicker;
+import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.PlanItemDraft;
+import com.diet.health.plan.PlanView;
 import com.diet.health.plan.PlanValidationService;
+import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.health.plan.WeeklyPlanComposerService;
 import com.diet.health.plan.WeeklyPlanService;
 import com.diet.health.profile.HealthProfileService;
@@ -33,6 +38,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,9 +56,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 计划 API 直达绕过测试（62 号票）：
- * 不先调用聊天，直接 PUT 档案 + POST 计划草稿；风险档案必须得到 RISK_BLOCKED，
- * 且计划/版本/项目均不落库；正常档案仍成功；未知风险枚举在 HTTP 层被干净拒绝为 400。
+ * 计划 API Guard 测试：范围计划写入口必须依赖已确认简报，旧通用草稿入口拒绝；
+ * 风险、时间和日期错误均不得留下计划半成品。
  */
 class HealthPlanRiskGuardControllerTest {
 
@@ -57,6 +66,10 @@ class HealthPlanRiskGuardControllerTest {
     private final FakeProfileMapper profileMapper = new FakeProfileMapper();
     private final FakePlanMapper planMapper = new FakePlanMapper();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private HealthResourceProvider resourceProvider;
+    private HealthSessionService sessionService;
+    private HealthSessionState sessionState;
+    private WeeklyPlanService planService;
     private HealthProfileService profileService;
     private MockMvc mockMvc;
 
@@ -66,17 +79,18 @@ class HealthPlanRiskGuardControllerTest {
     @BeforeEach
     void setUp() {
         profileService = new HealthProfileService(profileMapper, objectMapper);
-        HealthResourceProvider provider = new SeedResourceProvider();
-        MealPlanPicker picker = new MealPlanPicker(provider);
-        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(provider, picker);
+        resourceProvider = new SeedResourceProvider();
+        MealPlanPicker picker = new MealPlanPicker(resourceProvider);
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(resourceProvider, picker);
         HealthPlanResponseAgentService planAgent = mock(HealthPlanResponseAgentService.class);
         when(planAgent.explain(any(), any())).thenReturn(
                 new HealthPlanResponseAgentService.PlanExplanation("已生成周计划草稿。", List.of(), null));
-        HealthSessionService sessionService = mock(HealthSessionService.class);
-        when(sessionService.loadOrCreate(any(), any())).thenReturn(HealthSessionState.fresh("sess-1", USER));
-        WeeklyPlanService planService = new WeeklyPlanService(
+        sessionService = mock(HealthSessionService.class);
+        sessionState = HealthSessionState.fresh("sess-1", USER);
+        when(sessionService.loadOrCreate(any(), any())).thenAnswer(invocation -> sessionState);
+        planService = new WeeklyPlanService(
                 profileService, new HealthRiskRuleService(), composer, new PlanValidationService(),
-                planMapper, provider, planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper),
+                planMapper, resourceProvider, planAgent, new AgentTraceService(mock(AgentTraceMapper.class), objectMapper),
                 sessionService, objectMapper);
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new HealthProfileController(profileService), new HealthPlanController(planService))
@@ -100,8 +114,8 @@ class HealthPlanRiskGuardControllerTest {
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("RISK_BLOCKED"))
-                .andExpect(jsonPath("$.message").value(HealthRiskRuleService.BLOCK_PLAN_COPY));
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.message").value("旧的通用草稿入口已移除，请从聊天简报进入范围生成"));
 
         assertEquals(0, planMapper.plans.size(), "风险阻断不得持久化计划");
         assertEquals(0, planMapper.versions.size(), "风险阻断不得持久化版本");
@@ -109,7 +123,7 @@ class HealthPlanRiskGuardControllerTest {
     }
 
     @Test
-    void 正常档案直接调用计划API成功() throws Exception {
+    void 正常档案直接调用旧计划API也被拒绝且不落库() throws Exception {
         mockMvc.perform(put("/api/v1/health/profile")
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
                         .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
@@ -119,9 +133,9 @@ class HealthPlanRiskGuardControllerTest {
         mockMvc.perform(post("/api/v1/health/plans/drafts")
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("DRAFT"));
-        assertEquals(1, planMapper.plans.size(), "正常档案草稿成功落库");
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+        assertEquals(0, planMapper.plans.size(), "旧入口拒绝后不得落库");
     }
 
     @Test
@@ -156,15 +170,11 @@ class HealthPlanRiskGuardControllerTest {
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
                         .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/health/plans/drafts")
-                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"weekStart\":\"2026-08-17\"}"))
-                .andExpect(status().isOk());
+        PlanView plan = createConfirmedExerciseDraft();
         Long exerciseId = planMapper.items.stream()
                 .filter(item -> "EXERCISE".equals(item.getResourceType()))
                 .findFirst().orElseThrow().getId();
-        Long planId = planMapper.plans.get(0).getId();
+        Long planId = plan.id();
 
         mockMvc.perform(patch("/api/v1/health/plans/" + planId + "/items/" + exerciseId)
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
@@ -186,15 +196,11 @@ class HealthPlanRiskGuardControllerTest {
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
                         .contentType(MediaType.APPLICATION_JSON).content(PROFILE_BODY))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/health/plans/drafts")
-                        .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"weekStart\":\"2026-08-17\"}"))
-                .andExpect(status().isOk());
+        PlanView plan = createConfirmedExerciseDraft();
         Long exerciseId = planMapper.items.stream()
                 .filter(item -> "EXERCISE".equals(item.getResourceType()))
                 .findFirst().orElseThrow().getId();
-        Long planId = planMapper.plans.get(0).getId();
+        Long planId = plan.id();
 
         mockMvc.perform(patch("/api/v1/health/plans/" + planId + "/items/" + exerciseId)
                         .requestAttr(DietConstants.USER_ID_ATTRIBUTE, USER)
@@ -208,6 +214,29 @@ class HealthPlanRiskGuardControllerTest {
                 .filter(item -> item.getId().equals(exerciseId)).findFirst().orElseThrow();
         assertEquals(java.time.LocalTime.of(19, 30), row.getStartTime(), "零时长修改不得落库");
         assertEquals(java.time.LocalTime.of(21, 0), row.getEndTime(), "零时长修改不得落库");
+    }
+
+    private PlanView createConfirmedExerciseDraft() {
+        LocalDate weekStart = LocalDate.of(2026, 8, 17);
+        var resource = resourceProvider.planReadyExercises().get(0);
+        String bodyPart = resource.tags().getOrDefault("primaryBodyPart", List.of("全身")).get(0);
+        PlanBrief brief = new PlanBrief(
+                resource.tags().getOrDefault("trainingGoal", List.of("保持健康")).get(0),
+                resource.tags().getOrDefault("bodyParts", List.of(bodyPart)).subList(0, 1),
+                resource.tags().getOrDefault("equipment", List.of("徒手")).subList(0, 1),
+                resource.tags().getOrDefault("difficulty", List.of("入门")).get(0),
+                weekStart, List.of(DayOfWeek.MONDAY),
+                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(21, 0)),
+                Map.of(), true, 1, LocalDateTime.now());
+        sessionState = sessionState.withPlanBrief(brief);
+        PlanItemDraft item = new PlanItemDraft(
+                "EXERCISE", resource.resourceId(), resource.name(), weekStart,
+                LocalTime.of(19, 30), LocalTime.of(21, 0), null,
+                Map.of("bodyPart", bodyPart, "sets", 2, "reps", 10, "durationMinutes", 90));
+        return planService.persistScopedGeneratedDraft(USER,
+                new com.diet.health.plan.DraftPlanRequest(sessionState.sessionId(), weekStart,
+                        "Asia/Shanghai", null, PlanScope.EXERCISE), PlanScope.EXERCISE,
+                List.of(item), "FALLBACK", Map.of("planScope", PlanScope.EXERCISE.name()), "已生成训练计划草稿。");
     }
 
     // ---------- 内存版 Mapper ----------
