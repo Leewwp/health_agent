@@ -449,23 +449,20 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
-    void Trace记录角色契约版本与解析状态() throws Exception {
+    void 明确推荐Trace标记快路径且不产生意图模型调用() throws Exception {
         chat("午餐想吃清淡的");
         assertFalse(insertedTraces.isEmpty());
         JsonNode root = objectMapper.readTree(insertedTraces.get(0).getTraceJson());
-        boolean hasIntentCall = false;
-        boolean hasContractMeta = false;
+        boolean hasFastPath = false;
+        boolean hasAgentCall = false;
         for (JsonNode event : root.path("events")) {
-            if ("AGENT_CALL".equals(event.path("eventType").asText())
-                    && "IntentAgent".equals(event.path("agentName").asText())) {
-                hasIntentCall = true;
-                JsonNode input = objectMapper.readTree(event.path("inputPayload").asText());
-                hasContractMeta = "intent-v1".equals(input.path("contractVersion").asText())
-                        && input.path("promptVersion").isTextual();
-                break;
+            if ("INTENT_RECOGNIZED".equals(event.path("eventType").asText())) {
+                JsonNode output = objectMapper.readTree(event.path("outputPayload").asText());
+                hasFastPath = "FAST_PATH".equals(output.path("resolutionSource").asText());
             }
+            hasAgentCall |= "AGENT_CALL".equals(event.path("eventType").asText());
         }
-        assertTrue(hasIntentCall, "Trace 应包含 IntentAgent 的 AGENT_CALL 事件");
-        assertTrue(hasContractMeta, "AGENT_CALL 输入应携带契约与 Prompt 版本");
+        assertTrue(hasFastPath, "明确请求应标记确定性快路径");
+        assertFalse(hasAgentCall, "明确请求不应调用模型");
     }
 }

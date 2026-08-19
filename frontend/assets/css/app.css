@@ -458,6 +458,45 @@ button {
     background: #fff;
 }
 
+.resource-card-body {
+    display: grid;
+    gap: 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.resource-card-body:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary) 32%, transparent);
+    outline-offset: 4px;
+}
+
+.resource-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.resource-card-actions > [data-feedback-group] {
+    flex: 1;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-right: 6px;
+    vertical-align: -0.12em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: loading-spin 700ms linear infinite;
+}
+
+@keyframes loading-spin {
+    to { transform: rotate(360deg); }
+}
+
 .meal-card header {
     display: flex;
     gap: 10px;

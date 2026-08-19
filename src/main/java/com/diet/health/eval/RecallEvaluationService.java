@@ -93,7 +93,8 @@ public final class RecallEvaluationService {
                     new MealRetrievalQuery(query.slots(), excludeIds, query.allergens(),
                             textMode == EmbeddingTextMode.SLOT_CONCAT ? "" : query.text()),
                     topK);
-            latenciesMs.add((System.nanoTime() - startNanos) / 1_000_000.0);
+            double totalLatencyMs = (System.nanoTime() - startNanos) / 1_000_000.0;
+            latenciesMs.add(totalLatencyMs);
             List<String> topKSourceIds = result.items().stream()
                     .map(RetrievalItem::meal)
                     .map(item -> mealIdToSourceId.get(item.id()))
@@ -120,7 +121,12 @@ public final class RecallEvaluationService {
             String stratum = query.stratum() == null ? "unknown" : query.stratum();
             QueryEvaluation qe = new QueryEvaluation(
                     query.id(), stratum, recall, mrr, ndcg, precision, constraint,
-                    result.mode().name(), topKSourceIds);
+                    result.mode().name(), topKSourceIds,
+                    result.evidence().structuredCandidateCount(),
+                    result.evidence().vectorCandidateCount(),
+                    result.evidence().fusedCandidateCount(),
+                    result.evidence().vectorStatus().name(),
+                    result.evidence().vectorLatencyMs(), totalLatencyMs);
             perQuery.add(qe);
             byStratum.computeIfAbsent(stratum, k -> new ArrayList<>()).add(qe);
         }

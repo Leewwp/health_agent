@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,6 +26,32 @@ import static org.mockito.Mockito.mock;
  * 健康意图识别：固定夹具下的合法/降级场景。
  */
 class HealthIntentAgentServiceTest {
+
+    @Test
+    void 明确餐食动作和计划短语走确定性快路径且不调用模型() {
+        AtomicInteger calls = new AtomicInteger();
+        AgentInvoker counting = countingInvoker(calls,
+                "{\"domain\":\"OTHER\",\"task\":\"CHAT\",\"riskFlags\":[],\"slots\":{},\"preferenceSignals\":[],\"confidence\":0.9}");
+        HealthIntentAgentService svc = service(counting);
+
+        assertEquals(HealthDomain.MEAL, svc.recognizeWithDiagnostics("午餐想吃清淡的", Map.of(), List.of()).result().domain());
+        assertEquals(HealthDomain.EXERCISE, svc.recognizeWithDiagnostics("想练胸", Map.of(), List.of()).result().domain());
+        assertEquals(HealthDomain.ROUTINE, svc.recognizeWithDiagnostics("几点起比较合适", Map.of(), List.of()).result().domain());
+        assertEquals(HealthTask.PLAN, svc.recognizeWithDiagnostics("一周健身计划", Map.of(), List.of()).result().task());
+        assertEquals(0, calls.get());
+    }
+
+    @Test
+    void 歧义表达最多调用一次结构化理解模型() {
+        AtomicInteger calls = new AtomicInteger();
+        HealthIntentAgentService svc = service(countingInvoker(calls,
+                "{\"domain\":\"MEAL\",\"task\":\"RECOMMEND\",\"riskFlags\":[],\"slots\":{},\"preferenceSignals\":[],\"confidence\":0.9}"));
+
+        HealthIntentResult result = svc.recognize("帮我推荐", Map.of(), List.of());
+
+        assertEquals(HealthDomain.MEAL, result.domain());
+        assertEquals(1, calls.get());
+    }
 
     private HealthIntentAgentService service(AgentInvoker invoker) {
         AgentContractModule module = new AgentContractModule(invoker, new LlmJsonService(new ObjectMapper()), mock(AgentTraceService.class));
@@ -111,9 +138,14 @@ class HealthIntentAgentServiceTest {
     }
 
     private AgentInvoker invokerReturning(String text) {
+        return countingInvoker(new AtomicInteger(), text);
+    }
+
+    private AgentInvoker countingInvoker(AtomicInteger calls, String text) {
         return new AgentInvoker() {
             @Override
             public AgentInvocationResult invoke(AgentInvocation invocation) {
+                calls.incrementAndGet();
                 return new AgentInvocationResult(text, "qwen-turbo", 1);
             }
 

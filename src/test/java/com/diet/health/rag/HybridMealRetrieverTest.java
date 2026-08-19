@@ -79,6 +79,11 @@ class HybridMealRetrieverTest {
         assertEquals(1.0, result.items().get(0).semanticScore(), 1e-9);
         assertEquals(0.5, result.items().get(1).mergedScore(), 1e-9);
         assertEquals(0.0, result.items().get(1).semanticScore(), 1e-9, "命中向量但余弦为 0 仍是向量命中，语义分 0 而非 null");
+        assertEquals(2, result.evidence().structuredCandidateCount());
+        assertEquals(2, result.evidence().vectorCandidateCount());
+        assertEquals(2, result.evidence().fusedCandidateCount());
+        assertEquals(VectorRetrievalStatus.AVAILABLE, result.evidence().vectorStatus());
+        assertTrue(result.evidence().vectorLatencyMs() >= 0);
     }
 
     @Test
@@ -184,6 +189,10 @@ class HybridMealRetrieverTest {
 
         assertEquals(RetrievalMode.STRUCTURED, result.mode());
         assertEquals("vector_store_unavailable", result.degradationReason());
+        assertEquals(1, result.evidence().structuredCandidateCount());
+        assertEquals(0, result.evidence().vectorCandidateCount());
+        assertEquals(0, result.evidence().fusedCandidateCount());
+        assertEquals(VectorRetrievalStatus.STORE_UNAVAILABLE, result.evidence().vectorStatus());
     }
 
     @Test

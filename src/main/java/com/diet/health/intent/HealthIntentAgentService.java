@@ -64,6 +64,30 @@ public class HealthIntentAgentService {
     /** 识别健康意图；LLM/契约失败时返回关键词降级结果。 */
     public HealthIntentResult recognize(String userInput, Map<String, List<String>> knownSlots,
                                         List<String> recentHistory) {
+        return recognizeWithDiagnostics(userInput, knownSlots, recentHistory, timeout, false).result();
+    }
+
+    /** 识别并返回路径诊断；明确短语不触发模型，歧义输入最多一次调用。 */
+    public Recognition recognizeWithDiagnostics(String userInput, Map<String, List<String>> knownSlots,
+                                                List<String> recentHistory) {
+        return recognizeWithDiagnostics(userInput, knownSlots, recentHistory, timeout, true);
+    }
+
+    /** 使用本轮请求剩余预算，确保模型调用不会越过应用截止时间。 */
+    public Recognition recognizeWithDiagnostics(String userInput, Map<String, List<String>> knownSlots,
+                                                List<String> recentHistory, Duration remainingBudget) {
+        return recognizeWithDiagnostics(userInput, knownSlots, recentHistory, remainingBudget, true);
+    }
+
+    private Recognition recognizeWithDiagnostics(String userInput, Map<String, List<String>> knownSlots,
+                                                 List<String> recentHistory, Duration remainingBudget,
+                                                 boolean allowFastPath) {
+        if (allowFastPath) {
+            HealthIntentResult fastPath = intentRuleService.fastPath(userInput, knownSlots);
+            if (fastPath != null) {
+                return new Recognition(fastPath, "FAST_PATH");
+            }
+        }
         String promptText = buildPrompt(userInput, knownSlots, recentHistory);
         AgentContractModule.ContractResult<HealthIntentResult> result = contractModule.call(
                 new AgentContractModule.AgentContractRequest<>(
@@ -73,16 +97,16 @@ public class HealthIntentAgentService {
                         promptVersion,
                         "intent-v1",
                         promptText,
-                        timeout,
+                        min(timeout, remainingBudget),
                         root -> parseIntentJson(root, userInput),
                         null,
                         null
                 )
         );
         if (result.parsed()) {
-            return result.value();
+            return new Recognition(result.value(), "AGENT");
         }
-        return intentRuleService.fallback(userInput, knownSlots, result.fallbackReason());
+        return new Recognition(intentRuleService.fallback(userInput, knownSlots, result.fallbackReason()), "FALLBACK");
     }
 
     private String buildPrompt(String userInput, Map<String, List<String>> knownSlots, List<String> recentHistory) {
@@ -224,5 +248,15 @@ public class HealthIntentAgentService {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    public record Recognition(HealthIntentResult result, String source) {
+    }
+
+    private Duration min(Duration configured, Duration remaining) {
+        if (remaining == null || remaining.isNegative() || remaining.isZero()) {
+            return Duration.ofMillis(1);
+        }
+        return configured.compareTo(remaining) <= 0 ? configured : remaining;
     }
 }

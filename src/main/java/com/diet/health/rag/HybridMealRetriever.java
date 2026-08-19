@@ -99,28 +99,35 @@ public class HybridMealRetriever implements MealRetriever {
         }
 
         List<VectorHit> hits;
+        long vectorStartNanos = System.nanoTime();
         try {
             hits = vectorHits(query);
         } catch (VectorStoreException e) {
             log.warn("向量检索失败，hybrid 降级为结构化：{}", e.getMessage());
-            return degrade("vector_store_unavailable", base, limit);
+            return degrade("vector_store_unavailable", base, limit,
+                    VectorRetrievalStatus.STORE_UNAVAILABLE, elapsedMs(vectorStartNanos));
         }
         if (hits == null) {
-            return degrade("embedding_unavailable", base, limit);
+            return degrade("embedding_unavailable", base, limit,
+                    VectorRetrievalStatus.EMBEDDING_UNAVAILABLE, elapsedMs(vectorStartNanos));
         }
         if (hits.isEmpty()) {
             if (base.items().isEmpty()) {
-                return base;
+                return new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null,
+                        new RetrievalEvidence(0, 0, 0, VectorRetrievalStatus.NO_HITS,
+                                elapsedMs(vectorStartNanos)));
             }
-            return degrade("no_vector_hits", base, limit);
+            return degrade("no_vector_hits", base, limit,
+                    VectorRetrievalStatus.NO_HITS, elapsedMs(vectorStartNanos));
         }
-        return merge(query, base, structuredById, maxStructured, hits, limit);
+        return merge(query, base, structuredById, maxStructured, hits, limit,
+                elapsedMs(vectorStartNanos));
     }
 
     /** 融合：按 ID 回查审核读取模块二次校验硬约束后，确定性合并两条路径候选。 */
     private RetrievalResult merge(MealRetrievalQuery query, RetrievalResult base,
                                   Map<Long, RetrievalItem> structuredById, double maxStructured,
-                                  List<VectorHit> hits, int limit) {
+                                  List<VectorHit> hits, int limit, double vectorLatencyMs) {
         // 回查 MySQL 二次校验：向量命中的 ID 必须仍存在且满足全部硬约束，过期索引命中直接丢弃
         Set<Long> mergeIds = new HashSet<>(structuredById.keySet());
         hits.forEach(hit -> mergeIds.add(hit.mealId()));
@@ -151,7 +158,9 @@ public class HybridMealRetriever implements MealRetriever {
         merged.sort(Comparator.comparingDouble(RetrievalItem::mergedScore).reversed()
                 .thenComparing(item -> item.meal().id()));
         return new RetrievalResult(merged.stream().limit(Math.max(limit, 0)).toList(),
-                RetrievalMode.HYBRID, null);
+                RetrievalMode.HYBRID, null,
+                new RetrievalEvidence(base.items().size(), hits.size(), merged.size(),
+                        VectorRetrievalStatus.AVAILABLE, vectorLatencyMs));
     }
 
     /** 独立向量召回；embedding 不可用返回 null（降级信号），Qdrant 故障抛 {@link VectorStoreException}。 */
@@ -170,8 +179,10 @@ public class HybridMealRetriever implements MealRetriever {
     }
 
     /** 降级：原样返回结构化候选并标记降级原因。 */
-    private RetrievalResult degrade(String reason, RetrievalResult base, int limit) {
-        return new RetrievalResult(limitTo(base.items(), limit), RetrievalMode.STRUCTURED, reason);
+    private RetrievalResult degrade(String reason, RetrievalResult base, int limit,
+                                    VectorRetrievalStatus status, double vectorLatencyMs) {
+        return new RetrievalResult(limitTo(base.items(), limit), RetrievalMode.STRUCTURED, reason,
+                new RetrievalEvidence(base.items().size(), 0, 0, status, vectorLatencyMs));
     }
 
     private List<RetrievalItem> limitTo(List<RetrievalItem> items, int limit) {
@@ -192,5 +203,9 @@ public class HybridMealRetriever implements MealRetriever {
 
     private double clampCosine(double cosine) {
         return Math.max(0, Math.min(1, cosine));
+    }
+
+    private double elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000.0;
     }
 }

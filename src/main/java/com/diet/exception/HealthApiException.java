@@ -14,6 +14,7 @@ public class HealthApiException extends RuntimeException {
     /** 当前资源模式不提供该健康接口能力。 */
     public static final String CODE_RESOURCE_MODE_UNAVAILABLE = "RESOURCE_MODE_UNAVAILABLE";
     public static final String CODE_SERVICE_ERROR = "SERVICE_ERROR";
+    public static final String CODE_TIMEOUT = "TIMEOUT";
 
     private final String code;
 

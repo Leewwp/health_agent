@@ -21,6 +21,7 @@ public class HealthApiExceptionHandler {
             case HealthApiException.CODE_RISK_BLOCKED, HealthApiException.CODE_CONFLICT -> HttpStatus.CONFLICT;
             case HealthApiException.CODE_IDENTITY_INVALID -> HttpStatus.UNAUTHORIZED;
             case HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+            case HealthApiException.CODE_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             default -> HttpStatus.BAD_REQUEST;
         };
         return ResponseEntity.status(status)

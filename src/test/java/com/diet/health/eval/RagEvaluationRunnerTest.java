@@ -3,7 +3,9 @@ package com.diet.health.eval;
 import com.diet.health.rag.EmbeddingClient;
 import com.diet.health.rag.MealRetriever;
 import com.diet.health.rag.RetrievalMode;
+import com.diet.health.rag.RetrievalEvidence;
 import com.diet.health.rag.RetrievalResult;
+import com.diet.health.rag.VectorRetrievalStatus;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
 import com.diet.health.resource.HealthResourceProvider;
@@ -147,6 +149,9 @@ class RagEvaluationRunnerTest {
         Map<?, ?> report = new ObjectMapper().readValue(json, Map.class);
         Map<?, ?> hybrid = (Map<?, ?>) report.get("hybrid");
         assertEquals(60, hybrid.get("degradedCount"), "无 API key 时全部 60 条降级");
+        assertEquals("FALLBACK_ONLY", report.get("runClassification"));
+        assertNotNull(report.get("metricComparison"));
+        assertNotNull(report.get("fallbackEvidence"));
         Map<?, ?> dist = (Map<?, ?>) hybrid.get("degradationDistribution");
         assertEquals(60, dist.get("embedding_unavailable"), "降级分布必须记录 embedding_unavailable 原因");
         assertNotNull(hybrid.get("p95LatencyMs"));
@@ -169,13 +174,24 @@ class RagEvaluationRunnerTest {
         when(embeddingClient.configured()).thenReturn(true);
         when(embeddingClient.embed(any())).thenReturn(Optional.of(new float[]{1.0f}));
         when(mealRetriever.retrieve(any(), anyInt()))
-                .thenReturn(new RetrievalResult(List.of(), RetrievalMode.HYBRID, null));
+                .thenReturn(new RetrievalResult(List.of(), RetrievalMode.HYBRID, null,
+                        new RetrievalEvidence(7, 8, 9, VectorRetrievalStatus.AVAILABLE, 1.25)));
 
         runner.run(null);
 
         String json = Files.readString(reportPath);
         Map<?, ?> report = new ObjectMapper().readValue(json, Map.class);
         assertFalse((Boolean) report.get("degradedRun"), "配置 key 且向量存储可用时不标注降级");
+        assertEquals("REAL_HYBRID", report.get("runClassification"));
+        assertNotNull(report.get("metricComparison"), "报告必须直接给出 Hybrid 相对 Structured 的指标差值");
+        Map<?, ?> hybrid = (Map<?, ?>) report.get("hybrid");
+        Map<?, ?> first = (Map<?, ?>) ((List<?>) hybrid.get("queries")).get(0);
+        assertEquals(7, first.get("structuredCandidateCount"));
+        assertEquals(8, first.get("vectorCandidateCount"));
+        assertEquals(9, first.get("fusedCandidateCount"));
+        assertEquals("AVAILABLE", first.get("vectorStatus"));
+        assertNotNull(first.get("vectorLatencyMs"));
+        assertNotNull(first.get("totalLatencyMs"));
     }
 
     private ReviewedMeal meal(Long id, String sourceId) {

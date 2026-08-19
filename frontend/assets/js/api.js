@@ -106,8 +106,8 @@ function toQuery(params) {
 
 /* ---------------- 健康链路 ---------------- */
 
-export function healthChat(payload) {
-    return request(HEALTH_BASE, "/chat", { method: "POST", body: payload });
+export function healthChat(payload, options) {
+    return request(HEALTH_BASE, "/chat", { method: "POST", body: payload, ...(options || {}) });
 }
 
 export function listMeals(params) {

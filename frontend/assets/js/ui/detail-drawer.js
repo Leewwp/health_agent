@@ -94,13 +94,13 @@ export function bindDrawer(container) {
         openerContainers.add(container);
         container.addEventListener("click", (event) => {
             const opener = event.target.closest("[data-action='open-resource']");
-            if (opener && getResource(opener.dataset.key)) {
-                openDrawer(opener.dataset.key, {
-                    sessionId: opener.dataset.sessionId || null,
-                    planId: opener.dataset.planId || null,
-                    planItemId: opener.dataset.planItemId || null
-                });
-            }
+            openFromElement(opener);
+        });
+        container.addEventListener("keydown", (event) => {
+            const opener = event.target.closest(".resource-card-body[data-action='open-resource']");
+            if (!opener || (event.key !== "Enter" && event.key !== " ")) return;
+            event.preventDefault();
+            openFromElement(opener);
         });
     }
     if (drawerBound) {
@@ -121,6 +121,16 @@ export function bindDrawer(container) {
             drawerContext.onSave(collectEditValues());
         }
     });
+}
+
+function openFromElement(opener) {
+    if (opener && getResource(opener.dataset.key)) {
+        openDrawer(opener.dataset.key, {
+            sessionId: opener.dataset.sessionId || null,
+            planId: opener.dataset.planId || null,
+            planItemId: opener.dataset.planItemId || null
+        });
+    }
 }
 
 function collectEditValues() {

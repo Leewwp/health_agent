@@ -55,11 +55,44 @@
 
 ## 运行方式与可复现性
 
+## #88 证据口径（2026-08-18）
+
+`RagEvaluationRunner` 现在在每条查询中记录 `structuredCandidateCount`、
+`vectorCandidateCount`、`fusedCandidateCount`、`vectorStatus`、向量阶段延迟和整轮延迟，
+并在顶层记录 `runClassification`（`REAL_HYBRID` / `PARTIAL_HYBRID` / `FALLBACK_ONLY`）、
+Structured 对照差值和降级证据。`RetrievalEvidence` 位于检索公共返回接缝，故障时不会把
+Structured 结果误报为向量命中。
+
+仓库中的 `data/reports/rag_evaluation.json` 已于 2026-08-19 在本地 MySQL + Qdrant 1.17.0
+环境重跑，当前为 `REAL_HYBRID`：60/60 条零降级，逐查询候选计数、向量状态和阶段延迟均已
+记录。此前的 `FALLBACK_ONLY` 快照结论仍保留在下方，作为结构化故障降级回归背景。
+
+### #88 真实 Hybrid 运行（2026-08-19）
+
+运行身份：审核资源 `reviewed-2026-08-10-v1`，Qdrant collection
+`meal_dashscope_qwen3.7-text-embedding_1024_v3-1024`，模型
+`qwen3.7-text-embedding`，`v3-1024`，1024 维；固定查询集 60 条，topK=3。
+
+| 指标 | Structured | Hybrid | 差值 |
+|---|---:|---:|---:|
+| 平均 Recall@3 | 0.351 | 0.351 | 0.000 |
+| 平均 MRR | 1.000 | 1.000 | 0.000 |
+| 平均 NDCG@3 | 1.000 | 1.000 | 0.000 |
+| 平均 Precision@3 | 0.956 | 0.956 | 0.000 |
+| 硬约束命中率 | 1.000 | 1.000 | 0.000 |
+| P95 延迟 | 3.078 ms | 159.407 ms | +156.329 ms |
+
+向量索引为 295/295 条，Hybrid 降级次数为 0，向量状态全部为 `AVAILABLE`。本次结果说明
+真实 Qdrant 融合路径和硬约束二次校验可用；在这组标注数据上，融合没有带来 Recall 提升，
+同时增加了向量查询延迟，不能表述为效果提升。
+
 - 查询集版本、git commit、审核资源版本、embedding provider/model/version/dimension、
   collection、融合权重、runAt 全部记录在报告 `environment` 字段；报告同时带 `querySetVersion`
   与 `degradedRun`/`degradedRunNote` 标注。
-- 复现真实效果数字：配置 `DASHSCOPE_API_KEY`，执行
-  `--diet.embedding.generate-on-startup=true` 生成向量（幂等写入 `meal_item_embedding`），
-  再重跑评估；报告零降级时方可引用 hybrid 效果数字。
+- 复现真实效果数字：准备 MySQL 中与当前 embedding 身份匹配的
+  `meal_item_embedding`，启用 `diet.vectorstore.mode=qdrant`、
+  `diet.vectorstore.index-on-startup=true` 和 `diet.rag.eval-run=true` 后启动；若需要重建
+  向量，再配置 `DASHSCOPE_API_KEY` 并启用 `diet.embedding.generate-on-startup=true`。
+  报告 `runClassification=REAL_HYBRID` 且降级次数为 0 时，才可引用 Hybrid 效果数字。
 - 向量生成：`diet.embedding.generate-on-startup=true`（需要真实 key）。
 - 检索模式：`diet.rag.mode=hybrid`（默认）或 `structured`。

@@ -47,34 +47,7 @@ public class HealthClarifyAgentService {
     /** 生成追问措辞；任何失败返回模板文案。 */
     public String wording(HealthDomain domain, String userInput, List<String> missingSlots,
                           Map<String, List<String>> knownSlots) {
-        String promptText = promptLoader.load("diet/prompts/health-clarify.txt") + "\n\n"
-                + "领域: " + domain + "\n"
-                + "用户原话: " + userInput + "\n"
-                + "已知信息: " + knownSlots + "\n"
-                + "缺失字段: " + missingSlots;
-        AgentContractModule.ContractResult<String> result = contractModule.call(
-                new AgentContractModule.AgentContractRequest<>(
-                        "ClarifyAgent",
-                        AgentInvoker.ModelRole.LIGHT,
-                        modelName,
-                        promptVersion,
-                        "clarify-v1",
-                        promptText,
-                        timeout,
-                        root -> {
-                            String text = root.isTextual() ? root.asText() : root.asText(null);
-                            if (text == null || text.isBlank()) {
-                                throw new AgentFailureException(AgentFailureType.SCHEMA_VIOLATION, "追问文本为空");
-                            }
-                            return text.trim();
-                        },
-                        null,
-                        null
-                )
-        );
-        if (result.parsed()) {
-            return result.value();
-        }
+        // 澄清字段和文案都是确定性的，避免文本 Prompt 与 JSON 契约不一致，也不消耗模型预算。
         return clarifyRuleService.fallbackQuestion(domain, missingSlots);
     }
 }

@@ -65,6 +65,49 @@ public class IntentRuleService {
                 fallbackReason == null ? "KEYWORD_FALLBACK" : fallbackReason);
     }
 
+    /**
+     * 明确短语的确定性快路径。无法唯一确定领域时返回 null，交给唯一一次结构化理解调用。
+     */
+    public HealthIntentResult fastPath(String userInput, Map<String, List<String>> knownSlots) {
+        String text = userInput == null ? "" : userInput;
+        if (text.isBlank()) {
+            return null;
+        }
+        // 复合诉求必须保留给一次结构化理解，不能被单品类关键词抢先路由。
+        if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
+            return null;
+        }
+        boolean meal = containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿");
+        boolean exercise = containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练");
+        // 本票快路径聚焦餐食、动作和计划；作息结构化理解仍沿用原有契约，避免改变事实槽位解析。
+        boolean routine = isRoutineFact(text);
+        int domains = (meal ? 1 : 0) + (exercise ? 1 : 0) + (routine ? 1 : 0);
+        if (domains > 1) {
+            return null;
+        }
+        if (domains == 0 && knownSlots != null && !knownSlots.isEmpty()) {
+            Map<String, List<String>> mealSlots = normalizer.normalize(HealthDomain.MEAL, text, Map.of()).slots();
+            Map<String, List<String>> exerciseSlots = normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots();
+            Map<String, List<String>> routineSlots = normalizer.normalize(HealthDomain.ROUTINE, text, Map.of()).slots();
+            meal = knownSlots.keySet().stream().anyMatch(HealthSlotDictionary.MEAL_SLOTS::contains) && !mealSlots.isEmpty();
+            exercise = knownSlots.keySet().stream().anyMatch(HealthSlotDictionary.FITNESS_SLOTS::contains) && !exerciseSlots.isEmpty();
+            routine = knownSlots.keySet().stream().anyMatch(HealthSlotDictionary.ROUTINE_SLOTS::contains) && !routineSlots.isEmpty();
+            domains = (meal ? 1 : 0) + (exercise ? 1 : 0) + (routine ? 1 : 0);
+            if (domains != 1) {
+                return null;
+            }
+        }
+        if (HealthPlanIntentMatcher.matches(text)) {
+            HealthIntentResult plan = fallback(text, knownSlots, null);
+            return HealthIntentResult.parsed(plan.domain(), plan.task(), plan.riskFlags(), plan.slots(), plan.preferenceSignals(), 1.0);
+        }
+        if (domains != 1) {
+            return null;
+        }
+        HealthIntentResult result = fallback(text, knownSlots, null);
+        return HealthIntentResult.parsed(result.domain(), result.task(), result.riskFlags(), result.slots(), result.preferenceSignals(), 1.0);
+    }
+
     private boolean knownExercise(Map<String, List<String>> knownSlots) {
         if (knownSlots == null) {
             return false;
