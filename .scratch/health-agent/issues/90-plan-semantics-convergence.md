@@ -13,7 +13,7 @@ Status: resolved / ready-for-human
 
 - 自动化与迁移：`docs/release-evidence.md`。
 - 真实浏览器：`docs/frontend-browser-acceptance.md`。
-- 当前工作树：#90–#94 相关实现与测试文件，待本地范围 commit 后在 GitHub 评论补充 SHA。
+- 本地范围 commit：`82dcc32`（`feat: complete plan semantics convergence`）。
 
 ## 边界
 

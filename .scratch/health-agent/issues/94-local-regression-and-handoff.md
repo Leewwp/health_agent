@@ -16,3 +16,7 @@ Status: resolved / ready-for-human
 - 发布矩阵：`docs/release-evidence.md`。
 - 浏览器记录和截图：`docs/frontend-browser-acceptance.md`、`docs/evidence/issue-90/`。
 - #89 只收到本地完成与云端部署交接说明，不在本票执行或关闭云端工作。
+
+## 本地 commit
+
+- `82dcc32`：`feat: complete plan semantics convergence`
