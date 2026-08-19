@@ -6,7 +6,7 @@
   "queryCount" : 60,
   "sourceMappingCount" : 295,
   "environment" : {
-    "gitCommit" : "01957db",
+    "gitCommit" : "00c36b0",
     "querySetVersion" : "1.1.0",
     "resourceVersion" : "reviewed-2026-08-10-v1",
     "embeddingProvider" : "dashscope",
