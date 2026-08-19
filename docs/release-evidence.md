@@ -67,5 +67,5 @@
 | 受约束 Agent 训练计划 | `TrainingPlanGenerationServiceTest`、MySQL 事务门控；服务端重读确认简报，审核 `plan_ready` 候选白名单，确定性 Guard/fallback，V14 生成来源/元数据和 requestId 幂等；fixture 场景完成草稿查看、七日安排和激活 |
 | Trace 最小诊断工作台 | `AgentTraceDiagnosticTest` 与既有 admin token/脱敏测试；支持 `SUCCESS + DEGRADED`、耗时聚合、模型/token/解析/Guard/fallback、按 `stepOrder` 的时间线和脱敏嵌套 JSON |
 | 真实浏览器 | `docs/frontend-browser-acceptance.md` 当前 #85-#87 段：`http://localhost:18092/#/chat`、`#/plans`、`#/admin/traces`；桌面 1710×983、移动 390×844；生成/激活、Trace 展示、401 鉴权边界和移动端无文档级横向溢出通过 |
-| 当前自动化结果 | `mvn -DskipTests compile` 通过；`mvn test` 670 tests、0 failures、37 个环境门控跳过；`mvn test -Ditest.mysql=true` 670 tests、0 failures、3 个 Qdrant 门控跳过；`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 670 tests、0 failures、0 skipped；`node --test frontend/tests/*.test.mjs` 11/11；`docker compose config --quiet` 通过 |
-| 外部模型边界 | 本轮浏览器使用 fixture/fallback；真实模型成功 smoke 尚未执行，不能作为已完成的发布证据。 |
+| 当前自动化结果 | `mvn test` 684 tests、0 failures、41 个环境门控跳过；`mvn test -Ditest.mysql=true` 684 tests、0 failures、4 个独立门控跳过；`node --test frontend/tests/*.test.mjs` 16/16；`docker compose config --quiet` 通过 |
+| 外部模型证据 | `mvn -q -Dtest=LiveTrainingPlanSmokeTest -Ditest.live-model=true test` 通过：真实 `qwen-turbo`、`generationSource=AGENT`、`parseStatus=PARSED`、实际模型元数据已落库；本地 Chromium 同样完成 Agent 计划与对应 Trace。公网发布仍由 #89 验收。 |

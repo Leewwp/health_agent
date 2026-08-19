@@ -30,3 +30,11 @@ export function createChatRequestController(options) {
     }
     return { submit, isPending: () => pending };
 }
+
+/** 快捷动作直接提交固定文本，并与表单提交共用同一个防重/超时控制器。 */
+export function submitPresetChatMessage(controller, message, onUserMessage = () => {}) {
+    const normalized = String(message || "").trim();
+    if (!normalized || controller.isPending()) return Promise.resolve(false);
+    onUserMessage(normalized);
+    return controller.submit({ message: normalized });
+}

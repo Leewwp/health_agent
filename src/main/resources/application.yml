@@ -45,7 +45,7 @@ diet:
   llm:
     # 主生成与轻量意图模型可由环境覆盖；默认使用当前百炼账号已授权的 Qwen 系列。
     main-model: ${DIET_LLM_MAIN_MODEL:qwen-turbo}
-    light-model: ${DIET_LLM_LIGHT_MODEL:qwen3.7-flash}
+    light-model: ${DIET_LLM_LIGHT_MODEL:qwen-turbo}
     # 聊天端点形态：false=agentscope 原生 DashScope 端点（默认）；true=OpenAI 兼容端点
     # （/chat/completions，适配只开放兼容端点的 DashScope 专属空间）
     openai-compatible: true
@@ -56,6 +56,9 @@ diet:
   request:
     # 整轮健康聊天截止时间；模型调用必须消费剩余预算。
     timeout-ms: ${DIET_REQUEST_TIMEOUT_MS:5000}
+  plan-generation:
+    # 训练计划应用截止时间；模型最多消费其中 80%，为 fallback、Guard 与短事务留出预算。
+    timeout-ms: ${DIET_PLAN_GENERATION_TIMEOUT_MS:15000}
   resource:
     # reviewed=数据库审核子集（正式）；fixture=内存种子（离线演示/测试，prod 禁止）
     mode: reviewed

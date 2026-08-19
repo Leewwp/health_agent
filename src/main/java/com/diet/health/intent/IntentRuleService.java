@@ -73,6 +73,11 @@ public class IntentRuleService {
         if (text.isBlank()) {
             return null;
         }
+        String compact = text.replaceAll("[，。！？,.!?\\s]", "");
+        if (List.of("帮我推荐", "帮我推荐一下", "推荐一下", "给我推荐一下").contains(compact)) {
+            return HealthIntentResult.parsed(HealthDomain.COMPOSITE, HealthTask.RECOMMEND,
+                    List.of(), Map.of(), List.of(), 1.0);
+        }
         // 复合诉求必须保留给一次结构化理解，不能被单品类关键词抢先路由。
         if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
             return null;

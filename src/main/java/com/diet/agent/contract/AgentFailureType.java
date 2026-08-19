@@ -16,6 +16,8 @@ public enum AgentFailureType {
     INVALID_JSON,
     /** JSON 结构/枚举/必填字段违反契约。 */
     SCHEMA_VIOLATION,
+    /** 模型自报置信度低于业务阈值。 */
+    LOW_CONFIDENCE,
     /** 输出引用了输入候选之外的资源 ID。 */
     CANDIDATE_VIOLATION
 }

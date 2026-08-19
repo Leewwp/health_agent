@@ -24,6 +24,8 @@ import java.util.Map;
 @Service
 public class HealthIntentAgentService {
 
+    private static final double MIN_CONFIDENCE = 0.65;
+
     /** 支持的风险 flag 白名单（与 HealthRiskRuleService 对齐）。 */
     private static final List<String> SUPPORTED_RISK_FLAGS = List.of(
             "PREGNANCY", "UNDERAGE", "ACUTE_SYMPTOMS", "TREATMENT", "EATING_DISORDER", "CHRONIC_CONDITION", "SENIOR"
@@ -47,7 +49,7 @@ public class HealthIntentAgentService {
             HealthSlotDictionary slotDictionary,
             IntentRuleService intentRuleService,
             HealthInputNormalizer inputNormalizer,
-            @Value("${diet.llm.light-model:qwen3.7-flash}") String modelName,
+            @Value("${diet.llm.light-model:qwen-turbo}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
     ) {
@@ -110,12 +112,29 @@ public class HealthIntentAgentService {
     }
 
     private String buildPrompt(String userInput, Map<String, List<String>> knownSlots, List<String> recentHistory) {
-        Map<String, List<String>> slotOptions = slotDictionary.legalValues();
+        Map<String, List<String>> slotOptions = relevantSlotOptions(userInput, knownSlots);
+        List<String> history = recentHistory == null ? List.of()
+                : recentHistory.stream().skip(Math.max(0, recentHistory.size() - 2L)).toList();
         return promptLoader.load("diet/prompts/health-intent.txt") + "\n\n"
-                + "最近对话摘要: " + recentHistory + "\n"
+                + "最近对话摘要: " + history + "\n"
                 + "已知槽位: " + knownSlots + "\n"
                 + "合法槽位选项: " + slotOptions + "\n"
                 + "当前这一句: " + userInput;
+    }
+
+    /** 只携带已有领域相关词典；领域仍歧义时由输出契约和 Java 字典过滤兜底。 */
+    private Map<String, List<String>> relevantSlotOptions(String userInput, Map<String, List<String>> knownSlots) {
+        HealthIntentResult hint = intentRuleService.fastPath(userInput, knownSlots);
+        if (hint == null || hint.domain() == HealthDomain.OTHER || hint.domain() == HealthDomain.COMPOSITE) {
+            return Map.of();
+        }
+        Map<String, List<String>> relevant = new LinkedHashMap<>();
+        slotDictionary.legalValues().forEach((slot, values) -> {
+            if (slotDictionary.belongsTo(slot, hint.domain())) {
+                relevant.put(slot, values);
+            }
+        });
+        return relevant;
     }
 
     /** 契约解析：枚举/必填字段校验 + 槽位合法性过滤 + 偏好信号校验。 */
@@ -203,6 +222,10 @@ public class HealthIntentAgentService {
         }
 
         double confidence = root.path("confidence").asDouble(0.5);
+        if (confidence < MIN_CONFIDENCE) {
+            throw new AgentFailureException(AgentFailureType.LOW_CONFIDENCE,
+                    "意图置信度 " + confidence + " 低于阈值 " + MIN_CONFIDENCE);
+        }
         if (slotDegraded || riskDegraded || signalDegraded) {
             return HealthIntentResult.degraded(domain, task, riskFlags, slots, signals, "非法输出条目已过滤");
         }

@@ -42,6 +42,20 @@ class HealthIntentAgentServiceTest {
     }
 
     @Test
+    void 纯泛化推荐走跨领域快路径且不调用模型() {
+        AtomicInteger calls = new AtomicInteger();
+        HealthIntentAgentService svc = service(countingInvoker(calls,
+                "{\"domain\":\"MEAL\",\"task\":\"RECOMMEND\",\"riskFlags\":[],\"slots\":{},\"preferenceSignals\":[],\"confidence\":0.9}"));
+
+        HealthIntentAgentService.Recognition recognition = svc.recognizeWithDiagnostics("帮我推荐", Map.of(), List.of());
+
+        assertEquals(HealthDomain.COMPOSITE, recognition.result().domain());
+        assertEquals(HealthTask.RECOMMEND, recognition.result().task());
+        assertEquals("FAST_PATH", recognition.source());
+        assertEquals(0, calls.get());
+    }
+
+    @Test
     void 歧义表达最多调用一次结构化理解模型() {
         AtomicInteger calls = new AtomicInteger();
         HealthIntentAgentService svc = service(countingInvoker(calls,
@@ -110,6 +124,16 @@ class HealthIntentAgentServiceTest {
         HealthIntentResult result = service(invokerReturning("不是JSON")).recognize("中午吃什么", Map.of(), List.of());
         assertTrue(result.degraded());
         assertEquals(HealthDomain.MEAL, result.domain());
+    }
+
+    @Test
+    void 低置信模型输出触发关键词Fallback并保留可诊断原因() {
+        HealthIntentResult result = service(invokerReturning(
+                "{\"domain\":\"MEAL\",\"task\":\"RECOMMEND\",\"riskFlags\":[],\"slots\":{},\"preferenceSignals\":[],\"confidence\":0.4}"))
+                .recognize("午餐吃什么", Map.of(), List.of());
+        assertTrue(result.degraded());
+        assertEquals(HealthDomain.MEAL, result.domain());
+        assertTrue(result.fallbackReason().contains("LOW_CONFIDENCE"));
     }
 
     @Test

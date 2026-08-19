@@ -32,7 +32,7 @@ public class HealthClarifyAgentService {
             AgentContractModule contractModule,
             PromptLoader promptLoader,
             HealthClarifyRuleService clarifyRuleService,
-            @Value("${diet.llm.light-model:qwen3.7-flash}") String modelName,
+            @Value("${diet.llm.light-model:qwen-turbo}") String modelName,
             @Value("${diet.prompt.version:v1}") String promptVersion,
             @Value("${diet.agent.timeout-ms:15000}") long timeoutMs
     ) {

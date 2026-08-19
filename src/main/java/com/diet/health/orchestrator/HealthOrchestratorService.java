@@ -243,11 +243,13 @@ public class HealthOrchestratorService {
         messageService.appendMessage(sessionId, "user", userInput, null, traceId);
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", userInput, Map.of("sessionId", sessionId));
 
-        HealthIntentAgentService.Recognition recognition = intentFastPathEnabled
-                ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
-                recentHistory(userId, sessionId), remaining(deadlineNanos))
-                : new HealthIntentAgentService.Recognition(
-                intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId)), "AGENT");
+        HealthIntentAgentService.Recognition recognition = intentRevisionService.continueBeforeAgent(userInput, state)
+                .map(result -> new HealthIntentAgentService.Recognition(result, "STATE_CONTINUATION"))
+                .orElseGet(() -> intentFastPathEnabled
+                        ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
+                        recentHistory(userId, sessionId), remaining(deadlineNanos))
+                        : new HealthIntentAgentService.Recognition(
+                        intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId)), "AGENT"));
         HealthIntentResult rawIntent = recognition.result();
         HealthIntentRevisionService.Revision revision = intentRevisionService.revise(userInput, state, rawIntent);
         HealthIntentResult intent = revision.intent();
@@ -264,10 +266,14 @@ public class HealthOrchestratorService {
         agentTraceService.recordEvent("INTENT_RECOGNIZED", "INTENT", userInput, intentPayload);
 
         // 风险信号跨轮累积：会话历史信号 + 本轮意图信号，由 Java 规则统一确认
-        List<String> sessionRiskFlags = mergeFlags(state.riskFlags(), intent.riskFlags());
+        List<String> historicalRiskFlags = state.riskFlags();
+        List<String> sessionRiskFlags = mergeFlags(historicalRiskFlags, intent.riskFlags());
         HealthRiskRuleService.RiskDecision risk = riskRuleService.assess(userInput, sessionRiskFlags);
         agentTraceService.recordEvent("RISK_ASSESSED", "RISK",
-                Map.of("rulesVersion", HealthRiskRuleService.RULES_VERSION, "intentRiskFlags", intent.riskFlags()),
+                Map.of("rulesVersion", HealthRiskRuleService.RULES_VERSION,
+                        "historicalRiskFlags", historicalRiskFlags,
+                        "intentRiskFlags", intent.riskFlags(),
+                        "assessedRiskFlags", sessionRiskFlags),
                 Map.of("level", risk.level(), "matchedFlags", risk.matchedFlags()));
         if (risk.blocked()) {
             HealthChatResponse blocked = HealthChatResponse.blocked(sessionId, traceId, intent.domain(), intent.task(),
@@ -341,7 +347,7 @@ public class HealthOrchestratorService {
         } else if (!hasHealthProfile(userId)) {
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("我已保留这份训练偏好。请先完善健康档案，保存后可以回到当前会话继续确认。", advisoryCopy), List.of())
+                    withAdvisory("我已保留这份训练偏好。健康档案还缺少生成计划必需的年龄、身高、体重、活动水平和主要目标，请补齐后回到当前会话继续确认。", advisoryCopy), List.of())
                     .withPlanBrief(brief, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
         } else if (brief.isConfirmedAndComplete()) {
@@ -433,7 +439,10 @@ public class HealthOrchestratorService {
                         candidate.sourceName(),
                         candidate.mediaUrl(),
                         candidate.planReady(),
-                        outcome.reasons().getOrDefault(candidate.resourceId(), "匹配你选择的偏好条件")
+                        outcome.reasons().getOrDefault(candidate.resourceId(), "匹配你选择的偏好条件"),
+                        candidate.tags(),
+                        candidate.ingredients(),
+                        candidate.nutrition()
                 ))
                 .toList();
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
@@ -517,7 +526,7 @@ public class HealthOrchestratorService {
     }
 
     private List<String> recentHistory(Long userId, String sessionId) {
-        return messageService.recentConversationTurns(sessionId, userId, 3).stream()
+        return messageService.recentConversationTurns(sessionId, userId, 2).stream()
                 .map(ConversationTurn::toString)
                 .toList();
     }

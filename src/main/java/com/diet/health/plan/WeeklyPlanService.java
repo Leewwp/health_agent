@@ -131,7 +131,7 @@ public class WeeklyPlanService {
         plan.setCreatedAt(now);
         plan.setUpdatedAt(now);
         planMapper.insertPlan(plan);
-        insertVersion(plan, profile, result, now, items);
+        insertVersion(plan, profile, result, now, items, generationMetadata(plan));
         insertItems(plan, items, now);
 
         String explanation = explain(plan, profile, loadItemViews(plan));
@@ -239,7 +239,7 @@ public class WeeklyPlanService {
             }
             long newVersion = plan.getCurrentVersion() + 1;
             LocalDateTime now = LocalDateTime.now();
-            planMapper.insertVersion(buildVersion(plan, profile, result, now, items, newVersion, null));
+            planMapper.insertVersion(buildVersion(plan, profile, result, now, items, newVersion, generationMetadata(plan)));
             insertItems(plan, items, now, newVersion);
             plan.setStatus(PlanStatus.ACTIVE.name());
             plan.setCurrentVersion(newVersion);
@@ -288,12 +288,14 @@ public class WeeklyPlanService {
         copy.setValidationLevel(result.level().name());
         copy.setValidationJson(toJson(ruleHitViews(result)));
         copy.setSourceSessionId(plan.getSourceSessionId());
+        copy.setGenerationSource(plan.getGenerationSource());
+        copy.setGenerationMetadataJson(plan.getGenerationMetadataJson());
         copy.setCurrentVersion(1L);
         LocalDateTime now = LocalDateTime.now();
         copy.setCreatedAt(now);
         copy.setUpdatedAt(now);
         planMapper.insertPlan(copy);
-        insertVersion(copy, profile, result, now, items);
+        insertVersion(copy, profile, result, now, items, generationMetadata(copy));
         insertItems(copy, items, now);
         return toView(copy, loadItemViews(copy), false, null, null);
     }
@@ -472,6 +474,22 @@ public class WeeklyPlanService {
         version.setValidationJson(toJson(ruleHitViews(result)));
         version.setCreatedAt(now);
         return version;
+    }
+
+    private Map<String, Object> generationMetadata(WeeklyPlanRow plan) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (plan.getGenerationMetadataJson() != null && !plan.getGenerationMetadataJson().isBlank()) {
+            try {
+                metadata.putAll(objectMapper.readValue(plan.getGenerationMetadataJson(),
+                        new TypeReference<Map<String, Object>>() { }));
+            } catch (JsonProcessingException ignored) {
+                // 旧计划元数据无法解析时仍保留根来源，避免后续版本继续丢失来源。
+            }
+        }
+        if (plan.getGenerationSource() != null && !plan.getGenerationSource().isBlank()) {
+            metadata.put("generationSource", plan.getGenerationSource());
+        }
+        return Map.copyOf(metadata);
     }
 
     /** 作息事实来源快照：ROUTINE 项目按 factId 解析结构化事实与来源（其他类型不参与）。 */

@@ -400,6 +400,21 @@ class WeeklyPlanServiceTest {
     }
 
     @Test
+    void 激活与编辑副本保留生成来源和不可变元数据() {
+        PlanView draft = service.createDraft(1L, draftRequest());
+        PlanView active = service.activate(1L, draft.id());
+        PlanView edited = service.edit(1L, active.id());
+
+        assertEquals("RULE_COMPOSER", active.generationSource());
+        assertEquals("RULE_COMPOSER", edited.generationSource());
+        assertEquals("RULE_COMPOSER", planMapper.plans.get(1).getGenerationSource());
+        assertTrue(planMapper.versions.get(1).getResourceSnapshotJson().contains("generationSource"),
+                "激活版本必须保存生成来源");
+        assertTrue(planMapper.versions.get(2).getResourceSnapshotJson().contains("generationSource"),
+                "编辑副本版本必须保存生成来源");
+    }
+
+    @Test
     void 编辑草稿直接返回原草稿() {
         PlanView draft = service.createDraft(1L, draftRequest());
         PlanView edited = service.edit(1L, draft.id());
@@ -964,6 +979,8 @@ class WeeklyPlanServiceTest {
         copy.setValidationJson(row.getValidationJson());
         copy.setNote(row.getNote());
         copy.setSourceSessionId(row.getSourceSessionId());
+        copy.setGenerationSource(row.getGenerationSource());
+        copy.setGenerationMetadataJson(row.getGenerationMetadataJson());
         copy.setCurrentVersion(row.getCurrentVersion());
         copy.setCreatedAt(row.getCreatedAt());
         copy.setUpdatedAt(row.getUpdatedAt());

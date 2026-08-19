@@ -20,10 +20,10 @@ GitHub: [#86](https://github.com/Leewwp/health_agent/issues/86)
 - [x] 用户点击一次生成后展示等待动画和非实时阶段文案；本地 Chromium 生成在 20 秒内完成并进入计划页，可查看七日训练安排、辅助餐食/作息并激活有效草稿。
 - [x] 最高层 fixture 场景跑通“简报确认 → fallback 草稿 → 查看 → 激活 → Trace”，并覆盖 Agent 契约与 fallback 两条路径。
 - [x] 真实 MySQL 测试覆盖失败回滚、requestId 防重复、唯一 ACTIVE、激活重检和模型等待期间无长事务。
-- [ ] 发布前有一次有界真实模型成功生成 smoke；模型不可用时同一份已确认简报仍可 fallback，且结果不违反偏好与硬约束。
+- [x] 发布前有一次有界真实模型成功生成 smoke；模型不可用时同一份已确认简报仍可 fallback，且结果不违反偏好与硬约束。
 
 ## Answer
 
 - 实现：`TrainingPlanGenerationService`、`PlanAgentOutput`、`GenerateTrainingPlanRequest`、`TrainingPlanGenerationResponse`、`training-plan-agent.txt`、V14 来源/元数据迁移；复用 `PlanValidationService`、`WeeklyPlanService` 和审核 `plan_ready` Provider。
-- 测试：`TrainingPlanGenerationServiceTest` 覆盖合法输出、非法 JSON/未知动作、时间窗口、fallback、requestId 幂等；完整 `mvn test` 670 tests、0 failures；MySQL 门控 670 tests、0 failures；Qdrant 联合门控 670 tests、0 failures、0 skipped。
-- 浏览器：`http://localhost:18092/#/chat` → `#/plans`，桌面 1710×983；确认简报后点击生成，计划页展示 `规则降级`、3 个训练项目和七日视图，随后激活为“已激活”。使用 fixture/无可用真实模型配置，真实模型成功 smoke 尚未完成。
+- 测试：`TrainingPlanGenerationServiceTest` 覆盖合法输出、非法 JSON/未知动作、时间窗口、fallback、requestId 幂等；完整 `mvn test` 684 tests、0 failures；MySQL 门控 684 tests、0 failures；显式 `LiveTrainingPlanSmokeTest` 使用 `qwen-turbo` 真实成功，来源为 `AGENT`、解析为 `PARSED`。
+- 浏览器：`http://localhost:8092/#/chat` → `#/plans` → `#/admin/traces`，桌面 1710×983、移动端 390×844；确认按钮直接提交，真实 Agent 生成 3 个审核训练项目和七日视图，计划页可直达对应 Trace，原始 JSON 默认折叠。截图见 `docs/evidence/issue-86-agent-*.png`。
