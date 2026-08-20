@@ -8,6 +8,11 @@
 
 ## Notes
 
+## 2026-08-20 产品体验与资源能力增强规格
+
+- 新一轮讨论已整理为 [health-agent-product-refinement/spec.md](../health-agent-product-refinement/spec.md)，包含动作目录自动补全、当前安排、计划清理、替代推荐、计划详情、聊天布局和歧义意图仲裁。
+- 实现票与依赖见 [health-agent-product-refinement/map.md](../health-agent-product-refinement/map.md)。全部票标记 `ready-for-agent`，实现前应按总规格的 Testing Decisions 补齐自动化与真实浏览器证据。
+
 ## #90–#94 计划语义收敛（2026-08-20）
 
 - **已完成本地实现**：#91 口语化简报与可中断续轮、#92 EXERCISE/MEAL/COMPOSITE 范围契约与 V15/V16 迁移、#93 计划详情优先响应式布局、#94 全链回归与交接证据。
