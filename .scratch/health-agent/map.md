@@ -8,6 +8,11 @@
 
 ## Notes
 
+## 2026-08-20 统一综合周计划与时间网格编辑器
+
+- 本轮确定的计划生命周期、单一当前启用计划、三种 Agent 生成流程和时间网格编辑规格见 [unified-plan-editor/spec.md](unified-plan-editor/spec.md)，状态为 `ready-for-agent`。
+- 设计决策与旧计划当前安排模型的差异见 [ADR-0014](../../docs/adr/0014-unified-weekly-plan-and-timeline-editor.md)。
+
 ## 2026-08-20 产品体验与资源能力增强规格
 
 - 新一轮讨论已整理为 [health-agent-product-refinement/spec.md](../health-agent-product-refinement/spec.md)，包含动作目录自动补全、当前安排、计划清理、替代推荐、计划详情、聊天布局和歧义意图仲裁。
