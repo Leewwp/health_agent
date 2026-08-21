@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 审核动作读取模块 DB adapter（#64，方案 B）。
@@ -40,6 +41,15 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
     @Override
     public int count() {
         return exerciseMapper.count();
+    }
+
+    @Override
+    public Optional<ReviewedExercise> findById(Long id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        ExerciseItemRow row = exerciseMapper.browseById(id);
+        return row == null ? Optional.empty() : Optional.of(toReviewedExercise(row));
     }
 
     /** 行 → 浏览读取模型：槽位字段归一为健身槽位中文词汇（与领域 Provider 同口径）。 */

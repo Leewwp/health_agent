@@ -11,6 +11,11 @@ public class HealthApiException extends RuntimeException {
     public static final String CODE_NOT_FOUND = "NOT_FOUND";
     public static final String CODE_RISK_BLOCKED = "RISK_BLOCKED";
     public static final String CODE_CONFLICT = "CONFLICT";
+    public static final String CODE_PLAN_VERSION_CONFLICT = "PLAN_VERSION_CONFLICT";
+    public static final String CODE_PLAN_STATE_CONFLICT = "PLAN_STATE_CONFLICT";
+    public static final String CODE_PLAN_TIME_CONFLICT = "PLAN_TIME_CONFLICT";
+    public static final String CODE_PLAN_RESOURCE_INVALID = "PLAN_RESOURCE_INVALID";
+    public static final String CODE_PLAN_IDEMPOTENCY_CONFLICT = "PLAN_IDEMPOTENCY_CONFLICT";
     /** 当前资源模式不提供该健康接口能力。 */
     public static final String CODE_RESOURCE_MODE_UNAVAILABLE = "RESOURCE_MODE_UNAVAILABLE";
     public static final String CODE_SERVICE_ERROR = "SERVICE_ERROR";

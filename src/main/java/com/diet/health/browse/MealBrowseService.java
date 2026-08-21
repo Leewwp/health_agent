@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 餐食浏览服务（规格 6.2）。
@@ -51,6 +52,14 @@ public class MealBrowseService {
         int total = reviewedMealReader.countPublic();
         List<MealBrowseItem> items = meals.stream().map(MealBrowseService::toItem).toList();
         return PagedResponse.of(items, page, size, total);
+    }
+
+    public MealBrowseItem detail(long id) {
+        requireReviewedMode();
+        return reviewedMealReader.findById(id)
+                .map(MealBrowseService::toItem)
+                .orElseThrow(() -> new com.diet.exception.HealthApiException(
+                        com.diet.exception.HealthApiException.CODE_NOT_FOUND, "餐食不存在或未通过审核"));
     }
 
     private void requireReviewedMode() {

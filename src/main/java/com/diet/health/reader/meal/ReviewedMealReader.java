@@ -2,6 +2,7 @@ package com.diet.health.reader.meal;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 审核公共餐食读取模块接口（#68，方案 B）。
@@ -25,6 +26,9 @@ public interface ReviewedMealReader {
      * 去重并按 id 升序返回；空 ID 集合返回空集合，不触发 SQL。
      */
     List<ReviewedMeal> findByIds(List<Long> ids);
+
+    /** 按稳定 ID 读取一条审核公共餐食详情。 */
+    Optional<ReviewedMeal> findById(Long id);
 
     /** 审核公共餐食分页（offset 从 0 起，id 升序稳定排序）。 */
     List<ReviewedMeal> browse(int offset, int size);

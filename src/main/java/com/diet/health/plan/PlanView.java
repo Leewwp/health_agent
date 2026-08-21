@@ -12,6 +12,7 @@ import java.util.List;
  * profileStale 表示当前健康档案版本已新于计划生成依据（规格 8.2，不静默重算，只标记较旧）。 */
 public record PlanView(
         Long id,
+        String name,
         PlanStatus status,
         LocalDate weekStart,
         String timezone,
@@ -37,5 +38,16 @@ public record PlanView(
         this(id, status, weekStart, timezone, profileVersionNo, calorieLow, calorieHigh, rulesVersion,
                 validationLevel, validationHits, note, currentVersion, items, profileStale, explanation,
                 generationSource, updatedAt, PlanScope.EXERCISE);
+    }
+
+    /** 兼容旧的测试/调用方构造器，统一计划名称由服务端补齐。 */
+    public PlanView(Long id, PlanStatus status, LocalDate weekStart, String timezone, Long profileVersionNo,
+                    Integer calorieLow, Integer calorieHigh, String rulesVersion, PlanValidationLevel validationLevel,
+                    List<RuleHitView> validationHits, String note, Long currentVersion, List<PlanItemView> items,
+                    boolean profileStale, String explanation, String generationSource, LocalDateTime updatedAt,
+                    PlanScope planScope) {
+        this(id, null, status, weekStart, timezone, profileVersionNo, calorieLow, calorieHigh, rulesVersion,
+                validationLevel, validationHits, note, currentVersion, items, profileStale, explanation,
+                generationSource, updatedAt, planScope);
     }
 }

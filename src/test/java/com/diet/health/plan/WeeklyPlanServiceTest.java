@@ -3,6 +3,7 @@ package com.diet.health.plan;
 import com.diet.exception.HealthApiException;
 import com.diet.health.enums.ActivityLevel;
 import com.diet.health.enums.PlanScope;
+import com.diet.health.enums.PlanStatus;
 import com.diet.health.enums.ProfileGoal;
 import com.diet.health.enums.ProfileSex;
 import com.diet.health.module.HealthResource;
@@ -13,7 +14,6 @@ import com.diet.health.session.HealthSessionService;
 import com.diet.health.session.HealthSessionState;
 import com.diet.mapper.AgentTraceMapper;
 import com.diet.mapper.WeeklyPlanMapper;
-import com.diet.model.WeeklyPlanItemRow;
 import com.diet.model.WeeklyPlanRow;
 import com.diet.service.trace.AgentTraceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,13 +36,16 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 计划范围写入 Guard：旧混合草稿入口已移除，范围和项目类型必须严格一致。 */
+/** 统一综合周计划的生命周期、归属、版本和时间校验契约。 */
 class WeeklyPlanServiceTest {
 
     private static final LocalDate MONDAY = LocalDate.of(2026, 8, 17);
+    private static final long USER = 1L;
+
     private final WeeklyPlanMapper mapper = mock(WeeklyPlanMapper.class);
     private final HealthProfileService profileService = mock(HealthProfileService.class);
     private final HealthSessionService sessionService = mock(HealthSessionService.class);
+    private final SeedResourceProvider provider = new SeedResourceProvider();
     private WeeklyPlanService service;
 
     private static final HealthProfileService.HealthProfileView PROFILE = new HealthProfileService.HealthProfileView(
@@ -51,10 +54,11 @@ class WeeklyPlanServiceTest {
 
     @BeforeEach
     void setUp() {
-        SeedResourceProvider provider = new SeedResourceProvider();
-        when(profileService.getProfile(1L)).thenReturn(PROFILE);
+        when(profileService.getProfile(USER)).thenReturn(PROFILE);
         when(sessionService.loadOrCreate(any(), any())).thenReturn(confirmedExerciseSession());
         when(mapper.findItems(any(), any())).thenReturn(List.of());
+        when(mapper.updatePlan(any())).thenReturn(1);
+        when(mapper.activatePlan(any())).thenReturn(1);
         doAnswer(invocation -> {
             WeeklyPlanRow row = invocation.getArgument(0);
             row.setId(1L);
@@ -64,58 +68,173 @@ class WeeklyPlanServiceTest {
                 mock(WeeklyPlanComposerService.class), new PlanValidationService(), mapper, provider,
                 mock(HealthPlanResponseAgentService.class),
                 new AgentTraceService(mock(AgentTraceMapper.class), new ObjectMapper()), sessionService,
-                new ObjectMapper(), new PlanScopeGuard());
+                new ObjectMapper());
     }
 
     @Test
-    void 训练范围只接受训练项目并持久化范围到根和版本() {
-        HealthResource resource = new SeedResourceProvider().planReadyExercises().get(0);
-        PlanItemDraft exercise = new PlanItemDraft("EXERCISE", resource.resourceId(), resource.name(),
-                MONDAY, LocalTime.of(19, 0), LocalTime.of(20, 0), null,
-                Map.of("bodyPart", resource.tags().getOrDefault("primaryBodyPart", List.of("胸")).get(0)));
+    void 餐食或训练生成都保存为综合计划() {
+        HealthResource resource = provider.planReadyExercises().get(0);
+        PlanItemDraft exercise = exercise(resource, MONDAY, LocalTime.of(19, 0), LocalTime.of(20, 0));
 
-        PlanView view = service.persistScopedGeneratedDraft(1L,
+        PlanView view = service.persistScopedGeneratedDraft(USER,
                 new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null, PlanScope.EXERCISE),
-                PlanScope.EXERCISE, List.of(exercise), "FALLBACK", Map.of("planScope", "EXERCISE"), "规则生成");
+                PlanScope.EXERCISE, List.of(exercise), "FALLBACK", Map.of(), "规则生成");
 
-        assertEquals(PlanScope.EXERCISE, view.planScope());
-        assertEquals("EXERCISE", capturePlan().getPlanScope());
-        verify(mapper).insertVersion(any());
+        assertEquals(PlanScope.COMPOSITE, view.planScope());
+        assertEquals(PlanStatus.DRAFT, view.status());
+        org.mockito.ArgumentCaptor<WeeklyPlanRow> captor = org.mockito.ArgumentCaptor.forClass(WeeklyPlanRow.class);
+        verify(mapper).insertPlan(captor.capture());
+        assertEquals("COMPOSITE", captor.getValue().getPlanScope());
     }
 
     @Test
-    void 范围与资源类型不一致时写入前拒绝且无半成品() {
-        PlanItemDraft meal = new PlanItemDraft("MEAL", "M1", "餐食", MONDAY,
-                LocalTime.of(12, 0), LocalTime.of(13, 0), null, Map.of("caloriesKcal", 500));
+    void 草稿确认后可以启用停用并转历史() {
+        WeeklyPlanRow plan = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(plan);
 
-        HealthApiException error = assertThrows(HealthApiException.class, () -> service.persistScopedGeneratedDraft(
-                1L, new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null, PlanScope.EXERCISE),
-                PlanScope.EXERCISE, List.of(meal), "FALLBACK", Map.of(), ""));
+        PlanView confirmed = service.confirm(USER, 42L, new PlanWriteRequest("confirm-1", 1L));
+        assertEquals(PlanStatus.UNENABLED, confirmed.status());
 
-        assertEquals(HealthApiException.CODE_BAD_REQUEST, error.code());
-        verify(mapper, never()).insertPlan(any());
+        plan.setStatus("UNENABLED");
+        PlanView enabled = service.enable(USER, 42L, new PlanWriteRequest("enable-1", 1L));
+        assertEquals(PlanStatus.ENABLED, enabled.status());
+
+        plan.setStatus("ENABLED");
+        PlanView disabled = service.disable(USER, 42L, new PlanWriteRequest("disable-1", 2L));
+        assertEquals(PlanStatus.UNENABLED, disabled.status());
+
+        plan.setStatus("UNENABLED");
+        PlanView history = service.archive(USER, 42L, new PlanWriteRequest("archive-1", 2L));
+        assertEquals(PlanStatus.HISTORY, history.status());
+    }
+
+    @Test
+    void 启用新计划只把旧计划变为未启用而不是历史() {
+        WeeklyPlanRow target = plan(42L, "UNENABLED");
+        WeeklyPlanRow old = plan(41L, "ENABLED");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(target);
+        when(mapper.findActiveByUserForUpdate(USER)).thenReturn(old);
+
+        PlanView result = service.enable(USER, 42L, new PlanWriteRequest("enable-switch", 1L));
+
+        assertEquals(PlanStatus.ENABLED, result.status());
+        assertEquals("UNENABLED", old.getStatus());
+        verify(mapper, never()).deletePlan(any(), any());
+    }
+
+    @Test
+    void 餐食与训练重叠被拒绝且非半小时也被拒绝() {
+        WeeklyPlanRow draft = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(draft);
+        HealthResource exercise = provider.planReadyExercises().get(0);
+        HealthResource meal = provider.mealById(provider.planMealCandidates().get(0).resourceId()).orElseThrow();
+
+        PlanItemsWriteRequest overlap = new PlanItemsWriteRequest("items-overlap", 1L, List.of(
+                new PlanItemWrite(null, "MEAL", meal.resourceId(), meal.name(), MONDAY,
+                        LocalTime.of(12, 0), LocalTime.of(13, 0), null, Map.of("caloriesKcal", 500)),
+                new PlanItemWrite(null, "EXERCISE", exercise.resourceId(), exercise.name(), MONDAY,
+                        LocalTime.of(12, 30), LocalTime.of(13, 30), null, Map.of("bodyPart", "胸"))));
+        HealthApiException overlapError = assertThrows(HealthApiException.class,
+                () -> service.updateItems(USER, 42L, overlap));
+        assertEquals(HealthApiException.CODE_PLAN_TIME_CONFLICT, overlapError.code());
+
+        PlanItemsWriteRequest granularity = new PlanItemsWriteRequest("items-granularity", 1L, List.of(
+                new PlanItemWrite(null, "MEAL", meal.resourceId(), meal.name(), MONDAY,
+                        LocalTime.of(12, 0), LocalTime.of(12, 30), null, Map.of("caloriesKcal", 500)),
+                new PlanItemWrite(null, "EXERCISE", exercise.resourceId(), exercise.name(), MONDAY,
+                        LocalTime.of(13, 15), LocalTime.of(14, 15), null, Map.of("bodyPart", "胸"))));
+        HealthApiException granularityError = assertThrows(HealthApiException.class,
+                () -> service.updateItems(USER, 42L, granularity));
+        assertEquals(HealthApiException.CODE_PLAN_TIME_CONFLICT, granularityError.code());
         verify(mapper, never()).insertVersion(any());
     }
 
     @Test
-    void 旧通用草稿入口直接阻断不得绕过简报() {
+    void 越权访问和版本冲突都在写入前拒绝() {
+        when(mapper.findPlanByIdForUpdate(99L, USER)).thenReturn(null);
+        HealthApiException notFound = assertThrows(HealthApiException.class,
+                () -> service.confirm(USER, 99L, new PlanWriteRequest("missing", 1L)));
+        assertEquals(HealthApiException.CODE_NOT_FOUND, notFound.code());
+
+        WeeklyPlanRow plan = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(plan);
+        HealthApiException stale = assertThrows(HealthApiException.class,
+                () -> service.confirm(USER, 42L, new PlanWriteRequest("stale", 2L)));
+        assertEquals(HealthApiException.CODE_PLAN_VERSION_CONFLICT, stale.code());
+        verify(mapper, never()).updatePlan(any());
+    }
+
+    @Test
+    void 同一用户的requestId不能跨计划重放() {
+        WeeklyPlanRow first = plan(41L, "DRAFT");
+        WeeklyPlanRow second = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(41L, USER)).thenReturn(first);
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(second);
+
+        WeeklyPlanService firstService = serviceWithWriteRequest((userId, requestId) -> {
+            com.diet.model.PlanWriteRequestRow row = new com.diet.model.PlanWriteRequestRow();
+            row.setUserId(userId);
+            row.setRequestId(requestId);
+            row.setPlanId(41L);
+            row.setOperation("CONFIRM");
+            row.setResponseJson("{}");
+            return row;
+        });
         HealthApiException error = assertThrows(HealthApiException.class,
-                () -> service.createDraft(1L, new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null)));
+                () -> firstService.confirm(USER, 42L, new PlanWriteRequest("same-request", 1L)));
+        assertEquals(HealthApiException.CODE_PLAN_IDEMPOTENCY_CONFLICT, error.code());
+        verify(mapper, never()).updatePlan(any());
+    }
+
+    @Test
+    void 旧通用草稿入口不能绕过已确认简报() {
+        HealthApiException error = assertThrows(HealthApiException.class,
+                () -> service.createDraft(USER, new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null)));
         assertEquals(HealthApiException.CODE_CONFLICT, error.code());
         assertTrue(error.getMessage().contains("简报"));
         verify(mapper, never()).insertPlan(any());
+    }
+
+    private PlanItemDraft exercise(HealthResource resource, LocalDate date, LocalTime start, LocalTime end) {
+        String bodyPart = resource.tags().getOrDefault("primaryBodyPart", List.of("全身")).get(0);
+        return new PlanItemDraft("EXERCISE", resource.resourceId(), resource.name(), date, start, end, null,
+                Map.of("bodyPart", bodyPart, "sets", 2, "reps", 10, "durationMinutes", 60));
     }
 
     private HealthSessionState confirmedExerciseSession() {
         PlanBrief brief = new PlanBrief("保持健康", List.of("胸"), List.of("徒手"), "入门", MONDAY,
                 List.of(DayOfWeek.MONDAY), new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
                 Map.of(), true, 1, null);
-        return HealthSessionState.fresh("sess", 1L).withPlanBrief(brief);
+        return HealthSessionState.fresh("sess", USER).withPlanBrief(brief);
     }
 
-    private WeeklyPlanRow capturePlan() {
-        org.mockito.ArgumentCaptor<WeeklyPlanRow> captor = org.mockito.ArgumentCaptor.forClass(WeeklyPlanRow.class);
-        verify(mapper).insertPlan(captor.capture());
-        return captor.getValue();
+    private WeeklyPlanRow plan(Long id, String status) {
+        WeeklyPlanRow row = new WeeklyPlanRow();
+        row.setId(id);
+        row.setUserId(USER);
+        row.setPlanScope("COMPOSITE");
+        row.setName("演示计划");
+        row.setStatus(status);
+        row.setWeekStart(MONDAY);
+        row.setTimezone("Asia/Shanghai");
+        row.setProfileVersionNo(1L);
+        row.setCalorieLow(1200);
+        row.setCalorieHigh(1800);
+        row.setRulesVersion(PlanValidationService.RULES_VERSION);
+        row.setValidationLevel("OK");
+        row.setCurrentVersion(1L);
+        return row;
+    }
+
+    private WeeklyPlanService serviceWithWriteRequest(
+            java.util.function.BiFunction<Long, String, com.diet.model.PlanWriteRequestRow> lookup) {
+        com.diet.mapper.PlanWriteRequestMapper writeMapper = mock(com.diet.mapper.PlanWriteRequestMapper.class);
+        when(writeMapper.find(any(), any())).thenAnswer(invocation -> lookup.apply(
+                invocation.getArgument(0), invocation.getArgument(1)));
+        return new WeeklyPlanService(profileService, new HealthRiskRuleService(),
+                mock(WeeklyPlanComposerService.class), new PlanValidationService(), mapper, provider,
+                mock(HealthPlanResponseAgentService.class),
+                new AgentTraceService(mock(AgentTraceMapper.class), new ObjectMapper()), sessionService,
+                new ObjectMapper(), new PlanScopeGuard(), writeMapper);
     }
 }

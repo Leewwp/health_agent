@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.PlanWriteRequestMapper">
+    <resultMap id="WriteRequestMap" type="com.diet.model.PlanWriteRequestRow">
+        <id property="userId" column="user_id"/>
+        <id property="requestId" column="request_id"/>
+        <result property="planId" column="plan_id"/>
+        <result property="operation" column="operation"/>
+        <result property="responseJson" column="response_json"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="find" resultMap="WriteRequestMap">
+        SELECT user_id, request_id, plan_id, operation, response_json, created_at
+        FROM health_plan_write_request
+        WHERE user_id = #{userId} AND request_id = #{requestId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO health_plan_write_request
+            (user_id, request_id, plan_id, operation, response_json, created_at)
+        VALUES (#{userId}, #{requestId}, #{planId}, #{operation}, #{responseJson}, #{createdAt})
+    </insert>
+</mapper>

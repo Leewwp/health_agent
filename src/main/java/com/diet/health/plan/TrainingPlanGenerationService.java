@@ -279,14 +279,15 @@ public class TrainingPlanGenerationService {
             HealthResource resource = byId.get(item.exerciseId());
             if (resource == null || !resource.planReady()) throw new IllegalArgumentException("动作不在审核候选白名单");
             if (!brief.scheduledDates().contains(item.localDate())) throw new IllegalArgumentException("训练日期不在允许训练日");
-            int duration = item.durationMinutes() == null ? 0 : item.durationMinutes();
+            int duration = item.durationMinutes() == null ? 0 : roundUpHalfHour(item.durationMinutes());
             if (duration < MIN_DURATION_MINUTES || duration > MAX_DURATION_MINUTES) throw new IllegalArgumentException("训练时长超出边界");
-            long availableMinutes = Duration.between(item.startTime(), brief.timeWindow().end()).toMinutes();
-            if (!brief.timeWindow().contains(item.startTime()) || availableMinutes < duration) {
+            LocalTime start = snapToHalfHour(item.startTime());
+            long availableMinutes = Duration.between(start, brief.timeWindow().end()).toMinutes();
+            if (!brief.timeWindow().contains(start) || availableMinutes < duration) {
                 throw new IllegalArgumentException("训练时间不在用户可用窗口内");
             }
-            LocalTime end = item.startTime().plusMinutes(duration);
-            result.add(trainingItem(resource, item.localDate(), item.startTime(), end, brief));
+            LocalTime end = start.plusMinutes(duration);
+            result.add(trainingItem(resource, item.localDate(), start, end, brief));
         }
         return result;
     }
@@ -303,7 +304,8 @@ public class TrainingPlanGenerationService {
                             || !candidate.tags().getOrDefault("primaryBodyPart", List.of()).contains(previous))
                     .findFirst().orElse(null);
             if (selected == null) continue;
-            int duration = Math.min(45, (int) Duration.between(brief.timeWindow().start(), brief.timeWindow().end()).toMinutes());
+            int available = (int) Duration.between(brief.timeWindow().start(), brief.timeWindow().end()).toMinutes();
+            int duration = Math.min(60, (available / 30) * 30);
             if (duration < MIN_DURATION_MINUTES) continue;
             LocalTime start = brief.timeWindow().start();
             result.add(trainingItem(selected, date, start, start.plusMinutes(duration), brief));
@@ -320,6 +322,15 @@ public class TrainingPlanGenerationService {
         String bodyPart = resource.tags().getOrDefault("primaryBodyPart", brief.bodyParts()).stream().findFirst().orElse(brief.bodyParts().get(0));
         return new PlanItemDraft("EXERCISE", resource.resourceId(), resource.name(), date, start, end, null,
                 Map.of("bodyPart", bodyPart, "sets", sets, "reps", reps, "durationMinutes", Duration.between(start, end).toMinutes()));
+    }
+
+    private int roundUpHalfHour(int minutes) {
+        return ((minutes + 29) / 30) * 30;
+    }
+
+    private LocalTime snapToHalfHour(LocalTime time) {
+        int minute = time.getMinute() < 30 ? 0 : 30;
+        return LocalTime.of(time.getHour(), minute);
     }
 
     private CandidateSelection filterCandidates(PlanBrief brief) {

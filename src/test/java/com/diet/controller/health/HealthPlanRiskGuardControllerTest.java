@@ -207,7 +207,7 @@ class HealthPlanRiskGuardControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"startTime\":\"20:00\",\"endTime\":\"20:00\"}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("RISK_BLOCKED"))
+                .andExpect(jsonPath("$.code").value("PLAN_TIME_CONFLICT"))
                 .andExpect(jsonPath("$.message").value(PlanValidationService.INVALID_TIME_RANGE_COPY));
 
         WeeklyPlanItemRow row = planMapper.items.stream()
@@ -311,6 +311,13 @@ class HealthPlanRiskGuardControllerTest {
         }
 
         @Override
+        public synchronized WeeklyPlanRow findActiveByUserAndScopeForUpdate(Long userId, String planScope) {
+            return plans.stream().filter(row -> row.getUserId().equals(userId)
+                            && planScope.equals(row.getPlanScope()) && "ACTIVE".equals(row.getStatus()))
+                    .findFirst().orElse(null);
+        }
+
+        @Override
         public synchronized List<WeeklyPlanRow> listPlans(Long userId) {
             return plans.stream().filter(row -> row.getUserId().equals(userId)).toList();
         }
@@ -374,5 +381,9 @@ class HealthPlanRiskGuardControllerTest {
             }
             return 0;
         }
+
+        @Override public synchronized int deleteItemsByPlanId(Long planId) { return 0; }
+        @Override public synchronized int deleteVersionsByPlanId(Long planId) { return 0; }
+        @Override public synchronized int deletePlan(Long planId, Long userId) { return 0; }
     }
 }
