@@ -231,14 +231,14 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V18迁移全部成功() {
+    void 干净库V1至V19迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(18, rows.size(), "干净库应执行 V1-V18 共 18 条迁移");
+        assertEquals(19, rows.size(), "干净库应执行 V1-V19 共 19 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("18", String.valueOf(rows.get(17).get("version")), "V18 最后执行");
+        assertEquals("19", String.valueOf(rows.get(18).get("version")), "V19 最后执行");
     }
 
     @Test
