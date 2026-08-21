@@ -13,6 +13,7 @@ class UnifiedPlanLifecycleMigrationTest {
     @Test
     void 迁移清理旧计划并建立用户级启用唯一约束() throws Exception {
         String sql = read("db/migration/V18__unified_plan_lifecycle_and_write_idempotency.sql").toLowerCase();
+        String statusCommentSql = read("db/migration/V19__unified_plan_status_comment.sql").toLowerCase();
         assertTrue(sql.contains("drop table if exists `health_current_assignment`"));
         assertTrue(sql.contains("delete from `weekly_plan_item`"));
         assertTrue(sql.contains("delete from `weekly_plan_version`"));
@@ -25,6 +26,7 @@ class UnifiedPlanLifecycleMigrationTest {
         assertTrue(sql.contains("uk_plan_enabled_user_key"));
         assertTrue(sql.contains("create table `health_plan_write_request`"));
         assertTrue(!sql.contains("create table `health_current_assignment`"));
+        assertTrue(statusCommentSql.contains("draft/unenabled/enabled/history"));
     }
 
     private String read(String path) throws Exception {
