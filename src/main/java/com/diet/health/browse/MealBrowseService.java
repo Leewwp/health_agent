@@ -5,6 +5,7 @@ import com.diet.health.model.MealBrowseItem;
 import com.diet.health.model.PagedResponse;
 import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.reader.meal.ReviewedMealReader;
+import com.diet.health.collection.FavoriteResourceService;
 import com.diet.health.resource.HealthResourceProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 /**
  * 餐食浏览服务（规格 6.2）。
@@ -27,15 +29,28 @@ public class MealBrowseService {
 
     private final ReviewedMealReader reviewedMealReader;
     private final HealthResourceProvider resourceProvider;
+    private final FavoriteResourceService favoriteService;
+
+    public MealBrowseService(ReviewedMealReader reviewedMealReader,
+                             @Qualifier("healthResourceProvider") HealthResourceProvider resourceProvider) {
+        this(reviewedMealReader, resourceProvider, null);
+    }
 
     @Autowired
     public MealBrowseService(ReviewedMealReader reviewedMealReader,
-                             @Qualifier("healthResourceProvider") HealthResourceProvider resourceProvider) {
+                             @Qualifier("healthResourceProvider") HealthResourceProvider resourceProvider,
+                             FavoriteResourceService favoriteService) {
         this.reviewedMealReader = reviewedMealReader;
         this.resourceProvider = resourceProvider;
+        this.favoriteService = favoriteService;
     }
 
-    public PagedResponse<MealBrowseItem> browse(int page, int size) {
+    public PagedResponse<MealBrowseItem> browse(int page, int size, Long userId, boolean favoriteOnly) {
+        return browse(page, size, userId, favoriteOnly, null, Map.of());
+    }
+
+    public PagedResponse<MealBrowseItem> browse(int page, int size, Long userId, boolean favoriteOnly,
+                                                String query, Map<String, String> filters) {
         requireReviewedMode();
         if (page < 1) {
             throw new DietException("page 必须不小于 1");
@@ -48,16 +63,36 @@ public class MealBrowseService {
         if (offset > Integer.MAX_VALUE) {
             throw new DietException("page 超出安全范围");
         }
-        List<ReviewedMeal> meals = reviewedMealReader.browse((int) offset, size);
-        int total = reviewedMealReader.countPublic();
-        List<MealBrowseItem> items = meals.stream().map(MealBrowseService::toItem).toList();
+        boolean useQuery = query != null && !query.isBlank() || filters != null && !filters.isEmpty();
+        boolean useFavoriteFilter = userId != null || favoriteOnly;
+        List<ReviewedMeal> meals = useQuery
+                ? reviewedMealReader.browse((int) offset, size, userId, favoriteOnly, query, filters)
+                : useFavoriteFilter
+                    ? reviewedMealReader.browse((int) offset, size, userId, favoriteOnly)
+                    : reviewedMealReader.browse((int) offset, size);
+        int total = useQuery
+                ? reviewedMealReader.countPublic(userId, favoriteOnly, query, filters)
+                : useFavoriteFilter ? reviewedMealReader.countPublic(userId, favoriteOnly) : reviewedMealReader.countPublic();
+        java.util.Set<String> favoriteIds = favoriteService == null ? java.util.Set.of()
+                : favoriteService.ids(userId, "MEAL");
+        List<MealBrowseItem> items = meals.stream()
+                .map(meal -> toItem(meal, favoriteIds.contains(String.valueOf(meal.id())))).toList();
         return PagedResponse.of(items, page, size, total);
     }
 
+    public PagedResponse<MealBrowseItem> browse(int page, int size) {
+        return browse(page, size, null, false);
+    }
+
     public MealBrowseItem detail(long id) {
+        return detail(id, null);
+    }
+
+    public MealBrowseItem detail(long id, Long userId) {
         requireReviewedMode();
         return reviewedMealReader.findById(id)
-                .map(MealBrowseService::toItem)
+                .map(meal -> toItem(meal, favoriteService != null && userId != null
+                        && favoriteService.contains(userId, "MEAL", String.valueOf(meal.id()))))
                 .orElseThrow(() -> new com.diet.exception.HealthApiException(
                         com.diet.exception.HealthApiException.CODE_NOT_FOUND, "餐食不存在或未通过审核"));
     }
@@ -68,6 +103,10 @@ public class MealBrowseService {
 
     /** 读取模型 → 浏览条目（浏览用例层透传，字段口径与读取模块同一行映射一致）。 */
     private static MealBrowseItem toItem(ReviewedMeal meal) {
+        return toItem(meal, false);
+    }
+
+    private static MealBrowseItem toItem(ReviewedMeal meal, boolean favorite) {
         return new MealBrowseItem(
                 meal.id(),
                 meal.name(),
@@ -95,7 +134,8 @@ public class MealBrowseService {
                 meal.mediaCredit(),
                 meal.sourceName(),
                 meal.sourceId(),
-                meal.sourceVersion()
+                meal.sourceVersion(),
+                favorite
         );
     }
 

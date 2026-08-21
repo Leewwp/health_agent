@@ -158,6 +158,12 @@ function renderMessage(message) {
         : "";
     const planEntry = renderPlanActions(message);
     const recommendationActions = renderRecommendationActions(message);
+    const recommendationSummary = message.confirmedSlots?.length
+        ? `<div class="chips"><span class="muted">已确认</span>${message.confirmedSlots.map((slot) => `<span class="chip selected">${escapeHtml(slot)}</span>`).join("")}</div>`
+        : "";
+    const optionalSummary = message.optionalSlots?.length
+        ? `<p class="muted" style="margin:0;">可继续补充：${escapeHtml(message.optionalSlots.join("、"))}</p>`
+        : "";
     const metaParts = [];
     if (message.traceId) {
         // 开发/演示配置下提供跳转 admin Trace 的入口；生产只展示 traceId 文本
@@ -175,6 +181,8 @@ function renderMessage(message) {
             <div class="bubble">${escapeHtml(message.text)}</div>
             ${planEntry}
             ${recommendationActions}
+            ${recommendationSummary}
+            ${optionalSummary}
             ${missingSlots}
             ${blocks ? `<div class="grid two">${blocks}</div>` : ""}
             ${meta}
@@ -195,9 +203,16 @@ async function submitChat(form) {
 
 function renderRecommendationActions(message) {
     const actions = (message.actions || []).filter((action) =>
-        ["GET_ALTERNATIVE", "RELAX_CONSTRAINTS", "REPEAT_SHOWN"].includes(action.type));
+        ["CONFIRM_RECOMMENDATION", "CONTINUE_RECOMMENDATION", "GET_ALTERNATIVE", "RELAX_CONSTRAINTS", "REPEAT_SHOWN"].includes(action.type));
     if (!actions.length) {
         return "";
+    }
+    const preflight = actions.some((action) => action.type === "CONFIRM_RECOMMENDATION" || action.type === "CONTINUE_RECOMMENDATION");
+    if (preflight) {
+        return `<div class="recommendation-actions" aria-label="推荐确认操作">
+            ${actions.map((action) => `<button class="btn ${action.type === "CONFIRM_RECOMMENDATION" ? "soft" : "ghost"}"
+                data-action="recommendation-preflight" data-preflight-action="${escapeHtml(action.type)}">${escapeHtml(action.label)}</button>`).join("")}
+        </div>`;
     }
     const resourceType = message.blocks?.[0]?.resourceType || (message.domain === "EXERCISE" ? "EXERCISE" : "MEAL");
     const exclusions = (message.blocks || []).map((block) => block.resourceId).filter(Boolean).join(",");
@@ -245,11 +260,14 @@ function appendChatResponse(response) {
         traceId: response.traceId,
         domain: response.domain,
         task: response.task,
-        phase: response.phase
-        ,actions: response.actions || []
-        ,planBriefSummary: summarizePlanBrief(response.planBrief)
-        ,mealPlanBriefSummary: summarizeMealPlanBrief(response.mealPlanBrief)
-        ,planScope: response.domain === "MEAL" ? "MEAL" : response.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE"
+        phase: response.phase,
+        actions: response.actions || [],
+        confirmedSlots: response.confirmedSlots || [],
+        optionalSlots: response.optionalSlots || [],
+        recommendationConfirmed: Boolean(response.recommendationConfirmed),
+        planBriefSummary: summarizePlanBrief(response.planBrief),
+        mealPlanBriefSummary: summarizeMealPlanBrief(response.mealPlanBrief),
+        planScope: response.domain === "MEAL" ? "MEAL" : response.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE"
     });
 }
 
@@ -310,6 +328,17 @@ function handleClick(event) {
             const requestId = target.dataset.requestId || "";
             const scope = target.dataset.planScope || "EXERCISE";
             navigate(`/plans?generate=1&scope=${encodeURIComponent(scope)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
+        }
+    } else if (target.dataset.action === "recommendation-preflight") {
+        if (target.dataset.preflightAction === "CONFIRM_RECOMMENDATION") {
+            const message = "可以推荐了";
+            state.messages.push({ role: "user", text: message });
+            void requestController.submit({ message });
+        } else {
+            const input = document.querySelector("#chatForm textarea[name=message]");
+            if (input) {
+                input.focus();
+            }
         }
     } else if (target.dataset.action === "alternative") {
         submitAlternative(target);

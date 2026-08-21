@@ -158,7 +158,8 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         tags.put("primaryBodyPart", singleZh(ExerciseVocabulary.partZh(row.getBodyPart())));
         tags.put("equipment", singleZh(ExerciseVocabulary.equipmentZh(row.getEquipment())));
         tags.put("difficulty", singleZh(ExerciseVocabulary.difficultyZh(row.getDifficulty())));
-        tags.put("movementPattern", List.of(row.getMovementPattern()));
+        tags.put("movementPattern", row.getMovementPattern() == null || row.getMovementPattern().isBlank()
+                ? List.of() : List.of(row.getMovementPattern()));
         tags.put("trainingGoal", jsonService.fromJsonArray(row.getTrainingGoals()));
         return new HealthResource(
                 "EXERCISE",
@@ -190,7 +191,10 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
                 "公共餐食库",
                 licensedMediaUrl(row.getMediaUrl(), row.getMediaStatus()),
                 false,
-                tags
+                tags,
+                jsonService.fromJsonArray(row.getIngredientsJson()),
+                new HealthResource.Nutrition(row.getCaloriesKcal(), row.getProteinG(), row.getFatG(),
+                        row.getCarbohydrateG(), row.getNutritionBasis(), Boolean.TRUE.equals(row.getNutritionEstimated()))
         );
     }
 

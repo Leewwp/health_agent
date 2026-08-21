@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 /**
  * 审核动作读取模块 DB adapter（#64，方案 B）。
@@ -39,8 +40,45 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
     }
 
     @Override
+    public List<ReviewedExercise> browse(int offset, int size, Long userId, boolean favoriteOnly) {
+        if (!favoriteOnly) return browse(offset, size);
+        if (userId == null) return List.of();
+        return exerciseMapper.browseFavorite(userId, offset, size).stream()
+                .map(this::toReviewedExercise)
+                .toList();
+    }
+
+    @Override
     public int count() {
         return exerciseMapper.count();
+    }
+
+    @Override
+    public int count(Long userId, boolean favoriteOnly) {
+        return !favoriteOnly ? count() : userId == null ? 0 : exerciseMapper.countFavorite(userId);
+    }
+
+    @Override
+    public List<ReviewedExercise> browse(int offset, int size, Long userId, boolean favoriteOnly,
+                                         String query, Map<String, String> filters) {
+        return exerciseMapper.browseFiltered(userId, favoriteOnly, blankToNull(query), filter(filters, "bodyPart"),
+                filter(filters, "equipment"), filter(filters, "difficulty"), filter(filters, "movementPattern"),
+                offset, size).stream().map(this::toReviewedExercise).toList();
+    }
+
+    @Override
+    public int count(Long userId, boolean favoriteOnly, String query, Map<String, String> filters) {
+        return exerciseMapper.countFiltered(userId, favoriteOnly, blankToNull(query), filter(filters, "bodyPart"),
+                filter(filters, "equipment"), filter(filters, "difficulty"), filter(filters, "movementPattern"));
+    }
+
+    private static String filter(Map<String, String> filters, String key) {
+        if (filters == null) return null;
+        return blankToNull(filters.get(key));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override
@@ -86,7 +124,20 @@ public class DbReviewedExerciseReader implements ReviewedExerciseReader {
                 row.getMediaCredit(),
                 row.getSourceName(),
                 row.getSourceId(),
-                row.getSourceVersion()
+                row.getSourceVersion(),
+                row.getSourceHash(),
+                row.getSourceCategory(),
+                row.getSourceBodyPart(),
+                row.getSourceEquipment(),
+                row.getSourceTarget(),
+                row.getSourceMuscleGroup(),
+                jsonService.fromJsonArray(row.getSourceSecondaryMuscles()),
+                row.getInstructionsZhStatus(),
+                row.getQualificationVersion(),
+                Boolean.TRUE.equals(row.getQualificationVisible()),
+                Boolean.TRUE.equals(row.getQualificationRecommendable()),
+                Boolean.TRUE.equals(row.getQualificationPlanReady()),
+                row.getQualificationReportJson()
         );
     }
 

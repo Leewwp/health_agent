@@ -7,10 +7,10 @@ import { createBrowsePage } from "./browse.js";
 import { listExercises } from "../api.js";
 
 const FILTER_FIELDS = [
-    { key: "bodyPart", label: "训练部位" },
-    { key: "equipment", label: "器材" },
-    { key: "difficulty", label: "难度" },
-    { key: "movementPattern", label: "动作模式" }
+    { key: "bodyPart", label: "训练部位", options: ["全身", "胸", "背", "肩", "手臂", "腿", "核心", "臀", "颈部"] },
+    { key: "equipment", label: "器材", options: ["徒手", "哑铃", "杠铃", "壶铃", "弹力带", "器械"] },
+    { key: "difficulty", label: "难度", options: ["入门", "进阶", "挑战"] },
+    { key: "movementPattern", label: "动作模式", options: ["推", "拉", "蹲", "髋", "踝", "核心", "有氧"] }
 ];
 
 export const render = createBrowsePage({

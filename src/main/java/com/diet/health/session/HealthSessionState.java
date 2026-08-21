@@ -30,7 +30,10 @@ public record HealthSessionState(
         List<SessionResourceRef> lastResources,
         List<PreferenceSignal> preferenceSignals,
         PlanBrief planBrief,
-        MealPlanBrief mealPlanBrief
+        MealPlanBrief mealPlanBrief,
+        boolean recommendationPreflightPending,
+        boolean recommendationConfirmed,
+        long recommendationConfirmationVersion
 ) {
 
     /** 替代推荐和同一任务连续推荐的有界资源历史，避免会话 JSON 无限增长。 */
@@ -41,7 +44,7 @@ public record HealthSessionState(
                               List<SessionResourceRef> lastResources, List<PreferenceSignal> preferenceSignals,
                               PlanBrief planBrief) {
         this(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
-                planBrief, MealPlanBrief.empty());
+                planBrief, MealPlanBrief.empty(), false, false, 0);
     }
 
     public static HealthSessionState fresh(String sessionId, Long userId) {
@@ -50,29 +53,44 @@ public record HealthSessionState(
     }
 
     public HealthSessionState withPhase(HealthPhase newPhase) {
-        return new HealthSessionState(sessionId, userId, newPhase, domain, task, riskFlags, slots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
+        return copy(newPhase, domain, task, riskFlags, slots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
     }
 
     public HealthSessionState withIntent(HealthDomain newDomain, HealthTask newTask, List<String> newRiskFlags) {
-        return new HealthSessionState(sessionId, userId, phase, newDomain, newTask, newRiskFlags, slots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
+        return copy(phase, newDomain, newTask, newRiskFlags, slots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
     }
 
     public HealthSessionState withSlots(Map<String, List<String>> newSlots) {
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, newSlots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
+        return copy(phase, domain, task, riskFlags, newSlots, lastResources, preferenceSignals, planBrief, mealPlanBrief);
     }
 
     public HealthSessionState withPreferenceSignals(List<PreferenceSignal> newSignals) {
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, newSignals, planBrief, mealPlanBrief);
+        return copy(phase, domain, task, riskFlags, slots, lastResources, newSignals, planBrief, mealPlanBrief);
     }
 
     public HealthSessionState withPlanBrief(PlanBrief newBrief) {
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
-                preferenceSignals, newBrief == null ? PlanBrief.empty() : newBrief, mealPlanBrief);
+        return copy(phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
+                newBrief == null ? PlanBrief.empty() : newBrief, mealPlanBrief);
     }
 
     public HealthSessionState withMealPlanBrief(MealPlanBrief newBrief) {
+        return copy(phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
+                planBrief, newBrief == null ? MealPlanBrief.empty() : newBrief);
+    }
+
+    /** 更新单次推荐前确认状态；该状态只属于当前会话任务，不写入长期偏好。 */
+    public HealthSessionState withRecommendationState(boolean pending, boolean confirmed, long version) {
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
-                preferenceSignals, planBrief, newBrief == null ? MealPlanBrief.empty() : newBrief);
+                preferenceSignals, planBrief, mealPlanBrief, pending, confirmed, Math.max(0, version));
+    }
+
+    private HealthSessionState copy(HealthPhase nextPhase, HealthDomain nextDomain, HealthTask nextTask,
+                                    List<String> nextRiskFlags, Map<String, List<String>> nextSlots,
+                                    List<SessionResourceRef> nextResources, List<PreferenceSignal> nextSignals,
+                                    PlanBrief nextPlanBrief, MealPlanBrief nextMealBrief) {
+        return new HealthSessionState(sessionId, userId, nextPhase, nextDomain, nextTask, nextRiskFlags, nextSlots,
+                nextResources, nextSignals, nextPlanBrief, nextMealBrief,
+                recommendationPreflightPending, recommendationConfirmed, recommendationConfirmationVersion);
     }
 
     /** 追加本轮类型化资源引用，按 (type, id) 去重并保持顺序。 */
@@ -86,8 +104,7 @@ public record HealthSessionState(
         if (bounded.size() > MAX_RESOURCE_HISTORY) {
             bounded = bounded.subList(bounded.size() - MAX_RESOURCE_HISTORY, bounded.size());
         }
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
-                List.copyOf(bounded), preferenceSignals, planBrief, mealPlanBrief);
+        return copy(phase, domain, task, riskFlags, slots, List.copyOf(bounded), preferenceSignals, planBrief, mealPlanBrief);
     }
 
     /**
@@ -112,8 +129,7 @@ public record HealthSessionState(
         if (merged.size() > MAX_RESOURCE_HISTORY) {
             merged = new ArrayList<>(merged.subList(merged.size() - MAX_RESOURCE_HISTORY, merged.size()));
         }
-        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
-                List.copyOf(merged), preferenceSignals, planBrief, mealPlanBrief);
+        return copy(phase, domain, task, riskFlags, slots, List.copyOf(merged), preferenceSignals, planBrief, mealPlanBrief);
     }
 
     /**

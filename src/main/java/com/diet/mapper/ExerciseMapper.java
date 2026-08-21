@@ -13,8 +13,30 @@ public interface ExerciseMapper {
     /** 动作资料库浏览：审核集与未审核资料均可展示，审核状态随行返回。 */
     List<ExerciseItemRow> browse(@Param("offset") int offset, @Param("size") int size);
 
+    List<ExerciseItemRow> browseFavorite(@Param("userId") Long userId,
+                                         @Param("offset") int offset, @Param("size") int size);
+
     /** 动作资料库总数（浏览分页用）。 */
     int count();
+
+    int countFavorite(@Param("userId") Long userId);
+
+    List<ExerciseItemRow> browseFiltered(@Param("userId") Long userId,
+                                         @Param("favoriteOnly") boolean favoriteOnly,
+                                         @Param("query") String query,
+                                         @Param("bodyPart") String bodyPart,
+                                         @Param("equipment") String equipment,
+                                         @Param("difficulty") String difficulty,
+                                         @Param("movementPattern") String movementPattern,
+                                         @Param("offset") int offset, @Param("size") int size);
+
+    int countFiltered(@Param("userId") Long userId,
+                      @Param("favoriteOnly") boolean favoriteOnly,
+                      @Param("query") String query,
+                      @Param("bodyPart") String bodyPart,
+                      @Param("equipment") String equipment,
+                      @Param("difficulty") String difficulty,
+                      @Param("movementPattern") String movementPattern);
 
     /** 全部审核通过动作（Provider 用，与浏览同审核条件），按 id 升序。 */
     List<ExerciseItemRow> findAllApproved();

@@ -133,6 +133,9 @@ public class HealthSessionService {
         meta.put("task", state.task() == null ? null : state.task().name());
         meta.put("riskFlags", objectMapper.valueToTree(state.riskFlags()));
         meta.put("preferenceSignals", objectMapper.valueToTree(state.preferenceSignals()));
+        meta.put("recommendationPreflightPending", state.recommendationPreflightPending());
+        meta.put("recommendationConfirmed", state.recommendationConfirmed());
+        meta.put("recommendationConfirmationVersion", state.recommendationConfirmationVersion());
         root.set("_meta", meta);
         root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
         root.set("mealPlanBrief", mealPlanBriefNode(state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief()));
@@ -205,7 +208,10 @@ public class HealthSessionService {
                     readResourceRefs(row.getLastRecommendations()),
                     readSignals(meta.path("preferenceSignals")),
                     planBrief,
-                    mealPlanBrief
+                    mealPlanBrief,
+                    meta.path("recommendationPreflightPending").asBoolean(false),
+                    meta.path("recommendationConfirmed").asBoolean(false),
+                    meta.path("recommendationConfirmationVersion").asLong(0)
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);

@@ -80,6 +80,7 @@ class MysqlReviewedReadersIntegrationTest {
     private static final String ITEST_MEAL_SOURCE = "itest-68";
     /** 自造动作行的来源标记（uk_exercise_source 唯一键 + 用例清理锚点）。 */
     private static final String ITEST_EXERCISE_SOURCE = "itest-64";
+    private static final long ITEST_FAVORITE_USER = 9680001L;
 
     @Autowired
     private DataSource dataSource;
@@ -106,6 +107,7 @@ class MysqlReviewedReadersIntegrationTest {
         // 清理上一次运行残留的自造行，保证 295/1324 基线断言确定
         jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
         jdbc.update("DELETE FROM exercise_item WHERE source_name = ?", ITEST_EXERCISE_SOURCE);
+        jdbc.update("DELETE FROM health_resource_favorite WHERE user_id = ?", ITEST_FAVORITE_USER);
     }
 
     // ---------- 工具：自造数据与真库查询 ----------
@@ -432,6 +434,46 @@ class MysqlReviewedReadersIntegrationTest {
             assertFalse(containsAsciiLetter(item.equipment()),
                     "器材不得透出英文原始词汇: " + item.equipment());
         }
+    }
+
+    @Test
+    void 资源查询服务端完成中文筛选搜索与仅收藏分页() {
+        Map<String, String> chestFilters = Map.of("bodyPart", "胸");
+        PagedResponse<ExerciseBrowseItem> chest = exerciseBrowseService.browse(
+                1, 2, ITEST_FAVORITE_USER, false, null, chestFilters);
+        assertTrue(chest.total() > 0, "中文部位必须映射到真实动作字段");
+        assertEquals(2, chest.items().size());
+        assertTrue(chest.items().stream().allMatch(item -> "胸".equals(item.bodyPart())));
+
+        Map<String, String> bodyweightFilters = Map.of("equipment", "徒手");
+        PagedResponse<ExerciseBrowseItem> bodyweight = exerciseBrowseService.browse(
+                1, 2, ITEST_FAVORITE_USER, false, null, bodyweightFilters);
+        assertTrue(bodyweight.total() > 0, "中文器材必须映射到 body weight");
+        assertTrue(bodyweight.items().stream().allMatch(item -> "徒手".equals(item.equipment())));
+
+        PagedResponse<MealBrowseItem> search = mealBrowseService.browse(
+                1, 2, ITEST_FAVORITE_USER, false, "鸡", Map.of("mealTime", "午餐"));
+        assertTrue(search.total() > 0, "名称搜索与餐次筛选必须在服务端生效");
+        assertTrue(search.items().stream().allMatch(item -> item.name().contains("鸡")
+                || item.nameEn().toLowerCase().contains("chicken")));
+
+        long favoriteMealId = search.items().get(0).id();
+        long favoriteExerciseId = chest.items().get(0).id();
+        jdbc.update("INSERT INTO health_resource_favorite"
+                        + " (user_id, resource_type, resource_id, created_at, updated_at)"
+                        + " VALUES (?, 'MEAL', ?, NOW(), NOW()), (?, 'EXERCISE', ?, NOW(), NOW())",
+                ITEST_FAVORITE_USER, String.valueOf(favoriteMealId),
+                ITEST_FAVORITE_USER, String.valueOf(favoriteExerciseId));
+
+        PagedResponse<MealBrowseItem> favorites = mealBrowseService.browse(
+                1, 1, ITEST_FAVORITE_USER, true, null, Map.of());
+        assertEquals(1, favorites.total());
+        assertEquals(List.of(favoriteMealId), favorites.items().stream().map(MealBrowseItem::id).toList());
+        PagedResponse<ExerciseBrowseItem> exerciseFavorites = exerciseBrowseService.browse(
+                1, 1, ITEST_FAVORITE_USER, true, null, Map.of());
+        assertEquals(1, exerciseFavorites.total());
+        assertEquals(List.of(favoriteExerciseId), exerciseFavorites.items().stream()
+                .map(ExerciseBrowseItem::id).toList());
     }
 
     // ---------- #69：Structured 二次校验（真库召回 → 按 ID 回查一致性） ----------

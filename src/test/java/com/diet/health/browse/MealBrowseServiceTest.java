@@ -82,6 +82,20 @@ class MealBrowseServiceTest {
     }
 
     @Test
+    void 查询和结构化筛选交给Reader并保持服务端分页() {
+        Map<String, String> filters = Map.of("mealTime", "午餐", "healthGoal", "高蛋白");
+        when(reviewedMealReader.browse(20, 20, 7L, true, "鸡", filters))
+                .thenReturn(List.of(meal()));
+        when(reviewedMealReader.countPublic(7L, true, "鸡", filters)).thenReturn(1);
+
+        PagedResponse<MealBrowseItem> response = service.browse(2, 20, 7L, true, "鸡", filters);
+
+        assertEquals(1, response.total());
+        verify(reviewedMealReader).browse(20, 20, 7L, true, "鸡", filters);
+        verify(reviewedMealReader).countPublic(7L, true, "鸡", filters);
+    }
+
+    @Test
     void 安全范围内极大page仍正常计算偏移() {
         when(reviewedMealReader.browse(199_999_980, 20)).thenReturn(List.of());
         when(reviewedMealReader.countPublic()).thenReturn(0);

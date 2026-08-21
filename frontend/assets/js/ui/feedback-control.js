@@ -8,7 +8,7 @@
 import { escapeHtml } from "../util/dom.js";
 import { showToast } from "./toast.js";
 import { isFavorite, toggleFavorite, isReduced, toggleReduced } from "../store.js";
-import { sendFeedback } from "../api.js";
+import { addFavorite, removeFavorite, sendFeedback } from "../api.js";
 
 const ACTIONS = [
     { action: "FAVORITE", label: "收藏" },
@@ -50,13 +50,13 @@ export function renderFeedbackControl(resourceType, resourceId, context) {
 }
 
 /** 在容器内绑定反馈按钮点击（事件委托；页面重复调用只绑定一次）。 */
-let feedbackBound = false;
+const feedbackContainers = new WeakSet();
 
 export function bindFeedbackControl(container) {
-    if (feedbackBound) {
+    if (feedbackContainers.has(container)) {
         return;
     }
-    feedbackBound = true;
+    feedbackContainers.add(container);
     container.addEventListener("click", (event) => {
         const button = event.target.closest("[data-feedback]");
         if (!button) {
@@ -103,14 +103,9 @@ async function handleAction(resourceType, resourceId, action, button) {
     if (action === "FAVORITE") {
         // #65：按目标收藏状态发送 FAVORITE/UNFAVORITE，取消收藏不再是重复 FAVORITE
         const currentlyFavorite = isFavorite(resourceType, resourceId);
-        await toggleFavorite(resourceType, resourceId, () =>
-            sendFeedback({
-                resourceType,
-                resourceId,
-                action: currentlyFavorite ? "UNFAVORITE" : "FAVORITE",
-                ...contextFromButton(button)
-            })
-        );
+        await toggleFavorite(resourceType, resourceId, () => currentlyFavorite
+            ? removeFavorite(resourceType, resourceId)
+            : addFavorite(resourceType, resourceId));
         showToast(isFavorite(resourceType, resourceId) ? "已收藏" : "已取消收藏");
         return;
     }

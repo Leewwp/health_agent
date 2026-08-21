@@ -39,8 +39,30 @@ public interface MealMapper {
     /** 浏览页：审核通过的公共餐食，按 id 升序分页。 */
     List<MealItemRow> browsePublicMeals(@Param("offset") int offset, @Param("size") int size);
 
+    List<MealItemRow> browseFavoritePublicMeals(@Param("userId") Long userId,
+                                                @Param("offset") int offset, @Param("size") int size);
+
     /** 审核通过的公共餐食总数（浏览分页用）。 */
     int countPublicMeals();
+
+    int countFavoritePublicMeals(@Param("userId") Long userId);
+
+    List<MealItemRow> browsePublicMealsFiltered(@Param("userId") Long userId,
+                                                @Param("favoriteOnly") boolean favoriteOnly,
+                                                @Param("query") String query,
+                                                @Param("mealTime") String mealTime,
+                                                @Param("cuisine") String cuisine,
+                                                @Param("taste") String taste,
+                                                @Param("healthGoal") String healthGoal,
+                                                @Param("offset") int offset, @Param("size") int size);
+
+    int countPublicMealsFiltered(@Param("userId") Long userId,
+                                 @Param("favoriteOnly") boolean favoriteOnly,
+                                 @Param("query") String query,
+                                 @Param("mealTime") String mealTime,
+                                 @Param("cuisine") String cuisine,
+                                 @Param("taste") String taste,
+                                 @Param("healthGoal") String healthGoal);
 
     /** 全部审核通过的公共餐食（离线 Embedding 生成用）。 */
     List<MealItemRow> findApprovedPublicMeals();

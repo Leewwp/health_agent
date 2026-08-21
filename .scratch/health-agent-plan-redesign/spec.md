@@ -1,6 +1,6 @@
 # 健康 Agent 动作数据、推荐前确认、个人收藏与“我的计划”重构规格
 
-Status: ready-for-agent
+Status: resolved
 Type: spec
 Date: 2026-08-21
 
@@ -8,7 +8,7 @@ Date: 2026-08-21
 
 健康 Agent 当前存在四个相互影响的用户问题。
 
-第一，动作详情出现训练部位、目标肌群和步骤缺失。核对 `/Users/pp/Downloads/exercises.json`（2026-08-21 本地文件）确认共有 1324 条记录，`name`、`category`、`body_part`、`equipment`、`target`、`muscle_group`、`secondary_muscles` 和多语言 `instructions` 存在；但该文件的 `images` 与 `gif` 字段在 1324 条记录中均为空/缺失，也没有 `difficulty`、`movement_pattern` 或 `risk_tags` 原始字段。因而缺失不能全部归因于本地导入：中文步骤可从 `instructions.zh` 生成，媒体和训练资格必须分别按许可状态与确定性规则补充，禁止伪造为源数据。当前数据库还把多个动作语义压缩或遗漏，无法让用户验证动作推荐是否合理。
+第一，动作详情出现训练部位、目标肌群和步骤缺失。核对 `/Users/pp/Downloads/exercises.json`（2026-08-21 本地文件）确认共有 1324 条记录，`name`、`category`、`body_part`、`equipment`、`target`、`muscle_group`、`secondary_muscles` 和多语言 `instructions` 存在；实际媒体字段为 `image` 与 `gif_url`，1324 条均有源引用，但不等于可再分发许可；同时没有 `difficulty`、`movement_pattern` 或 `risk_tags` 原始字段。因而缺失不能全部归因于本地导入：中文步骤可从 `instructions.zh` 生成，媒体发布状态和训练资格必须分别按许可状态与确定性规则补充，禁止伪造为源数据。当前数据库还把多个动作语义压缩或遗漏，无法让用户验证动作推荐是否合理。
 
 第二，餐食推荐和动作推荐可能在只识别出少量条件后直接开始。用户希望系统在最低条件满足后先展示已确认需求，并给出一次明确的“为我推荐”确认；未确认的其他槽位可以继续补充，但不强制填满全部槽位。该确认应复用现有推荐请求，不成为新的推荐类型；“换一批”仍表示保留当前需求并排除已展示资源后的替代推荐。
 
@@ -100,8 +100,8 @@ Date: 2026-08-21
 - 导入源是完整 `exercises.json`，当前基线为 1324 条。
 - `(source_name, source_id)` 是 Upsert 身份；已有记录保留数据库内部 ID。
 - 不直接删表重建；源文件中消失的记录先进入差异报告，由显式清理操作处理。
-- 原始字段必须独立保存，至少覆盖 category、body_part、target、muscle_group、secondary_muscles、equipment、原始 instructions 和源媒体字段。`difficulty`、`movement_pattern`、`risk_tags`、中文标签和 `plan_ready` 是派生/审核字段，必须与原始字段分列保存并记录生成规则与版本。
-- 原始英文值保留；核心标签使用确定性中文映射表导入。映射表应版本化，未映射值不得由模型翻译。源文件没有可用图片/GIF 时，媒体状态必须为 `NONE`，不得从空字段推断 URL；只有独立、可核验且具许可的媒体目录才能填充媒体与署名。
+- 原始字段必须独立保存，至少覆盖 category、body_part、target、muscle_group、secondary_muscles、equipment、原始 instructions 和 `image`/`gif_url` 源媒体字段。`difficulty`、`movement_pattern`、`risk_tags`、中文标签和 `plan_ready` 是派生/审核字段，必须与原始字段分列保存并记录生成规则与版本。
+- 原始英文值保留；核心标签使用确定性中文映射表导入。映射表应版本化，未映射值不得由模型翻译。源文件的图片/GIF 引用没有独立许可证明时，媒体状态必须为 `NONE`，不得把源引用直接当作可发布 URL；只有独立、可核验且具许可的媒体目录才能填充媒体与署名。
 - 导入报告包含总数、新增、更新、保留 ID、字段变化、缺失字段、未映射标签、源版本或哈希、可浏览/可推荐/可入计划资格统计。
 - 资源资格分为 `VISIBLE`、`RECOMMENDABLE`、`PLAN_READY` 语义层级；Agent 只能消费候选白名单，不能创建资源字段或训练剂量。
 - 动作媒体继续遵守来源署名和明确媒体状态规则。
@@ -213,16 +213,15 @@ Date: 2026-08-21
 
 ## Further Notes
 
-- 当前 `/Users/pp/Downloads/exercises.json` 已核验为 1324 条；核心英文标签、辅助肌群和多语言说明存在，但媒体字段为空，难度/动作模式/风险/计划资格不属于源字段。本规格的导入结论以该事实为基线，媒体与派生资格必须分别验收。
+- 当前 `/Users/pp/Downloads/exercises.json` 已核验为 1324 条；核心英文标签、辅助肌群和多语言说明存在，`image`/`gif_url` 均有源引用但没有独立许可结论，难度/动作模式/风险/计划资格不属于源字段。本规格的导入结论以该事实为基线，媒体发布状态与派生资格必须分别验收。
 - “我的计划”最终原型决策记录见 `.scratch/health-agent-plan-redesign/issues/06-my-plan-final-prototype-decision.md`；该记录覆盖本节早期抽象 TimeGrid 描述，生产实现应以最终原型的侧栏/七日卡片工作区为准。
 - 方案 C 的视觉参考来自 FullCalendar TimeGrid：日期列、时间轴、周/日视图、半小时 slot、默认滚动时间和事件块。
 - 统一计划模型以 ADR-0014 为准；旧的按餐食/动作分离 current-assignment 规格已被其取代。
-- 需要后续修订的既有文档包括：允许模型补全动作字段的 ADR-0011、把旧反馈收藏语义作为当前规则的产品细化文档，以及默认保留历史计划的旧说明。
-- 本目录对上述旧文档的冲突处理是：本规格及 #96-#100 作为后续实现基线；在实现票合并前必须同步修订 ADR-0011、`.scratch/health-agent-product-refinement/issues/03-alternative-recommendation-and-feedback.md`、`.scratch/health-agent/issues/17-typed-preference-loop.md` 与仍描述 `ACTIVE/ARCHIVED` 或旧 current-assignment 的文档。未完成同步前，不得同时把 `recommend_feedback` 和独立收藏表当作新收藏写入口。
+- 已同步修订的既有文档包括 ADR-0011、`.scratch/health-agent/issues/16-weekly-plan-lifecycle.md`、`.scratch/health-agent/issues/17-typed-preference-loop.md`、`docs/health-agent-implementation-plan.md` 和 `docs/frontend-browser-acceptance.md`。当前计划状态统一为 `DRAFT/UNENABLED/ENABLED/HISTORY`，新收藏只写 `health_resource_favorite`，旧反馈保留历史/兼容语义。
 
 ### 事实核验与未决问题
 
-- 已核验事实：本地 JSON 1324 条；`images`/`gif` 全量为空或缺失；`difficulty`、`movement_pattern`、`risk_tags` 不在源 schema；`instructions.zh` 存在但不等于已审核中文步骤。
+- 已核验事实：本地 JSON 1324 条；源字段为 `image`/`gif_url` 且均有引用，但没有独立许可结论；`difficulty`、`movement_pattern`、`risk_tags` 不在源 schema；`instructions.zh` 存在但不等于已审核中文步骤。
 - 未决问题：生产导入的媒体权威目录及许可证明文件尚未指定；中文步骤是否需要人工审核、审核状态和责任人尚未指定；`VISIBLE`/`RECOMMENDABLE`/`PLAN_READY` 的具体硬性字段门槛与版本格式尚未冻结。
 - 实施前必须补齐上述三项，否则 #96 只能交付 dry-run/字段保真导入，不能宣称媒体完整或 1324 条全部可入周计划。
 - 本规格对应的实现票：动作权威导入、个人收藏集合、推荐前确认、计划后端契约、我的计划原型与页面。每个票据都应保持中文注释/提示，并在实现后补充浏览器证据。

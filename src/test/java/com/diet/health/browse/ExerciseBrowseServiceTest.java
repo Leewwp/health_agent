@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -64,6 +65,20 @@ class ExerciseBrowseServiceTest {
     void 极大page返回400而非负偏移或500() {
         assertThrows(DietException.class, () -> service.browse(Integer.MAX_VALUE, 20), "page 溢出 int 范围应拒绝");
         assertThrows(DietException.class, () -> service.browse(100_000_000, 50), "offset 超出数据库安全范围应拒绝");
+    }
+
+    @Test
+    void 查询和结构化筛选交给Reader并保持服务端分页() {
+        Map<String, String> filters = Map.of("bodyPart", "胸", "equipment", "徒手", "difficulty", "进阶");
+        when(reviewedExerciseReader.browse(20, 20, 7L, true, "俯卧", filters))
+                .thenReturn(List.of(exercise()));
+        when(reviewedExerciseReader.count(7L, true, "俯卧", filters)).thenReturn(1);
+
+        PagedResponse<ExerciseBrowseItem> response = service.browse(2, 20, 7L, true, "俯卧", filters);
+
+        assertEquals(1, response.total());
+        verify(reviewedExerciseReader).browse(20, 20, 7L, true, "俯卧", filters);
+        verify(reviewedExerciseReader).count(7L, true, "俯卧", filters);
     }
 
     @Test

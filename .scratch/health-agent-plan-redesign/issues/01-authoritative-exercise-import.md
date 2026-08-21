@@ -1,6 +1,6 @@
 # 动作权威导入与字段映射
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Priority: P0
 Blocked by: none
@@ -29,6 +29,6 @@ Blocked by: none
 
 ## Dependencies and fallback
 
-- 依赖本地 JSON 和 MySQL；当前 JSON 的 images/gif 为空，不能把媒体完整性作为本票已满足事实；
+- 依赖本地 JSON 和 MySQL；当前 JSON 的 `image`/`gif_url` 只有源引用，不能把它们当作已获许可的可发布媒体；
 - dry-run 可在无 MySQL 时执行；
 - 导入失败时继续使用旧审核子集，不阻断聊天主流程。没有独立许可媒体目录、中文步骤审核规则和资格门槛版本时，本票不得自动宣称 1324 条全部 `PLAN_READY`。

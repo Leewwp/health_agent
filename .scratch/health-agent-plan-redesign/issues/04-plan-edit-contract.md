@@ -1,6 +1,6 @@
 # 计划后端编辑契约
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Priority: P0
 Blocked by: none
@@ -22,6 +22,7 @@ Blocked by: none
 
 - 餐食项目不能提交任意 caloriesKcal 覆盖；
 - 动作处方必须为合法正值；
+- 替换动作与处方编辑在同一批量请求中时，服务端保留合法处方并仍从 Reader 重读资源名称、部位和资格；缺少处方时才使用新资源默认值；
 - 任一项目校验失败时整批回滚；
 - 历史删除按项目/版本/计划顺序事务删除；
 - 删除启用计划被拒绝，必须先停用。

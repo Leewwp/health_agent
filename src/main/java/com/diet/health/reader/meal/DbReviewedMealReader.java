@@ -77,8 +77,46 @@ public class DbReviewedMealReader implements ReviewedMealReader {
     }
 
     @Override
+    public List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly) {
+        if (!favoriteOnly) return browse(offset, size);
+        if (userId == null) return List.of();
+        return mealMapper.browseFavoritePublicMeals(userId, offset, size).stream()
+                .map(this::toReviewedMeal)
+                .toList();
+    }
+
+    @Override
     public int countPublic() {
         return mealMapper.countPublicMeals();
+    }
+
+    @Override
+    public int countPublic(Long userId, boolean favoriteOnly) {
+        return !favoriteOnly ? countPublic() : userId == null ? 0 : mealMapper.countFavoritePublicMeals(userId);
+    }
+
+    @Override
+    public List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly,
+                                     String query, Map<String, String> filters) {
+        return mealMapper.browsePublicMealsFiltered(userId, favoriteOnly, blankToNull(query),
+                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "taste"),
+                filter(filters, "healthGoal"), offset, size).stream().map(this::toReviewedMeal).toList();
+    }
+
+    @Override
+    public int countPublic(Long userId, boolean favoriteOnly, String query, Map<String, String> filters) {
+        return mealMapper.countPublicMealsFiltered(userId, favoriteOnly, blankToNull(query),
+                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "taste"),
+                filter(filters, "healthGoal"));
+    }
+
+    private static String filter(Map<String, String> filters, String key) {
+        if (filters == null) return null;
+        return blankToNull(filters.get(key));
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override

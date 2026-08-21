@@ -118,6 +118,22 @@ export function listExercises(params) {
     return request(HEALTH_BASE, `/exercises${toQuery(params)}`);
 }
 
+export function listFavorites(params) {
+    return request(HEALTH_BASE, `/favorites${toQuery(params)}`);
+}
+
+export function addFavorite(resourceType, resourceId) {
+    return request(HEALTH_BASE, `/favorites/${encodeURIComponent(resourceType)}/${encodeURIComponent(resourceId)}`, {
+        method: "POST"
+    });
+}
+
+export function removeFavorite(resourceType, resourceId) {
+    return request(HEALTH_BASE, `/favorites/${encodeURIComponent(resourceType)}/${encodeURIComponent(resourceId)}`, {
+        method: "DELETE"
+    });
+}
+
 export function listPlans() {
     return request(HEALTH_BASE, "/plans");
 }

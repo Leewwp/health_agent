@@ -33,8 +33,29 @@ public interface ReviewedMealReader {
     /** 审核公共餐食分页（offset 从 0 起，id 升序稳定排序）。 */
     List<ReviewedMeal> browse(int offset, int size);
 
+    /** 按匿名用户服务端过滤收藏，避免前端先加载有限页后再过滤。 */
+    default List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly) {
+        return browse(offset, size);
+    }
+
     /** 审核公共餐食总数（与 browse 同口径）。 */
     int countPublic();
+
+    /** 与收藏过滤口径一致的总数。 */
+    default int countPublic(Long userId, boolean favoriteOnly) {
+        return countPublic();
+    }
+
+    /** 资源选择器的服务端查询边界；默认实现保持旧 Reader seam 兼容。 */
+    default List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly,
+                                      String query, Map<String, String> filters) {
+        return browse(offset, size, userId, favoriteOnly);
+    }
+
+    /** 与资源选择器查询条件一致的总数。 */
+    default int countPublic(Long userId, boolean favoriteOnly, String query, Map<String, String> filters) {
+        return countPublic(userId, favoriteOnly);
+    }
 
     /** Embedding/向量索引/评估快照所需的稳定列表（APPROVED + PUBLIC，id 升序）。 */
     List<ReviewedMeal> snapshotAll();
