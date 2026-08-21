@@ -11,7 +11,7 @@ Supersedes: ADR-0012, ADR-0013
 
 ## 实现约束
 
-- V17 仅作为本地过渡迁移建立旧的 scope 级 ACTIVE/current-assignment 结构；V18 在确认外键关系后按项目、版本、计划顺序清理旧 `ACTIVE`/`ARCHIVED` 计划数据，删除过渡表和 scope 级唯一键，再建立四态 CHECK、用户级 `ENABLED` 生成列唯一键、计划名称和写请求幂等表。新实现不兼容旧状态值，也不重新引入独立 current-assignment 语义。
+- V17 仅作为本地过渡迁移建立旧的 scope 级 ACTIVE/current-assignment 结构；V18 在确认外键关系后按项目、版本、计划顺序清理旧 `ACTIVE`/`ARCHIVED` 计划数据，删除过渡表和 scope 级唯一键，再建立四态 CHECK、用户级 `ENABLED` 生成列唯一键、计划名称和写请求幂等表；V19 同步运行库状态列注释。新实现不兼容旧状态值，也不重新引入独立 current-assignment 语义。
 - 计划写 API 为 `confirm`、`enable`、`disable`、`archive`、`copy` 和 `PUT /items`。写请求检查用户归属、当前状态、`expectedVersion`、`requestId` 幂等性、风险规则、资源资格、周范围、半小时粒度和时间重叠；失败在事务边界内整体回滚并返回稳定错误码。
 - 餐食与训练共享同一时间轴，使用左闭右开 `[startTime,endTime)`；开始时间必须早于结束时间，分钟只能是 `00` 或 `30`，跨午夜、跨周和重叠均拒绝，相邻区间允许保存。餐食-only、训练-only 和综合计划均保存为 `COMPOSITE` 计划，只由项目集合区分。
 
