@@ -148,7 +148,7 @@ class HealthEvalRunnerTest {
         // 版本与身份：fixture 环境、无向量身份（NON_NULL 序列化，null 字段直接缺席）
         assertEquals("FIXTURE_SEED", report.get("environment").get("resourceProviderMode").asText());
         assertTrue(!report.get("environment").has("embeddingModel"), "fixture 运行不记录 embedding 身份");
-        assertEquals("2026-08-12-plan-v2", metrics.get("planValidation").get("rulesVersion").asText());
+        assertEquals(PlanValidationService.RULES_VERSION, metrics.get("planValidation").get("rulesVersion").asText());
     }
 
     @Test

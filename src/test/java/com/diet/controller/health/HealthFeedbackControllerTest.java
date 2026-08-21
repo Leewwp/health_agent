@@ -99,12 +99,12 @@ class HealthFeedbackControllerTest {
     }
 
     @Test
-    void 非法action返回400且文案列出五种action() throws Exception {
+    void 非法action返回400且文案列出兼容与新反馈action() throws Exception {
         when(provider.mealById("5")).thenReturn(Optional.of(MEAL_5));
         postFeedback("THUMBS_UP", "5")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
-                .andExpect(jsonPath("$.message").value("反馈 action 必须为 LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT"));
+                .andExpect(jsonPath("$.message").value("反馈 action 必须为 LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT/REDUCE_RECOMMENDATION/UNDO_REDUCE_RECOMMENDATION"));
     }
 
     @Test

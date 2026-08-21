@@ -2,20 +2,17 @@
  * 类型化反馈控件（17/41 号契约）。
  *
  * - FAVORITE：乐观更新 + 失败回滚（状态跨入口由 store 广播保持一致）；
- * - LIKE / DISLIKE / ADOPT：提交后轻量反馈；DISLIKE 由后端在当前候选集中
- *   硬过滤，前端不做本地过滤；
+ * - REDUCE_RECOMMENDATION：资源级减少推荐，按钮可再次点击撤销；
  * - 按钮通过事件委托处理，使用 data-* 描述动作。
  */
 import { escapeHtml } from "../util/dom.js";
 import { showToast } from "./toast.js";
-import { isFavorite, toggleFavorite } from "../store.js";
+import { isFavorite, toggleFavorite, isReduced, toggleReduced } from "../store.js";
 import { sendFeedback } from "../api.js";
 
 const ACTIONS = [
     { action: "FAVORITE", label: "收藏" },
-    { action: "LIKE", label: "喜欢" },
-    { action: "ADOPT", label: "采纳" },
-    { action: "DISLIKE", label: "不合适" }
+    { action: "REDUCE_RECOMMENDATION", label: "减少推荐" }
 ];
 
 /**
@@ -27,6 +24,7 @@ const ACTIONS = [
 export function renderFeedbackControl(resourceType, resourceId, context) {
     const ctx = context || {};
     const favoriteActive = resourceType !== "ROUTINE" && isFavorite(resourceType, resourceId);
+    const reducedActive = resourceType !== "ROUTINE" && isReduced(resourceType, resourceId);
     const contextAttrs = `
         ${ctx.sessionId ? ` data-session-id="${escapeHtml(ctx.sessionId)}"` : ""}
         ${ctx.traceId ? ` data-trace-id="${escapeHtml(ctx.traceId)}"` : ""}
@@ -44,7 +42,8 @@ export function renderFeedbackControl(resourceType, resourceId, context) {
             ${favoriteButton}
             ${ACTIONS.filter((item) => item.action !== "FAVORITE").map((item) => `
                 <button class="btn ghost feedback-btn" data-feedback="${item.action}"
-                        data-type="${escapeHtml(resourceType)}" data-id="${escapeHtml(resourceId)}"${contextAttrs}>${item.label}</button>
+                        data-type="${escapeHtml(resourceType)}" data-id="${escapeHtml(resourceId)}"${contextAttrs}
+                        aria-pressed="${reducedActive}">${reducedActive ? "撤销减少推荐" : item.label}</button>
             `).join("")}
         </div>
     `;
@@ -81,6 +80,15 @@ window.addEventListener("favoriteschange", () => {
     });
 });
 
+window.addEventListener("reducedchange", () => {
+    document.querySelectorAll('button[data-feedback="REDUCE_RECOMMENDATION"]').forEach((button) => {
+        const active = isReduced(button.dataset.type, button.dataset.id);
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+        button.textContent = active ? "撤销减少推荐" : "减少推荐";
+    });
+});
+
 function contextFromButton(button) {
     return {
         sessionId: button.dataset.sessionId || null,
@@ -106,6 +114,17 @@ async function handleAction(resourceType, resourceId, action, button) {
         showToast(isFavorite(resourceType, resourceId) ? "已收藏" : "已取消收藏");
         return;
     }
+    if (action === "REDUCE_RECOMMENDATION") {
+        const currentlyReduced = isReduced(resourceType, resourceId);
+        await toggleReduced(resourceType, resourceId, () => sendFeedback({
+            resourceType,
+            resourceId,
+            action: currentlyReduced ? "UNDO_REDUCE_RECOMMENDATION" : "REDUCE_RECOMMENDATION",
+            ...contextFromButton(button)
+        }));
+        showToast(isReduced(resourceType, resourceId) ? "已减少推荐，可再次点击撤销" : "已撤销减少推荐");
+        return;
+    }
     try {
         await sendFeedback({
             resourceType,
@@ -113,7 +132,7 @@ async function handleAction(resourceType, resourceId, action, button) {
             action,
             ...contextFromButton(button)
         });
-        showToast(action === "DISLIKE" ? "已记录：之后不再推荐" : action === "ADOPT" ? "已采纳" : "已记录喜欢");
+        showToast("已记录");
     } catch (error) {
         showToast(error.message || "反馈提交失败", "error");
     }

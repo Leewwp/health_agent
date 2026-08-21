@@ -81,11 +81,23 @@
         ORDER BY id
     </select>
 
+    <select id="findAllCatalog" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        ORDER BY plan_ready DESC, name, source_id
+    </select>
+
     <select id="findById" resultMap="ExerciseItemRowMap">
         SELECT <include refid="ExerciseColumns"/>
         FROM exercise_item
         WHERE id = #{id}
         AND review_status = 'APPROVED'
+    </select>
+
+    <select id="browseById" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE id = #{id}
     </select>
 
 </mapper>

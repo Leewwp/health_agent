@@ -63,12 +63,13 @@ class PreferenceServiceTest {
     }
 
     @Test
-    void 正向单独事件为提升且FAVORITE记录收藏() {
+    void 正向旧事件提升但FAVORITE只记录收藏不改变排序() {
         PreferenceService.FoldedPreference folded = PreferenceService.fold(List.of(
                 feedback("LIKE", "MEAL", "1"),
                 feedback("FAVORITE", "EXERCISE", "9001"),
                 feedback("ADOPT", "MEAL", "2")));
-        assertTrue(folded.boostedKeys().containsAll(List.of("MEAL:1", "EXERCISE:9001", "MEAL:2")));
+        assertTrue(folded.boostedKeys().containsAll(List.of("MEAL:1", "MEAL:2")));
+        assertFalse(folded.boostedKeys().contains("EXERCISE:9001"), "收藏不应提升排序");
         assertTrue(folded.excludedKeys().isEmpty());
         assertEquals(Set("EXERCISE:9001"), folded.favoriteKeys(), "只有 FAVORITE 记录收藏状态");
     }
@@ -99,13 +100,13 @@ class PreferenceServiceTest {
     }
 
     @Test
-    void DISLIKE后FAVORITE再UNFAVORITE为中性不恢复旧DISLIKE() {
+    void DISLIKE后FAVORITE再UNFAVORITE仍保持减少推荐倾向() {
         PreferenceService.FoldedPreference folded = PreferenceService.fold(List.of(
                 feedback("UNFAVORITE", "MEAL", "5"),
                 feedback("FAVORITE", "MEAL", "5"),
                 feedback("DISLIKE", "MEAL", "5")));
         assertFalse(folded.favoriteKeys().contains("MEAL:5"));
-        assertFalse(folded.excludedKeys().contains("MEAL:5"), "被取消的 FAVORITE 曾覆盖的更早 DISLIKE 不恢复");
+        assertTrue(folded.excludedKeys().contains("MEAL:5"), "收藏不改变已有的减少推荐倾向");
         assertFalse(folded.boostedKeys().contains("MEAL:5"));
     }
 
@@ -157,7 +158,7 @@ class PreferenceServiceTest {
                 feedback("DISLIKE", "MEAL", "5"),
                 feedback("FAVORITE", "EXERCISE", "9001")));
         assertTrue(folded.excludedKeys().contains("MEAL:5"));
-        assertTrue(folded.boostedKeys().contains("EXERCISE:9001"));
+        assertFalse(folded.boostedKeys().contains("EXERCISE:9001"), "收藏不应提升排序");
         assertTrue(folded.favoriteKeys().contains("EXERCISE:9001"));
         assertFalse(folded.excludedKeys().contains("EXERCISE:9001"));
     }
@@ -165,7 +166,7 @@ class PreferenceServiceTest {
     // ---- 既有行为保持 ----
 
     @Test
-    void DISLIKE硬过滤且LIKE与FAVORITE稳定前移() {
+    void DISLIKE硬过滤且LIKE稳定前移收藏保持原位置() {
         when(mapper.findRecent(1L, 100)).thenReturn(List.of(
                 feedback("DISLIKE", "MEAL", "3"),
                 feedback("LIKE", "MEAL", "5"),
@@ -174,13 +175,23 @@ class PreferenceServiceTest {
 
         assertTrue(view.excludedKeys().contains("MEAL:3"));
         assertTrue(view.boostedKeys().contains("MEAL:5"));
-        assertTrue(view.boostedKeys().contains("EXERCISE:9001"));
+        assertFalse(view.boostedKeys().contains("EXERCISE:9001"));
 
         List<HealthResource> result = service.reorder(List.of(
                 resource("MEAL", "3"), resource("MEAL", "7"), resource("MEAL", "5"),
                 resource("EXERCISE", "9002"), resource("EXERCISE", "9001")), view);
-        assertEquals(List.of("MEAL:5", "EXERCISE:9001", "MEAL:7", "EXERCISE:9002"), keys(result),
-                "DISLIKE 被过滤，LIKE/FAVORITE 移到前部且保持原相对顺序");
+        assertEquals(List.of("MEAL:5", "MEAL:7", "EXERCISE:9002", "EXERCISE:9001"), keys(result),
+                "DISLIKE 被过滤，LIKE 前移，收藏不改变其余候选顺序");
+    }
+
+    @Test
+    void 减少推荐可被撤销且不影响收藏状态() {
+        PreferenceService.FoldedPreference folded = PreferenceService.fold(List.of(
+                feedback("UNDO_REDUCE_RECOMMENDATION", "MEAL", "5"),
+                feedback("REDUCE_RECOMMENDATION", "MEAL", "5"),
+                feedback("FAVORITE", "MEAL", "5")));
+        assertFalse(folded.excludedKeys().contains("MEAL:5"));
+        assertTrue(folded.favoriteKeys().contains("MEAL:5"));
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthResponseType;
 import com.diet.health.enums.HealthRiskLevel;
 import com.diet.health.enums.HealthTask;
+import com.diet.health.enums.PlanScope;
 import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentResult;
@@ -29,6 +30,7 @@ import com.diet.health.plan.PlanBriefExtractionAgentService;
 import com.diet.health.plan.PlanBriefService;
 import com.diet.health.plan.MealPlanBrief;
 import com.diet.health.plan.MealPlanBriefService;
+import com.diet.health.plan.EnabledPlanContextService;
 import com.diet.health.profile.HealthProfileService;
 import com.diet.health.recommend.HealthRecommendResponseService;
 import com.diet.health.resource.HealthResourceProvider;
@@ -60,6 +62,9 @@ import java.time.Duration;
 @Service
 public class HealthOrchestratorService {
 
+    /** 替代推荐候选耗尽时对外返回的稳定领域结果码。 */
+    static final String CANDIDATES_EXHAUSTED = "CANDIDATES_EXHAUSTED";
+
     /** 单次推荐解释的候选数上限。 */
     private static final int TOP_N = 3;
 
@@ -82,6 +87,7 @@ public class HealthOrchestratorService {
     private final MealPlanBriefService mealPlanBriefService;
     private final PlanBriefExtractionAgentService planBriefExtractionAgentService;
     private final HealthProfileService profileService;
+    private final EnabledPlanContextService enabledPlanContextService;
     private final boolean intentFastPathEnabled;
 
     @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
@@ -109,7 +115,7 @@ public class HealthOrchestratorService {
     ) {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
-                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null, null, true);
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null, null, null, true);
     }
 
     /** 可关闭快路径供模型契约基准使用；线上默认开启。 */
@@ -134,7 +140,7 @@ public class HealthOrchestratorService {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
                 routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null,
-                null, intentFastPathEnabled);
+                null, null, intentFastPathEnabled);
     }
 
     /** Spring 入口：健康档案只用于计划简报的缺档案提示，最终风险仍由计划服务 Guard 决定。 */
@@ -156,12 +162,13 @@ public class HealthOrchestratorService {
             AgentTraceService agentTraceService,
             ObjectMapper objectMapper,
             HealthProfileService profileService,
-            PlanBriefExtractionAgentService planBriefExtractionAgentService
+            PlanBriefExtractionAgentService planBriefExtractionAgentService,
+            EnabledPlanContextService enabledPlanContextService
     ) {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
                 routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper,
-                profileService, planBriefExtractionAgentService, true);
+                profileService, planBriefExtractionAgentService, enabledPlanContextService, true);
     }
 
     private HealthOrchestratorService(
@@ -182,6 +189,7 @@ public class HealthOrchestratorService {
             ObjectMapper objectMapper,
             HealthProfileService profileService,
             PlanBriefExtractionAgentService planBriefExtractionAgentService,
+            EnabledPlanContextService enabledPlanContextService,
             boolean intentFastPathEnabled
     ) {
         this.sessionService = sessionService;
@@ -203,6 +211,7 @@ public class HealthOrchestratorService {
         this.mealPlanBriefService = new MealPlanBriefService();
         this.planBriefExtractionAgentService = planBriefExtractionAgentService;
         this.profileService = profileService;
+        this.enabledPlanContextService = enabledPlanContextService;
         this.intentFastPathEnabled = intentFastPathEnabled;
     }
 
@@ -253,16 +262,39 @@ public class HealthOrchestratorService {
         messageService.appendMessage(sessionId, "user", userInput, null, traceId);
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", userInput, Map.of("sessionId", sessionId));
 
-        HealthIntentAgentService.Recognition recognition = intentRevisionService.continueBeforeAgent(userInput, state)
-                .map(result -> new HealthIntentAgentService.Recognition(result, "STATE_CONTINUATION"))
-                .orElseGet(() -> intentFastPathEnabled
-                        ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
-                        recentHistory(userId, sessionId), remaining(deadlineNanos))
-                        : new HealthIntentAgentService.Recognition(
-                        intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId)), "AGENT"));
+        HealthChatRequest.AlternativeRequest alternative = request.alternative();
+        HealthSessionState requestState = state;
+        HealthIntentAgentService.Recognition recognition;
+        if (alternative != null) {
+            HealthDomain domain = alternativeDomain(alternative.resourceType());
+            List<SessionResourceRef> added = alternative.addedExclusions().stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .limit(HealthSessionState.MAX_RESOURCE_HISTORY)
+                    .map(id -> new SessionResourceRef(expectedResourceType(domain), id.trim()))
+                    .toList();
+            requestState = state.appendLastResources(added);
+            HealthIntentResult actionIntent = HealthIntentResult.parsed(domain, HealthTask.ADJUST,
+                    List.of(), Map.of(), List.of(), 1.0);
+            recognition = new HealthIntentAgentService.Recognition(actionIntent, "ALTERNATIVE_ACTION");
+        } else {
+            recognition = intentRevisionService.continueBeforeAgent(userInput, state)
+                    .map(result -> new HealthIntentAgentService.Recognition(result, "STATE_CONTINUATION"))
+                    .orElseGet(() -> intentFastPathEnabled
+                            ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
+                            recentHistory(userId, sessionId), remaining(deadlineNanos))
+                            : new HealthIntentAgentService.Recognition(
+                            intentAgentService.recognize(userInput, state.slots(), recentHistory(userId, sessionId)), "AGENT"));
+        }
         HealthIntentResult rawIntent = recognition.result();
-        HealthIntentRevisionService.Revision revision = intentRevisionService.revise(userInput, state, rawIntent);
+        HealthIntentRevisionService.Revision revision = alternative == null
+                ? intentRevisionService.revise(userInput, state, rawIntent)
+                : new HealthIntentRevisionService.Revision(rawIntent, false, false);
         HealthIntentResult intent = revision.intent();
+        String currentAssignmentContext = currentAssignmentContext(userId, intent.domain());
+        if (currentAssignmentContext != null) {
+            agentTraceService.recordEvent("CURRENT_ASSIGNMENT_CONTEXT", "CONTEXT",
+                    Map.of("domain", intent.domain()), currentAssignmentContext);
+        }
         Map<String, Object> intentPayload = new LinkedHashMap<>();
         intentPayload.put("domain", intent.domain());
         intentPayload.put("task", intent.task());
@@ -344,16 +376,30 @@ public class HealthOrchestratorService {
 
         // ADJUST 排除（43 号票 + #69 类型化契约）：只取 MEAL/EXERCISE 类型化字符串 resourceId，
         // 作息事实不参与排除；fixture 种子 ID 原样传递，reviewed 数值解析在餐食模块查询前完成
-        List<String> excludeIds = intent.task() == HealthTask.ADJUST
-                ? state.excludeIdsFor(intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL")
-                : List.of();
+        String resourceType = intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL";
+        boolean sameTask = state.domain() == intent.domain() && state.task() == intent.task();
+        List<String> excludeIds = intent.task() == HealthTask.ADJUST || sameTask
+                ? requestState.excludeIdsFor(resourceType) : List.of();
+        excludeIds = mergeExcludedIds(excludeIds, currentPlanExclusions(userId, intent.domain(), userInput));
+        if (alternative != null && alternative.allowRepeat()) {
+            excludeIds = alternative.addedExclusions().stream()
+                    .filter(id -> id != null && !id.isBlank())
+                    .map(String::trim)
+                    .distinct()
+                    .limit(HealthSessionState.MAX_RESOURCE_HISTORY)
+                    .toList();
+        }
         boolean switchedDomain = state.domain() != null && state.domain() != intent.domain();
         Map<String, List<String>> activeSlots = inputNormalizer.project(intent.domain(),
                 switchedDomain ? intent.slots() : mergedSlots);
+        if (alternative != null && alternative.relaxConstraints()) {
+            activeSlots = relaxedSlots(intent.domain(), activeSlots);
+        }
         agentTraceService.recordEvent("DOMAIN_SLOTS_PROJECTED", "SLOT",
                 Map.of("domain", intent.domain(), "switchedDomain", switchedDomain), activeSlots);
-        return handleRecommend(sessionId, traceId, state, intent, mergedSlots, activeSlots, excludeIds,
-                risk.matchedFlags(), advisoryCopy, userInput, revision.clarifyUnsafe(), deadlineNanos);
+        return handleRecommend(sessionId, traceId, requestState, intent, mergedSlots, activeSlots, excludeIds,
+                risk.matchedFlags(), advisoryCopy, currentAssignmentContext, userInput,
+                revision.clarifyUnsafe(), alternative, deadlineNanos);
     }
 
     /** 训练简报闭环：解析/合并只在 PLAN 上下文运行，普通推荐不会触碰 planBrief。 */
@@ -590,13 +636,19 @@ public class HealthOrchestratorService {
                                                HealthIntentResult intent, Map<String, List<String>> mergedSlots,
                                                Map<String, List<String>> activeSlots,
                                                List<String> excludeIds, List<String> riskFlags, String advisoryCopy,
-                                               String userInput, boolean clarifyUnsafe, long deadlineNanos) {
+                                               String currentAssignmentContext,
+                                               String userInput, boolean clarifyUnsafe,
+                                               HealthChatRequest.AlternativeRequest alternative, long deadlineNanos) {
         HealthDomain domain = intent.domain();
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("domain", domain, "task", intent.task()));
 
+        boolean requestOnlyConstraint = isRequestOnlyConstraint(domain, userInput);
         List<String> missing = domain == HealthDomain.ROUTINE && routineModule.supportsFactQuery(userInput)
                 ? List.of()
                 : clarifyRuleService.missingSlots(domain, activeSlots);
+        if (requestOnlyConstraint && activeSlots.isEmpty()) {
+            missing = List.of();
+        }
         if (clarifyUnsafe && missing.isEmpty()) {
             missing = List.of(domain == HealthDomain.EXERCISE ? "bodyParts" : "mealTime");
         }
@@ -608,7 +660,8 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
         }
 
-        List<HealthResource> candidates = retrieve(domain, activeSlots, excludeIds, userInput).stream()
+        List<HealthResource> candidates = applyRequestExclusions(domain, userInput,
+                        retrieve(domain, activeSlots, excludeIds, userInput)).stream()
                 .filter(candidate -> expectedResourceType(domain).equals(candidate.resourceType()))
                 .toList();
         agentTraceService.recordEvent("CANDIDATES_RETRIEVED", "RETRIEVE",
@@ -616,8 +669,18 @@ public class HealthOrchestratorService {
                         "resourceVersion", resourceProvider.resourceVersion(), "excludeIds", excludeIds),
                 Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList()));
         if (candidates.isEmpty()) {
+            boolean exhausted = intent.task() == HealthTask.ADJUST;
+            String copy = exhausted
+                    ? "当前条件下没有尚未展示的候选。你可以明确选择放宽条件，或重复已展示结果。"
+                    : emptyCopy(domain);
+            List<HealthAction> actions = exhausted
+                    ? List.of(new HealthAction("RELAX_CONSTRAINTS", "放宽条件", traceId),
+                    new HealthAction("REPEAT_SHOWN", "重复已展示结果", traceId)) : List.of();
             HealthChatResponse empty = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
-                    riskFlags, HealthPhase.RESPOND, withAdvisory(emptyCopy(domain), advisoryCopy), List.of());
+                    riskFlags, HealthPhase.RESPOND, withContext(copy, advisoryCopy, currentAssignmentContext), List.of()).withActions(actions);
+            if (exhausted) {
+                empty = empty.withResultCode(CANDIDATES_EXHAUSTED);
+            }
             return persistAndRespond(state, intent, mergedSlots, empty, traceId, deadlineNanos);
         }
 
@@ -649,7 +712,8 @@ public class HealthOrchestratorService {
                 ))
                 .toList();
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
-                riskFlags, HealthPhase.RESPOND, withAdvisory(outcome.speechText(), advisoryCopy), blocks);
+                riskFlags, HealthPhase.RESPOND, withContext(outcome.speechText(), advisoryCopy, currentAssignmentContext), blocks)
+                .withActions(List.of(new HealthAction("GET_ALTERNATIVE", "换一批", traceId)));
         return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos);
     }
 
@@ -672,6 +736,90 @@ public class HealthOrchestratorService {
             return speechText;
         }
         return speechText + " " + advisoryCopy;
+    }
+
+    private String withContext(String speechText, String advisoryCopy, String currentAssignmentContext) {
+        String result = withAdvisory(speechText, advisoryCopy);
+        return currentAssignmentContext == null || currentAssignmentContext.isBlank()
+                ? result : result + " " + currentAssignmentContext;
+    }
+
+    private String currentAssignmentContext(Long userId, HealthDomain domain) {
+        if (enabledPlanContextService == null || userId == null || domain == null) {
+            return null;
+        }
+        try {
+            return switch (domain) {
+                case MEAL -> enabledPlanContextService.contextForToday(userId, PlanScope.MEAL);
+                case EXERCISE -> enabledPlanContextService.contextForToday(userId, PlanScope.EXERCISE);
+                case COMPOSITE -> joinContexts(
+                        enabledPlanContextService.contextForToday(userId, PlanScope.MEAL),
+                        enabledPlanContextService.contextForToday(userId, PlanScope.EXERCISE));
+                default -> null;
+            };
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private String joinContexts(String first, String second) {
+        if (first == null || first.isBlank()) return second;
+        if (second == null || second.isBlank()) return first;
+        return first + " " + second;
+    }
+
+    private List<String> currentPlanExclusions(Long userId, HealthDomain domain, String userInput) {
+        if (enabledPlanContextService == null || userId == null || userInput == null
+                || !containsAny(userInput, "当前计划", "当前安排", "计划里的这个", "安排里的这个")) {
+            return List.of();
+        }
+        try {
+            PlanScope scope = domain == HealthDomain.MEAL ? PlanScope.MEAL
+                    : domain == HealthDomain.EXERCISE ? PlanScope.EXERCISE : null;
+            return scope == null ? List.of() : enabledPlanContextService.resourceIdsForToday(userId, scope);
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
+    }
+
+    private List<String> mergeExcludedIds(List<String> first, List<String> second) {
+        java.util.LinkedHashSet<String> merged = new java.util.LinkedHashSet<>();
+        if (first != null) merged.addAll(first);
+        if (second != null) merged.addAll(second);
+        return List.copyOf(merged);
+    }
+
+    /** 只处理明确的请求级否定，不写入会话槽位或长期偏好。 */
+    private List<HealthResource> applyRequestExclusions(HealthDomain domain, String userInput,
+                                                        List<HealthResource> candidates) {
+        if (candidates == null || candidates.isEmpty() || userInput == null) {
+            return candidates == null ? List.of() : candidates;
+        }
+        String text = userInput.replaceAll("\\s+", "");
+        if (domain == HealthDomain.MEAL && containsAny(text, "不想吃沙拉", "不要沙拉", "不吃沙拉", "避免沙拉")) {
+            return candidates.stream().filter(resource -> !containsResourceTerm(resource, "沙拉")).toList();
+        }
+        if (domain == HealthDomain.EXERCISE && containsAny(text, "不练腿", "不练腿部", "不要练腿", "避免腿部")) {
+            return candidates.stream().filter(resource -> !containsResourceTag(resource, "腿")).toList();
+        }
+        return candidates;
+    }
+
+    private boolean containsResourceTerm(HealthResource resource, String term) {
+        return (resource.name() != null && resource.name().contains(term))
+                || resource.tags().values().stream().flatMap(List::stream).anyMatch(value -> value.contains(term));
+    }
+
+    private boolean containsResourceTag(HealthResource resource, String term) {
+        return resource.tags().values().stream().flatMap(List::stream).anyMatch(value -> value.contains(term));
+    }
+
+    private boolean isRequestOnlyConstraint(HealthDomain domain, String userInput) {
+        if (userInput == null) return false;
+        String text = userInput.replaceAll("\\s+", "");
+        return (domain == HealthDomain.MEAL && containsAny(text, "不想吃沙拉", "不要沙拉", "不吃沙拉", "避免沙拉"))
+                || (domain == HealthDomain.EXERCISE && containsAny(text, "不练腿", "不练腿部", "不要练腿", "避免腿部"))
+                || containsAny(text, "当前计划里的这个", "当前安排里的这个", "不想吃当前计划", "不想练当前计划");
     }
 
     /** 领域检索：餐食走 MealModule（reviewed 检索 / fixture 种子），动作走 Provider 筛选，作息走事实查询。 */
@@ -714,10 +862,13 @@ public class HealthOrchestratorService {
                 .withPreferenceSignals(intent.preferenceSignals())
                 .withPlanBrief(planBrief)
                 .withMealPlanBrief(mealPlanBrief);
-        if (response.responseType() == HealthResponseType.ANSWER) {
-            saved = saved.replaceLastResources(response.displayBlocks().stream()
+        if (response.responseType() == HealthResponseType.ANSWER && !response.displayBlocks().isEmpty()) {
+            List<SessionResourceRef> refs = response.displayBlocks().stream()
                     .map(block -> new SessionResourceRef(block.resourceType(), block.resourceId()))
-                    .toList());
+                    .toList();
+            boolean sameTask = state.domain() == intent.domain() && state.task() == intent.task();
+            saved = (sameTask || intent.task() == HealthTask.ADJUST)
+                    ? saved.appendLastResources(refs) : saved.replaceLastResources(refs);
         }
         sessionService.save(saved);
         messageService.appendMessage(state.sessionId(), "assistant", response.speechText(), null, traceId);
@@ -778,6 +929,29 @@ public class HealthOrchestratorService {
             case ROUTINE -> "暂时没有找到对应的作息建议，可以换个说法试试。";
             case OTHER, COMPOSITE -> "暂时没有找到匹配的内容。";
         };
+    }
+
+    private HealthDomain alternativeDomain(String resourceType) {
+        if ("MEAL".equalsIgnoreCase(resourceType)) {
+            return HealthDomain.MEAL;
+        }
+        if ("EXERCISE".equalsIgnoreCase(resourceType)) {
+            return HealthDomain.EXERCISE;
+        }
+        throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "替代推荐资源类型必须为 MEAL 或 EXERCISE");
+    }
+
+    /** 显式放宽只移除次要筛选，核心餐次/训练部位仍然保留。 */
+    private Map<String, List<String>> relaxedSlots(HealthDomain domain, Map<String, List<String>> slots) {
+        if (slots == null || slots.isEmpty()) {
+            return Map.of();
+        }
+        String keep = domain == HealthDomain.MEAL ? "mealTime" : "bodyParts";
+        Map<String, List<String>> relaxed = new LinkedHashMap<>();
+        if (slots.containsKey(keep)) {
+            relaxed.put(keep, slots.get(keep));
+        }
+        return relaxed;
     }
 
     private String expectedResourceType(HealthDomain domain) {

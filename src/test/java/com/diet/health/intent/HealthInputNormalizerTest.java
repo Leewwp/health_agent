@@ -24,6 +24,11 @@ class HealthInputNormalizerTest {
     }
 
     @Test
+    void 颈部别名归一为完整目录部位() {
+        assertSlot("脖子和颈部", "bodyParts", List.of("颈部"));
+    }
+
+    @Test
     void 难度目标和器材别名归一() {
         var result = normalizer.normalize(HealthDomain.EXERCISE,
                 "适合初学者的轻量自重减肥训练", Map.of());
@@ -69,6 +74,23 @@ class HealthInputNormalizerTest {
         assertEquals(Map.of("mealTime", List.of("午餐")), normalizer.project(HealthDomain.MEAL, mixed));
         assertEquals(Map.of("bodyParts", List.of("腿")), normalizer.project(HealthDomain.EXERCISE, mixed));
         assertTrue(normalizer.project(HealthDomain.OTHER, mixed).isEmpty());
+    }
+
+    @Test
+    void 历史时间从句不污染当前餐次且否定被标记为临时约束() {
+        var result = normalizer.normalize(HealthDomain.MEAL,
+                "昨天没吃晚餐，今天想吃丰盛早餐", Map.of());
+
+        assertEquals(List.of("早餐"), result.slots().get("mealTime"));
+        assertTrue(result.negatedSlots().isEmpty(), "历史事实被剥离后不应成为当前否定槽位");
+    }
+
+    @Test
+    void 明确不练腿不生成腿部正向槽位() {
+        var result = normalizer.normalize(HealthDomain.EXERCISE, "今天不练腿", Map.of());
+
+        assertFalse(result.slots().containsKey("bodyParts"));
+        assertTrue(result.negatedSlots().contains("bodyParts:腿"));
     }
 
     private void assertSlot(String input, String slot, List<String> expected) {

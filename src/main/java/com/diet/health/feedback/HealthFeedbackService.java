@@ -33,7 +33,9 @@ public class HealthFeedbackService {
             FeedbackConstants.ACTION_DISLIKE,
             FeedbackConstants.ACTION_FAVORITE,
             FeedbackConstants.ACTION_UNFAVORITE,
-            FeedbackConstants.ACTION_ADOPT
+            FeedbackConstants.ACTION_ADOPT,
+            FeedbackConstants.ACTION_REDUCE_RECOMMENDATION,
+            FeedbackConstants.ACTION_UNDO_REDUCE_RECOMMENDATION
     );
     private static final Set<String> RESOURCE_TYPES = Set.of(
             FeedbackConstants.RESOURCE_TYPE_MEAL,
@@ -63,7 +65,7 @@ public class HealthFeedbackService {
         String action = request.action();
         if (action == null || !ACTIONS.contains(action)) {
             throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST,
-                    "反馈 action 必须为 LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT");
+                    "反馈 action 必须为 LIKE/DISLIKE/FAVORITE/UNFAVORITE/ADOPT/REDUCE_RECOMMENDATION/UNDO_REDUCE_RECOMMENDATION");
         }
         String traceId = normalize(request.traceId());
         String resourceType = normalize(request.resourceType());

@@ -514,6 +514,27 @@ class HealthOrchestratorServiceTest {
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertTrue(response.displayBlocks().isEmpty());
         assertTrue(response.speechText().contains("没有匹配"));
+        assertEquals(null, response.resultCode(), "普通推荐无候选不应伪装成替代推荐耗尽");
+    }
+
+    @Test
+    void 替代推荐候选耗尽返回稳定结果码和显式操作() {
+        HealthResource resource = new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库",
+                null, false, Map.of());
+        when(mealModule.recommendMeals(any(), any(), anyString()))
+                .thenReturn(List.of(resource))
+                .thenReturn(List.of());
+
+        String sessionId = "sess_adjust_exhausted";
+        HealthChatResponse first = chatInSession(sessionId, "午餐想吃清淡的");
+        assertFalse(first.displayBlocks().isEmpty());
+
+        HealthChatResponse exhausted = chatInSession(sessionId, "换一批");
+
+        assertEquals(HealthOrchestratorService.CANDIDATES_EXHAUSTED, exhausted.resultCode());
+        assertTrue(exhausted.displayBlocks().isEmpty());
+        assertEquals(List.of("RELAX_CONSTRAINTS", "REPEAT_SHOWN"),
+                exhausted.actions().stream().map(action -> action.type()).toList());
     }
 
     @Test

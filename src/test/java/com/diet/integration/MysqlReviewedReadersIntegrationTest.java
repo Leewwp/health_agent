@@ -11,6 +11,7 @@ import com.diet.health.rag.MealRetrievalQuery;
 import com.diet.health.rag.RetrievalMode;
 import com.diet.health.rag.RetrievalResult;
 import com.diet.health.rag.StructuredMealRetriever;
+import com.diet.health.module.HealthResource;
 import com.diet.health.reader.exercise.DbReviewedExerciseReader;
 import com.diet.health.reader.exercise.ExerciseVocabulary;
 import com.diet.health.reader.exercise.ReviewedExercise;
@@ -19,6 +20,7 @@ import com.diet.health.reader.meal.ReviewedMeal;
 import com.diet.health.vectorstore.InMemoryVectorStore;
 import com.diet.health.vectorstore.VectorPoint;
 import com.diet.health.vectorstore.VectorStoreIdentity;
+import com.diet.health.resource.HealthResourceProvider;
 import com.diet.mapper.MealEmbeddingMapper;
 import com.diet.model.MealEmbeddingRow;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +50,8 @@ import static org.mockito.Mockito.when;
 /**
  * #68/#69/#70 方案 B 读取边界：审核读取模块、浏览/检索与批处理数据面的真实 MySQL 门控验证。
  * <p>
- * 在独立测试库 diet_db_itest 上（V1-V12 迁移 + 资源种子导入，295 道 APPROVED 公共餐食、
- * 1324 个本地动作目录项，其中 30 个具备计划资格），验证：
+ * 在独立测试库 diet_db_itest 上（V1-V18 迁移 + 资源种子导入，295 道 APPROVED 公共餐食、
+ * 1324 个本地动作目录项，自动资格补全后全部具备计划资格），验证：
  * <ul>
  *   <li>#68 审核餐食/动作读取模块真库行为：仅 APPROVED + PUBLIC 返回（审核/来源过滤）、
  *       browse 分页计数、findByIds 批量回查去重、id 升序稳定排序；</li>
@@ -93,6 +95,8 @@ class MysqlReviewedReadersIntegrationTest {
     private StructuredMealRetriever structuredRetriever;
     @Autowired
     private MealEmbeddingMapper embeddingMapper;
+    @Autowired
+    private HealthResourceProvider resourceProvider;
 
     private JdbcTemplate jdbc;
 
@@ -300,7 +304,7 @@ class MysqlReviewedReadersIntegrationTest {
     // ---------- #68/#64：DbReviewedExerciseReader 真库行为 ----------
 
     @Test
-    void 动作目录完整展示且词汇归一不改变计划资格边界() {
+    void 动作目录完整展示且词汇归一与自动计划资格一致() {
         try {
             long approved = insertExercise("e1", "APPROVED");
             long pending = insertExercise("e2", "PENDING");
@@ -308,7 +312,7 @@ class MysqlReviewedReadersIntegrationTest {
 
             assertEquals(EXERCISE_CATALOG_BASELINE + 3, exerciseReader.count(),
                     "动作浏览目录应包含审核状态不同的完整本地资料");
-            List<ReviewedExercise> all = exerciseReader.browse(0, 100);
+            List<ReviewedExercise> all = exerciseReader.browse(0, EXERCISE_CATALOG_BASELINE + 3);
             assertTrue(all.stream().anyMatch(e -> e.id().equals(approved)), "APPROVED 行必须可见");
             assertTrue(all.stream().anyMatch(e -> e.id().equals(pending)), "PENDING 目录项必须可浏览");
             assertTrue(all.stream().anyMatch(e -> e.id().equals(rejected)), "REJECTED 目录项必须可浏览");
@@ -339,6 +343,43 @@ class MysqlReviewedReadersIntegrationTest {
         assertEquals(exerciseReader.browse(0, EXERCISE_CATALOG_BASELINE).stream()
                         .map(ReviewedExercise::id).toList(), allIds,
                 "逐页浏览与完整目录顺序必须一致");
+    }
+
+    @Test
+    void 全量动作进入计划候选且常见训练与三餐均有资源() {
+        List<HealthResource> planReady = resourceProvider.planReadyExercises();
+
+        assertEquals(EXERCISE_CATALOG_BASELINE, planReady.size(),
+                "本地完整目录中具备确定性计划属性的动作都应进入 plan_ready");
+        assertTrue(planReady.stream().anyMatch(item -> item.tags().getOrDefault("bodyParts", List.of()).contains("胸")
+                        && item.tags().getOrDefault("equipment", List.of()).contains("哑铃")),
+                "增肌/胸/哑铃等常见训练简报必须能命中动作");
+        assertTrue(resourceProvider.planMealCandidates().stream()
+                        .anyMatch(item -> item.mealTimeTags().contains("早餐")),
+                "餐食计划必须有早餐候选");
+        assertTrue(resourceProvider.planMealCandidates().stream()
+                        .anyMatch(item -> item.mealTimeTags().contains("午餐")),
+                "餐食计划必须有午餐候选");
+        assertTrue(resourceProvider.planMealCandidates().stream()
+                        .anyMatch(item -> item.mealTimeTags().contains("晚餐")),
+                "餐食计划必须有晚餐候选");
+    }
+
+    @Test
+    void 动作目录详情可读取待审核条目但不改变正式推荐边界() {
+        long pending = insertExercise("detail-pending", "PENDING");
+        jdbc.update("UPDATE exercise_item SET plan_ready = 0 WHERE id = ?", pending);
+        try {
+            ReviewedExercise viewed = exerciseReader.findById(pending).orElseThrow();
+            assertEquals(pending, viewed.id());
+            assertEquals("PENDING", viewed.reviewStatus());
+            assertFalse(viewed.planReady());
+            assertTrue(exerciseReader.browse(0, EXERCISE_CATALOG_BASELINE + 1).stream()
+                    .anyMatch(item -> item.id().equals(pending)), "待审核动作详情与目录分页必须同口径");
+        } finally {
+            jdbc.update("DELETE FROM exercise_item WHERE source_name = ?", ITEST_EXERCISE_SOURCE);
+        }
+        assertEquals(EXERCISE_CATALOG_BASELINE, exerciseReader.count(), "清理后必须恢复 1324 条目录基线");
     }
 
     // ---------- #69：reviewed 浏览服务真库走查 ----------

@@ -62,6 +62,20 @@ class DbReviewedResourceProviderTest {
     }
 
     @Test
+    void 单次推荐读取完整目录但正式资源列表仍仅含审核子集() {
+        ExerciseItemRow pending = exerciseRows(1).get(0);
+        pending.setReviewStatus("PENDING");
+        pending.setPlanReady(false);
+        when(exerciseMapper.findAllCatalog()).thenReturn(List.of(pending));
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of());
+
+        assertEquals(List.of("1"), provider.singleRecommendationExercises().stream()
+                .map(HealthResource::resourceId).toList());
+        assertTrue(provider.exercises().isEmpty(), "正式审核资源列表不得混入待审核动作");
+        assertTrue(provider.planReadyExercises().isEmpty(), "待审核动作不得进入计划候选");
+    }
+
+    @Test
     void 餐食按主键查询与审核子集一致() {
         when(mealMapper.findApprovedPublicById(5L)).thenReturn(mealRows(APPROVED_MEALS).get(4));
         HealthResource meal = provider.mealById("5").orElseThrow();

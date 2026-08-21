@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 public class HealthSlotDictionary {
 
     /** 健身槽位种子版本，调整取值时必须同步提升版本并更新 Prompt。 */
-    public static final String FITNESS_SLOT_VERSION = "2026-08-10-v1";
+    public static final String FITNESS_SLOT_VERSION = "2026-08-20-v2";
 
     public static final List<String> MEAL_SLOTS = List.of("mealTime", "mood", "scene", "healthGoal", "cuisine", "taste", "convenience");
     public static final List<String> FITNESS_SLOTS = List.of("bodyParts", "equipment", "trainingGoal", "difficulty");
@@ -25,7 +25,7 @@ public class HealthSlotDictionary {
 
     /** 健身槽位合法值（版本化种子）。 */
     public static final Map<String, List<String>> FITNESS_OPTIONS = Map.of(
-            "bodyParts", List.of("胸", "背", "腿", "肩", "手臂", "核心", "臀", "全身"),
+            "bodyParts", List.of("胸", "背", "腿", "肩", "手臂", "核心", "臀", "颈部", "全身"),
             "equipment", List.of("徒手", "哑铃", "杠铃", "弹力带", "壶铃", "器械"),
             "trainingGoal", List.of("增肌", "减脂", "耐力", "力量", "柔韧", "保持健康"),
             "difficulty", List.of("入门", "进阶", "挑战")

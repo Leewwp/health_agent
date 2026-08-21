@@ -29,11 +29,14 @@ public class LocalMediaCatalogSeeder implements ApplicationRunner {
     private static final String SEED_RESOURCE = "db/seed/local_media_catalog.sql";
 
     private final JdbcTemplate jdbcTemplate;
+    private final CatalogQualificationService catalogQualificationService;
     private final boolean enabled;
 
     public LocalMediaCatalogSeeder(JdbcTemplate jdbcTemplate,
+                                   CatalogQualificationService catalogQualificationService,
                                    @Value("${diet.seed.local-media-catalog:false}") boolean enabled) {
         this.jdbcTemplate = jdbcTemplate;
+        this.catalogQualificationService = catalogQualificationService;
         this.enabled = enabled;
     }
 
@@ -62,6 +65,9 @@ public class LocalMediaCatalogSeeder implements ApplicationRunner {
             statements++;
         }
         log.info("本地展示媒体导入完成：{} 条语句，影响 {} 行", statements, rows);
+        CatalogQualificationService.QualificationResult qualification = catalogQualificationService.qualify();
+        log.info("完整目录资格补全：enabled={}, 动作 {} 条，公共餐食 {} 条",
+                qualification.enabled(), qualification.qualifiedExercises(), qualification.qualifiedMeals());
     }
 
     private String stripComments(String statement) {

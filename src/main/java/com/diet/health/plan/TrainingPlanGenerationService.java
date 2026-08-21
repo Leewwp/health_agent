@@ -137,9 +137,10 @@ public class TrainingPlanGenerationService {
                 traceService.recordEvent("PLAN_CANDIDATES_FILTERED", "RETRIEVE", brief,
                         Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList(),
                                 "resourceVersion", resourceProvider.resourceVersion(),
-                                "goalRelaxed", candidateSelection.goalRelaxed()));
+                                "goalRelaxed", candidateSelection.goalRelaxed(),
+                                "difficultyRelaxed", candidateSelection.difficultyRelaxed()));
                 if (candidates.isEmpty()) {
-                    throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有同时满足训练目标和偏好的动作");
+                    throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有满足部位和器材偏好的动作");
                 }
 
                 String source = "AGENT";
@@ -178,6 +179,7 @@ public class TrainingPlanGenerationService {
                         new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null,
                                 PlanScope.EXERCISE),
                         allItems, source, generationMetadata(brief, candidates, candidateSelection.goalRelaxed(),
+                                candidateSelection.difficultyRelaxed(),
                                 source, modelName, actualModel, fallbackReason),
                         deterministicExplanation(source, trainingItems));
                 traceService.recordEvent("PLAN_PERSISTED", "PERSIST", Map.of("planId", plan.id()),
@@ -338,28 +340,31 @@ public class TrainingPlanGenerationService {
         Set<String> excludedEquipment = Set.copyOf(brief.hardConstraints().getOrDefault("excludeEquipment", List.of()));
         Set<String> excludedExercises = Set.copyOf(brief.hardConstraints().getOrDefault("excludeExercises", List.of()));
         boolean allBody = brief.bodyParts().contains("全身");
-        List<HealthResource> safeCandidates = resourceProvider.planReadyExercises().stream().filter(resource -> {
+        List<HealthResource> equipmentCandidates = resourceProvider.planReadyExercises().stream().filter(resource -> {
             List<String> parts = resource.tags().getOrDefault("bodyParts", List.of());
             List<String> equipment = resource.tags().getOrDefault("equipment", List.of());
-            List<String> difficulties = resource.tags().getOrDefault("difficulty", List.of());
             return resource.planReady()
                     && (allBody || brief.bodyParts().stream().anyMatch(parts::contains))
                     && brief.equipment().stream().anyMatch(equipment::contains)
-                    && difficulties.contains(brief.difficulty())
                     && excludedParts.stream().noneMatch(parts::contains)
                     && excludedEquipment.stream().noneMatch(equipment::contains)
                     && excludedExercises.stream().noneMatch(excluded -> excluded.equalsIgnoreCase(resource.resourceId())
                             || excluded.equalsIgnoreCase(resource.name()));
         }).toList();
-        List<HealthResource> strictGoal = safeCandidates.stream()
+        List<HealthResource> strictDifficulty = equipmentCandidates.stream()
+                .filter(resource -> resource.tags().getOrDefault("difficulty", List.of()).contains(brief.difficulty()))
+                .toList();
+        boolean difficultyRelaxed = strictDifficulty.isEmpty() && !equipmentCandidates.isEmpty();
+        List<HealthResource> candidates = difficultyRelaxed ? equipmentCandidates : strictDifficulty;
+        List<HealthResource> strictGoal = candidates.stream()
                 .filter(resource -> resource.tags().getOrDefault("trainingGoal", List.of()).contains(brief.trainingGoal()))
                 .toList();
         return strictGoal.isEmpty()
-                ? new CandidateSelection(safeCandidates, !safeCandidates.isEmpty())
-                : new CandidateSelection(strictGoal, false);
+                ? new CandidateSelection(candidates, !candidates.isEmpty(), difficultyRelaxed)
+                : new CandidateSelection(strictGoal, false, difficultyRelaxed);
     }
 
-    private record CandidateSelection(List<HealthResource> resources, boolean goalRelaxed) {
+    private record CandidateSelection(List<HealthResource> resources, boolean goalRelaxed, boolean difficultyRelaxed) {
     }
 
     private void validateForPersistence(HealthProfileView profile, List<PlanItemDraft> items) {
@@ -383,6 +388,7 @@ public class TrainingPlanGenerationService {
 
     private Map<String, Object> generationMetadata(PlanBrief brief, List<HealthResource> candidates,
                                                    boolean goalRelaxed,
+                                                   boolean difficultyRelaxed,
                                                    String generationSource, String requestedModel, String actualModel,
                                                    String fallbackReason) {
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -390,6 +396,7 @@ public class TrainingPlanGenerationService {
         metadata.put("planScope", PlanScope.EXERCISE.name());
         metadata.put("candidateIds", candidates.stream().map(HealthResource::resourceId).toList());
         metadata.put("goalRelaxed", goalRelaxed);
+        metadata.put("difficultyRelaxed", difficultyRelaxed);
         metadata.put("resourceVersion", resourceProvider.resourceVersion());
         metadata.put("generationSource", generationSource);
         metadata.put("requestedModel", requestedModel);

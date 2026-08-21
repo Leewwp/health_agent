@@ -25,7 +25,7 @@
 
 | 条目 | 证据 |
 |---|---|
-| 资源基线（295 餐食/1324 动作目录，其中 30 个 plan_ready/15 事实） | `ReviewedResourceSeedValidatorTest`、`ReviewedResourceSeeder`/`LocalMediaCatalogSeeder` 幂等导入；`DbReviewedResourceProviderTest`、`MysqlReviewedReadersIntegrationTest` |
+| 资源基线（295 餐食/1324 动作目录/15 事实；dev 启动后完整动作目录自动取得 plan_ready） | `ReviewedResourceSeedValidatorTest`（30 条审核种子）以及 `ReviewedResourceSeeder`/`LocalMediaCatalogSeeder` 幂等导入；`DbReviewedResourceProviderTest`、`MysqlReviewedReadersIntegrationTest` |
 | 浏览 API 分页边界 | `health/browse` 测试（page 超上限返回 400、size≤50）；浏览器验收第 2/3 节 |
 | hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集（60 条六层，querySetVersion 1.1.0）评估见 `docs/research/meal-rag-evaluation.md`。当前报告已记录 Structured/Vector/Fused 数量、向量状态、阶段延迟，并区分 `REAL_HYBRID`、`PARTIAL_HYBRID`、`FALLBACK_ONLY`。 |
 | 真实 key 下 RAG 对比 | 2026-08-19 本地 MySQL + Qdrant 1.17.0 实跑：295/295 条索引、60/60 条零降级，`REAL_HYBRID`；Recall@3 Structured/Hybrid 均为 0.351，硬约束命中率均为 1.0，Hybrid P95 为 159.407 ms。结果详见 `data/reports/rag_evaluation.json`，不宣称效果提升。 |
@@ -98,3 +98,17 @@
 - 计划页在 1710、1024、768、414、390、375、320px 宽度检查 `clientWidth=scrollWidth`，无页面横向滚动；长名称、1/3/21/29 项目、状态标签、周日项目和操作控件均未叠加或裁切。桌面/平板/移动交互结果记录在 `docs/frontend-browser-acceptance.md`，截图存于 `docs/evidence/issue-90/`。
 - 故障路径的 Agent 解析失败、Plan Agent 超时/非法输出、候选为空、数据库失败分别由新增单测和真实 MySQL 回滚/Guard 集成测试覆盖；没有用普通单测替代 MySQL 事务验证。
 - #90 及 #91–#94 的本地实现、测试和浏览器证据完成后，#89 具备开始条件；本轮只留下交接说明，不登录云服务器、不改 DNS/TLS、不上传镜像、不运行远端 Compose、不配置云端凭证、不访问生产数据库。
+
+## 本轮产品体验增强验收（2026-08-20）
+
+- 真实浏览器入口：`http://127.0.0.1:8092/#/chat`、`#/plans`；Spring Boot `8082` + Nginx `8092`，健康检查返回 `UP`。
+- 桌面 `1710×983`：清淡晚餐口语请求在一轮内识别并推荐；“换一批”通过聊天 API 提交候选排除并返回新资源；收藏、减少推荐、撤销及反馈失败回滚通过；计划简报生成草稿、详情抽屉、激活、设为当前、取消当前、编辑副本和草稿删除确认通过。
+- 移动 `390×844`：聊天消息区独立滚动；计划详情抽屉中长来源版本号可换行；文档、主体和抽屉内容均无横向溢出。
+- 详细交互记录与截图见 `docs/frontend-browser-acceptance.md` 的“产品体验增强收尾验收”段及 `docs/evidence/product-refinement/`。
+
+### 目录详情与单次推荐边界复核（2026-08-20）
+
+- 动作目录详情新增独立目录查询：待审核动作不再因正式 Provider 的 `APPROVED` 过滤返回 404；本地接口 `GET /api/v1/health/exercises/1531` 返回 200，且保留 `reviewStatus=PENDING`、`planReady=false`。
+- 单次动作推荐改用完整目录候选；正式审核资源列表和周计划候选仍分别沿用 `APPROVED` 与 `plan_ready` 白名单，dev 启动时由确定性资格服务将完整目录中字段齐全的动作扩展到计划边界。
+- 替代推荐候选耗尽时新增可选 `resultCode=CANDIDATES_EXHAUSTED`，普通无候选响应保持 `resultCode=null`，并继续提供显式放宽/重复操作。
+- `mvn test`：686 tests，0 failures，43 环境门控跳过；`mvn test -Ditest.mysql=true`：686 tests，0 failures，4 独立门控跳过；`node --test frontend/tests/*.test.mjs`：20/20；`git diff --check` 通过。
