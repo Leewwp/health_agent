@@ -8,35 +8,43 @@
  *   塞进 data-* 属性）。
  */
 import { showToast } from "./ui/toast.js";
+import { listFavorites } from "./api.js";
 
-const FAVORITES_KEY = "health.favorites.v1";
 const SESSION_KEY = "health.chatSessionId";
 const CLIENT_SESSION_KEY = "health.clientSessionId";
 const REDUCED_KEY = "health.reducedRecommendations.v1";
 
 const resourceRegistry = new Map();
+const favoriteKeys = new Set();
+let favoritesLoaded = false;
 
 /* ---------------- 收藏 ---------------- */
 
-function loadFavorites() {
-    try {
-        const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "{}");
-        return raw && typeof raw === "object" ? raw : {};
-    } catch (error) {
-        return {};
-    }
-}
-
-function persistFavorites(favorites) {
-    try {
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
-    } catch (error) {
-        // 存储不可用（如隐私模式）时只保留内存状态
-    }
-}
-
 export function isFavorite(resourceType, resourceId) {
-    return Boolean(loadFavorites()[`${resourceType}:${resourceId}`]);
+    return favoriteKeys.has(`${String(resourceType).toUpperCase()}:${resourceId}`);
+}
+
+/** 从独立收藏接口同步当前匿名用户的全部收藏；失败由页面决定是否降级。 */
+export async function syncFavorites(resourceType) {
+    const params = { page: 1, size: 100 };
+    if (resourceType) params.resourceType = resourceType;
+    const loaded = [];
+    for (let page = 1; page <= 100; page += 1) {
+        params.page = page;
+        const response = await listFavorites(params);
+        loaded.push(...(response?.items || []));
+        if (!response || page >= Number(response.totalPages || 0)) break;
+    }
+    if (!resourceType) {
+        favoriteKeys.clear();
+    } else {
+        const prefix = `${String(resourceType).toUpperCase()}:`;
+        [...favoriteKeys].filter((key) => key.startsWith(prefix)).forEach((key) => favoriteKeys.delete(key));
+    }
+    loaded.forEach((item) => favoriteKeys.add(`${String(item.resourceType).toUpperCase()}:${item.resourceId}`));
+    favoritesLoaded = true;
+    notifyFavoritesChange();
+    return loaded;
 }
 
 function loadReduced() {
@@ -86,21 +94,15 @@ export async function toggleReduced(resourceType, resourceId, sendFeedback) {
 /** 乐观更新收藏状态；失败时回滚并抛错（由调用方提示）。 */
 export async function toggleFavorite(resourceType, resourceId, sendFeedback) {
     const key = `${resourceType}:${resourceId}`;
-    const favorites = loadFavorites();
-    const next = !favorites[key];
-    favorites[key] = next;
-    persistFavorites(favorites);
+    const next = !favoriteKeys.has(key);
+    if (next) favoriteKeys.add(key); else favoriteKeys.delete(key);
     notifyFavoritesChange();
     try {
         await sendFeedback();
         return next;
     } catch (error) {
-        const rolledBack = loadFavorites();
-        if (rolledBack[key] === next) {
-            rolledBack[key] = !next;
-            persistFavorites(rolledBack);
-            notifyFavoritesChange();
-        }
+        if (next) favoriteKeys.delete(key); else favoriteKeys.add(key);
+        notifyFavoritesChange();
         showToast(error.message || "收藏操作失败，已回滚", "error");
         throw error;
     }

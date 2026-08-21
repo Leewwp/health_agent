@@ -9,13 +9,20 @@
         <result property="sourceName" column="source_name"/>
         <result property="sourceId" column="source_id"/>
         <result property="sourceVersion" column="source_version"/>
+        <result property="sourceHash" column="source_hash"/>
         <result property="name" column="name"/>
         <result property="nameEn" column="name_en"/>
         <result property="aliases" column="aliases"/>
         <result property="category" column="category"/>
         <result property="bodyPart" column="body_part"/>
+        <result property="sourceCategory" column="source_category"/>
+        <result property="sourceBodyPart" column="source_body_part"/>
+        <result property="sourceEquipment" column="source_equipment"/>
+        <result property="sourceTarget" column="source_target"/>
+        <result property="sourceMuscleGroup" column="source_muscle_group"/>
         <result property="targetMuscles" column="target_muscles"/>
         <result property="secondaryMuscles" column="secondary_muscles"/>
+        <result property="sourceSecondaryMuscles" column="source_secondary_muscles"/>
         <result property="equipment" column="equipment"/>
         <result property="difficulty" column="difficulty"/>
         <result property="movementPattern" column="movement_pattern"/>
@@ -23,9 +30,18 @@
         <result property="alternativeGroup" column="alternative_group"/>
         <result property="reviewStatus" column="review_status"/>
         <result property="planReady" column="plan_ready"/>
+        <result property="qualificationVersion" column="qualification_version"/>
+        <result property="qualificationVisible" column="qualification_visible"/>
+        <result property="qualificationRecommendable" column="qualification_recommendable"/>
+        <result property="qualificationPlanReady" column="qualification_plan_ready"/>
+        <result property="qualificationReportJson" column="qualification_report_json"/>
         <result property="trainingGoals" column="training_goals"/>
         <result property="instructionsZh" column="instructions_zh"/>
         <result property="stepsJson" column="steps_json"/>
+        <result property="sourceInstructionsJson" column="source_instructions_json"/>
+        <result property="sourceMediaImage" column="source_media_image"/>
+        <result property="sourceMediaGif" column="source_media_gif"/>
+        <result property="instructionsZhStatus" column="instructions_zh_status"/>
         <result property="thumbnailUrl" column="thumbnail_url"/>
         <result property="mediaUrl" column="media_url"/>
         <result property="mediaState" column="media_state"/>
@@ -39,13 +55,20 @@
         source_name,
         source_id,
         source_version,
+        source_hash,
         name,
         name_en,
         aliases,
         category,
         body_part,
+        source_category,
+        source_body_part,
+        source_equipment,
+        source_target,
+        source_muscle_group,
         target_muscles,
         secondary_muscles,
+        source_secondary_muscles,
         equipment,
         difficulty,
         movement_pattern,
@@ -53,9 +76,18 @@
         alternative_group,
         review_status,
         plan_ready,
+        qualification_version,
+        qualification_visible,
+        qualification_recommendable,
+        qualification_plan_ready,
+        qualification_report_json,
         training_goals,
         instructions_zh,
         steps_json,
+        source_instructions_json,
+        source_media_image,
+        source_media_gif,
+        instructions_zh_status,
         thumbnail_url,
         media_url,
         media_state,
@@ -69,9 +101,119 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="browseFavorite" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE EXISTS (
+            SELECT 1 FROM health_resource_favorite f
+            WHERE f.user_id = #{userId}
+              AND f.resource_type = 'EXERCISE'
+              AND f.resource_id = (CAST(exercise_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        )
+        ORDER BY plan_ready DESC, name, source_id
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="count" resultType="int">
         SELECT COUNT(1)
         FROM exercise_item
+    </select>
+
+    <select id="countFavorite" resultType="int">
+        SELECT COUNT(1)
+        FROM exercise_item
+        WHERE EXISTS (
+            SELECT 1 FROM health_resource_favorite f
+            WHERE f.user_id = #{userId}
+              AND f.resource_type = 'EXERCISE'
+              AND f.resource_id = (CAST(exercise_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        )
+    </select>
+
+    <select id="browseFiltered" resultMap="ExerciseItemRowMap">
+        SELECT <include refid="ExerciseColumns"/>
+        FROM exercise_item
+        WHERE 1 = 1
+        <if test="favoriteOnly">
+          AND EXISTS (
+              SELECT 1 FROM health_resource_favorite f
+              WHERE f.user_id = #{userId}
+                AND f.resource_type = 'EXERCISE'
+                AND f.resource_id = (CAST(exercise_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+          )
+        </if>
+        <if test="query != null and query != ''">
+          AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
+        </if>
+        <if test="bodyPart != null and bodyPart != ''">
+          AND (body_part = #{bodyPart}
+            OR (#{bodyPart} = '背' AND body_part = 'back')
+            OR (#{bodyPart} = '全身' AND body_part = 'cardio')
+            OR (#{bodyPart} = '胸' AND body_part = 'chest')
+            OR (#{bodyPart} = '手臂' AND body_part IN ('lower arms', 'upper arms'))
+            OR (#{bodyPart} = '腿' AND body_part IN ('lower legs', 'upper legs'))
+            OR (#{bodyPart} = '颈部' AND body_part = 'neck')
+            OR (#{bodyPart} = '肩' AND body_part = 'shoulders')
+            OR (#{bodyPart} = '核心' AND body_part = 'waist'))
+        </if>
+        <if test="equipment != null and equipment != ''">
+          AND (equipment = #{equipment}
+            OR (#{equipment} = '徒手' AND equipment = 'body weight')
+            OR (#{equipment} = '弹力带' AND equipment IN ('band', 'resistance band'))
+            OR (#{equipment} = '杠铃' AND equipment IN ('barbell', 'ez barbell', 'olympic barbell', 'trap bar'))
+            OR (#{equipment} = '哑铃' AND equipment = 'dumbbell')
+            OR (#{equipment} = '壶铃' AND equipment = 'kettlebell')
+            OR (#{equipment} = '器械' AND equipment NOT IN ('body weight', 'band', 'resistance band', 'barbell', 'ez barbell', 'olympic barbell', 'trap bar', 'dumbbell', 'kettlebell')))
+        </if>
+        <if test="difficulty != null and difficulty != ''">
+          AND (difficulty = #{difficulty}
+            OR (#{difficulty} = '进阶' AND difficulty = '中级'))
+        </if>
+        <if test="movementPattern != null and movementPattern != ''">AND movement_pattern = #{movementPattern}</if>
+        ORDER BY plan_ready DESC, name, source_id
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countFiltered" resultType="int">
+        SELECT COUNT(1)
+        FROM exercise_item
+        WHERE 1 = 1
+        <if test="favoriteOnly">
+          AND EXISTS (
+              SELECT 1 FROM health_resource_favorite f
+              WHERE f.user_id = #{userId}
+                AND f.resource_type = 'EXERCISE'
+                AND f.resource_id = (CAST(exercise_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+          )
+        </if>
+        <if test="query != null and query != ''">
+          AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
+        </if>
+        <if test="bodyPart != null and bodyPart != ''">
+          AND (body_part = #{bodyPart}
+            OR (#{bodyPart} = '背' AND body_part = 'back')
+            OR (#{bodyPart} = '全身' AND body_part = 'cardio')
+            OR (#{bodyPart} = '胸' AND body_part = 'chest')
+            OR (#{bodyPart} = '手臂' AND body_part IN ('lower arms', 'upper arms'))
+            OR (#{bodyPart} = '腿' AND body_part IN ('lower legs', 'upper legs'))
+            OR (#{bodyPart} = '颈部' AND body_part = 'neck')
+            OR (#{bodyPart} = '肩' AND body_part = 'shoulders')
+            OR (#{bodyPart} = '核心' AND body_part = 'waist'))
+        </if>
+        <if test="equipment != null and equipment != ''">
+          AND (equipment = #{equipment}
+            OR (#{equipment} = '徒手' AND equipment = 'body weight')
+            OR (#{equipment} = '弹力带' AND equipment IN ('band', 'resistance band'))
+            OR (#{equipment} = '杠铃' AND equipment IN ('barbell', 'ez barbell', 'olympic barbell', 'trap bar'))
+            OR (#{equipment} = '哑铃' AND equipment = 'dumbbell')
+            OR (#{equipment} = '壶铃' AND equipment = 'kettlebell')
+            OR (#{equipment} = '器械' AND equipment NOT IN ('body weight', 'band', 'resistance band', 'barbell', 'ez barbell', 'olympic barbell', 'trap bar', 'dumbbell', 'kettlebell')))
+        </if>
+        <if test="difficulty != null and difficulty != ''">
+          AND (difficulty = #{difficulty}
+            OR (#{difficulty} = '进阶' AND difficulty = '中级'))
+        </if>
+        <if test="movementPattern != null and movementPattern != ''">AND movement_pattern = #{movementPattern}</if>
     </select>
 
     <select id="findAllApproved" resultMap="ExerciseItemRowMap">

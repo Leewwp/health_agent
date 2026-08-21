@@ -150,6 +150,58 @@ class WeeklyPlanServiceTest {
     }
 
     @Test
+    void 批量保存按Provider重读资源事实不接受客户端伪造名称和热量() {
+        WeeklyPlanRow draft = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(draft);
+        HealthResource meal = provider.planMealCandidates().get(0) == null ? null
+                : provider.mealById(provider.planMealCandidates().get(0).resourceId()).orElseThrow();
+        int canonicalCalories = meal.nutrition() == null || meal.nutrition().caloriesKcal() == null
+                ? 0 : meal.nutrition().caloriesKcal().intValue();
+
+        service.updateItems(USER, 42L, new PlanItemsWriteRequest("canonical-1", 1L, List.of(
+                new PlanItemWrite(null, "MEAL", meal.resourceId(), "客户端伪造名称", MONDAY,
+                        LocalTime.of(12, 0), LocalTime.of(12, 30), null,
+                        Map.of("caloriesKcal", 99999, "mealTime", "伪造餐次")))));
+
+        org.mockito.ArgumentCaptor<com.diet.model.WeeklyPlanItemRow> captor =
+                org.mockito.ArgumentCaptor.forClass(com.diet.model.WeeklyPlanItemRow.class);
+        verify(mapper).insertItem(captor.capture());
+        assertEquals(meal.name(), captor.getValue().getName());
+        assertTrue(captor.getValue().getPlanParamsJson().contains(String.valueOf(canonicalCalories))
+                || canonicalCalories == 0);
+        org.junit.jupiter.api.Assertions.assertFalse(captor.getValue().getPlanParamsJson().contains("99999"));
+    }
+
+    @Test
+    void 替换动作时同次批量保存仍保留合法处方() {
+        WeeklyPlanRow draft = plan(42L, "DRAFT");
+        when(mapper.findPlanByIdForUpdate(42L, USER)).thenReturn(draft);
+        HealthResource previous = provider.planReadyExercises().get(0);
+        HealthResource replacement = provider.planReadyExercises().get(1);
+        com.diet.model.WeeklyPlanItemRow current = new com.diet.model.WeeklyPlanItemRow();
+        current.setId(7L);
+        current.setPlanId(42L);
+        current.setVersionNo(1L);
+        current.setResourceType("EXERCISE");
+        current.setResourceId(previous.resourceId());
+        current.setPlanParamsJson("{\"durationMinutes\":30,\"sets\":3,\"reps\":10}");
+        when(mapper.findItems(any(), any())).thenReturn(List.of(current));
+
+        service.updateItems(USER, 42L, new PlanItemsWriteRequest("replace-with-prescription", 1L, List.of(
+                new PlanItemWrite(7L, "EXERCISE", replacement.resourceId(), "客户端名称", MONDAY,
+                        LocalTime.of(19, 0), LocalTime.of(20, 0), "同次编辑",
+                        Map.of("durationMinutes", 45, "sets", 3, "reps", 12)))));
+
+        org.mockito.ArgumentCaptor<com.diet.model.WeeklyPlanItemRow> captor =
+                org.mockito.ArgumentCaptor.forClass(com.diet.model.WeeklyPlanItemRow.class);
+        verify(mapper).insertItem(captor.capture());
+        com.diet.model.WeeklyPlanItemRow saved = captor.getValue();
+        assertEquals(replacement.name(), saved.getName());
+        assertTrue(saved.getPlanParamsJson().contains("45"));
+        assertTrue(saved.getPlanParamsJson().contains("12"));
+    }
+
+    @Test
     void 越权访问和版本冲突都在写入前拒绝() {
         when(mapper.findPlanByIdForUpdate(99L, USER)).thenReturn(null);
         HealthApiException notFound = assertThrows(HealthApiException.class,

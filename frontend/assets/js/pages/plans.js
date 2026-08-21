@@ -1,866 +1,333 @@
 /**
- * 我的计划页。
- *
- * - 计划列表：DRAFT / UNENABLED / ENABLED / HISTORY 状态与版本；
- * - 详情：以 weekStart 为周一渲染七天网格，按 localDate 落位项目；
- * - DRAFT：点击项目在统一详情抽屉内修改日期/时间/备注（PATCH）；
- * - ENABLED：停用后回到 UNENABLED；HISTORY 只能复制为新 DRAFT；
- * - 生成草稿需要健康档案；校验结果（validationHits）与档案过期标记展示给用户。
+ * 生产我的计划页：可折叠计划库、横向七日工作区和服务端审核资源选择器。
+ * 本页只维护尚未保存的编辑副本，资源事实和计划处方分开读取与提交。
  */
-import { escapeHtml, formatTime, formatDateLabel, localDateOf, newRequestId } from "../util/dom.js";
+import { escapeHtml, formatDateLabel, localDateOf, newRequestId } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
 import {
     listPlans, getPlan, generateTrainingPlan, confirmPlan, enablePlan, disablePlan, archivePlan, copyPlan,
-    editPlan, updatePlanItems, getMealDetail, getExerciseDetail, listMeals, listExercises
+    editPlan, updatePlanItems, getMealDetail, getExerciseDetail, listMeals, listExercises,
+    addFavorite, removeFavorite
 } from "../api.js";
-import { registerResource, getOrCreateClientSessionId, getChatSessionId, isFavorite } from "../store.js";
+import { registerResource, getOrCreateClientSessionId, getChatSessionId, isFavorite, syncFavorites } from "../store.js";
 import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { requestConfirmation } from "../ui/modal.js";
 import { currentRoute, navigate } from "../router.js";
-import { devConfig } from "../config.js";
 import { planGenerationRequestKey, runPlanGenerationRequest } from "./plan-generation-request.js";
 
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-const RESOURCE_TYPE_LABELS = { MEAL: "餐", EXERCISE: "练", ROUTINE: "息" };
+const RESOURCE_TYPE_LABELS = { MEAL: "餐食", EXERCISE: "动作", ROUTINE: "作息" };
+const PICKER_PAGE_SIZE = 12;
 
 const state = {
-    summaries: [],
-    detail: null,
-    selectedId: null,
-    loading: false,
-    loaded: false,
-    error: null,
-    saving: false,
-    generating: false,
-    generationError: null,
-    generationAttemptedKey: null,
-    generationTraceId: null,
-    generationPlanId: null,
-    detailFilter: "ALL",
-    favoriteOnly: false,
-    candidates: null,
-    movingItemId: null
+    summaries: [], detail: null, draftItems: [], selectedId: null,
+    loading: false, loaded: false, error: null, saving: false, dirty: false,
+    sidebarCollapsed: false, detailFilter: "ALL", mobileDay: 0,
+    picker: null, pickerToken: 0, generationError: null, generating: false,
+    generationAttemptedKey: null, generationTraceId: null, generationPlanId: null,
+    resourceCache: new Map()
 };
 
 export async function render(app) {
-    const generationRequestKey = planGenerationRequestKey(location.hash);
-    if (generationRequestKey && state.generationAttemptedKey !== generationRequestKey) {
-        state.generationAttemptedKey = generationRequestKey;
-        startTrainingPlanGeneration(app);
+    const generationKey = planGenerationRequestKey(location.hash);
+    if (generationKey && state.generationAttemptedKey !== generationKey) {
+        state.generationAttemptedKey = generationKey;
+        startGeneration(app);
         return;
     }
-    if (!generationRequestKey) {
+    if (!generationKey) {
         state.generationAttemptedKey = null;
         state.generationError = null;
     }
     if (state.generating) {
-        app.innerHTML = renderGenerationWaiting();
+        app.innerHTML = generationState();
         bind(app);
         return;
     }
     if (state.generationError) {
-        app.innerHTML = renderGenerationError();
+        app.innerHTML = generationError();
         bind(app);
         return;
     }
     if (!state.loaded && !state.loading && !state.error) {
         state.loading = true;
-        loadSummaries().then(() => {
-            if (currentRoute() === "/plans") {
-                render(app);
-            }
-        });
+        loadSummaries().then(() => currentRoute() === "/plans" && render(app));
         app.innerHTML = `<section class="section"><div class="empty">计划加载中...</div></section>`;
-        return;
-    }
-    if (state.error && !state.summaries.length) {
-        app.innerHTML = `
-            <section class="section">
-                <div class="empty">
-                    <span>加载失败：${escapeHtml(state.error)}</span>
-                    <div class="button-row"><button class="btn soft" data-action="retry-plans">重试</button></div>
-                </div>
-            </section>
-        `;
         bind(app);
         return;
     }
-
-    app.innerHTML = `
-        <section class="plans-page" aria-labelledby="plans-title">
-            <header class="plans-header">
-                <div>
-                    <p class="eyebrow">每周节奏</p>
-                    <h1 id="plans-title">我的计划</h1>
-                    <p class="plans-lede">把已确认的训练与餐食安排放在同一张周表里，按天查看和调整。</p>
-                </div>
-                <div class="button-row plans-header-actions">
-                    <a class="btn primary" href="#/chat">从聊天生成</a>
-                    <a class="btn ghost" href="#/profile">健康档案</a>
-                </div>
-            </header>
-            ${state.summaries.length ? renderPlanSelector() : ""}
-            ${state.summaries.length
-                ? `<section class="plans-detail-section">${state.detail ? renderDetail(state.detail) : `<div class="empty">选择一个计划查看七天视图。</div>`}</section>`
-                : `<section class="plans-empty"><div class="empty"><strong>还没有周计划</strong><p>先在聊天中完成训练或餐食简报，确认后再生成第一份草稿。</p><a class="btn primary" href="#/chat">开始简报</a></div></section>`}
-        </section>
-    `;
+    if (state.error && !state.summaries.length) {
+        app.innerHTML = `<section class="section"><div class="empty"><span>加载失败：${escapeHtml(state.error)}</span><div class="button-row"><button class="btn soft" data-plan-action="retry">重试</button></div></div></section>`;
+        bind(app);
+        return;
+    }
+    app.innerHTML = renderPage();
     bind(app);
 }
 
-function renderGenerationWaiting() {
-    return `
-        <section class="section plan-generation-state" aria-live="polite" aria-busy="true">
-            <div class="empty">
-                <span class="loading-spinner" aria-hidden="true"></span>
-                <strong>正在生成计划草稿</strong>
-                <p class="muted">正在读取已确认简报、筛选审核资源并执行范围校验，请稍候。</p>
-            </div>
-        </section>
-    `;
+function renderPage() {
+    if (!state.summaries.length) {
+        return `<section class="section"><div class="empty"><strong>还没有周计划</strong><p>从已确认的聊天简报生成第一份草稿。</p><a class="btn primary" href="#/chat">从聊天生成</a></div></section>`;
+    }
+    return `<section class="mp-production" aria-labelledby="plans-title">${state.detail ? renderWorkspace(state.detail) : `<div class="empty">请选择一份计划。</div>`}${state.picker ? renderPicker() : ""}</section>`;
 }
 
-function renderGenerationError() {
-    return `
-        <section class="section plan-generation-state">
-            <div class="empty">
-                <strong>计划生成失败</strong>
-                <p class="muted">${escapeHtml(state.generationError)}</p>
-                <div class="button-row">
-                    <button class="btn primary" data-action="retry-generation">重新生成</button>
-                    <a class="btn ghost" href="#/chat">返回聊天</a>
-                    <a class="btn soft" href="#/profile">完善健康档案</a>
-                </div>
-            </div>
-        </section>
-    `;
+function renderWorkspace(plan) {
+    const collapsed = state.sidebarCollapsed;
+    return `<div class="mp-layout variant-d ${collapsed ? "is-collapsed" : ""}">${collapsed ? renderRail() : renderSidebar()}<main class="mp-main">${renderHeader(plan)}${renderToolbar(plan)}${state.dirty ? renderDirtyBar() : ""}${renderValidation(plan)}<div class="mp-mobile-days" role="tablist" aria-label="选择日期">${buildDays(plan.weekStart).map((day, index) => `<button class="mp-day-tab ${state.mobileDay === index ? "active" : ""}" data-plan-action="mobile-day" data-day="${index}" role="tab" aria-selected="${state.mobileDay === index}"><strong>${WEEKDAY_LABELS[index]}</strong><small>${escapeHtml(formatDateLabel(day))}</small></button>`).join("")}</div><div class="mp-wide-board" aria-label="七日计划">${buildDays(plan.weekStart).map((day, index) => renderDay(plan, day, index)).join("")}</div></main></div>`;
 }
 
-async function startTrainingPlanGeneration(app) {
-    state.generating = true;
-    state.generationError = null;
-    render(app);
+function renderSidebar() {
+    return `<aside class="mp-sidebar" aria-label="计划库"><div class="mp-side-title"><span>计划库</span><div class="mp-side-actions"><button type="button" data-plan-action="collapse" title="折叠计划库" aria-label="折叠计划库">‹</button><button type="button" data-plan-action="new" title="从聊天新建草稿" aria-label="从聊天新建草稿">＋</button></div></div><div class="mp-plan-list">${state.summaries.map(renderPlanRow).join("")}</div><p class="mp-side-note">已启用计划编辑会先创建草稿副本。</p></aside>`;
+}
+
+function renderRail() {
+    return `<div class="mp-plan-rail" aria-label="收起的计划库"><button class="mp-rail-btn mp-rail-expand" data-plan-action="collapse" title="展开计划库" aria-label="展开计划库">›</button><button class="mp-rail-btn" data-plan-action="new" title="从聊天新建草稿" aria-label="从聊天新建草稿">＋</button>${state.summaries.map((plan) => `<button class="mp-rail-plan ${String(plan.id) === String(state.selectedId) ? "is-selected" : ""}" data-plan-id="${escapeHtml(plan.id)}" title="${escapeHtml(plan.name || "计划")} · ${escapeHtml(statusLabel(plan.status))}" aria-label="${escapeHtml(plan.name || "计划")}"><span class="mp-status-dot ${String(plan.status || "").toLowerCase()}"></span></button>`).join("")}</div>`;
+}
+
+function renderPlanRow(plan) {
+    const selected = String(plan.id) === String(state.selectedId);
+    return `<button class="mp-plan-row ${selected ? "is-selected" : ""}" data-plan-id="${escapeHtml(plan.id)}" aria-current="${selected ? "page" : "false"}"><span class="mp-status-dot ${String(plan.status || "").toLowerCase()}" title="${escapeHtml(statusLabel(plan.status))}"></span><span><strong>${escapeHtml(plan.name || `${plan.weekStart} 当周计划`)}</strong><small>${escapeHtml(plan.weekStart)} · ${escapeHtml(statusLabel(plan.status))} · ${plan.itemCount ?? 0} 项</small></span></button>`;
+}
+
+function renderHeader(plan) {
+    const status = plan.status;
+    const actions = status === "ENABLED"
+        ? `<button class="mp-btn secondary" data-plan-action="edit" data-plan-id="${plan.id}">创建编辑草稿</button><button class="mp-btn primary" data-plan-action="disable" data-plan-id="${plan.id}">停用计划</button>`
+        : status === "DRAFT"
+            ? `<button class="mp-btn ghost danger" data-plan-action="discard" data-plan-id="${plan.id}">删除草稿</button><button class="mp-btn primary" data-plan-action="confirm" data-plan-id="${plan.id}">确认草稿</button>`
+            : status === "UNENABLED"
+                ? `<button class="mp-btn ghost" data-plan-action="archive" data-plan-id="${plan.id}">转为历史</button><button class="mp-btn primary" data-plan-action="enable" data-plan-id="${plan.id}">启用计划</button>`
+                : `<button class="mp-btn primary" data-plan-action="copy" data-plan-id="${plan.id}">复制为草稿</button>`;
+    const title = editablePlan(plan) ? `<input class="mp-name-input" data-plan-name value="${escapeHtml(plan.name || `${plan.weekStart} 当周安排`)}" maxlength="128" aria-label="计划名称">` : `<h1 id="plans-title">${escapeHtml(plan.name || `${plan.weekStart} 当周安排`)}</h1>`;
+    return `<header class="mp-head"><div><span class="mp-eyebrow">我的计划</span>${title}<p>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(buildDays(plan.weekStart)[6])} · ${escapeHtml(scopeLabel(plan.planScope))} · <span class="mp-badge ${String(status).toLowerCase()}">${escapeHtml(statusLabel(status))}</span>${plan.generationSource ? ` · ${escapeHtml(sourceLabel(plan.generationSource))}` : ""}</p></div><div class="mp-actions"><button class="mp-btn ghost" data-plan-action="new" title="从聊天新建草稿">新建草稿</button>${actions}</div></header>`;
+}
+
+function renderToolbar(plan) {
+    const items = visibleItems(plan);
+    return `<div class="mp-toolbar"><div class="mp-segment" role="tablist" aria-label="项目类型筛选">${[["ALL", "全部"], ["MEAL", "餐食"], ["EXERCISE", "动作"]].map(([value, label]) => `<button class="${state.detailFilter === value ? "active" : ""}" data-plan-action="filter" data-filter="${value}" role="tab" aria-selected="${state.detailFilter === value}">${label}<b>${value === "ALL" ? (plan.items || []).length : (plan.items || []).filter((item) => item.resourceType === value).length}</b></button>`).join("")}</div><span class="mp-toolbar-meta mp-muted">${items.length} 项显示 · v${escapeHtml(plan.currentVersion)}</span></div>`;
+}
+
+function renderDirtyBar() {
+    return `<div class="mp-dirty-bar" role="status"><span class="mp-dirty">● 有未保存修改</span><div class="mp-actions"><button class="mp-btn ghost small" data-plan-action="cancel">取消</button><button class="mp-btn primary small" data-plan-action="save">保存全部修改</button></div></div>`;
+}
+
+function renderValidation(plan) {
+    if (!plan.validationHits?.length && !plan.profileStale) return "";
+    return `<div class="mp-validation">${plan.profileStale ? `<span class="badge warn">健康档案已更新，计划仍按生成快照</span>` : ""}${(plan.validationHits || []).map((hit) => `<span class="chip ${hit.severity === "BLOCK_PLAN" ? "warn" : "selected"}">${escapeHtml(hit.ruleCode)} · ${escapeHtml(hit.decision)}</span>`).join("")}</div>`;
+}
+
+function renderDay(plan, day, index) {
+    const hidden = index !== state.mobileDay ? "mp-mobile-hidden" : "";
+    const editable = editablePlan(plan);
+    const items = visibleItems(plan).filter((item) => item.localDate === day).sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
+    return `<section class="mp-card-day ${hidden}" data-day-column="${index}"><header><div><strong>${WEEKDAY_LABELS[index]}</strong><small>${escapeHtml(formatDateLabel(day))}</small></div><button type="button" data-plan-action="add" data-local-date="${escapeHtml(day)}" data-start-time="12:00" title="新增项目" aria-label="在${WEEKDAY_LABELS[index]}新增项目">＋</button></header><div class="mp-card-items">${items.length ? items.map((item) => renderEvent(item, editable)).join("") : `<button class="mp-empty-slot" data-plan-action="add" data-local-date="${escapeHtml(day)}" data-start-time="12:00">暂无安排 · 新增</button>`}</div>${editable ? `<button class="mp-card-add" data-plan-action="add" data-local-date="${escapeHtml(day)}" data-start-time="12:00">添加项目</button>` : ""}</section>`;
+}
+
+function renderEvent(item, editable) {
+    const type = String(item.resourceType || "").toLowerCase();
+    const params = item.params || {};
+    const end = shortTime(item.endTime);
+    const detail = type === "meal" ? `${params.caloriesKcal ?? "-"} kcal · ${params.mealTime || "餐食"}` : `${params.durationMinutes ?? "-"} 分钟 · ${params.sets ?? "-"} 组 × ${params.reps ?? "-"} 次`;
+    registerResource(`plan-card-${item.id}`, { ...item, resourceType: item.resourceType, resourceId: item.resourceId });
+    return `<div class="mp-board-event ${type}"><button class="mp-event-open" data-plan-action="open" data-item-id="${escapeHtml(item.id)}" aria-label="查看${escapeHtml(item.name)}详情"><span class="mp-event-type">${escapeHtml(RESOURCE_TYPE_LABELS[item.resourceType] || item.resourceType)} · ${shortTime(item.startTime)}-${end}</span><strong>${escapeHtml(item.name || item.resourceId)}</strong><small>${escapeHtml(detail)}</small>${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}</button>${editable ? `<button class="mp-event-move" data-plan-action="move" data-item-id="${escapeHtml(item.id)}" title="移动项目" aria-label="移动${escapeHtml(item.name)}">↕</button>` : ""}</div>`;
+}
+
+function renderPicker() {
+    const picker = state.picker;
+    if (picker.mode === "move") return renderMovePicker(picker);
+    const type = picker.type;
+    const fields = type === "MEAL"
+        ? [["mealTime", "餐次", ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"]], ["cuisine", "菜系", ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"]], ["healthGoal", "目标", ["低油", "均衡", "控碳水", "清淡", "高蛋白"]]]
+        : [["bodyPart", "部位", ["全身", "胸", "背", "肩", "手臂", "腿", "核心", "臀", "颈部"]], ["equipment", "器材", ["徒手", "哑铃", "杠铃", "壶铃", "弹力带", "器械"]], ["difficulty", "难度", ["入门", "进阶", "挑战"]], ["movementPattern", "模式", ["推", "拉", "蹲", "髋", "踝", "核心", "有氧"]]];
+    const pages = Math.max(1, Math.ceil((picker.total || 0) / PICKER_PAGE_SIZE));
+    return `<div class="mp-overlay" data-picker-overlay><section class="mp-modal" role="dialog" aria-modal="true" aria-label="选择审核资源"><header><div><span class="mp-eyebrow">${picker.mode === "replace" ? "替换资源" : "新增项目"}</span><h2>选择${RESOURCE_TYPE_LABELS[type]}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭资源选择">×</button></header><div class="mp-modal-tabs">${["MEAL", "EXERCISE"].map((kind) => `<button class="${kind === type ? "active" : ""}" data-plan-action="picker-type" data-type="${kind}">${RESOURCE_TYPE_LABELS[kind]}</button>`).join("")}</div><form class="mp-search" data-picker-search><input name="q" value="${escapeHtml(picker.query)}" placeholder="搜索名称" autocomplete="off"><button class="mp-btn ghost small" type="submit">搜索</button><button class="mp-fav-toggle ${picker.favoriteOnly ? "active" : ""}" type="button" data-plan-action="picker-favorites" aria-pressed="${picker.favoriteOnly}">♡ 仅看收藏</button></form><div class="mp-structured-filters">${fields.map(([key, label, values]) => `<label>${label}<select data-plan-action="picker-filter" data-filter-key="${key}"><option value="">全部</option>${values.map((value) => `<option value="${escapeHtml(value)}" ${picker.filters[key] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>`).join("")}</div>${picker.loading ? `<div class="mp-empty">资源加载中...</div>` : picker.error ? `<div class="mp-empty">${escapeHtml(picker.error)}</div>` : picker.items.length ? `<div class="mp-resource-list">${picker.items.map(renderPickerItem).join("")}</div>` : `<div class="mp-empty">没有符合条件的审核资源。</div>`}<footer><span>第 ${picker.page} / ${pages} 页 · 共 ${picker.total || 0} 条</span><div class="mp-actions"><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page - 1}" ${picker.page <= 1 ? "disabled" : ""}>上一页</button><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page + 1}" ${picker.page >= pages ? "disabled" : ""}>下一页</button></div></footer></section></div>`;
+}
+
+function renderPickerItem(item) {
+    const type = item.resourceType;
+    const favorite = Boolean(item.favorite ?? isFavorite(type, item.id));
+    const detail = type === "MEAL" ? `${item.nutrition?.caloriesKcal ?? "-"} kcal · ${(item.tags?.mealTime || []).join("、") || "餐食"}` : `${item.bodyPart || "-"} · ${item.equipment || "-"}${item.planReady ? " · 可入周计划" : " · 不可入周计划"}`;
+    return `<article class="mp-resource-card"><div class="mp-thumb ${type === "MEAL" ? "meal" : "exercise"}">${type === "MEAL" ? "餐" : "练"}</div><div><strong>${escapeHtml(item.name || item.id)}</strong><p><span>${escapeHtml(detail)}</span></p><small>${escapeHtml(item.sourceName || "审核资源")}</small></div><div class="mp-resource-actions"><button class="mp-fav-toggle ${favorite ? "active" : ""}" data-plan-action="picker-favorite" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}" aria-pressed="${favorite}" title="${favorite ? "取消收藏" : "收藏"}">${favorite ? "♥" : "♡"}</button><button class="mp-btn primary small" data-plan-action="choose-resource" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}">选择</button></div></article>`;
+}
+
+function renderMovePicker(picker) {
+    const item = findItem(picker.itemId);
+    const duration = item ? timeMinutes(item.endTime) - timeMinutes(item.startTime) : 30;
+    const slots = Array.from({ length: 48 }, (_, index) => index * 30).filter((start) => start + duration <= 1440);
+    return `<div class="mp-overlay"><section class="mp-modal mp-move-modal" role="dialog" aria-modal="true" aria-label="选择移动目标"><header><div><span class="mp-eyebrow">移动项目</span><h2>${escapeHtml(item?.name || "计划项目")}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭移动选择">×</button></header><p class="mp-muted">选择目标日期和时间，保存时会校验整周冲突。</p><div class="mp-move-grid">${buildDays(state.detail.weekStart).map((day, index) => `<div class="mp-plan-move-day"><strong>${WEEKDAY_LABELS[index]} · ${escapeHtml(formatDateLabel(day))}</strong>${slots.map((start) => `<button class="mp-plan-move-slot" data-plan-action="move-target" data-local-date="${escapeHtml(day)}" data-start-time="${timeValue(start)}">${timeValue(start)}</button>`).join("")}</div>`).join("")}</div></section></div>`;
+}
+
+function statusLabel(status) { return { ENABLED: "已启用", UNENABLED: "未启用", DRAFT: "草稿", HISTORY: "历史" }[status] || status || "计划"; }
+function scopeLabel(scope) { return { EXERCISE: "训练", MEAL: "餐食", COMPOSITE: "综合" }[scope] || "综合"; }
+function sourceLabel(source) { return { AGENT: "Agent 生成", FALLBACK: "规则降级", RULE_COMPOSER: "规则组合", RULE_MEAL_COMPOSER: "餐食规则组合", COMPOSITE_RULE_MERGE: "综合规则合并" }[source] || source; }
+function editablePlan(plan) { return plan && (plan.status === "DRAFT" || plan.status === "UNENABLED"); }
+function buildDays(weekStart) { const start = new Date(`${weekStart}T00:00:00`); return Array.from({ length: 7 }, (_, index) => localDateOf(new Date(start.getTime() + index * 86400000))); }
+function visibleItems(plan) { return (state.draftItems || plan.items || []).filter((item) => state.detailFilter === "ALL" || item.resourceType === state.detailFilter); }
+function shortTime(value) { return String(value || "00:00").slice(0, 5); }
+function nextHalfHour(value) { const [hour, minute] = shortTime(value).split(":").map(Number); const total = hour * 60 + minute + 30; return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`; }
+function cloneItems(items) { return (items || []).map((item) => ({ ...item, params: { ...(item.params || {}) } })); }
+function timeMinutes(value) { const [hour, minute] = shortTime(value).split(":").map(Number); return hour * 60 + minute; }
+function timeValue(value) { return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`; }
+function positiveInteger(value) { const number = Number(value); return Number.isInteger(number) && number > 0 ? number : null; }
+
+function generationState() { return `<section class="section"><div class="empty" aria-live="polite" aria-busy="true"><span class="loading-spinner" aria-hidden="true"></span><strong>正在生成计划草稿</strong><p class="muted">正在读取确认简报和审核资源。</p></div></section>`; }
+function generationError() { return `<section class="section"><div class="empty"><strong>计划生成失败</strong><p class="muted">${escapeHtml(state.generationError)}</p><div class="button-row"><button class="btn primary" data-plan-action="retry-generation">重新生成</button><a class="btn ghost" href="#/chat">返回聊天</a><a class="btn soft" href="#/profile">完善档案</a></div></div></section>`; }
+
+async function startGeneration(app) {
+    state.generating = true; state.generationError = null; render(app);
     try {
         const query = new URLSearchParams((location.hash || "").split("?")[1] || "");
-        const planScope = query.get("scope") || "EXERCISE";
-        const result = await runPlanGenerationRequest((payload, signal) => generateTrainingPlan(payload, { signal }), {
-            sessionId: getChatSessionId(),
-            requestId: query.get("requestId") || newRequestId(),
-            planScope
-        });
-        state.generating = false;
-        state.detail = result.plan;
-        state.selectedId = result.plan?.id || null;
-        state.generationTraceId = result.traceId || null;
-        state.generationPlanId = result.plan?.id || result.planId || null;
-        state.summaries = await listPlans();
-        state.loaded = true;
-        state.error = null;
-        showToast(result.generationSource === "FALLBACK" ? "计划已生成（规则降级）" : "计划已生成（Agent）");
-        history.replaceState(null, "", "#/plans");
-        render(app);
-    } catch (error) {
-        state.generating = false;
-        state.generationError = error.message || "训练计划生成失败";
-        render(app);
-    }
+        const result = await runPlanGenerationRequest((payload, signal) => generateTrainingPlan(payload, { signal }), { sessionId: getChatSessionId(), requestId: query.get("requestId") || newRequestId(), planScope: query.get("scope") || "COMPOSITE" });
+        state.generating = false; state.detail = result.plan; state.draftItems = cloneItems(result.plan?.items || []); state.selectedId = result.plan?.id || null; state.summaries = await listPlans(); state.loaded = true;
+        history.replaceState(null, "", "#/plans"); showToast(result.generationSource === "FALLBACK" ? "计划已生成（规则降级）" : "计划已生成（Agent）"); render(app);
+    } catch (error) { state.generating = false; state.generationError = error.message || "计划生成失败"; render(app); }
 }
-
-let listenersBound = false;
-
-function bind(app) {
-    if (listenersBound) {
-        return;
-    }
-    listenersBound = true;
-    app.addEventListener("click", handleClick);
-    app.addEventListener("change", handleChange);
-    bindDrawer(app);
-    bindFeedbackControl(app);
-}
-
-/* ---------------- 数据 ---------------- */
 
 async function loadSummaries() {
-    try {
-        state.summaries = await listPlans();
-        const active = state.summaries.find((plan) => plan.status === "ENABLED");
-        const preferred = active || state.summaries[0] || null;
-        if (preferred && !state.selectedId) {
-            state.selectedId = preferred.id;
-        }
-        if (state.selectedId) {
-            await loadDetail(state.selectedId);
-        }
-    } catch (error) {
-        state.error = error.message || "计划加载失败";
-    } finally {
-        state.loading = false;
-        state.loaded = true;
-    }
+    try { state.summaries = await listPlans(); const preferred = state.summaries.find((plan) => plan.status === "ENABLED") || state.summaries[0]; if (!state.selectedId && preferred) state.selectedId = preferred.id; if (state.selectedId) await loadDetail(state.selectedId); }
+    catch (error) { state.error = error.message || "计划加载失败"; }
+    finally { state.loading = false; state.loaded = true; }
 }
 
 async function loadDetail(planId) {
-    try {
-        state.detail = await getPlan(planId);
-        state.selectedId = planId;
-        if (state.detail.planScope !== "COMPOSITE") {
-            state.detailFilter = "ALL";
-        }
-    } catch (error) {
-        showToast(error.message || "计划详情加载失败", "error");
-    }
+    try { const detail = await getPlan(planId); state.detail = detail; state.selectedId = planId; state.draftItems = cloneItems(detail.items || []); state.dirty = false; state.mobileDay = 0; state.resourceCache.clear(); }
+    catch (error) { showToast(error.message || "计划详情加载失败", "error"); }
 }
 
-/* ---------------- 渲染 ---------------- */
-
-function renderPlanSelector() {
-    return `
-        <div class="plan-selector" aria-label="计划选择">
-            <label for="plan-select">当前计划</label>
-            <select id="plan-select" data-action="select-plan-select">
-                ${state.summaries.map((plan) => `<option value="${escapeHtml(plan.id)}" ${String(plan.id) === String(state.selectedId) ? "selected" : ""}>${escapeHtml(plan.weekStart)} · ${scopeLabel(plan.planScope)} · ${statusLabel(plan.status)}</option>`).join("")}
-            </select>
-            <span class="plan-selector-count">${state.summaries.length} 份计划，按更新时间排序</span>
-        </div>
-    `;
+function bind(app) {
+    if (app.dataset.plansBound === "true") return;
+    app.dataset.plansBound = "true";
+    app.addEventListener("click", handleClick); app.addEventListener("change", handleChange); app.addEventListener("submit", handleSubmit); bindDrawer(app); bindFeedbackControl(app);
+    const drawerRoot = document.getElementById("drawer-root");
+    if (drawerRoot && drawerRoot.dataset.planBound !== "true") { drawerRoot.dataset.planBound = "true"; drawerRoot.addEventListener("click", handleDrawerClick); }
+    window.addEventListener("beforeunload", handleBeforeUnload);
 }
-
-function statusLabel(status) {
-    return { ENABLED: "已启用", UNENABLED: "未启用", DRAFT: "草稿", HISTORY: "历史" }[status] || status || "";
-}
-
-function scopeLabel(scope) {
-    return { EXERCISE: "训练", MEAL: "餐食", COMPOSITE: "综合" }[scope] || "计划";
-}
-
-function statusBadge(status) {
-    const map = {
-        ENABLED: `<span class="badge">已启用</span>`,
-        UNENABLED: `<span class="badge">未启用</span>`,
-        DRAFT: `<span class="badge warn">草稿</span>`,
-        HISTORY: `<span class="badge">历史</span>`
-    };
-    return map[status] || escapeHtml(status || "");
-}
-
-function renderDetail(plan) {
-    const days = buildDays(plan.weekStart);
-    const scope = plan.planScope || "EXERCISE";
-    return `
-        <div class="plans-detail-head">
-            <div>
-                <div class="plan-kicker"><span>${scopeLabel(scope)}计划</span><span>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(days[6])}</span></div>
-                <div class="plan-title-row">
-                    ${editablePlan(plan)
-                        ? `<input class="plan-name-input" data-plan-name value="${escapeHtml(plan.name || "")}" maxlength="128" aria-label="计划名称">`
-                        : `<h2>${escapeHtml(plan.name || `${plan.weekStart} 当周安排`)}</h2>`}
-                    ${statusBadge(plan.status)}${sourceBadge(plan.generationSource)}
-                </div>
-                <p>时区 ${escapeHtml(plan.timezone)} · 档案 v${escapeHtml(plan.profileVersionNo)} · 规则 ${escapeHtml(plan.rulesVersion)} · 版本 v${escapeHtml(plan.currentVersion)}${plan.profileStale ? " · 档案已更新，当前计划仍按生成快照计算" : ""}</p>
-            </div>
-            <div class="button-row plans-detail-actions">
-                ${plan.status === "DRAFT" ? `<button class="btn primary" data-action="confirm-plan" data-plan-id="${escapeHtml(plan.id)}">确认草稿</button>` : ""}
-                ${plan.status === "UNENABLED" ? `<button class="btn primary" data-action="enable-plan" data-plan-id="${escapeHtml(plan.id)}">启用计划</button>` : ""}
-                ${plan.status === "ENABLED" ? `<button class="btn soft" data-action="disable-plan" data-plan-id="${escapeHtml(plan.id)}">停用计划</button>` : ""}
-                ${plan.status === "DRAFT" || plan.status === "UNENABLED" ? `<button class="btn ghost danger-outline" data-action="archive-plan" data-plan-id="${escapeHtml(plan.id)}">转为历史</button>` : ""}
-                ${plan.status === "HISTORY" ? `<button class="btn ghost" data-action="copy-plan" data-plan-id="${escapeHtml(plan.id)}">复制为草稿</button>` : ""}
-                ${plan.status === "ENABLED" ? `<button class="btn ghost" data-action="edit-plan" data-plan-id="${escapeHtml(plan.id)}">创建编辑草稿</button>` : ""}
-                ${devConfig.enableDevTraceLink && state.generationTraceId && String(state.generationPlanId) === String(plan.id)
-                    ? `<button class="btn ghost" data-action="open-generation-trace" data-trace-id="${escapeHtml(state.generationTraceId)}">查看本次 Trace</button>` : ""}
-            </div>
-        </div>
-        ${renderPlanStats(plan, scope)}
-        ${renderScopeFilter()}
-        ${editablePlan(plan) ? renderEditorToolbar() : ""}
-        ${editablePlan(plan) && state.movingItemId ? renderMoveGrid(plan) : ""}
-        ${plan.validationHits && plan.validationHits.length ? `
-            <div class="plan-validation">
-                <h3>计划校验结果</h3>
-                <div class="chips">
-                    ${plan.validationHits.map((hit) => `<span class="chip ${hit.severity === "BLOCK_PLAN" ? "warn" : "selected"}">${escapeHtml(hit.ruleCode)} · ${escapeHtml(hit.decision)}</span>`).join("")}
-                </div>
-                ${plan.validationHits.map((hit) => `
-                    <p class="muted">${escapeHtml(hit.copy)}${hit.detail ? `（${escapeHtml(hit.detail)}）` : ""}</p>
-                `).join("")}
-            </div>
-        ` : ""}
-        <div class="week-grid">
-            ${days.map((day, index) => renderDay(day, index, plan)).join("")}
-        </div>
-        ${plan.note ? `<p class="muted" style="margin-top:14px;">计划备注：${escapeHtml(plan.note)}</p>` : ""}
-        ${plan.explanation ? `<p class="muted" style="margin-top:14px;line-height:1.7;">${escapeHtml(plan.explanation)}</p>` : ""}
-    `;
-}
-
-function editablePlan(plan) {
-    return plan.status === "DRAFT" || plan.status === "UNENABLED";
-}
-
-function renderEditorToolbar() {
-    const movingItem = state.detail?.items?.find((item) => String(item.id) === String(state.movingItemId));
-    return `<div class="plan-editor-toolbar">
-        <div class="button-row">
-            <button class="btn soft" data-action="add-plan-item">添加项目</button>
-            <button class="btn primary" data-action="save-plan-name">保存计划</button>
-        </div>
-        <label class="check-field"><input type="checkbox" data-action="favorites-filter" ${state.favoriteOnly ? "checked" : ""}> 仅看收藏资源</label>
-        ${movingItem ? `<span class="move-mode-label">正在移动：${escapeHtml(movingItem.name)}</span><button class="btn ghost" data-action="cancel-move">取消移动</button>` : `<span class="muted">编辑会在一次保存中校验整周时间轴。</span>`}
-    </div>`;
-}
-
-function renderMoveGrid(plan) {
-    const item = plan.items?.find((entry) => String(entry.id) === String(state.movingItemId));
-    if (!item) {
-        return "";
-    }
-    const duration = timeToMinutes(item.endTime) - timeToMinutes(item.startTime);
-    if (duration <= 0 || duration % 30 !== 0) {
-        return `<section class="plan-move-panel" aria-label="选择移动目标">
-            <div class="plan-move-panel-head">
-                <strong>暂时无法移动</strong>
-                <span class="muted">当前项目时长不是半小时的整数倍，请先打开项目编辑并调整结束时间。</span>
-            </div>
-        </section>`;
-    }
-    const slots = Array.from({ length: 48 }, (_, index) => index * 30)
-        .filter((start) => start + duration <= 24 * 60);
-    const days = buildDays(plan.weekStart);
-    return `<section class="plan-move-panel" aria-label="选择移动目标">
-        <div class="plan-move-panel-head">
-            <strong>选择目标时间</strong>
-            <span class="muted">保留 ${duration} 分钟，保存时重新校验整周冲突。</span>
-        </div>
-        <div class="plan-move-grid">
-            ${days.map((day, index) => `<div class="plan-move-day">
-                <strong>${escapeHtml(formatDateLabel(day))} ${WEEKDAY_LABELS[index]}</strong>
-                <div class="plan-move-slots">
-                    ${slots.map((start) => `<button class="plan-move-slot ${day === item.localDate && start === timeToMinutes(item.startTime) ? "selected" : ""}" data-action="move-target" data-local-date="${escapeHtml(day)}" data-start-time="${minutesToTime(start)}">${minutesToTime(start)}</button>`).join("")}
-                </div>
-            </div>`).join("")}
-        </div>
-    </section>`;
-}
-
-function renderPlanStats(plan, scope) {
-    const items = plan.items || [];
-    const exerciseCount = items.filter((item) => item.resourceType === "EXERCISE").length;
-    const mealCount = items.filter((item) => item.resourceType === "MEAL").length;
-    const cards = scope === "EXERCISE"
-        ? [`<strong>${exerciseCount}</strong><span>训练项目</span>`, `<strong>${new Set(items.filter((item) => item.resourceType === "EXERCISE").map((item) => item.localDate)).size}</strong><span>训练日</span>`]
-        : scope === "MEAL"
-            ? [`<strong>${mealCount}</strong><span>餐食项目</span>`, `<strong>${new Set(items.filter((item) => item.resourceType === "MEAL").map((item) => item.localDate)).size}</strong><span>覆盖天数</span>`]
-            : [`<strong>${items.length}</strong><span>全部项目</span>`, `<strong>${exerciseCount}</strong><span>训练项目</span>`, `<strong>${mealCount}</strong><span>餐食项目</span>`];
-    return `<div class="plan-stats">${cards.map((card) => `<div class="plan-stat">${card}</div>`).join("")}</div>`;
-}
-
-function renderScopeFilter() {
-    return `<div class="scope-filter" role="tablist" aria-label="综合计划筛选">
-        ${[["ALL", "全部"], ["EXERCISE", "训练"], ["MEAL", "餐食"]].map(([value, label]) => `<button class="scope-filter-btn ${state.detailFilter === value ? "active" : ""}" role="tab" aria-selected="${state.detailFilter === value}" data-action="filter-items" data-filter="${value}">${label}</button>`).join("")}
-    </div>`;
-}
-
-function sourceBadge(source) {
-    const labels = {
-        AGENT: "Agent 生成",
-        FALLBACK: "规则降级",
-        RULE_COMPOSER: "规则组合",
-        RULE_MEAL_COMPOSER: "餐食规则组合",
-        COMPOSITE_RULE_MERGE: "综合规则合并"
-    };
-    if (!source || !labels[source]) return "";
-    return ` <span class="badge ${source === "FALLBACK" ? "warn" : ""}">${labels[source]}</span>`;
-}
-
-function buildDays(weekStart) {
-    const start = new Date(`${weekStart}T00:00:00`);
-    return Array.from({ length: 7 }, (_, index) => {
-        const date = new Date(start.getTime() + index * 24 * 60 * 60 * 1000);
-        return localDateOf(date);
-    });
-}
-
-function renderDay(day, index, plan) {
-    const items = (plan.items || []).filter((item) => item.localDate === day)
-        .filter((item) => state.detailFilter === "ALL" || item.resourceType === state.detailFilter)
-        .sort((left, right) => Number(right.resourceType === "EXERCISE") - Number(left.resourceType === "EXERCISE"));
-    const editable = plan.status === "DRAFT" || plan.status === "UNENABLED";
-    return `
-        <div class="week-day">
-            <h4><span>${escapeHtml(formatDateLabel(day))}</span>${WEEKDAY_LABELS[index]}</h4>
-            ${items.length ? items.map((item) => renderPlanItem(item, editable)).join("") : `<span class="muted" style="font-size:12px;">无安排</span>`}
-            ${editable ? `<button class="week-add-slot" data-action="add-plan-item" data-local-date="${escapeHtml(day)}" data-start-time="12:00">添加到这一天</button>` : ""}
-        </div>
-    `;
-}
-
-function renderPlanItem(item, editable) {
-    const key = `plan-item-${item.id}`;
-    const type = RESOURCE_TYPE_LABELS[item.resourceType] || "·";
-    const params = item.params || {};
-    const parameterSummary = renderParameterSummary(params);
-    const moving = String(state.movingItemId) === String(item.id);
-    return `<div class="plan-item-row ${moving ? "selected" : ""}">
-        <button class="plan-item ${String(item.resourceType || "").toLowerCase()}" aria-label="查看${escapeHtml(item.name)}详情" data-action="open-plan-item" data-item-key="${key}">
-            <span>
-                <span class="plan-item-type">${escapeHtml(type)}</span>
-                <strong>${escapeHtml(item.name)}</strong>
-            </span>
-            <span class="plan-item-time">${escapeHtml(formatTime(item.startTime))} - ${escapeHtml(formatTime(item.endTime))}</span>
-            ${parameterSummary ? `<span class="plan-item-params">${parameterSummary}</span>` : ""}
-            ${item.note ? `<span class="muted" style="font-size:12px;">备注：${escapeHtml(item.note)}</span>` : ""}
-            ${editable ? `<span class="muted" style="font-size:12px;">点击编辑</span>` : ""}
-        </button>
-        ${editable ? `<button class="plan-move-trigger" type="button" data-action="select-move-item" data-item-id="${escapeHtml(item.id)}" aria-label="选择${escapeHtml(item.name)}的移动目标" title="移动项目">↕</button>` : ""}
-    </div>`;
-}
-
-function timeToMinutes(value) {
-    const [hours, minutes] = formatTime(value).split(":").map(Number);
-    return (hours || 0) * 60 + (minutes || 0);
-}
-
-function minutesToTime(minutes) {
-    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
-
-function renderParameterSummary(params) {
-    const labels = [
-        ["caloriesKcal", "热量", " kcal"],
-        ["bodyPart", "部位", ""],
-        ["durationMinutes", "时长", " 分钟"],
-        ["sets", "组数", " 组"],
-        ["reps", "次数", " 次"]
-    ];
-    return labels.filter(([key]) => params[key] != null && params[key] !== "")
-        .map(([key, label, suffix]) => `${escapeHtml(label)} ${escapeHtml(params[key])}${suffix}`).join(" · ");
-}
-
-/* ---------------- 操作 ---------------- */
+function handleBeforeUnload(event) { if (currentRoute() === "/plans" && state.dirty) { event.preventDefault(); event.returnValue = ""; } }
 
 function handleClick(event) {
-    const target = event.target.closest("[data-action]");
-    if (!target) {
-        return;
-    }
-    const action = target.dataset.action;
-    if (action === "retry-plans") {
-        state.error = null;
-        state.summaries = [];
-        state.detail = null;
-        state.selectedId = null;
-        state.loaded = false;
-        render(document.getElementById("app"));
-    } else if (action === "retry-generation") {
-        startTrainingPlanGeneration(document.getElementById("app"));
-    } else if (action === "select-plan") {
-        selectPlan(target.dataset.planId);
-    } else if (action === "filter-items") {
-        state.detailFilter = target.dataset.filter || "ALL";
-        render(document.getElementById("app"));
-    } else if (action === "open-plan-item") {
-        openPlanItem(target.dataset.itemKey);
-    } else if (action === "select-move-item") {
-        state.movingItemId = target.dataset.itemId;
-        render(document.getElementById("app"));
-    } else if (action === "cancel-move") {
-        state.movingItemId = null;
-        render(document.getElementById("app"));
-    } else if (action === "move-target") {
-        movePlanItem(target.dataset.localDate, target.dataset.startTime);
-    } else if (action === "add-plan-item") {
-        openNewPlanItem(target.dataset.localDate || state.detail?.weekStart, target.dataset.startTime || "12:00");
-    } else if (action === "save-plan-name") {
-        savePlanName();
-    } else if (action === "confirm-plan") {
-        confirm(target.dataset.planId);
-    } else if (action === "enable-plan") {
-        enable(target.dataset.planId);
-    } else if (action === "disable-plan") {
-        disable(target.dataset.planId);
-    } else if (action === "archive-plan") {
-        archive(target.dataset.planId);
-    } else if (action === "copy-plan") {
-        copy(target.dataset.planId);
-    } else if (action === "edit-plan") {
-        editAsDraft(target.dataset.planId);
-    } else if (action === "open-generation-trace") {
-        window.healthPendingTraceId = target.dataset.traceId;
-        navigate("/admin/traces");
-    }
+    const target = event.target.closest("[data-plan-action], [data-plan-id]"); if (!target) return;
+    if (target.dataset.planId && !target.dataset.planAction) { if (state.sidebarCollapsed) state.sidebarCollapsed = false; selectPlan(target.dataset.planId); return; }
+    const action = target.dataset.planAction;
+    if (action === "collapse") { state.sidebarCollapsed = !state.sidebarCollapsed; render(document.getElementById("app")); return; }
+    if (action === "new") { navigate("/chat"); return; }
+    if (action === "retry") { resetAndReload(); return; }
+    if (action === "retry-generation") { startGeneration(document.getElementById("app")); return; }
+    if (action === "filter") { state.detailFilter = target.dataset.filter || "ALL"; render(document.getElementById("app")); return; }
+    if (action === "mobile-day") { state.mobileDay = Number(target.dataset.day) || 0; render(document.getElementById("app")); return; }
+    if (action === "add") { openPicker("add", target.dataset.localDate, target.dataset.startTime, preferredPickerType()); return; }
+    if (action === "open") { openItem(target.dataset.itemId); return; }
+    if (action === "move") { openMovePicker(target.dataset.itemId); return; }
+    if (action === "move-target") { moveItem(target.dataset.localDate, target.dataset.startTime); return; }
+    if (action === "save") { saveAll(); return; }
+    if (action === "cancel") { cancelEdits(); return; }
+    if (action === "confirm" || action === "enable" || action === "disable" || action === "archive") { mutateStatus(action, target.dataset.planId); return; }
+    if (action === "copy") { copyPlanToDraft(target.dataset.planId); return; }
+    if (action === "edit") { editEnabledPlan(target.dataset.planId); return; }
+    if (action === "discard") { discardDraft(target.dataset.planId); return; }
+    if (action === "close-picker") { state.picker = null; render(document.getElementById("app")); return; }
+    if (action === "picker-type") { state.picker.type = target.dataset.type; state.picker.page = 1; state.picker.filters = {}; loadPicker(); return; }
+    if (action === "picker-favorites") { state.picker.favoriteOnly = !state.picker.favoriteOnly; state.picker.page = 1; loadPicker(); return; }
+    if (action === "picker-page") { const page = Number(target.dataset.page); if (page > 0) { state.picker.page = page; loadPicker(); } return; }
+    if (action === "choose-resource") { chooseResource(target.dataset.resourceType, target.dataset.resourceId); return; }
+    if (action === "picker-favorite") { togglePickerFavorite(target.dataset.resourceType, target.dataset.resourceId); }
 }
 
 function handleChange(event) {
-    if (event.target.matches("[data-action='select-plan-select']")) {
-        selectPlan(event.target.value);
-    } else if (event.target.matches("[data-action='favorites-filter']")) {
-        state.favoriteOnly = event.target.checked;
-        state.candidates = null;
-        render(document.getElementById("app"));
-    }
+    const target = event.target.closest("[data-plan-action='picker-filter']");
+    if (target && state.picker) { state.picker.filters[target.dataset.filterKey] = target.value; state.picker.page = 1; loadPicker(); }
 }
+function handleSubmit(event) { if (event.target.matches("[data-picker-search]")) { event.preventDefault(); state.picker.query = event.target.elements.q.value.trim(); state.picker.page = 1; loadPicker(); } }
+function handleDrawerClick(event) { const button = event.target.closest("[data-plan-resource-picker]"); if (button) openPicker("replace", null, null, button.dataset.resourceType, button.dataset.itemId); }
 
 async function selectPlan(planId) {
-    await loadDetail(planId);
+    if (state.dirty && !(await requestConfirmation({ title: "放弃未保存修改？", description: "切换计划会丢失当前编辑。", confirmLabel: "放弃修改" }))) return;
+    await loadDetail(planId); render(document.getElementById("app"));
+}
+function preferredPickerType() { return state.detail?.planScope === "EXERCISE" ? "EXERCISE" : "MEAL"; }
+function openPicker(mode, localDate, startTime, type, itemId) {
+    if (!editablePlan(state.detail)) return;
+    const item = itemId ? findItem(itemId) : null;
+    state.picker = { mode, type: type || item?.resourceType || preferredPickerType(), itemId: itemId || null, localDate: localDate || item?.localDate || state.detail.weekStart, startTime: startTime || shortTime(item?.startTime) || "12:00", query: "", filters: {}, favoriteOnly: false, page: 1, total: 0, items: [], loading: true, error: null };
+    render(document.getElementById("app")); loadPicker();
+}
+
+async function loadPicker() {
+    if (!state.picker) return;
+    const picker = state.picker; const token = ++state.pickerToken; picker.loading = true; picker.error = null; render(document.getElementById("app"));
+    try {
+        await syncFavorites(picker.type);
+        const params = { page: picker.page, size: PICKER_PAGE_SIZE, favoriteOnly: picker.favoriteOnly, q: picker.query, ...picker.filters };
+        const response = picker.type === "MEAL" ? await listMeals(params) : await listExercises(params);
+        if (!state.picker || token !== state.pickerToken) return;
+        picker.items = (response.items || []).map((item) => ({ ...item, resourceType: picker.type })); picker.total = response.total || 0; picker.loading = false;
+    } catch (error) { if (!state.picker || token !== state.pickerToken) return; picker.loading = false; picker.error = error.message || "审核资源加载失败"; }
     render(document.getElementById("app"));
 }
 
-async function openPlanItem(itemKey) {
-    const item = findPlanItem(itemKey);
-    if (!item) {
-        return;
+async function togglePickerFavorite(type, id) {
+    try { if (isFavorite(type, id)) await removeFavorite(type, id); else await addFavorite(type, id); await syncFavorites(type); render(document.getElementById("app")); }
+    catch (error) { showToast(error.message || "收藏操作失败", "error"); }
+}
+
+function chooseResource(type, resourceId) {
+    const resource = state.picker?.items.find((item) => item.resourceType === type && String(item.id) === String(resourceId)); if (!resource) return;
+    state.resourceCache.set(`${type}:${resourceId}`, resource);
+    if (state.picker.mode === "move") return;
+    if (state.picker.mode === "replace") {
+        const item = findItem(state.picker.itemId);
+        if (item) { item.resourceType = type; item.resourceId = String(resourceId); item.name = resource.name; item.params = defaultPlanParams(resource); state.dirty = true; }
+        state.picker = null; closeDrawer({ restoreFocus: false }); render(document.getElementById("app")); showToast("资源已替换，保存后生效"); return;
     }
-    const candidates = await loadCandidates();
-    const key = `plan-drawer-${item.id}`;
-    registerResource(key, { ...item, resourceType: item.resourceType, resourceId: item.resourceId, name: item.name });
-    const context = {
-        planId: state.detail.id,
-        planItemId: item.id,
-        sessionId: getOrCreateClientSessionId(),
-        editForm: editablePlan(state.detail) ? renderEditForm(item, candidates) : "",
-        detailLoader: item.resourceType === "MEAL"
-            ? () => getMealDetail(item.resourceId)
-            : item.resourceType === "EXERCISE" ? () => getExerciseDetail(item.resourceId) : null
-    };
-    if (context.editForm) {
-        context.onSave = (values) => savePlanItem(item, values);
-        context.onDelete = () => deletePlanItem(item);
-    }
-    openDrawer(key, context);
+    const total = timeMinutes(state.picker.startTime) + 30;
+    const item = { id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, resourceType: type, resourceId: String(resourceId), name: resource.name, localDate: state.picker.localDate, startTime: `${shortTime(state.picker.startTime)}:00`, endTime: `${timeValue(total)}:00`, note: "", params: defaultPlanParams(resource) };
+    state.draftItems.push(item); state.dirty = true; state.picker = null; render(document.getElementById("app")); showToast("项目已加入，保存后生效");
 }
+function defaultPlanParams(resource) { return resource.resourceType === "MEAL" ? { caloriesKcal: resource.nutrition?.caloriesKcal == null ? null : Math.round(Number(resource.nutrition.caloriesKcal)), mealTime: resource.tags?.mealTime?.[0] || "" } : { bodyPart: resource.bodyPart || "全身", durationMinutes: 30, sets: 3, reps: 10 }; }
+function findItem(itemId) { return state.draftItems.find((item) => String(item.id) === String(itemId)); }
 
-async function openNewPlanItem(localDate, startTime) {
-    const candidates = await loadCandidates();
-    const key = "plan-drawer-new";
-    registerResource(key, {
-        resourceType: "MEAL", resourceId: "new", name: "新增计划项目", localDate,
-        startTime: `${startTime}:00`, endTime: `${nextHalfHour(startTime)}:00`, params: {}
-    });
-    openDrawer(key, {
-        planId: state.detail.id,
-        sessionId: getOrCreateClientSessionId(),
-        editForm: renderEditForm(null, candidates, { localDate, startTime }),
-        onSave: (values) => savePlanItem(null, values)
-    });
+function openItem(itemId) {
+    const item = findItem(itemId); if (!item) return;
+    const key = `plan-item-${item.id}`; registerResource(key, { ...item, resourceType: item.resourceType, resourceId: item.resourceId, localDate: item.localDate });
+    openDrawer(key, { planId: state.detail.id, planItemId: item.id, sessionId: getOrCreateClientSessionId(), editForm: editablePlan(state.detail) ? renderEditForm(item) : "", detailLoader: item.resourceType === "MEAL" ? () => getMealDetail(item.resourceId) : item.resourceType === "EXERCISE" ? () => getExerciseDetail(item.resourceId) : null, onSave: (values) => applyDrawerEdit(item, values), onDelete: editablePlan(state.detail) ? () => removeItem(item) : null });
 }
-
-function nextHalfHour(time) {
-    const [hours, minutes] = time.split(":").map(Number);
-    const total = hours * 60 + minutes + 30;
-    return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+function renderEditForm(item) {
+    const params = item.params || {};
+    return `<div class="mp-edit" data-edit-form="1"><div class="mp-readonly"><span>资源</span><strong>${escapeHtml(item.name || item.resourceId)}</strong></div><button class="mp-btn secondary" type="button" data-plan-resource-picker data-resource-type="${escapeHtml(item.resourceType)}" data-item-id="${escapeHtml(item.id)}">替换${escapeHtml(RESOURCE_TYPE_LABELS[item.resourceType] || "资源")}</button><div class="mp-form-row"><label>日期<input type="date" data-edit-field="localDate" value="${escapeHtml(item.localDate)}"></label><label>开始<input type="time" step="1800" data-edit-field="startTime" value="${escapeHtml(shortTime(item.startTime))}"></label><label>结束<input type="time" step="1800" data-edit-field="endTime" value="${escapeHtml(shortTime(item.endTime))}"></label></div>${item.resourceType === "EXERCISE" ? `<div class="mp-form-row"><label>时长（分钟）<input type="number" min="1" step="1" data-edit-field="durationMinutes" value="${escapeHtml(params.durationMinutes ?? 30)}"></label><label>组数<input type="number" min="1" step="1" data-edit-field="sets" value="${escapeHtml(params.sets ?? 3)}"></label><label>次数<input type="number" min="1" step="1" data-edit-field="reps" value="${escapeHtml(params.reps ?? 10)}"></label></div>` : `<div class="mp-readonly"><span>餐食营养事实</span><strong>${escapeHtml(params.caloriesKcal == null ? "未提供" : `${params.caloriesKcal} kcal`)} · 只读</strong></div>`}<label class="mp-full-label">备注<textarea data-edit-field="note">${escapeHtml(item.note || "")}</textarea></label>${item.id ? `<button class="mp-btn danger" type="button" data-drawer-delete="1">删除项目</button>` : ""}</div>`;
 }
-
-async function loadCandidates() {
-    if (state.candidates) return state.candidates;
-    try {
-        const [meals, exercises] = await Promise.all([
-            listMeals({ page: 1, size: 50 }), listExercises({ page: 1, size: 50 })
-        ]);
-        const mealItems = (meals.items || []).map((resource) => ({
-            resourceType: "MEAL", resourceId: String(resource.id), name: resource.name,
-            caloriesKcal: resource.nutrition?.caloriesKcal == null ? null : Number(resource.nutrition.caloriesKcal),
-            mealTime: resource.tags?.mealTime?.[0] || resource.tags?.mealTimes?.[0] || ""
-        }));
-        const exerciseItems = (exercises.items || []).filter((resource) => resource.planReady).map((resource) => ({
-            resourceType: "EXERCISE", resourceId: String(resource.id), name: resource.name,
-            bodyPart: resource.bodyPart || "全身"
-        }));
-        state.candidates = [...mealItems, ...exerciseItems]
-            .filter((resource) => !state.favoriteOnly || isFavorite(resource.resourceType, resource.resourceId));
-    } catch (error) {
-        state.candidates = [];
-        showToast(error.message || "审核资源加载失败", "error");
-    }
-    return state.candidates;
+function applyDrawerEdit(item, values) {
+    if (!values.localDate || !values.startTime || !values.endTime || values.startTime >= values.endTime || !/^\d{2}:(00|30)$/.test(values.startTime) || !/^\d{2}:(00|30)$/.test(values.endTime)) { showToast("请填写有效的半小时日期区间", "error"); return; }
+    if (item.resourceType === "EXERCISE") { const durationMinutes = positiveInteger(values.durationMinutes); const sets = positiveInteger(values.sets); const reps = positiveInteger(values.reps); if (!durationMinutes || !sets || !reps) { showToast("动作处方必须为正整数", "error"); return; } item.params = { ...item.params, durationMinutes, sets, reps }; }
+    item.localDate = values.localDate; item.startTime = `${values.startTime}:00`; item.endTime = `${values.endTime}:00`; item.note = values.note || ""; state.dirty = true; closeDrawer(); render(document.getElementById("app")); showToast("项目修改已加入批量保存");
 }
+async function removeItem(item) { if (!(await requestConfirmation({ title: "删除计划项目", description: `确定删除“${item.name}”吗？`, confirmLabel: "删除" }))) return; state.draftItems = state.draftItems.filter((entry) => entry !== item); state.dirty = true; closeDrawer(); render(document.getElementById("app")); }
+function openMovePicker(itemId) { const item = findItem(itemId); if (item && editablePlan(state.detail)) openPicker("move", item.localDate, shortTime(item.startTime), item.resourceType, itemId); }
+function moveItem(localDate, startTime) { const item = findItem(state.picker?.itemId); if (!item) return; const duration = timeMinutes(item.endTime) - timeMinutes(item.startTime); const start = timeMinutes(startTime); if (duration <= 0 || start + duration > 1440) { showToast("项目不能跨午夜", "error"); return; } item.localDate = localDate; item.startTime = `${startTime}:00`; item.endTime = `${timeValue(start + duration)}:00`; state.dirty = true; state.picker = null; render(document.getElementById("app")); showToast("项目已移动，保存后生效"); }
 
-function findPlanItem(itemKey) {
-    const items = (state.detail && state.detail.items) || [];
-    const id = itemKey.replace("plan-item-", "");
-    return items.find((item) => String(item.id) === String(id));
-}
-
-function renderEditForm(item, candidates, defaults = {}) {
-    const current = item || { resourceType: "MEAL", resourceId: "", params: {}, note: "" };
-    const currentKey = `${current.resourceType}:${current.resourceId}`;
-    const options = [...(candidates || [])];
-    if (current.resourceId && !options.some((entry) => `${entry.resourceType}:${entry.resourceId}` === currentKey)) {
-        options.unshift({ resourceType: current.resourceType, resourceId: current.resourceId, name: current.name,
-            caloriesKcal: current.params?.caloriesKcal, bodyPart: current.params?.bodyPart });
-    }
-    const localDate = defaults.localDate || current.localDate || state.detail.weekStart;
-    const startTime = defaults.startTime || (current.startTime || "12:00:00").slice(0, 5);
-    const endTime = defaults.endTime || (current.endTime || nextHalfHour(startTime) + ":00").slice(0, 5);
-    const params = current.params || {};
-    return `
-        <div class="card" data-edit-form="1">
-            <h3 style="margin:0 0 10px;">编辑计划项目</h3>
-            <p class="field-hint" style="margin-bottom:10px;">候选来自审核资源；保存时会同时校验餐食与训练的整周时间轴。</p>
-            <div class="form-grid">
-                <div class="field full">
-                    <label>资源</label>
-                    <select data-edit-field="resourceKey" required>
-                        <option value="">请选择审核资源</option>
-                        ${options.map((entry) => `<option value="${escapeHtml(`${entry.resourceType}:${entry.resourceId}`)}" ${`${entry.resourceType}:${entry.resourceId}` === currentKey ? "selected" : ""}>${escapeHtml(entry.resourceType === "MEAL" ? "餐食" : "训练")} · ${escapeHtml(entry.name || entry.resourceId)}</option>`).join("")}
-                    </select>
-                </div>
-                <div class="field">
-                    <label>日期</label>
-                    <input type="date" data-edit-field="localDate" value="${escapeHtml(localDate)}" required>
-                </div>
-                <div class="field">
-                    <label>开始时间</label>
-                    <input type="time" step="1800" data-edit-field="startTime" value="${escapeHtml(startTime)}" required>
-                </div>
-                <div class="field">
-                    <label>结束时间</label>
-                    <input type="time" step="1800" data-edit-field="endTime" value="${escapeHtml(endTime)}" required>
-                </div>
-                <div class="field">
-                    <label>餐食热量（kcal）</label>
-                    <input type="number" min="1" step="1" data-edit-field="caloriesKcal" value="${escapeHtml(params.caloriesKcal || "")}">
-                </div>
-                <div class="field">
-                    <label>训练时长（分钟）</label>
-                    <input type="number" min="1" step="1" data-edit-field="durationMinutes" value="${escapeHtml(params.durationMinutes || "")}">
-                </div>
-                <div class="field">
-                    <label>组数</label>
-                    <input type="number" min="1" step="1" data-edit-field="sets" value="${escapeHtml(params.sets || "")}">
-                </div>
-                <div class="field">
-                    <label>次数</label>
-                    <input type="number" min="1" step="1" data-edit-field="reps" value="${escapeHtml(params.reps || "")}">
-                </div>
-                <div class="field full">
-                    <label>备注（留空可清除）</label>
-                    <textarea data-edit-field="note" placeholder="例如：减半主食">${escapeHtml(current.note || "")}</textarea>
-                </div>
-            </div>
-            ${item ? `<button class="btn ghost danger-outline" data-drawer-delete="1">删除这个项目</button>` : ""}
-        </div>
-    `;
-}
-
-async function savePlanItem(item, values) {
-    if (!values.resourceKey || !values.localDate || !values.startTime || !values.endTime) {
-        showToast("日期和时间不能为空", "error");
-        return;
-    }
-    if (values.startTime >= values.endTime || ![values.startTime, values.endTime].every((value) => /^\d{2}:(00|30)$/.test(value))) {
-        showToast("结束时间必须晚于开始时间", "error");
-        return;
-    }
-    const [resourceType, resourceId] = values.resourceKey.split(":");
-    const candidate = (state.candidates || []).find((entry) => entry.resourceType === resourceType && entry.resourceId === resourceId);
-    const previousParams = item?.params || {};
-    const params = resourceType === "MEAL"
-        ? { caloriesKcal: positiveInteger(values.caloriesKcal || candidate?.caloriesKcal || previousParams.caloriesKcal),
-            ...(candidate?.mealTime || previousParams.mealTime ? { mealTime: candidate?.mealTime || previousParams.mealTime } : {}) }
-        : { bodyPart: candidate?.bodyPart || previousParams.bodyPart || "全身",
-            durationMinutes: positiveInteger(values.durationMinutes || previousParams.durationMinutes || 30),
-            sets: positiveInteger(values.sets || previousParams.sets || 1),
-            reps: positiveInteger(values.reps || previousParams.reps || 1) };
-    if (Object.values(params).some((value) => value == null)) {
-        showToast("请补全资源的计划参数", "error");
-        return;
-    }
-    const nextItem = {
-        id: item?.id || null, resourceType, resourceId,
-        name: candidate?.name || item?.name || resourceId,
-        localDate: values.localDate, startTime: `${values.startTime}:00`, endTime: `${values.endTime}:00`,
-        note: values.note || "", planParams: params
-    };
-    const items = (state.detail.items || []).map((entry) => item && String(entry.id) === String(item.id)
-        ? nextItem : { ...entry, planParams: entry.params || {} });
-    if (!item) items.push(nextItem);
-    await persistPlanItems(items, readPlanName(), true);
-}
-
-function positiveInteger(value) {
-    const number = Number(value);
-    return Number.isInteger(number) && number > 0 ? number : null;
-}
-
-function readPlanName() {
-    return document.querySelector("[data-plan-name]")?.value?.trim() || state.detail.name;
-}
-
-async function savePlanName() {
-    await persistPlanItems((state.detail.items || []).map((item) => ({ ...item, planParams: item.params || {} })), readPlanName(), false);
-}
-
-async function deletePlanItem(item) {
-    if ((state.detail.items || []).length <= 1) {
-        showToast("计划至少需要保留一个项目", "error");
-        return;
-    }
-    const confirmed = await requestConfirmation({
-        title: "删除计划项目", description: `确定删除“${item.name}”吗？`, confirmLabel: "删除"
-    });
-    if (!confirmed) return;
-    const items = state.detail.items.filter((entry) => String(entry.id) !== String(item.id))
-        .map((entry) => ({ ...entry, planParams: entry.params || {} }));
-    await persistPlanItems(items, readPlanName(), true);
-}
-
-async function persistPlanItems(items, name, closeAfterSave) {
-    if (state.saving) return;
+async function saveAll() {
+    if (state.saving || !state.detail || !editablePlan(state.detail)) return;
     state.saving = true;
     try {
-        await updatePlanItems(state.detail.id, {
-            requestId: newRequestId(), expectedVersion: state.detail.currentVersion, name, items
-        });
-        showToast("计划已保存");
-        state.movingItemId = null;
-        if (closeAfterSave) closeDrawerFromSave();
-        state.candidates = null;
-        await loadDetail(state.detail.id);
-        state.summaries = await listPlans();
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "保存失败", "error");
-    } finally {
-        state.saving = false;
-    }
+        const name = document.querySelector("[data-plan-name]")?.value.trim() || state.detail.name;
+        const items = state.draftItems.map((item) => ({ id: /^\d+$/.test(String(item.id)) ? Number(item.id) : null, resourceType: item.resourceType, resourceId: item.resourceId, name: item.name, localDate: item.localDate, startTime: item.startTime, endTime: item.endTime, note: item.note || "", planParams: item.params || {} }));
+        const saved = await updatePlanItems(state.detail.id, { requestId: newRequestId(), expectedVersion: state.detail.currentVersion, name, items });
+        state.detail = saved; state.draftItems = cloneItems(saved.items || []); state.summaries = await listPlans(); state.dirty = false; closeDrawer({ restoreFocus: false }); showToast("计划已保存"); render(document.getElementById("app"));
+    } catch (error) { showToast(error.message || "保存失败，编辑仍保留", "error"); }
+    finally { state.saving = false; }
 }
+function cancelEdits() { state.draftItems = cloneItems(state.detail?.items || []); state.dirty = false; closeDrawer({ restoreFocus: false }); render(document.getElementById("app")); showToast("已取消未保存修改"); }
+function mutationPayload(planId) { const plan = state.detail && String(state.detail.id) === String(planId) ? state.detail : state.summaries.find((entry) => String(entry.id) === String(planId)); return { requestId: newRequestId(), expectedVersion: plan?.currentVersion || 1 }; }
 
-async function movePlanItem(localDate, startTime) {
-    const item = state.detail?.items?.find((entry) => String(entry.id) === String(state.movingItemId));
-    if (!item) {
-        return;
-    }
-    const duration = timeToMinutes(item.endTime) - timeToMinutes(item.startTime);
-    const start = timeToMinutes(startTime);
-    if (duration <= 0 || duration % 30 !== 0) {
-        showToast("项目时长必须是半小时的整数倍，请先调整结束时间", "error");
-        return;
-    }
-    if (start + duration > 24 * 60) {
-        showToast("项目不能跨午夜，请选择更早的时间", "error");
-        return;
-    }
-    const endTime = minutesToTime(start + duration);
-    const items = state.detail.items.map((entry) => String(entry.id) === String(item.id)
-        ? { ...entry, localDate, startTime: `${startTime}:00`, endTime: `${endTime}:00`, planParams: entry.params || {} }
-        : { ...entry, planParams: entry.params || {} });
-    await persistPlanItems(items, readPlanName(), false);
+async function mutateStatus(action, planId) {
+    const labels = { confirm: ["确认草稿", "确认后可单独启用这份计划。"], enable: ["启用计划", "当前已启用计划会回到未启用。"], archive: ["转为历史", "历史计划只读，仍保留在计划库。"] };
+    if (labels[action] && !(await requestConfirmation({ title: labels[action][0], description: labels[action][1], confirmLabel: labels[action][0] }))) return;
+    try { const fn = { confirm: confirmPlan, enable: enablePlan, disable: disablePlan, archive: archivePlan }[action]; const result = await fn(planId, mutationPayload(planId)); state.summaries = await listPlans(); state.detail = result; state.draftItems = cloneItems(result.items || []); state.dirty = false; showToast({ confirm: "草稿已确认", enable: "计划已启用", disable: "计划已停用", archive: "计划已转为历史" }[action]); render(document.getElementById("app")); }
+    catch (error) { showToast(error.message || "状态操作失败", "error"); }
 }
+async function copyPlanToDraft(planId) { try { const result = await copyPlan(planId, mutationPayload(planId)); state.summaries = await listPlans(); state.detail = result; state.draftItems = cloneItems(result.items || []); state.selectedId = result.id; state.dirty = false; showToast("已复制为草稿"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "复制失败", "error"); } }
+async function editEnabledPlan(planId) { if (!(await requestConfirmation({ title: "创建编辑草稿", description: "原计划保持启用，系统会创建一份草稿副本。", confirmLabel: "创建草稿" }))) return; try { const result = await editPlan(planId); state.summaries = await listPlans(); state.detail = result; state.draftItems = cloneItems(result.items || []); state.selectedId = result.id; state.dirty = false; showToast("已创建编辑草稿"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "创建草稿失败", "error"); } }
+async function discardDraft(planId) { if (!(await requestConfirmation({ title: "删除草稿", description: "删除后不能恢复。", confirmLabel: "删除草稿" }))) return; try { const response = await fetch(`/api/v1/health/plans/${encodeURIComponent(planId)}`, { method: "DELETE" }); if (!response.ok) throw new Error("删除草稿失败"); state.summaries = await listPlans(); state.selectedId = state.summaries[0]?.id || null; state.detail = state.selectedId ? await getPlan(state.selectedId) : null; state.draftItems = cloneItems(state.detail?.items || []); state.dirty = false; showToast("草稿已删除"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "删除草稿失败", "error"); } }
+function resetAndReload() { state.error = null; state.summaries = []; state.detail = null; state.selectedId = null; state.loaded = false; state.loading = false; render(document.getElementById("app")); }
 
-function mutationPayload(planId) {
-    const plan = state.detail && String(state.detail.id) === String(planId) ? state.detail
-        : state.summaries.find((entry) => String(entry.id) === String(planId));
-    return { requestId: newRequestId(), expectedVersion: plan?.currentVersion || 1 };
-}
-
-async function confirm(planId) {
-    const plan = state.detail && String(state.detail.id) === String(planId) ? state.detail : null;
-    const label = plan ? `${plan.weekStart} 当周计划` : "该计划";
-    const confirmed = await requestConfirmation({
-        title: `确认${label}`,
-        description: "确认后计划会保存为未启用模板，之后可单独启用。",
-        confirmLabel: "确认草稿"
-    });
-    if (!confirmed) return;
-    try {
-        await confirmPlan(planId, mutationPayload(planId));
-        state.summaries = await listPlans();
-        await loadDetail(planId);
-        showToast("草稿已确认，计划现在未启用");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "确认失败", "error");
-    }
-}
-
-async function enable(planId) {
-    const confirmed = await requestConfirmation({
-        title: "启用这份计划",
-        description: "当前已启用计划会回到未启用，原计划不会自动进入历史。",
-        confirmLabel: "确认启用"
-    });
-    if (!confirmed) return;
-    try {
-        await enablePlan(planId, mutationPayload(planId));
-        state.summaries = await listPlans();
-        await loadDetail(planId);
-        showToast("计划已启用");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "启用失败", "error");
-    }
-}
-
-async function disable(planId) {
-    try {
-        await disablePlan(planId, mutationPayload(planId));
-        state.summaries = await listPlans();
-        await loadDetail(planId);
-        showToast("计划已停用，回到未启用");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "停用失败", "error");
-    }
-}
-
-async function archive(planId) {
-    const confirmed = await requestConfirmation({
-        title: "转为历史计划",
-        description: "历史计划只读，但仍会保留在计划列表中。",
-        confirmLabel: "确认归档"
-    });
-    if (!confirmed) return;
-    try {
-        await archivePlan(planId, mutationPayload(planId));
-        state.summaries = await listPlans();
-        state.detail = null;
-        state.selectedId = null;
-        if (state.summaries.length) await loadDetail(state.summaries[0].id);
-        showToast("计划已转为历史");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "归档失败", "error");
-    }
-}
-
-async function copy(planId) {
-    try {
-        const source = state.summaries.find((entry) => String(entry.id) === String(planId));
-        const draft = await copyPlan(planId, {
-            requestId: newRequestId(), expectedVersion: source?.currentVersion || 1
-        });
-        state.summaries = await listPlans();
-        state.detail = draft;
-        state.selectedId = draft.id;
-        showToast("历史计划已复制为草稿");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "复制失败", "error");
-    }
-}
-
-async function editAsDraft(planId) {
-    const confirmed = await requestConfirmation({
-        title: "创建编辑草稿",
-        description: "系统会复制当前已启用计划，原计划继续保持启用。",
-        confirmLabel: "创建草稿"
-    });
-    if (!confirmed) {
-        return;
-    }
-    try {
-        const draft = await editPlan(planId);
-        state.summaries = await listPlans();
-        state.detail = draft;
-        state.selectedId = draft.id;
-        showToast("已创建编辑草稿");
-        render(document.getElementById("app"));
-    } catch (error) {
-        showToast(error.message || "创建编辑草稿失败", "error");
-    }
-}
-
-function closeDrawerFromSave() {
-    closeDrawer();
-}
+export const __plansTest = { defaultPlanParams, timeMinutes, nextHalfHour };

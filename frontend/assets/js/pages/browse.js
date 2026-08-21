@@ -1,22 +1,19 @@
 /**
  * 浏览页共享实现（餐食 / 动作复用，规格 6.2 分页浏览契约）。
  *
- * 后端浏览接口只支持 page/size 分页（无筛选参数，契约在 33/40 冻结），
- * 页面一次性拉取全部审核子集后在本地完成筛选与分页展示；
- * 数据规模扩量后保留服务端分页参数不变。
+ * 后端负责查询、结构化筛选、收藏过滤和分页，页面只渲染当前页结果。
  * 列表统一提供加载占位、空结果、失败重试；媒体失败/无图使用稳定占位。
  *
  * 子类只需提供：load 函数、筛选字段定义、卡片渲染参数与事件选择器前缀。
  */
 import { escapeHtml } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
-import { getOrCreateClientSessionId } from "../store.js";
+import { getOrCreateClientSessionId, syncFavorites } from "../store.js";
 import { renderResourceCard } from "../ui/resource-card.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
 import { currentRoute } from "../router.js";
 
-const MAX_LOAD_PAGES = 100;
 const PAGE_SIZE = 20;
 
 export function createBrowsePage(definition) {
@@ -29,7 +26,9 @@ export function createBrowsePage(definition) {
         loaded: false,
         error: null,
         page: 1,
-        filters: {}
+        filters: {},
+        favoriteOnly: false,
+        total: 0
     };
     let listenersBound = false;
 
@@ -37,7 +36,7 @@ export function createBrowsePage(definition) {
         if (!state.loaded && !state.loading && !state.error) {
             state.loading = true;
             state.error = null;
-            loadAll().then(() => {
+            loadPage().then(() => {
                 if (currentRoute() === route) {
                     render(app);
                 }
@@ -55,14 +54,15 @@ export function createBrowsePage(definition) {
                 <div class="card-title">
                     <div>
                         <h2>${escapeHtml(title)}</h2>
-                        <p>共 ${state.items.length} 条${state.error ? "，本次加载失败" : ""}。</p>
+                <p>共 ${state.total} 条${state.error ? "，本次加载失败" : ""}。</p>
                     </div>
                 </div>
                 ${state.error ? renderError() : ""}
-                ${state.items.length ? `
+                ${state.loaded ? `
                     <form class="card filter-bar" data-browse-filter="1">
                         ${renderFilterField("search", "搜索", `<input name="search" value="${escapeHtml(state.filters.search || "")}" placeholder="按名称搜索">`)}
                         ${filterFields.map((field) => renderFilterField(field.key, field.label, renderSelect(field.key, state.filters[field.key]))).join("")}
+                        <label class="check-field"><input type="checkbox" data-browse-favorite ${state.favoriteOnly ? "checked" : ""}> 仅看收藏</label>
                         <button class="btn ghost" type="button" data-action="reset-browse-filters">重置</button>
                     </form>
                     <div class="grid three">${renderPage()}</div>
@@ -85,20 +85,25 @@ export function createBrowsePage(definition) {
         bindFeedbackControl(app);
     }
 
-    async function loadAll() {
+    async function loadPage() {
         try {
-            const items = [];
-            for (let page = 1; page <= MAX_LOAD_PAGES; page += 1) {
-                const result = await load({ page, size: 50 });
-                items.push(...result.items);
-                if (page >= result.totalPages) {
-                    break;
-                }
-                if (page === MAX_LOAD_PAGES) {
-                    throw new Error("数据页数超过本地浏览安全上限");
-                }
+            state.error = null;
+            state.items = [];
+            state.total = 0;
+            try {
+                await syncFavorites();
+            } catch (error) {
+                // 收藏服务暂时不可用时仍允许资源目录浏览，收藏按钮会在写入时报告错误。
             }
-            state.items = items;
+            const result = await load({
+                page: state.page,
+                size,
+                favoriteOnly: state.favoriteOnly,
+                q: state.filters.search,
+                ...Object.fromEntries(filterFields.map((field) => [field.key, state.filters[field.key]]))
+            });
+            state.items = result.items || [];
+            state.total = Number(result.total || 0);
         } catch (error) {
             state.error = error.message || "数据加载失败";
         } finally {
@@ -108,19 +113,7 @@ export function createBrowsePage(definition) {
     }
 
     function filteredItems() {
-        const search = (state.filters.search || "").trim().toLowerCase();
-        return state.items.filter((item) => {
-            if (search && !(item.name || "").toLowerCase().includes(search)) {
-                return false;
-            }
-            return filterFields.every((field) => {
-                const selected = state.filters[field.key];
-                if (!selected) {
-                    return true;
-                }
-                return (item[field.key] === selected) || ((item.tags || {})[field.key] || []).includes(selected);
-            });
-        });
+        return state.items;
     }
 
     function renderPage() {
@@ -128,14 +121,13 @@ export function createBrowsePage(definition) {
         if (!list.length) {
             return `<div class="empty" style="grid-column:1/-1;">没有符合筛选条件的数据。</div>`;
         }
-        const start = (state.page - 1) * size;
-        return list.slice(start, start + size).map((item) =>
+        return list.map((item) =>
             renderResourceCard(item, { sessionId: getOrCreateClientSessionId(), ...resourceOptions })
         ).join("");
     }
 
     function renderPagination() {
-        const total = filteredItems().length;
+        const total = state.total;
         const totalPages = Math.max(1, Math.ceil(total / size));
         const page = Math.min(state.page, totalPages);
         const buttons = [];
@@ -157,7 +149,7 @@ export function createBrowsePage(definition) {
         return `
             <select name="${escapeHtml(key)}" data-browse-filter="${escapeHtml(key)}">
                 <option value="">全部</option>
-                ${distinctValues(key).map((value) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+                ${(fieldOptions(key)).map((value) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
             </select>
         `;
     }
@@ -172,6 +164,11 @@ export function createBrowsePage(definition) {
             ((item.tags || {})[fieldKey] || []).forEach((value) => set.add(value));
         });
         return Array.from(set).sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+    }
+
+    function fieldOptions(fieldKey) {
+        const field = filterFields.find((entry) => entry.key === fieldKey);
+        return field?.options?.length ? field.options : distinctValues(fieldKey);
     }
 
     function renderSkeletons(count) {
@@ -207,15 +204,23 @@ export function createBrowsePage(definition) {
         if (action === "retry-browse") {
             state.error = null;
             state.items = [];
+            state.total = 0;
             state.loading = false;
             state.loaded = false;
             render(document.getElementById("app"));
         } else if (action === "reset-browse-filters") {
+            state.error = null;
             state.filters = {};
+            state.favoriteOnly = false;
             state.page = 1;
+            state.loaded = false;
+            state.loading = false;
             render(document.getElementById("app"));
         } else if (action === "browse-page") {
+            state.error = null;
             state.page = Number(target.dataset.page);
+            state.loaded = false;
+            state.loading = false;
             render(document.getElementById("app"));
         }
     }
@@ -224,12 +229,26 @@ export function createBrowsePage(definition) {
         if (currentRoute() !== route) {
             return;
         }
+        if (event.target.matches("[data-browse-favorite]")) {
+            state.error = null;
+            state.favoriteOnly = event.target.checked;
+            state.page = 1;
+            state.items = [];
+            state.total = 0;
+            state.loaded = false;
+            state.loading = false;
+            render(document.getElementById("app"));
+            return;
+        }
         const select = event.target.closest("[data-browse-filter]");
         if (!select) {
             return;
         }
         state.filters[select.dataset.browseFilter] = select.value || "";
+        state.error = null;
         state.page = 1;
+        state.loaded = false;
+        state.loading = false;
         render(document.getElementById("app"));
     }
 
@@ -240,8 +259,11 @@ export function createBrowsePage(definition) {
         event.preventDefault();
         const search = event.target.elements.search;
         if (search) {
+            state.error = null;
             state.filters.search = search.value || "";
             state.page = 1;
+            state.loaded = false;
+            state.loading = false;
             render(document.getElementById("app"));
         }
     }

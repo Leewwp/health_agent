@@ -1,6 +1,6 @@
 # “我的计划”TimeGrid 原型与页面
 
-Status: ready-for-agent
+Status: resolved
 Type: prototype
 Priority: P0
 Blocked by: 04

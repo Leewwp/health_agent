@@ -448,6 +448,9 @@ public class WeeklyPlanService {
         }
         Set<Long> currentItemIds = planMapper.findItems(plan.getId(), plan.getCurrentVersion()).stream()
                 .map(WeeklyPlanItemRow::getId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+        Map<Long, WeeklyPlanItemRow> currentItems = planMapper.findItems(plan.getId(), plan.getCurrentVersion()).stream()
+                .filter(item -> item.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(WeeklyPlanItemRow::getId, item -> item));
         List<PlanItemDraft> items = request.items().stream().map(item -> {
             if (item == null) {
                 throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "计划项目不能为空");
@@ -456,11 +459,11 @@ public class WeeklyPlanService {
                 throw new HealthApiException(HealthApiException.CODE_NOT_FOUND, "计划项目不存在或不属于当前计划");
             }
             requireItemParams(item.planParams());
-            return item.toDraft();
+            return canonicalizeItem(item, currentItems.get(item.id()));
         }).toList();
         if (items.isEmpty()) throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "计划至少需要一个项目");
         requireItemsInWeek(items, plan.getWeekStart());
-        scopeGuard.requireCompatible(PlanScope.COMPOSITE, items);
+        scopeGuard.requireCompatible(scopeGuard.parse(plan.getPlanScope()), items);
         HealthProfileView profile = requireProfileRiskPassed(userId);
         PlanValidationService.ValidationResult validation = validationService.validate(
                 validationContext(profile), items, resourceCatalog());
@@ -940,6 +943,118 @@ public class WeeklyPlanService {
             throw error;
         }
         return view;
+    }
+
+    /**
+     * 计划写入的资源事实边界：名称、餐食热量、餐次和动作部位均从审核 Provider 重读；
+     * 客户端只能提交日期、时间、备注以及动作处方。替换动作时丢弃旧处方，使用确定性默认值。
+     */
+    private PlanItemDraft canonicalizeItem(PlanItemWrite item, WeeklyPlanItemRow current) {
+        if (item.resourceType() == null || item.resourceId() == null || item.resourceId().isBlank()) {
+            throw new HealthApiException(HealthApiException.CODE_PLAN_RESOURCE_INVALID, "计划资源不能为空");
+        }
+        String resourceType = item.resourceType().trim().toUpperCase();
+        String resourceId = item.resourceId().trim();
+        if ("MEAL".equals(resourceType)) {
+            HealthResource resource = resourceProvider.mealById(resourceId)
+                    .orElseThrow(() -> new HealthApiException(HealthApiException.CODE_PLAN_RESOURCE_INVALID,
+                            "餐食资源不存在或未通过审核"));
+            Map<String, Object> params = new LinkedHashMap<>();
+            firstTag(resource, "mealTime").ifPresent(value -> params.put("mealTime", value));
+            if (resource.nutrition() != null && resource.nutrition().caloriesKcal() != null) {
+                params.put("caloriesKcal", resource.nutrition().caloriesKcal().intValue());
+            }
+            return new PlanItemDraft("MEAL", resourceId, resource.name(), item.localDate(), item.startTime(),
+                    item.endTime(), normalizeNote(item.note()), params);
+        }
+        if ("EXERCISE".equals(resourceType)) {
+            HealthResource resource = resourceProvider.exerciseById(resourceId)
+                    .orElseThrow(() -> new HealthApiException(HealthApiException.CODE_PLAN_RESOURCE_INVALID,
+                            "动作资源不存在或未通过审核"));
+            if (!resource.planReady()) {
+                throw new HealthApiException(HealthApiException.CODE_PLAN_RESOURCE_INVALID,
+                        "动作资源尚未达到周计划资格");
+            }
+            String bodyPart = firstTag(resource, "primaryBodyPart")
+                    .or(() -> firstTag(resource, "bodyParts"))
+                    .orElse("全身");
+            boolean replacement = current == null || !resourceId.equals(current.getResourceId());
+            // 资源替换仍由服务端重读事实；同一次批量请求中若带有处方，则保留用户明确提交的正整数。
+            // 替换请求缺少处方时，才回退到新资源的确定性默认值，不沿用旧动作处方。
+            Map<String, Object> params = replacement
+                    ? editableExerciseParams(item.planParams(), defaultExerciseParams(resource))
+                    : editableExerciseParams(item.planParams(), current);
+            params.put("bodyPart", bodyPart);
+            return new PlanItemDraft("EXERCISE", resourceId, resource.name(), item.localDate(), item.startTime(),
+                    item.endTime(), normalizeNote(item.note()), params);
+        }
+        throw new HealthApiException(HealthApiException.CODE_PLAN_RESOURCE_INVALID,
+                "计划只支持审核餐食和可入计划动作");
+    }
+
+    private java.util.Optional<String> firstTag(HealthResource resource, String key) {
+        List<String> values = resource.tags().getOrDefault(key, List.of());
+        return values.stream().filter(value -> value != null && !value.isBlank()).findFirst();
+    }
+
+    private Map<String, Object> defaultExerciseParams(HealthResource resource) {
+        String difficulty = firstTag(resource, "difficulty").orElse("进阶");
+        int duration = switch (difficulty) {
+            case "入门" -> 20;
+            case "挑战" -> 40;
+            default -> 30;
+        };
+        int sets = "挑战".equals(difficulty) ? 4 : "入门".equals(difficulty) ? 2 : 3;
+        int reps = "挑战".equals(difficulty) ? 8 : 10;
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("durationMinutes", duration);
+        params.put("sets", sets);
+        params.put("reps", reps);
+        return params;
+    }
+
+    private Map<String, Object> editableExerciseParams(Map<String, Object> submitted, WeeklyPlanItemRow current) {
+        Map<String, Object> previous = parseParams(current.getPlanParamsJson());
+        return editableExerciseParams(submitted, previous, 30, 3, 10);
+    }
+
+    private Map<String, Object> editableExerciseParams(Map<String, Object> submitted,
+                                                       Map<String, Object> defaults) {
+        return editableExerciseParams(submitted, defaults,
+                positiveDefault(defaults, "durationMinutes", 30),
+                positiveDefault(defaults, "sets", 3),
+                positiveDefault(defaults, "reps", 10));
+    }
+
+    private Map<String, Object> editableExerciseParams(Map<String, Object> submitted,
+                                                       Map<String, Object> previous,
+                                                       int durationFallback, int setsFallback,
+                                                       int repsFallback) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("durationMinutes", positiveParam(submitted, "durationMinutes", previous, durationFallback));
+        params.put("sets", positiveParam(submitted, "sets", previous, setsFallback));
+        params.put("reps", positiveParam(submitted, "reps", previous, repsFallback));
+        return params;
+    }
+
+    private int positiveDefault(Map<String, Object> defaults, String key, int fallback) {
+        Object value = defaults == null ? null : defaults.get(key);
+        return value instanceof Number number && number.intValue() > 0 ? number.intValue() : fallback;
+    }
+
+    private int positiveParam(Map<String, Object> submitted, String key, Map<String, Object> previous, int fallback) {
+        Object value = submitted == null ? null : submitted.get(key);
+        if (value == null) value = previous.get(key);
+        if (value == null) return fallback;
+        if (!(value instanceof Number number) || number.doubleValue() <= 0
+                || number.doubleValue() != Math.rint(number.doubleValue())) {
+            throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "计划参数必须为正整数：" + key);
+        }
+        return number.intValue();
+    }
+
+    private String normalizeNote(String note) {
+        return note == null || note.isBlank() ? null : note.trim();
     }
 
     private void requireItemParams(Map<String, Object> params) {

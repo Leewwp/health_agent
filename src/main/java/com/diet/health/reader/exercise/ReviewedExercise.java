@@ -33,8 +33,34 @@ public record ReviewedExercise(
         String mediaCredit,
         String sourceName,
         String sourceId,
-        String sourceVersion
+        String sourceVersion,
+        String sourceHash,
+        String sourceCategory,
+        String sourceBodyPart,
+        String sourceEquipment,
+        String sourceTarget,
+        String sourceMuscleGroup,
+        List<String> sourceSecondaryMuscles,
+        String instructionsZhStatus,
+        String qualificationVersion,
+        boolean qualificationVisible,
+        boolean qualificationRecommendable,
+        boolean qualificationPlanReady,
+        String qualificationReportJson
 ) {
+
+    /** 兼容旧读取测试；新增来源审计字段在旧构造路径中为空。 */
+    public ReviewedExercise(Long id, String name, String nameEn, List<String> aliases, String category,
+                            String bodyPart, List<String> targetMuscles, List<String> secondaryMuscles,
+                            String equipment, String difficulty, String movementPattern, List<String> riskTags,
+                            String alternativeGroup, String reviewStatus, boolean planReady, String instructionsZh,
+                            List<String> steps, String thumbnailUrl, String mediaUrl, String mediaState,
+                            String mediaCredit, String sourceName, String sourceId, String sourceVersion) {
+        this(id, name, nameEn, aliases, category, bodyPart, targetMuscles, secondaryMuscles, equipment, difficulty,
+                movementPattern, riskTags, alternativeGroup, reviewStatus, planReady, instructionsZh, steps,
+                thumbnailUrl, mediaUrl, mediaState, mediaCredit, sourceName, sourceId, sourceVersion, null,
+                null, null, null, null, null, List.of(), "SOURCE_TRANSLATION", null, false, false, false, null);
+    }
 
     /** 在读取模块边界完成深拷贝，避免调用方修改共享快照。 */
     public ReviewedExercise {
@@ -43,6 +69,7 @@ public record ReviewedExercise(
         secondaryMuscles = immutableList(secondaryMuscles);
         riskTags = immutableList(riskTags);
         steps = immutableList(steps);
+        sourceSecondaryMuscles = immutableList(sourceSecondaryMuscles);
     }
 
     private static <T> List<T> immutableList(List<T> values) {

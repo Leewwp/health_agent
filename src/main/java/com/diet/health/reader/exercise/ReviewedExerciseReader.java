@@ -1,6 +1,7 @@
 package com.diet.health.reader.exercise;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -15,8 +16,29 @@ public interface ReviewedExerciseReader {
     /** 动作目录分页（offset 从 0 起，计划资格优先且顺序稳定）。 */
     List<ReviewedExercise> browse(int offset, int size);
 
+    /** 按匿名用户服务端过滤收藏，避免前端先加载有限页后再过滤。 */
+    default List<ReviewedExercise> browse(int offset, int size, Long userId, boolean favoriteOnly) {
+        return browse(offset, size);
+    }
+
     /** 动作目录总数（与 browse 同口径）。 */
     int count();
+
+    /** 与收藏过滤口径一致的总数。 */
+    default int count(Long userId, boolean favoriteOnly) {
+        return count();
+    }
+
+    /** 资源选择器的服务端查询边界；默认实现保持旧 Reader seam 兼容。 */
+    default List<ReviewedExercise> browse(int offset, int size, Long userId, boolean favoriteOnly,
+                                          String query, Map<String, String> filters) {
+        return browse(offset, size, userId, favoriteOnly);
+    }
+
+    /** 与资源选择器查询条件一致的总数。 */
+    default int count(Long userId, boolean favoriteOnly, String query, Map<String, String> filters) {
+        return count(userId, favoriteOnly);
+    }
 
     /** 按稳定 ID 读取一条动作详情。 */
     Optional<ReviewedExercise> findById(Long id);

@@ -6,10 +6,10 @@ import { createBrowsePage } from "./browse.js";
 import { listMeals } from "../api.js";
 
 const FILTER_FIELDS = [
-    { key: "mealTime", label: "用餐时间" },
-    { key: "cuisine", label: "菜系" },
-    { key: "taste", label: "口味" },
-    { key: "healthGoal", label: "健康目标" }
+    { key: "mealTime", label: "用餐时间", options: ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"] },
+    { key: "cuisine", label: "菜系", options: ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"] },
+    { key: "taste", label: "口味", options: ["咸鲜", "奶香", "甜", "辣", "酸甜"] },
+    { key: "healthGoal", label: "健康目标", options: ["低油", "均衡", "控碳水", "清淡", "高蛋白"] }
 ];
 
 export const render = createBrowsePage({

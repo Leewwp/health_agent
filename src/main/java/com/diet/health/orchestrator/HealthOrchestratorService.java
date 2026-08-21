@@ -89,6 +89,7 @@ public class HealthOrchestratorService {
     private final HealthProfileService profileService;
     private final EnabledPlanContextService enabledPlanContextService;
     private final boolean intentFastPathEnabled;
+    private final boolean recommendationPreflightEnabled;
 
     @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
     private long requestTimeoutMs = 5000L;
@@ -213,6 +214,8 @@ public class HealthOrchestratorService {
         this.profileService = profileService;
         this.enabledPlanContextService = enabledPlanContextService;
         this.intentFastPathEnabled = intentFastPathEnabled;
+        // 直接构造的旧契约测试保持旧行为；Spring 生产入口带有档案服务，开启新的推荐前确认。
+        this.recommendationPreflightEnabled = profileService != null;
     }
 
     /** 处理一轮健康聊天。 */
@@ -327,6 +330,18 @@ public class HealthOrchestratorService {
 
         Map<String, List<String>> mergedSlots = mergeSlots(state.slots(), intent.slots());
         agentTraceService.recordEvent("SLOTS_MERGED", "SLOT", Map.of("stateSlots", state.slots(), "intentSlots", intent.slots()), mergedSlots);
+
+        // “可以推荐了”等确认语义复用同一推荐通道；只在当前会话已有待确认摘要时生效。
+        if (alternative == null && state.recommendationPreflightPending()
+                && isRecommendationConfirmation(userInput)
+                && state.domain() != null
+                && (state.domain() == HealthDomain.MEAL || state.domain() == HealthDomain.EXERCISE)) {
+            intent = HealthIntentResult.parsed(state.domain(), HealthTask.RECOMMEND, state.riskFlags(), Map.of(),
+                    List.of(), 1.0);
+            requestState = state.withRecommendationState(false, true,
+                    state.recommendationConfirmationVersion() + 1);
+            mergedSlots = state.slots();
+        }
 
         if (revision.clarifyDomain()) {
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.OTHER,
@@ -645,7 +660,9 @@ public class HealthOrchestratorService {
         boolean requestOnlyConstraint = isRequestOnlyConstraint(domain, userInput);
         List<String> missing = domain == HealthDomain.ROUTINE && routineModule.supportsFactQuery(userInput)
                 ? List.of()
-                : clarifyRuleService.missingSlots(domain, activeSlots);
+                : recommendationPreflightEnabled
+                        ? clarifyRuleService.minimumRecommendationSlots(domain, activeSlots)
+                        : clarifyRuleService.missingSlots(domain, activeSlots);
         if (requestOnlyConstraint && activeSlots.isEmpty()) {
             missing = List.of();
         }
@@ -658,6 +675,20 @@ public class HealthOrchestratorService {
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, domain, intent.task(),
                     riskFlags, question, missing);
             return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
+        }
+
+        if (recommendationPreflightEnabled && alternative == null && !state.recommendationConfirmed()) {
+            List<String> confirmed = slotSummary(activeSlots);
+            List<String> optional = clarifyRuleService.optionalRecommendationSlots(domain, activeSlots);
+            String summary = confirmed.isEmpty() ? "我已理解你的基本需求" : "我已确认：" + String.join("；", confirmed);
+            HealthChatResponse preflight = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
+                    riskFlags, HealthPhase.RESPOND,
+                    withContext(summary + "。还可以补充：" + (optional.isEmpty() ? "无" : String.join("、", optional))
+                            + "。要现在为你推荐吗？", advisoryCopy, currentAssignmentContext), List.of())
+                    .withActions(List.of(new HealthAction("CONFIRM_RECOMMENDATION", "为我推荐", traceId),
+                            new HealthAction("CONTINUE_RECOMMENDATION", "继续补充需求", traceId)))
+                    .withRecommendationPreflight(confirmed, optional, false);
+            return persistAndRespond(state, intent, mergedSlots, preflight, traceId, deadlineNanos);
         }
 
         List<HealthResource> candidates = applyRequestExclusions(domain, userInput,
@@ -713,7 +744,9 @@ public class HealthOrchestratorService {
                 .toList();
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
                 riskFlags, HealthPhase.RESPOND, withContext(outcome.speechText(), advisoryCopy, currentAssignmentContext), blocks)
-                .withActions(List.of(new HealthAction("GET_ALTERNATIVE", "换一批", traceId)));
+                .withActions(List.of(new HealthAction("GET_ALTERNATIVE", "换一批", traceId)))
+                .withRecommendationPreflight(slotSummary(activeSlots),
+                        clarifyRuleService.optionalRecommendationSlots(domain, activeSlots), true);
         return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos);
     }
 
@@ -789,6 +822,19 @@ public class HealthOrchestratorService {
         return List.copyOf(merged);
     }
 
+    private List<String> slotSummary(Map<String, List<String>> slots) {
+        if (slots == null || slots.isEmpty()) return List.of();
+        return slots.entrySet().stream()
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
+                .flatMap(entry -> entry.getValue().stream().map(value -> entry.getKey() + "：" + value))
+                .toList();
+    }
+
+    private boolean isRecommendationConfirmation(String input) {
+        return input != null && containsAny(input.replaceAll("\\s+", ""),
+                "为我推荐", "可以推荐了", "确认推荐", "就这样推荐", "开始推荐", "按这个推荐");
+    }
+
     /** 只处理明确的请求级否定，不写入会话槽位或长期偏好。 */
     private List<HealthResource> applyRequestExclusions(HealthDomain domain, String userInput,
                                                         List<HealthResource> candidates) {
@@ -862,6 +908,16 @@ public class HealthOrchestratorService {
                 .withPreferenceSignals(intent.preferenceSignals())
                 .withPlanBrief(planBrief)
                 .withMealPlanBrief(mealPlanBrief);
+        if (response.nextAction() == HealthNextAction.CONFIRM_RECOMMENDATION) {
+            saved = saved.withRecommendationState(true, false,
+                    Math.max(1, state.recommendationConfirmationVersion()));
+        } else if (response.recommendationConfirmed()) {
+            saved = saved.withRecommendationState(false, true,
+                    Math.max(1, state.recommendationConfirmationVersion()));
+        } else if (state.recommendationConfirmed() && intent.slots() != null && !intent.slots().isEmpty()) {
+            // 用户修改已确认槽位后，旧确认只对旧条件有效。
+            saved = saved.withRecommendationState(false, false, state.recommendationConfirmationVersion());
+        }
         if (response.responseType() == HealthResponseType.ANSWER && !response.displayBlocks().isEmpty()) {
             List<SessionResourceRef> refs = response.displayBlocks().stream()
                     .map(block -> new SessionResourceRef(block.resourceType(), block.resourceId()))

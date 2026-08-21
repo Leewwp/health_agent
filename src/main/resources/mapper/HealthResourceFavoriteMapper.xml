@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.diet.mapper.HealthResourceFavoriteMapper">
+    <resultMap id="FavoriteMap" type="com.diet.model.HealthResourceFavoriteRow">
+        <id property="userId" column="user_id"/>
+        <id property="resourceType" column="resource_type"/>
+        <id property="resourceId" column="resource_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <insert id="insertIgnore">
+        INSERT INTO health_resource_favorite
+            (user_id, resource_type, resource_id, created_at, updated_at)
+        VALUES (#{userId}, #{resourceType}, #{resourceId}, #{createdAt}, #{updatedAt})
+        ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM health_resource_favorite
+        WHERE user_id = #{userId} AND resource_type = #{resourceType} AND resource_id = #{resourceId}
+    </delete>
+
+    <select id="page" resultMap="FavoriteMap">
+        SELECT user_id, resource_type, resource_id, created_at, updated_at
+        FROM health_resource_favorite
+        WHERE user_id = #{userId}
+        <if test="resourceType != null and resourceType != ''">
+            AND resource_type = #{resourceType}
+        </if>
+        ORDER BY created_at DESC, resource_id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(1) FROM health_resource_favorite
+        WHERE user_id = #{userId}
+        <if test="resourceType != null and resourceType != ''">
+            AND resource_type = #{resourceType}
+        </if>
+    </select>
+
+    <select id="ids" resultType="string">
+        SELECT resource_id FROM health_resource_favorite
+        WHERE user_id = #{userId}
+        <if test="resourceType != null and resourceType != ''">
+            AND resource_type = #{resourceType}
+        </if>
+        ORDER BY resource_id
+    </select>
+
+    <select id="exists" resultType="int">
+        SELECT COUNT(1) FROM health_resource_favorite
+        WHERE user_id = #{userId} AND resource_type = #{resourceType} AND resource_id = #{resourceId}
+    </select>
+</mapper>

@@ -202,12 +202,90 @@
         LIMIT #{offset}, #{size}
     </select>
 
+    <select id="browseFavoritePublicMeals" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+        AND EXISTS (
+            SELECT 1 FROM health_resource_favorite f
+            WHERE f.user_id = #{userId}
+              AND f.resource_type = 'MEAL'
+              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        )
+        ORDER BY id
+        LIMIT #{offset}, #{size}
+    </select>
+
     <select id="countPublicMeals" resultType="int">
         SELECT COUNT(1)
         FROM meal_item
         WHERE source_type = 'PUBLIC'
         AND owner_user_id IS NULL
         AND review_status = 'APPROVED'
+    </select>
+
+    <select id="countFavoritePublicMeals" resultType="int">
+        SELECT COUNT(1)
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+        AND owner_user_id IS NULL
+        AND review_status = 'APPROVED'
+        AND EXISTS (
+            SELECT 1 FROM health_resource_favorite f
+            WHERE f.user_id = #{userId}
+              AND f.resource_type = 'MEAL'
+              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+        )
+    </select>
+
+    <select id="browsePublicMealsFiltered" resultMap="MealItemRowMap">
+        SELECT <include refid="BrowseMealColumns"/>
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+          AND owner_user_id IS NULL
+          AND review_status = 'APPROVED'
+        <if test="favoriteOnly">
+          AND EXISTS (
+              SELECT 1 FROM health_resource_favorite f
+              WHERE f.user_id = #{userId}
+                AND f.resource_type = 'MEAL'
+                AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+          )
+        </if>
+        <if test="query != null and query != ''">
+          AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
+        </if>
+        <if test="mealTime != null and mealTime != ''">AND JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime}))</if>
+        <if test="cuisine != null and cuisine != ''">AND JSON_OVERLAPS(cuisine, JSON_ARRAY(#{cuisine}))</if>
+        <if test="taste != null and taste != ''">AND JSON_OVERLAPS(taste, JSON_ARRAY(#{taste}))</if>
+        <if test="healthGoal != null and healthGoal != ''">AND JSON_OVERLAPS(health_goal, JSON_ARRAY(#{healthGoal}))</if>
+        ORDER BY id
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countPublicMealsFiltered" resultType="int">
+        SELECT COUNT(1)
+        FROM meal_item
+        WHERE source_type = 'PUBLIC'
+          AND owner_user_id IS NULL
+          AND review_status = 'APPROVED'
+        <if test="favoriteOnly">
+          AND EXISTS (
+              SELECT 1 FROM health_resource_favorite f
+              WHERE f.user_id = #{userId}
+                AND f.resource_type = 'MEAL'
+              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+          )
+        </if>
+        <if test="query != null and query != ''">
+          AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
+        </if>
+        <if test="mealTime != null and mealTime != ''">AND JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime}))</if>
+        <if test="cuisine != null and cuisine != ''">AND JSON_OVERLAPS(cuisine, JSON_ARRAY(#{cuisine}))</if>
+        <if test="taste != null and taste != ''">AND JSON_OVERLAPS(taste, JSON_ARRAY(#{taste}))</if>
+        <if test="healthGoal != null and healthGoal != ''">AND JSON_OVERLAPS(health_goal, JSON_ARRAY(#{healthGoal}))</if>
     </select>
 
     <select id="findApprovedPublicMeals" resultMap="MealItemRowMap">

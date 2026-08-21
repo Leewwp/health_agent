@@ -9,5 +9,7 @@ public enum HealthNextAction {
     ,CONFIRM_PLAN_BRIEF
     ,COMPLETE_PROFILE
     ,GENERATE_PLAN
-    ,VIEW_TRACE
+    ,VIEW_TRACE,
+    /** 推荐前确认最低条件后等待用户确认。 */
+    CONFIRM_RECOMMENDATION
 }

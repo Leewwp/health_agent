@@ -1,6 +1,6 @@
 # 推荐前确认
 
-Status: ready-for-agent
+Status: resolved
 Type: task
 Priority: P0
 Blocked by: none

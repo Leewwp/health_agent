@@ -27,6 +27,20 @@ public record ExerciseBrowseItem(
         String mediaCredit,
         String sourceName,
         String sourceId,
-        String sourceVersion
+        String sourceVersion,
+        String sourceHash,
+        String sourceCategory,
+        String sourceBodyPart,
+        String sourceEquipment,
+        String sourceTarget,
+        String sourceMuscleGroup,
+        List<String> sourceSecondaryMuscles,
+        String instructionsZhStatus,
+        String qualificationVersion,
+        boolean qualificationVisible,
+        boolean qualificationRecommendable,
+        boolean qualificationPlanReady,
+        String qualificationReportJson,
+        boolean favorite
 ) {
 }
