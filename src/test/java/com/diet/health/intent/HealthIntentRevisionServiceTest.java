@@ -51,6 +51,18 @@ class HealthIntentRevisionServiceTest {
     }
 
     @Test
+    void 餐食计划澄清后的纯餐次回答仍保持MEAL_PLAN上下文() {
+        HealthSessionState state = new HealthSessionState("s", 1L, HealthPhase.CLARIFY,
+                HealthDomain.MEAL, HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(), null);
+
+        HealthIntentResult continued = service.continueBeforeAgent("每天三餐", state).orElseThrow();
+        HealthIntentRevisionService.Revision revision = service.revise("每天三餐", state, continued);
+
+        assertEquals(HealthDomain.MEAL, revision.intent().domain());
+        assertEquals(HealthTask.PLAN, revision.intent().task());
+    }
+
+    @Test
     void 明确切换领域时不继承旧上下文() {
         HealthSessionState state = new HealthSessionState("s", 1L, HealthPhase.CLARIFY,
                 HealthDomain.EXERCISE, HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(), null);
