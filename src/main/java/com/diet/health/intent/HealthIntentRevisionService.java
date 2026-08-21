@@ -84,8 +84,8 @@ public class HealthIntentRevisionService {
                     : adjust ? HealthTask.ADJUST
                     : HealthTask.RECOMMEND;
         } else if (planContinuation) {
-            // 训练简报确认/纠正是当前 PLAN 上下文的继续输入，不能被普通意图兜底改写。
-            domain = HealthDomain.EXERCISE;
+            // 计划简报确认/纠正继承当前 PLAN 领域，不能被普通意图兜底改写。
+            domain = state.domain();
             task = HealthTask.PLAN;
         } else if (adjust && isRecommendDomain(state.domain())) {
             domain = state.domain();
