@@ -26,9 +26,13 @@ public class PlanScopeGuard {
         Set<String> expected = switch (scope) {
             case EXERCISE -> Set.of("EXERCISE");
             case MEAL -> Set.of("MEAL");
+            // 用户侧统一为综合周计划，餐食-only/训练-only 只是项目集合不同。
             case COMPOSITE -> Set.of("EXERCISE", "MEAL");
         };
-        if (!expected.equals(types)) {
+        boolean incompatible = scope != PlanScope.COMPOSITE
+                ? !expected.equals(types)
+                : types.isEmpty() || !expected.containsAll(types);
+        if (incompatible) {
             throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST,
                     "计划范围与项目资源类型不一致：" + scope);
         }

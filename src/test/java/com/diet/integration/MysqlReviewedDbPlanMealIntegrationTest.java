@@ -422,7 +422,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         HealthApiException overlap = assertThrows(HealthApiException.class, () -> planService().patchItem(USER,
                 plan.id(), exercise.id(),
                 new PatchItemRequest(null, LocalTime.of(19, 30), LocalTime.of(19, 30), "零时长训练")));
-        assertEquals(HealthApiException.CODE_RISK_BLOCKED, overlap.code());
+        assertEquals(HealthApiException.CODE_PLAN_TIME_CONFLICT, overlap.code());
 
         // 3) 数据库无半成品：项目保持原日期/时间，版本数与计划状态不变
         Map<String, Object> row = jdbc.queryForMap(
@@ -431,7 +431,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 exercise.id());
         assertEquals(MON.toString(), String.valueOf(row.get("d")), "失败 PATCH 不得改动项目日期");
         assertEquals("19:00", String.valueOf(row.get("s")), "失败 PATCH 不得改动开始时间");
-        assertEquals("19:45", String.valueOf(row.get("e")), "失败 PATCH 不得改动结束时间");
+        assertEquals("20:00", String.valueOf(row.get("e")), "失败 PATCH 不得改动结束时间");
         Integer versionCount = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM weekly_plan_version v JOIN weekly_plan p ON p.id = v.plan_id"
                         + " WHERE p.user_id = ?",

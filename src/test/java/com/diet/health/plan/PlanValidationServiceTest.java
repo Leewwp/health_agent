@@ -49,7 +49,13 @@ class PlanValidationServiceTest {
     }
 
     private static PlanItemDraft meal(LocalDate date, String name, int kcal) {
-        return new PlanItemDraft("MEAL", "m-" + name, name, date, LocalTime.of(12, 0), LocalTime.of(13, 0), null,
+        LocalTime start = switch (name) {
+            case "早餐" -> LocalTime.of(8, 0);
+            case "午餐" -> LocalTime.of(12, 0);
+            case "晚餐" -> LocalTime.of(18, 0);
+            default -> LocalTime.of(12, 0);
+        };
+        return new PlanItemDraft("MEAL", "m-" + name, name, date, start, start.plusMinutes(60), null,
                 Map.of("caloriesKcal", kcal));
     }
 
@@ -108,16 +114,14 @@ class PlanValidationServiceTest {
     }
 
     @Test
-    void 跨午夜睡眠与当日深夜训练冲突() {
+    void 训练跨午夜直接拒绝() {
         List<PlanItemDraft> items = List.of(
                 sleep(MON),
-                exercise(MON, "9001", "胸", LocalTime.of(23, 30), LocalTime.of(23, 45))
+                exercise(MON, "9001", "胸", LocalTime.of(23, 30), LocalTime.of(23, 30))
         );
         PlanValidationService.ValidationResult result = validation.validate(profile(30, 1400, 1800), items, CATALOG);
         assertEquals(PlanValidationLevel.HARD_ERROR, result.level());
-        assertTrue(result.hits().stream().anyMatch(hit -> "SCHEDULE_OVERLAP".equals(hit.ruleCode())));
-        assertTrue(result.hits().stream().anyMatch(hit -> hit.detail().contains("date=" + MON)),
-                "深夜段冲突日期为开始日");
+        assertTrue(result.hits().stream().anyMatch(hit -> "INVALID_TIME_RANGE".equals(hit.ruleCode())));
     }
 
     @Test
@@ -218,7 +222,7 @@ class PlanValidationServiceTest {
 
     @Test
     void 缺失单侧时间不构造半截区间() {
-        // 只有开始时间或只有结束时间：按可选字段契约跳过，不得与跨午夜睡眠冲突
+        // 计划项目必须提供完整的半小时区间。
         List<PlanItemDraft> items = List.of(
                 sleep(MON),
                 new PlanItemDraft("EXERCISE", "9001", "早练", TUE, LocalTime.of(6, 30), null, null,
@@ -227,8 +231,8 @@ class PlanValidationServiceTest {
                         Map.of("bodyPart", "腿"))
         );
         PlanValidationService.ValidationResult result = validation.validate(profile(30, 1400, 1800), items, CATALOG);
-        assertEquals(PlanValidationLevel.OK, result.level());
-        assertTrue(result.hits().isEmpty(), "缺失单侧时间不得参与冲突校验，实际 " + result.hits());
+        assertEquals(PlanValidationLevel.HARD_ERROR, result.level());
+        assertTrue(result.hits().stream().anyMatch(hit -> "INVALID_TIME_RANGE".equals(hit.ruleCode())));
     }
 
     @Test
@@ -308,7 +312,7 @@ class PlanValidationServiceTest {
     @Test
     void 餐食时间超出餐次窗口为WARNING() {
         List<PlanItemDraft> items = List.of(
-                new PlanItemDraft("MEAL", "m-1", "深夜早餐", MON, LocalTime.of(23, 30), LocalTime.of(23, 59), null,
+                new PlanItemDraft("MEAL", "m-1", "过早早餐", MON, LocalTime.of(4, 30), LocalTime.of(5, 0), null,
                         Map.of("mealTime", "早餐", "caloriesKcal", 500))
         );
         PlanValidationService.ValidationResult result = validation.validate(profile(30, 400, 800), items, CATALOG);

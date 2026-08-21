@@ -7,5 +7,5 @@
 - 不得安排在简报给出的训练日和时间窗口之外。
 
 【输出】
-只输出 JSON：{"schedule":[{"exerciseId":"候选 ID","localDate":"YYYY-MM-DD","startTime":"HH:mm","durationMinutes":45}]}
+只输出 JSON：{"schedule":[{"exerciseId":"候选 ID","localDate":"YYYY-MM-DD","startTime":"HH:mm","durationMinutes":30}]}
 不要输出解释、Markdown 或其他字段。

@@ -60,8 +60,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 真实 MySQL 事务回滚与行锁集成验证（39 号票剩余项，38 号总验收；62 号票补风险字段；#74 补 traceId 归因）：
- * 在独立测试库 diet_db_itest 上验证 V1-V15 迁移、saveProfile/范围生成/activate
- * 任一步写入失败时数据库无半成品、并发激活只产生一个有效 ACTIVE、
+ * 在独立测试库 diet_db_itest 上验证 V1-V18 迁移、saveProfile/范围生成/confirm/enable
+ * 任一步写入失败时数据库无半成品、并发启用只产生一个有效 ENABLED、
  * 激活后档案版本与能量区间与快照一致、档案版本号连续唯一、风险档案阻断后无残留。
  * <p>
  * 门控：-Ditest.mysql=true（CI 的 MySQL 服务容器与本地 MySQL 均为 root/123456）。
@@ -203,6 +203,16 @@ class MysqlTransactionIntegrationTest {
         return persistExerciseDraft(service, sessionId);
     }
 
+    private PlanView confirmDraft(WeeklyPlanService service, PlanView draft, String requestId) {
+        return service.confirm(USER, draft.id(),
+                new com.diet.health.plan.PlanWriteRequest(requestId, draft.currentVersion()));
+    }
+
+    private PlanView enablePlan(WeeklyPlanService service, PlanView plan, String requestId) {
+        return service.enable(USER, plan.id(),
+                new com.diet.health.plan.PlanWriteRequest(requestId, plan.currentVersion()));
+    }
+
     private int count(String table, String column, long userId) {
         Integer value = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?", Integer.class, userId);
@@ -221,14 +231,14 @@ class MysqlTransactionIntegrationTest {
     // ---------- 迁移 ----------
 
     @Test
-    void 干净库V1至V16迁移全部成功() {
+    void 干净库V1至V18迁移全部成功() {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank");
-        assertEquals(16, rows.size(), "干净库应执行 V1-V16 共 16 条迁移");
+        assertEquals(18, rows.size(), "干净库应执行 V1-V18 共 18 条迁移");
         assertTrue(rows.stream().allMatch(row -> Boolean.TRUE.equals(row.get("success"))),
                 "全部迁移必须标记成功");
         assertEquals("1", String.valueOf(rows.get(0).get("version")), "V1 旧库基线最先执行");
-        assertEquals("16", String.valueOf(rows.get(15).get("version")), "V16 最后执行");
+        assertEquals("18", String.valueOf(rows.get(17).get("version")), "V18 最后执行");
     }
 
     @Test
@@ -262,11 +272,20 @@ class MysqlTransactionIntegrationTest {
                         + "'health_profile','health_profile_version','recommend_feedback','meal_item_embedding')",
                 String.class);
         assertEquals(7, tables.size(), "领域表必须全部存在");
-        Integer actives = jdbc.queryForObject(
+        Integer enabled = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = 'diet_db_itest'"
-                        + " AND table_name = 'weekly_plan' AND index_name = 'uk_plan_active_user_key'",
+                        + " AND table_name = 'weekly_plan' AND index_name = 'uk_plan_enabled_user_key'",
                 Integer.class);
-        assertEquals(1, actives, "ACTIVE 唯一约束必须存在（V6）");
+        assertEquals(1, enabled, "用户级 ENABLED 唯一约束必须存在（V18）");
+        Integer activeIndex = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'weekly_plan' AND index_name IN ('uk_plan_active_user_key', 'uk_plan_active_user_scope_key')",
+                Integer.class);
+        assertEquals(0, activeIndex, "旧 ACTIVE 唯一约束必须被移除");
+        Integer assignmentTable = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'diet_db_itest'"
+                        + " AND table_name = 'health_current_assignment'", Integer.class);
+        assertEquals(0, assignmentTable, "当前安排表不属于统一计划模型");
         List<String> riskColumns = jdbc.queryForList(
                 "SELECT column_name FROM information_schema.columns WHERE table_schema = 'diet_db_itest'"
                         + " AND table_name = 'health_profile' AND column_name IN ('risk_conditions_json','risk_note')",
@@ -348,61 +367,69 @@ class MysqlTransactionIntegrationTest {
     }
 
     @Test
-    void 激活版本快照写入失败时计划保持DRAFT且无ACTIVE() {
+    void 启用版本快照写入失败时计划保持UNENABLED且无ENABLED() {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
         PlanView draft = createExerciseDraft(service, "sess-activate-version-failure");
+        PlanView confirmed = confirmDraft(service, draft, "confirm-version-failure");
         FaultyWeeklyPlanMapper mapper = new FaultyWeeklyPlanMapper(realPlanMapper);
         mapper.failInsertVersion = true;
         WeeklyPlanService failing = planService(mapper);
-        assertThrows(IllegalStateException.class, () -> failing.activate(USER, draft.id()),
+        assertThrows(IllegalStateException.class, () -> failing.enable(USER, draft.id(),
+                        new com.diet.health.plan.PlanWriteRequest("enable-version-failure", confirmed.currentVersion())),
                 "激活时版本快照失败必须抛出异常");
         String status = jdbc.queryForObject(
                 "SELECT status FROM weekly_plan WHERE id = ?", String.class, draft.id());
-        assertEquals("DRAFT", status, "目标计划必须保持 DRAFT");
-        assertEquals(0, countWhereStatus("weekly_plan", "user_id", USER, "ACTIVE"),
-                "不得产生 ACTIVE 计划");
-        assertEquals(1, countWhereStatus("weekly_plan", "user_id", USER, "DRAFT"), "仍只有原草稿");
+        assertEquals("UNENABLED", status, "目标计划必须保持 UNENABLED");
+        assertEquals(0, countWhereStatus("weekly_plan", "user_id", USER, "ENABLED"),
+                "不得产生 ENABLED 计划");
+        assertEquals(1, countWhereStatus("weekly_plan", "user_id", USER, "UNENABLED"), "仍只有原未启用计划");
     }
 
     @Test
-    void 激活归档旧ACTIVE失败时旧计划保持ACTIVE() {
+    void 启用切换旧ENABLED失败时旧计划保持ENABLED() {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
         PlanView first = createExerciseDraft(service, "sess-activate-archive-first");
-        service.activate(USER, first.id());
+        PlanView firstConfirmed = confirmDraft(service, first, "confirm-first");
+        enablePlan(service, firstConfirmed, "enable-first");
         PlanView second = createExerciseDraft(service, "sess-activate-archive-second");
+        PlanView secondConfirmed = confirmDraft(service, second, "confirm-second");
         FaultyWeeklyPlanMapper mapper = new FaultyWeeklyPlanMapper(realPlanMapper);
         mapper.failUpdatePlan = true;
         WeeklyPlanService failing = planService(mapper);
-        assertThrows(IllegalStateException.class, () -> failing.activate(USER, second.id()),
+        assertThrows(IllegalStateException.class, () -> failing.enable(USER, second.id(),
+                        new com.diet.health.plan.PlanWriteRequest("enable-second", secondConfirmed.currentVersion())),
                 "归档更新失败必须抛出异常");
-        assertEquals("ACTIVE", jdbc.queryForObject(
+        assertEquals("ENABLED", jdbc.queryForObject(
                 "SELECT status FROM weekly_plan WHERE id = ?", String.class, first.id()),
-                "旧 ACTIVE 必须保持 ACTIVE");
-        assertEquals("DRAFT", jdbc.queryForObject(
+                "旧 ENABLED 必须保持 ENABLED");
+        assertEquals("UNENABLED", jdbc.queryForObject(
                 "SELECT status FROM weekly_plan WHERE id = ?", String.class, second.id()),
-                "新草稿必须保持 DRAFT");
+                "新计划必须保持 UNENABLED");
     }
 
     // ---------- 39 号票验收点：并发激活与快照一致 ----------
 
     @Test
-    void 并发激活同一草稿只有一个成功() throws Exception {
+    void 并发启用同一未启用计划只有一个成功() throws Exception {
         saveProfile();
         WeeklyPlanService service = planService(realPlanMapper);
         PlanView draft = createExerciseDraft(service, "sess-concurrent-activate");
+        PlanView confirmed = confirmDraft(service, draft, "confirm-concurrent");
         int threads = 2;
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
         AtomicInteger ok = new AtomicInteger();
         AtomicInteger conflict = new AtomicInteger();
         for (int i = 0; i < threads; i++) {
+            final int threadIndex = i;
             WeeklyPlanService instance = planService(realPlanMapper);
             new Thread(() -> {
                 try {
                     start.await();
-                    instance.activate(USER, draft.id());
+                    instance.enable(USER, confirmed.id(), new com.diet.health.plan.PlanWriteRequest(
+                            "enable-concurrent-" + threadIndex, confirmed.currentVersion()));
                     ok.incrementAndGet();
                 } catch (Exception error) {
                     conflict.incrementAndGet();
@@ -415,8 +442,8 @@ class MysqlTransactionIntegrationTest {
         assertTrue(done.await(20, TimeUnit.SECONDS), "并发激活应在限时内完成");
         assertEquals(1, ok.get(), "同一草稿只能激活成功一次");
         assertEquals(1, conflict.get(), "输掉竞争的请求必须得到可解释结果");
-        assertEquals(1, countWhereStatus("weekly_plan", "user_id", USER, "ACTIVE"),
-                "数据库只能有一条 ACTIVE（行锁 + V6 唯一约束兜底）");
+        assertEquals(1, countWhereStatus("weekly_plan", "user_id", USER, "ENABLED"),
+                "数据库只能有一条 ENABLED（行锁 + V18 唯一约束兜底）");
     }
 
     @Test
@@ -425,7 +452,8 @@ class MysqlTransactionIntegrationTest {
                 profileService().saveProfile(USER, profileInput());
         WeeklyPlanService service = planService(realPlanMapper);
         PlanView draft = createExerciseDraft(service, "sess-activation-snapshot");
-        PlanView active = service.activate(USER, draft.id());
+        PlanView confirmed = confirmDraft(service, draft, "confirm-snapshot");
+        PlanView active = enablePlan(service, confirmed, "enable-snapshot");
         Map<String, Object> row = jdbc.queryForMap(
                 "SELECT profile_version_no, calorie_low, calorie_high FROM weekly_plan WHERE id = ?",
                 active.id());
@@ -436,7 +464,7 @@ class MysqlTransactionIntegrationTest {
         assertEquals(profile.calorieHigh(), ((Number) row.get("calorie_high")).intValue(),
                 "激活后能量上限与激活时快照一致");
         assertEquals(2L, active.currentVersion(), "激活后版本号递增");
-        assertEquals("ACTIVE", jdbc.queryForObject(
+        assertEquals("ENABLED", jdbc.queryForObject(
                 "SELECT status FROM weekly_plan WHERE id = ?", String.class, active.id()));
     }
 
@@ -736,6 +764,10 @@ class MysqlTransactionIntegrationTest {
             return delegate.findActiveByUserForUpdate(userId);
         }
 
+        @Override public WeeklyPlanRow findActiveByUserAndScopeForUpdate(Long userId, String planScope) {
+            return delegate.findActiveByUserAndScopeForUpdate(userId, planScope);
+        }
+
         @Override public List<WeeklyPlanRow> listPlans(Long userId) {
             return delegate.listPlans(userId);
         }
@@ -779,6 +811,18 @@ class MysqlTransactionIntegrationTest {
 
         @Override public int updateItemSchedule(WeeklyPlanItemRow row) {
             return delegate.updateItemSchedule(row);
+        }
+
+        @Override public int deleteItemsByPlanId(Long planId) {
+            return delegate.deleteItemsByPlanId(planId);
+        }
+
+        @Override public int deleteVersionsByPlanId(Long planId) {
+            return delegate.deleteVersionsByPlanId(planId);
+        }
+
+        @Override public int deletePlan(Long planId, Long userId) {
+            return delegate.deletePlan(planId, userId);
         }
     }
 

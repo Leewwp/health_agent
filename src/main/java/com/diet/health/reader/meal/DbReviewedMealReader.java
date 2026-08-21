@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 审核餐食读取模块 DB adapter（#68，方案 B）。
@@ -57,6 +58,15 @@ public class DbReviewedMealReader implements ReviewedMealReader {
         return mealMapper.findApprovedPublicByIds(ids.stream().distinct().toList()).stream()
                 .map(this::toReviewedMeal)
                 .toList();
+    }
+
+    @Override
+    public Optional<ReviewedMeal> findById(Long id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        MealItemRow row = mealMapper.findApprovedPublicById(id);
+        return row == null ? Optional.empty() : Optional.of(toReviewedMeal(row));
     }
 
     @Override

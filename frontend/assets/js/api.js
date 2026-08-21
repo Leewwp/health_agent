@@ -126,6 +126,14 @@ export function getPlan(planId) {
     return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}`);
 }
 
+export function getMealDetail(resourceId) {
+    return request(HEALTH_BASE, `/meals/${encodeURIComponent(resourceId)}`);
+}
+
+export function getExerciseDetail(resourceId) {
+    return request(HEALTH_BASE, `/exercises/${encodeURIComponent(resourceId)}`);
+}
+
 export function generateTrainingPlan(payload, options) {
     return request(HEALTH_BASE, "/plans/generate", {
         method: "POST",
@@ -134,19 +142,36 @@ export function generateTrainingPlan(payload, options) {
     });
 }
 
-export function activatePlan(planId) {
-    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/activate`, { method: "POST" });
+function planWriteBody(payload) {
+    return payload || { requestId: crypto.randomUUID(), expectedVersion: 1 };
+}
+
+export function confirmPlan(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/confirm`, { method: "POST", body: planWriteBody(payload) });
+}
+
+export function enablePlan(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/enable`, { method: "POST", body: planWriteBody(payload) });
+}
+
+export function disablePlan(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/disable`, { method: "POST", body: planWriteBody(payload) });
+}
+
+export function archivePlan(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/archive`, { method: "POST", body: planWriteBody(payload) });
+}
+
+export function copyPlan(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/copy`, { method: "POST", body: planWriteBody(payload) });
 }
 
 export function editPlan(planId) {
     return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/edit`, { method: "POST" });
 }
 
-export function patchPlanItem(planId, itemId, payload) {
-    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/items/${encodeURIComponent(itemId)}`, {
-        method: "PATCH",
-        body: payload
-    });
+export function updatePlanItems(planId, payload) {
+    return request(HEALTH_BASE, `/plans/${encodeURIComponent(planId)}/items`, { method: "PUT", body: payload });
 }
 
 export function getProfile() {

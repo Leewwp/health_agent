@@ -34,7 +34,7 @@ public class PlanValidationService {
      * v2（60 号票）：SCHEDULE_OVERLAP 改为按真实日期比较（跨午夜结束段归属次日），
      * 新增 INVALID_TIME_RANGE 零时长规则；旧版命中记录不再代表当前语义。
      */
-    public static final String RULES_VERSION = "2026-08-12-plan-v2";
+    public static final String RULES_VERSION = "2026-08-21-unified-plan-v1";
 
     /** 校验阶段名。 */
     public static final String STAGE_COMPOSE = "COMPOSE";
@@ -50,6 +50,8 @@ public class PlanValidationService {
 
     /** 非法时间文案（60 号票：start=end 零时长不解释为 24 小时）。 */
     public static final String INVALID_TIME_RANGE_COPY = "项目开始时间与结束时间相同，请调整后再保存。";
+    public static final String INVALID_TIME_GRANULARITY_COPY = "项目时间只能使用整点或半点，请调整后再保存。";
+    public static final String CROSS_MIDNIGHT_COPY = "项目不能跨午夜，请调整日期或时间。";
 
     /** 训练部位连续两天文案。 */
     public static final String BODY_PART_CONSECUTIVE_COPY = "同一主要训练部位不宜连续两天安排，请错开训练部位。";
@@ -78,11 +80,18 @@ public class PlanValidationService {
     }
 
     /** 资源目录（组合器确认后的资格快照，供引用与资格校验）。 */
-    public record ResourceCatalog(Set<String> planReadyExerciseIds, Set<String> knownExerciseIds, Set<String> knownRoutineFactIds) {
+    public record ResourceCatalog(Set<String> planReadyExerciseIds, Set<String> knownExerciseIds,
+                                  Set<String> knownRoutineFactIds, Set<String> knownMealIds) {
         public ResourceCatalog {
             planReadyExerciseIds = planReadyExerciseIds == null ? Set.of() : Set.copyOf(planReadyExerciseIds);
             knownExerciseIds = knownExerciseIds == null ? Set.of() : Set.copyOf(knownExerciseIds);
             knownRoutineFactIds = knownRoutineFactIds == null ? Set.of() : Set.copyOf(knownRoutineFactIds);
+            knownMealIds = knownMealIds == null ? Set.of() : Set.copyOf(knownMealIds);
+        }
+
+        public ResourceCatalog(Set<String> planReadyExerciseIds, Set<String> knownExerciseIds,
+                               Set<String> knownRoutineFactIds) {
+            this(planReadyExerciseIds, knownExerciseIds, knownRoutineFactIds, Set.of());
         }
     }
 
@@ -132,22 +141,23 @@ public class PlanValidationService {
         return items != null && items.stream().anyMatch(PlanItemDraft::isExercise);
     }
 
-    /**
-     * 作息与训练（含作息之间）时间不得重叠；餐食不参与冲突校验（规格 8.2）。
-     * <p>
-     * 60 号票冻结语义：跨午夜区间 [date start, date+1 end) 的结束段归属真实次日——
-     * 不再把两段都留在开始日期桶（旧实现同时产生假阳性与假阴性）。
-     * 周日跨周一的结束段落在 weekStart+7 的桶中：该桶只可能有周日项目的结束段
-     * （项目日期被写入 Guard 限制在本周内），因此只校验周日项目之间的真实重叠，
-     * 不会跨计划读取下周一项目。endTime==startTime 为非法零时长（HARD_ERROR），
-     * 不解释为 24 小时；缺失单侧时间不参与（可选字段契约）。
-     */
+    /** 餐食和训练共享同一时间轴，使用 [start,end) 且禁止跨午夜。 */
     private List<RuleHit> checkScheduleOverlap(List<PlanItemDraft> items) {
         Map<LocalDate, List<Interval>> byDay = new TreeMap<>();
         List<RuleHit> hits = new ArrayList<>();
         for (PlanItemDraft item : items) {
-            if (!(item.isRoutine() || item.isExercise())
-                    || item.startTime() == null || item.endTime() == null) {
+            if (!(item.isMeal() || item.isExercise() || item.isRoutine())) {
+                continue;
+            }
+            if (item.startTime() == null || item.endTime() == null) {
+                if (item.isRoutine()) continue;
+                hits.add(hit("INVALID_TIME_RANGE", HealthRiskLevel.BLOCK_PLAN, INVALID_TIME_RANGE_COPY,
+                        "item=" + item.name() + " 缺少开始或结束时间"));
+                continue;
+            }
+            if (!item.isRoutine() && (!isHalfHour(item.startTime()) || !isHalfHour(item.endTime()))) {
+                hits.add(hit("INVALID_TIME_GRANULARITY", HealthRiskLevel.BLOCK_PLAN,
+                        INVALID_TIME_GRANULARITY_COPY, "item=" + item.name()));
                 continue;
             }
             if (item.startTime().equals(item.endTime())) {
@@ -156,12 +166,17 @@ public class PlanValidationService {
                                 + ", start=end=" + item.startTime()));
                 continue;
             }
+            if (item.endTime().isBefore(item.startTime()) && !item.isRoutine()) {
+                hits.add(hit("CROSS_MIDNIGHT", HealthRiskLevel.BLOCK_PLAN, CROSS_MIDNIGHT_COPY,
+                        "item=" + item.name() + ", date=" + item.localDate()));
+                continue;
+            }
             int start = item.startTime().toSecondOfDay() / 60;
             int end = item.endTime().toSecondOfDay() / 60;
-            if (end > start) {
+            if (end > start || item.isMeal() || item.isExercise()) {
                 byDay.computeIfAbsent(item.localDate(), key -> new ArrayList<>()).add(new Interval(item, start, end));
             } else {
-                // 跨午夜区间拆两段：[start, 24:00) 归属当日，[00:00, end) 归属真实次日
+                // 作息事实保留跨午夜读取兼容；餐食和训练已在上方拒绝跨午夜。
                 byDay.computeIfAbsent(item.localDate(), key -> new ArrayList<>()).add(new Interval(item, start, 24 * 60));
                 byDay.computeIfAbsent(item.localDate().plusDays(1), key -> new ArrayList<>())
                         .add(new Interval(item, 0, end));
@@ -187,6 +202,10 @@ public class PlanValidationService {
             }
         }
         return hits;
+    }
+
+    private boolean isHalfHour(LocalTime time) {
+        return time.getMinute() % 30 == 0 && time.getSecond() == 0 && time.getNano() == 0;
     }
 
     /** 分钟级时间区间（跨午夜已拆段；date 由分桶键承载，detail 记录真实瞬间）。 */
@@ -254,7 +273,7 @@ public class PlanValidationService {
     private record TimeWindow(LocalTime start, LocalTime end) {
     }
 
-    /** 资源引用与资格：动作必须存在且 plan_ready，作息事实必须存在。 */
+    /** 资源引用与资格：餐食存在，动作必须存在且 plan_ready。 */
     private List<RuleHit> checkResources(List<PlanItemDraft> items, ResourceCatalog catalog) {
         List<RuleHit> hits = new ArrayList<>();
         for (PlanItemDraft item : items) {
@@ -266,6 +285,10 @@ public class PlanValidationService {
                     hits.add(hit("RESOURCE_NOT_PLAN_READY", HealthRiskLevel.BLOCK_PLAN, RESOURCE_NOT_PLAN_READY_COPY,
                             "resourceId=" + item.resourceId()));
                 }
+            } else if (item.isMeal() && !catalog.knownMealIds().isEmpty()
+                    && !catalog.knownMealIds().contains(item.resourceId())) {
+                hits.add(hit("RESOURCE_NOT_FOUND", HealthRiskLevel.BLOCK_PLAN, RESOURCE_NOT_FOUND_COPY,
+                        "resourceId=" + item.resourceId()));
             } else if (item.isRoutine() && !catalog.knownRoutineFactIds().contains(item.resourceId())) {
                 hits.add(hit("RESOURCE_NOT_FOUND", HealthRiskLevel.BLOCK_PLAN, RESOURCE_NOT_FOUND_COPY,
                         "resourceId=" + item.resourceId()));

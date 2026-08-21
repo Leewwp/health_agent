@@ -18,7 +18,10 @@ public class HealthApiExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleHealthApiException(HealthApiException error, HttpServletRequest request) {
         HttpStatus status = switch (error.code()) {
             case HealthApiException.CODE_NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case HealthApiException.CODE_RISK_BLOCKED, HealthApiException.CODE_CONFLICT -> HttpStatus.CONFLICT;
+            case HealthApiException.CODE_RISK_BLOCKED, HealthApiException.CODE_CONFLICT,
+                    HealthApiException.CODE_PLAN_VERSION_CONFLICT, HealthApiException.CODE_PLAN_STATE_CONFLICT,
+                    HealthApiException.CODE_PLAN_TIME_CONFLICT, HealthApiException.CODE_PLAN_RESOURCE_INVALID,
+                    HealthApiException.CODE_PLAN_IDEMPOTENCY_CONFLICT -> HttpStatus.CONFLICT;
             case HealthApiException.CODE_IDENTITY_INVALID -> HttpStatus.UNAUTHORIZED;
             case HealthApiException.CODE_RESOURCE_MODE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case HealthApiException.CODE_TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;

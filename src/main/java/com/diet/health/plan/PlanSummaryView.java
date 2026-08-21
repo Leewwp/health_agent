@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /** 计划列表摘要（规格 6.2 GET /plans）。 */
-public record PlanSummaryView(Long id, PlanStatus status, LocalDate weekStart, String timezone,
+public record PlanSummaryView(Long id, String name, PlanStatus status, LocalDate weekStart, String timezone,
                               PlanValidationLevel validationLevel, Long currentVersion, int itemCount,
                               String generationSource, LocalDateTime updatedAt, PlanScope planScope) {
     public PlanSummaryView(Long id, PlanStatus status, LocalDate weekStart, String timezone,
@@ -16,5 +16,12 @@ public record PlanSummaryView(Long id, PlanStatus status, LocalDate weekStart, S
                            String generationSource, LocalDateTime updatedAt) {
         this(id, status, weekStart, timezone, validationLevel, currentVersion, itemCount,
                 generationSource, updatedAt, PlanScope.EXERCISE);
+    }
+
+    public PlanSummaryView(Long id, PlanStatus status, LocalDate weekStart, String timezone,
+                           PlanValidationLevel validationLevel, Long currentVersion, int itemCount,
+                           String generationSource, LocalDateTime updatedAt, PlanScope planScope) {
+        this(id, null, status, weekStart, timezone, validationLevel, currentVersion, itemCount,
+                generationSource, updatedAt, planScope);
     }
 }

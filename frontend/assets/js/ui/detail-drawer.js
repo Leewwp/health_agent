@@ -37,6 +37,9 @@ export function openDrawer(key, context) {
 
     const editForm = drawerContext.editForm || "";
     const body = renderBody(resource, resourceType);
+    const detailArea = typeof drawerContext.detailLoader === "function"
+        ? `<div class="drawer-resource-detail" data-drawer-detail="1"><p class="muted"><span class="loading-spinner" aria-hidden="true"></span>正在读取资源详情...</p></div>`
+        : "";
     const footerParts = [];
     if (resourceType === "MEAL" || resourceType === "EXERCISE") {
         footerParts.push(renderFeedbackControl(resourceType, resourceId, {
@@ -60,13 +63,32 @@ export function openDrawer(key, context) {
                 </div>
                 <button class="btn drawer-close" data-drawer-close="1" aria-label="关闭详情">✕</button>
             </header>
-            <div class="drawer-body">${body}${editForm}</div>
+            <div class="drawer-body">${body}${detailArea}${editForm}</div>
             ${footer}
         </div>
     `;
     root.classList.add("open");
     root.setAttribute("aria-hidden", "false");
     root.querySelector("[data-drawer-close]")?.focus({ preventScroll: true });
+    if (typeof drawerContext.detailLoader === "function") {
+        const loader = drawerContext.detailLoader;
+        void loadResourceDetail(resourceType, loader);
+    }
+}
+
+async function loadResourceDetail(resourceType, loader) {
+    try {
+        const detail = await loader();
+        const target = root.querySelector("[data-drawer-detail]");
+        if (target) {
+            target.innerHTML = renderBody(detail, resourceType);
+        }
+    } catch (error) {
+        const target = root.querySelector("[data-drawer-detail]");
+        if (target) {
+            target.innerHTML = `<p class="muted drawer-detail-error">资源详情暂时不可用，计划参数仍保留。${escapeHtml(error.message || "请稍后重试")}</p>`;
+        }
+    }
 }
 
 export function closeDrawer(options) {
@@ -119,6 +141,10 @@ export function bindDrawer(container) {
         const saveButton = event.target.closest("[data-drawer-save]");
         if (saveButton && drawerContext && typeof drawerContext.onSave === "function") {
             drawerContext.onSave(collectEditValues());
+        }
+        const deleteButton = event.target.closest("[data-drawer-delete]");
+        if (deleteButton && drawerContext && typeof drawerContext.onDelete === "function") {
+            drawerContext.onDelete();
         }
     });
 }

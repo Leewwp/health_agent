@@ -11,6 +11,7 @@ public class WeeklyPlanRow {
     private Long id;
     private Long userId;
     private String planScope;
+    private String name;
     private String status;
     private LocalDate weekStart;
     private String timezone;

@@ -54,6 +54,14 @@ public class ExerciseBrowseService {
         return PagedResponse.of(items, page, size, total);
     }
 
+    public ExerciseBrowseItem detail(long id) {
+        requireReviewedMode();
+        return reviewedExerciseReader.findById(id)
+                .map(ExerciseBrowseService::toItem)
+                .orElseThrow(() -> new com.diet.exception.HealthApiException(
+                        com.diet.exception.HealthApiException.CODE_NOT_FOUND, "动作不存在或未通过审核"));
+    }
+
     private void requireReviewedMode() {
         ReviewedBrowseMode.require(resourceProvider, "动作浏览");
     }

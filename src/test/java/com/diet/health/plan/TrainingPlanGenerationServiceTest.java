@@ -132,7 +132,7 @@ class TrainingPlanGenerationServiceTest {
         assertEquals("FALLBACK", response.generationSource());
         assertTrue(persistedItems.stream().filter(PlanItemDraft::isExercise)
                 .allMatch(item -> item.startTime().equals(LocalTime.of(19, 0))
-                        && item.endTime().equals(LocalTime.of(19, 45))));
+                        && item.endTime().equals(LocalTime.of(20, 0))));
     }
 
     @Test

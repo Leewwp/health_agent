@@ -18,13 +18,17 @@ public interface WeeklyPlanMapper {
     /** 按 id + 归属查询计划并锁定行（激活路径使用，串行化并发激活）。 */
     WeeklyPlanRow findPlanByIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
 
-    /** 某用户的 ACTIVE 计划（同一用户最多一份）。 */
+    /** 某用户的 ENABLED 计划（同一用户最多一份）。 */
     WeeklyPlanRow findActiveByUser(@Param("userId") Long userId);
 
-    /** 某用户的 ACTIVE 计划并锁定行（激活路径归档前使用）。 */
+    /** 某用户的 ENABLED 计划并锁定行。 */
     WeeklyPlanRow findActiveByUserForUpdate(@Param("userId") Long userId);
 
-    /** 按用户列出全部计划（ACTIVE 优先，再 DRAFT，最后 ARCHIVED，按更新时间倒序）。 */
+    /** 旧测试适配入口；统一生命周期下仍只查询用户级 ENABLED。 */
+    WeeklyPlanRow findActiveByUserAndScopeForUpdate(@Param("userId") Long userId,
+                                                    @Param("planScope") String planScope);
+
+    /** 按用户列出全部计划（ENABLED 优先，再 DRAFT/UNENABLED/HISTORY）。 */
     List<WeeklyPlanRow> listPlans(@Param("userId") Long userId);
 
     int insertPlan(WeeklyPlanRow row);
@@ -44,4 +48,10 @@ public interface WeeklyPlanMapper {
 
     /** PATCH 只允许修改日期、时间、备注（规格 6.3）。 */
     int updateItemSchedule(WeeklyPlanItemRow row);
+
+    int deleteItemsByPlanId(@Param("planId") Long planId);
+
+    int deleteVersionsByPlanId(@Param("planId") Long planId);
+
+    int deletePlan(@Param("planId") Long planId, @Param("userId") Long userId);
 }

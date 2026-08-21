@@ -10,8 +10,11 @@
 
 ## 2026-08-20 统一综合周计划与时间网格编辑器
 
-- 本轮确定的计划生命周期、单一当前启用计划、三种 Agent 生成流程和时间网格编辑规格见 [unified-plan-editor/spec.md](unified-plan-editor/spec.md)，状态为 `ready-for-agent`。
+- 本轮确定的计划生命周期、单一当前启用计划、三种 Agent 生成流程和时间网格编辑规格见 [unified-plan-editor/spec.md](../health-agent-unified-plan-editor/spec.md)，状态为 `implemented / ready-for-human`。P0/P1 已实现并通过自动化验证；桌面拖拽专项体验和复杂历史复制列为 P2 延期项。
 - 设计决策与旧计划当前安排模型的差异见 [ADR-0014](../../docs/adr/0014-unified-weekly-plan-and-timeline-editor.md)。
+
+- 实现范围：`weekly_plan.status` 统一为 `DRAFT`/`UNENABLED`/`ENABLED`/`HISTORY`；V17 为过渡迁移，V18 清理旧 `ACTIVE`/`ARCHIVED` 计划及分域 current-assignment，并建立用户级 `ENABLED` 唯一约束和 `health_plan_write_request` 幂等表。
+- 浏览器核心证据：`http://localhost:8090/#/chat`、`http://localhost:8090/#/plans`；桌面 `1710×983` 完成训练简报、计划生成、确认、启用、停用、历史转换和计划名称保存，移动 `390×844` 完成确认/启用且无横向溢出。详细记录见 `docs/frontend-browser-acceptance.md`。
 
 ## 2026-08-20 产品体验与资源能力增强规格
 

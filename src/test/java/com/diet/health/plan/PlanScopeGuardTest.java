@@ -18,10 +18,10 @@ class PlanScopeGuardTest {
     private final PlanScopeGuard guard = new PlanScopeGuard();
 
     @Test
-    void 综合计划必须同时包含训练和餐食但不得包含作息() {
+    void 综合计划允许餐食训练任一集合但不得包含作息() {
         guard.requireCompatible(PlanScope.COMPOSITE, List.of(exercise(), meal()));
-        assertThrows(HealthApiException.class, () -> guard.requireCompatible(
-                PlanScope.COMPOSITE, List.of(exercise())));
+        guard.requireCompatible(PlanScope.COMPOSITE, List.of(exercise()));
+        guard.requireCompatible(PlanScope.COMPOSITE, List.of(meal()));
         assertThrows(HealthApiException.class, () -> guard.requireCompatible(
                 PlanScope.COMPOSITE, List.of(exercise(), routine())));
     }
