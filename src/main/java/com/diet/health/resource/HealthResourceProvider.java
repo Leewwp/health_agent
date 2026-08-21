@@ -21,6 +21,9 @@ public interface HealthResourceProvider {
     /** 全部已审核动作（不可变拷贝）。 */
     List<HealthResource> exercises();
 
+    /** 单次动作推荐候选：正式模式为完整动作目录，fixture 模式为全部种子动作。 */
+    List<HealthResource> singleRecommendationExercises();
+
     /** 全部已审核作息事实（不可变拷贝）。 */
     List<RoutineFact> routineFacts();
 

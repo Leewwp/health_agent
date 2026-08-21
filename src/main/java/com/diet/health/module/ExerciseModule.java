@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 健身领域模块：从统一审核资源 Provider（正式=数据库审核子集，fixture=内存种子）按槽位筛选、排序。
- * 动作只要有基础字段即可浏览与单次推荐；plan_ready 是自动周计划资格（本票只透出标志）。
+ * 健身领域模块：从统一资源 Provider 按槽位筛选、排序。
+ * 动作只要有基础字段即可浏览与单次推荐；plan_ready 是自动周计划资格。
  */
 @Service
 public class ExerciseModule {
@@ -36,7 +36,7 @@ public class ExerciseModule {
     public List<HealthResource> recommend(Map<String, List<String>> slots, List<String> excludeIds, int limit) {
         Set<String> exclude = new HashSet<>(excludeIds == null ? List.of() : excludeIds);
         int safeLimit = limit > 0 ? Math.min(limit, RECOMMEND_LIMIT) : RECOMMEND_LIMIT;
-        List<Scored> scored = resourceProvider.exercises().stream()
+        List<Scored> scored = resourceProvider.singleRecommendationExercises().stream()
                 .filter(item -> !exclude.contains(item.resourceId()))
                 .map(item -> new Scored(item, score(item, slots)))
                 .sorted(Comparator.comparingDouble(Scored::score).reversed())

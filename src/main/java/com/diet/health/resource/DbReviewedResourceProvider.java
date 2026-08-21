@@ -55,6 +55,13 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     }
 
     @Override
+    public List<HealthResource> singleRecommendationExercises() {
+        return exerciseMapper.findAllCatalog().stream()
+                .map(this::toResource)
+                .toList();
+    }
+
+    @Override
     public List<RoutineFact> routineFacts() {
         return routineFactMapper.selectAll().stream()
                 .map(this::toFact)

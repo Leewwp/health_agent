@@ -69,6 +69,11 @@ class ExerciseModuleTest {
                 dbRow(1160L, "波比跳", "cardio", "[\"quadriceps\"]", "[\"quadriceps\", \"hamstrings\", \"calves\", \"shoulders\", \"chest\"]"),
                 dbRow(662L, "俯卧撑", "chest", "[\"triceps\"]", "[\"triceps\", \"deltoids\", \"core\"]")
         ));
+        when(exerciseMapper.findAllCatalog()).thenReturn(List.of(
+                dbRow(630L, "登山者", "cardio", "[\"core\"]", "[\"core\", \"shoulders\", \"triceps\"]"),
+                dbRow(1160L, "波比跳", "cardio", "[\"quadriceps\"]", "[\"quadriceps\", \"hamstrings\", \"calves\", \"shoulders\", \"chest\"]"),
+                dbRow(662L, "俯卧撑", "chest", "[\"triceps\"]", "[\"triceps\", \"deltoids\", \"core\"]")
+        ));
         ExerciseModule dbModule = new ExerciseModule(
                 new DbReviewedResourceProvider(exerciseMapper, mealMapper, factMapper,
                         new JsonService(new ObjectMapper())),
@@ -81,6 +86,29 @@ class ExerciseModuleTest {
         assertTrue(result.stream().noneMatch(item -> item.name().equals("俯卧撑")), "「全身」不应召回胸部动作");
         assertTrue(result.stream().allMatch(item -> item.tags().get("bodyParts").contains("全身")),
                 "召回动作的 bodyParts 都必须含「全身」（归一后的中文值参与比较）");
+    }
+
+    @Test
+    void 完整目录进入单次推荐但不改变计划资格边界() {
+        ExerciseMapper exerciseMapper = mock(ExerciseMapper.class);
+        MealMapper mealMapper = mock(MealMapper.class);
+        RoutineFactMapper factMapper = mock(RoutineFactMapper.class);
+        ExerciseItemRow pending = dbRow(1531L, "目录待审核动作", "chest", "[\"triceps\"]", "[]");
+        pending.setReviewStatus("PENDING");
+        pending.setPlanReady(false);
+        when(exerciseMapper.findAllCatalog()).thenReturn(List.of(pending));
+        when(exerciseMapper.findAllApproved()).thenReturn(List.of());
+        DbReviewedResourceProvider provider = new DbReviewedResourceProvider(
+                exerciseMapper, mealMapper, factMapper, new JsonService(new ObjectMapper()));
+
+        ExerciseModule module = new ExerciseModule(provider,
+                new PreferenceService(mock(FeedbackMapper.class)));
+
+        List<HealthResource> recommendations = module.recommend(
+                Map.of("bodyParts", List.of("胸")), List.of(), 5);
+
+        assertEquals(List.of("1531"), recommendations.stream().map(HealthResource::resourceId).toList());
+        assertTrue(provider.planReadyExercises().isEmpty(), "待审核目录动作不得进入计划候选");
     }
 
     private static ExerciseItemRow dbRow(Long id, String name, String bodyPart, String target, String secondary) {

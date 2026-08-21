@@ -151,6 +151,22 @@ class DbReviewedExerciseReaderTest {
     }
 
     @Test
+    void 目录详情可读取待审核动作且使用目录查询() {
+        ExerciseItemRow pending = row(2L);
+        pending.setReviewStatus("PENDING");
+        pending.setPlanReady(false);
+        when(exerciseMapper.browseById(2L)).thenReturn(pending);
+
+        ReviewedExercise exercise = reader.findById(2L).orElseThrow();
+
+        assertEquals(2L, exercise.id());
+        assertEquals("PENDING", exercise.reviewStatus());
+        assertTrue(!exercise.planReady());
+        verify(exerciseMapper).browseById(2L);
+        verify(exerciseMapper, never()).findById(2L);
+    }
+
+    @Test
     void 读取模型内嵌集合深不可变() {
         when(exerciseMapper.browse(0, 10)).thenReturn(List.of(row(1L)));
         ReviewedExercise exercise = reader.browse(0, 10).get(0);

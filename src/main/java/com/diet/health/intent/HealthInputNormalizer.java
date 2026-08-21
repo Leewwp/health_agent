@@ -18,14 +18,15 @@ import java.util.Set;
 public class HealthInputNormalizer {
 
     private static final Map<String, List<String>> SLOT_ALIASES = createAliases();
-    private static final Set<String> NEGATION_WORDS = Set.of("不要", "不用", "不想", "别", "避免", "排除", "不练");
+    private static final Set<String> NEGATION_WORDS = Set.of("不要", "不用", "不想", "别", "避免", "排除", "不练", "没", "没有");
 
     /** 归一用户原文和上游槽位，并只保留当前领域允许的槽位。 */
     public NormalizationResult normalize(HealthDomain domain, String userInput,
                                          Map<String, List<String>> rawSlots) {
         Map<String, LinkedHashSet<String>> collected = new LinkedHashMap<>();
+        Set<String> negatedSlots = new LinkedHashSet<>();
         boolean unsafe = false;
-        String text = compact(userInput);
+        String text = effectiveRequestText(userInput);
 
         if (rawSlots != null) {
             for (Map.Entry<String, List<String>> entry : rawSlots.entrySet()) {
@@ -39,6 +40,7 @@ public class HealthInputNormalizer {
                     }
                     if (isNegated(text, entry.getKey(), canonical)) {
                         unsafe = true;
+                        negatedSlots.add(entry.getKey() + ":" + canonical);
                         continue;
                     }
                     collected.computeIfAbsent(entry.getKey(), key -> new LinkedHashSet<>()).add(canonical);
@@ -60,6 +62,7 @@ public class HealthInputNormalizer {
                     continue;
                 } else if (isNegatedOccurrence(text, alias.getKey())) {
                     unsafe = true;
+                    negatedSlots.add(slot + ":" + alias.getValue());
                 } else {
                     collected.computeIfAbsent(slot, key -> new LinkedHashSet<>()).add(alias.getValue());
                 }
@@ -72,7 +75,7 @@ public class HealthInputNormalizer {
                 normalized.put(slot, List.copyOf(values));
             }
         });
-        return new NormalizationResult(Map.copyOf(normalized), unsafe);
+        return new NormalizationResult(Map.copyOf(normalized), unsafe, List.copyOf(negatedSlots));
     }
 
     /** 当前领域允许的槽位集合。 */
@@ -142,6 +145,15 @@ public class HealthInputNormalizer {
         return false;
     }
 
+    /** 只保留当前请求：昨天/之前的事实不能把历史餐次写进本轮槽位。 */
+    private String effectiveRequestText(String userInput) {
+        String text = compact(userInput);
+        if (text.isEmpty()) {
+            return text;
+        }
+        return text.replaceFirst("^(昨天|前天|之前|上周)[^，。！？!?]*[，。！？!?]", "");
+    }
+
     private boolean isBodyweightPhrase(String alias) {
         return "无器械".equals(alias) || "不用器械".equals(alias) || "不使用器械".equals(alias);
     }
@@ -170,6 +182,7 @@ public class HealthInputNormalizer {
                 "背部=背", "背肌=背", "背=背",
                 "大腿=腿", "小腿=腿", "腿部=腿", "腿=腿",
                 "肩部=肩", "肩膀=肩", "肩=肩",
+                "脖子=颈部", "颈部=颈部",
                 "手臂=手臂", "胳膊=手臂",
                 "腰腹=核心", "腹部=核心", "腹肌=核心", "核心=核心",
                 "臀大肌=臀", "臀肌=臀", "臀部=臀", "臀=臀", "全身=全身"));
@@ -179,12 +192,16 @@ public class HealthInputNormalizer {
         aliases.put("equipment", List.of("不使用器械=徒手", "不用器械=徒手", "无器械=徒手", "自重=徒手", "徒手=徒手",
                 "哑铃=哑铃", "杠铃=杠铃", "弹力带=弹力带", "壶铃=壶铃", "器械=器械"));
         aliases.put("mealTime", List.of("早餐=早餐", "早饭=早餐", "午餐=午餐", "午饭=午餐", "中饭=午餐", "中午=午餐",
-                "晚餐=晚餐", "晚饭=晚餐"));
-        aliases.put("healthGoal", List.of("清淡点=清淡", "清淡=清淡", "减肥=减脂", "瘦身=减脂", "减脂=减脂",
+                "晚餐=晚餐", "晚饭=晚餐", "今晚=晚餐", "晚上=晚餐"));
+        aliases.put("healthGoal", List.of("清淡点=清淡", "清淡一点=清淡", "清淡=清淡", "减肥=减脂", "瘦身=减脂", "减脂=减脂",
                 "高蛋白=高蛋白", "养胃=养胃", "均衡=均衡"));
         return Collections.unmodifiableMap(aliases);
     }
 
-    public record NormalizationResult(Map<String, List<String>> slots, boolean requiresClarification) {
+    public record NormalizationResult(Map<String, List<String>> slots, boolean requiresClarification,
+                                      List<String> negatedSlots) {
+        public NormalizationResult(Map<String, List<String>> slots, boolean requiresClarification) {
+            this(slots, requiresClarification, List.of());
+        }
     }
 }

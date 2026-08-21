@@ -1,0 +1,32 @@
+# 推荐前确认
+
+Status: ready-for-agent
+Type: task
+Priority: P0
+Blocked by: none
+
+## Goal
+
+让餐食和动作推荐在最低条件满足后先获得一次明确确认，不强制补齐全部槽位。
+
+## Scope
+
+- HealthOrchestratorService/会话状态增加 Recommendation Preflight；
+- 展示已确认槽位和可选未确认槽位；
+- 支持“为我推荐”和“继续补充需求”；
+- 自然语言确认与按钮等价；
+- 用户补充/修改槽位后重置确认；
+- “换一批”保留当前上下文和排除集合，不重新确认。
+
+## Acceptance
+
+- 仅有餐次时不会静默开始推荐；
+- 用户点击确认后进入现有推荐结果；
+- 口味、健康目标、部位、器材等已表达信息保留；
+- 继续补充后不会生成旧需求结果；
+- 换一批不重复追问且不会返回已排除资源。
+
+## Dependencies and fallback
+
+- 依赖现有健康聊天 API、槽位合并和替代推荐机制；
+- Agent 不可用时使用同一确认状态和确定性推荐降级。

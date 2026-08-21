@@ -19,6 +19,12 @@ public interface ExerciseMapper {
     /** 全部审核通过动作（Provider 用，与浏览同审核条件），按 id 升序。 */
     List<ExerciseItemRow> findAllApproved();
 
+    /** 全部动作目录条目（单次推荐用，审核状态随行返回），按目录顺序返回。 */
+    List<ExerciseItemRow> findAllCatalog();
+
     /** 按主键查审核通过动作（反馈校验与组合器用）。 */
     ExerciseItemRow findById(@Param("id") Long id);
+
+    /** 按主键查动作目录条目（目录详情可包含尚未审核通过的动作）。 */
+    ExerciseItemRow browseById(@Param("id") Long id);
 }

@@ -10,7 +10,8 @@ import java.util.List;
 
 /**
  * 健康聊天响应（规格 6.1 契约）。
- * responseType: ANSWER / CLARIFY / BLOCKED；nextAction: WAIT_USER / ASK_CLARIFY。
+ * responseType: ANSWER / CLARIFY / BLOCKED；nextAction: WAIT_USER / ASK_CLARIFY；
+ * resultCode 用于表达候选耗尽等稳定领域结果。
  */
 public record HealthChatResponse(
         String sessionId,
@@ -27,7 +28,8 @@ public record HealthChatResponse(
         List<String> missingSlots,
         com.diet.health.plan.PlanBrief planBrief,
         com.diet.health.plan.MealPlanBrief mealPlanBrief,
-        List<HealthAction> actions
+        List<HealthAction> actions,
+        String resultCode
 ) {
 
     public static HealthChatResponse answer(String sessionId, String traceId, HealthDomain domain, HealthTask task,
@@ -35,7 +37,7 @@ public record HealthChatResponse(
                                             List<HealthDisplayBlock> displayBlocks) {
         return new HealthChatResponse(sessionId, traceId, HealthResponseType.ANSWER, domain, task, riskFlags, phase,
                 speechText, displayBlocks == null ? List.of() : displayBlocks, HealthNextAction.WAIT_USER, null, List.of(),
-                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of());
+                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of(), null);
     }
 
     public static HealthChatResponse clarify(String sessionId, String traceId, HealthDomain domain, HealthTask task,
@@ -43,26 +45,39 @@ public record HealthChatResponse(
         return new HealthChatResponse(sessionId, traceId, HealthResponseType.CLARIFY, domain, task, riskFlags,
                 HealthPhase.CLARIFY, question, List.of(), HealthNextAction.ASK_CLARIFY, question,
                 missingSlots == null ? List.of() : List.copyOf(missingSlots),
-                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of());
+                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of(), null);
     }
 
     public static HealthChatResponse blocked(String sessionId, String traceId, HealthDomain domain, HealthTask task,
                                              List<String> riskFlags, String speechText) {
         return new HealthChatResponse(sessionId, traceId, HealthResponseType.BLOCKED, domain, task, riskFlags,
                 HealthPhase.BLOCKED, speechText, List.of(), HealthNextAction.WAIT_USER, null, List.of(),
-                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of());
+                com.diet.health.plan.PlanBrief.empty(), com.diet.health.plan.MealPlanBrief.empty(), List.of(), null);
     }
 
     public HealthChatResponse withPlanBrief(com.diet.health.plan.PlanBrief brief, List<HealthAction> nextActions,
                                             HealthNextAction action) {
         return new HealthChatResponse(sessionId, traceId, responseType, domain, task, riskFlags, phase, speechText,
                 displayBlocks, action, clarifyQuestion, missingSlots, brief, mealPlanBrief,
-                nextActions == null ? List.of() : List.copyOf(nextActions));
+                nextActions == null ? List.of() : List.copyOf(nextActions), resultCode);
     }
 
     public HealthChatResponse withMealPlanBrief(com.diet.health.plan.MealPlanBrief brief) {
         return new HealthChatResponse(sessionId, traceId, responseType, domain, task, riskFlags, phase, speechText,
                 displayBlocks, nextAction, clarifyQuestion, missingSlots, planBrief,
-                brief == null ? com.diet.health.plan.MealPlanBrief.empty() : brief, actions);
+                brief == null ? com.diet.health.plan.MealPlanBrief.empty() : brief, actions, resultCode);
+    }
+
+    /** 为推荐响应追加明确的用户操作，不改变既有响应字段。 */
+    public HealthChatResponse withActions(List<HealthAction> nextActions) {
+        return new HealthChatResponse(sessionId, traceId, responseType, domain, task, riskFlags, phase, speechText,
+                displayBlocks, nextAction, clarifyQuestion, missingSlots, planBrief, mealPlanBrief,
+                nextActions == null ? List.of() : List.copyOf(nextActions), resultCode);
+    }
+
+    /** 为领域结果追加稳定机器码；null 表示没有额外结果码。 */
+    public HealthChatResponse withResultCode(String code) {
+        return new HealthChatResponse(sessionId, traceId, responseType, domain, task, riskFlags, phase, speechText,
+                displayBlocks, nextAction, clarifyQuestion, missingSlots, planBrief, mealPlanBrief, actions, code);
     }
 }

@@ -1,5 +1,7 @@
 # 健康 Agent 产品体验与资源能力增强规格
 
+Status: superseded for plan lifecycle and current-assignment semantics by `.scratch/health-agent-unified-plan-editor/spec.md` and ADR-0014. Its recommendation, catalog, chat-layout and feedback requirements remain historical context only; do not implement its independent MEAL/EXERCISE current-assignment model.
+
 Status: ready-for-agent
 Type: spec
 Date: 2026-08-20

@@ -29,12 +29,15 @@ public class ReviewedResourceSeeder implements ApplicationRunner {
     private static final String SEED_RESOURCE = "db/seed/reviewed_resources.sql";
 
     private final JdbcTemplate jdbcTemplate;
+    private final CatalogQualificationService catalogQualificationService;
 
     private final boolean enabled;
 
     public ReviewedResourceSeeder(JdbcTemplate jdbcTemplate,
+                                  CatalogQualificationService catalogQualificationService,
                                   @Value("${diet.seed.reviewed-resources:true}") boolean enabled) {
         this.jdbcTemplate = jdbcTemplate;
+        this.catalogQualificationService = catalogQualificationService;
         this.enabled = enabled;
     }
 
@@ -70,6 +73,9 @@ public class ReviewedResourceSeeder implements ApplicationRunner {
                 + "WHEN movement_pattern = '有氧' THEN JSON_ARRAY('减脂', '耐力', '保持健康') "
                 + "ELSE JSON_ARRAY('增肌', '力量', '保持健康') END "
                 + "WHERE review_status = 'APPROVED' AND plan_ready = 1");
+        CatalogQualificationService.QualificationResult qualification = catalogQualificationService.qualify();
+        log.info("完整目录资格补全：enabled={}, 动作 {} 条，公共餐食 {} 条",
+                qualification.enabled(), qualification.qualifiedExercises(), qualification.qualifiedMeals());
     }
 
     /** 去掉语句内的 -- 注释行（种子文件头部注释会与第一条语句同段）。 */

@@ -8,6 +8,8 @@ public final class FeedbackConstants {
     public static final String ACTION_FAVORITE = "FAVORITE";
     public static final String ACTION_UNFAVORITE = "UNFAVORITE";
     public static final String ACTION_ADOPT = "ADOPT";
+    public static final String ACTION_REDUCE_RECOMMENDATION = "REDUCE_RECOMMENDATION";
+    public static final String ACTION_UNDO_REDUCE_RECOMMENDATION = "UNDO_REDUCE_RECOMMENDATION";
 
     public static final String RESOURCE_TYPE_MEAL = "MEAL";
     public static final String RESOURCE_TYPE_EXERCISE = "EXERCISE";

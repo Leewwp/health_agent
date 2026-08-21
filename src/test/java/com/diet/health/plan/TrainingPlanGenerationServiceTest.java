@@ -294,6 +294,23 @@ class TrainingPlanGenerationServiceTest {
                 .allMatch(item -> item.planParams().get("sets").equals(2)), "入门难度仍必须作为硬约束");
     }
 
+    @Test
+    void 精确难度无候选时保留部位器材候选并记录放宽() {
+        PlanBrief challenge = new PlanBrief(
+                "增肌", List.of("胸"), List.of("徒手"), "挑战", BRIEF.weekStart(),
+                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), true, 2, java.time.LocalDateTime.now());
+        when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
+                HealthSessionState.fresh("sess-training", 1L).withPlanBrief(challenge));
+
+        TrainingPlanGenerationResponse response = createService("{\"schedule\":["
+                + schedule("9001", MONDAY) + "]}").generate(1L,
+                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-difficulty"));
+
+        assertEquals("AGENT", response.generationSource());
+        assertEquals(true, persistedMetadata.get("difficultyRelaxed"));
+        assertFalse(((List<?>) persistedMetadata.get("candidateIds")).isEmpty());
+    }
+
     private TrainingPlanGenerationService createService(String output) {
         AgentInvoker invoker = new AgentInvoker() {
             @Override

@@ -12,6 +12,7 @@ import { showToast } from "./ui/toast.js";
 const FAVORITES_KEY = "health.favorites.v1";
 const SESSION_KEY = "health.chatSessionId";
 const CLIENT_SESSION_KEY = "health.clientSessionId";
+const REDUCED_KEY = "health.reducedRecommendations.v1";
 
 const resourceRegistry = new Map();
 
@@ -36,6 +37,50 @@ function persistFavorites(favorites) {
 
 export function isFavorite(resourceType, resourceId) {
     return Boolean(loadFavorites()[`${resourceType}:${resourceId}`]);
+}
+
+function loadReduced() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(REDUCED_KEY) || "{}");
+        return raw && typeof raw === "object" ? raw : {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function persistReduced(reduced) {
+    try {
+        localStorage.setItem(REDUCED_KEY, JSON.stringify(reduced));
+    } catch (error) {
+        // 存储不可用时仍保留服务端记录。
+    }
+}
+
+export function isReduced(resourceType, resourceId) {
+    return Boolean(loadReduced()[`${resourceType}:${resourceId}`]);
+}
+
+/** 乐观更新减少推荐状态，失败时回滚。 */
+export async function toggleReduced(resourceType, resourceId, sendFeedback) {
+    const key = `${resourceType}:${resourceId}`;
+    const reduced = loadReduced();
+    const next = !reduced[key];
+    reduced[key] = next;
+    persistReduced(reduced);
+    window.dispatchEvent(new CustomEvent("reducedchange"));
+    try {
+        await sendFeedback();
+        return next;
+    } catch (error) {
+        const rolledBack = loadReduced();
+        if (rolledBack[key] === next) {
+            rolledBack[key] = !next;
+            persistReduced(rolledBack);
+            window.dispatchEvent(new CustomEvent("reducedchange"));
+        }
+        showToast(error.message || "减少推荐操作失败，已回滚", "error");
+        throw error;
+    }
 }
 
 /** 乐观更新收藏状态；失败时回滚并抛错（由调用方提示）。 */

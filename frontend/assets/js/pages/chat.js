@@ -71,7 +71,7 @@ const state = {
 };
 
 const requestController = createChatRequestController({
-    request: ({ message }, signal) => requestHealthChat(message, signal),
+    request: ({ message, alternative }, signal) => requestHealthChat(message, signal, false, alternative),
     onPendingChange: (pending) => {
         state.sending = pending;
         render(document.getElementById("app"));
@@ -157,6 +157,7 @@ function renderMessage(message) {
         ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
         : "";
     const planEntry = renderPlanActions(message);
+    const recommendationActions = renderRecommendationActions(message);
     const metaParts = [];
     if (message.traceId) {
         // 开发/演示配置下提供跳转 admin Trace 的入口；生产只展示 traceId 文本
@@ -173,6 +174,7 @@ function renderMessage(message) {
         <article class="message ${message.role}">
             <div class="bubble">${escapeHtml(message.text)}</div>
             ${planEntry}
+            ${recommendationActions}
             ${missingSlots}
             ${blocks ? `<div class="grid two">${blocks}</div>` : ""}
             ${meta}
@@ -191,17 +193,34 @@ async function submitChat(form) {
     await requestController.submit({ message });
 }
 
+function renderRecommendationActions(message) {
+    const actions = (message.actions || []).filter((action) =>
+        ["GET_ALTERNATIVE", "RELAX_CONSTRAINTS", "REPEAT_SHOWN"].includes(action.type));
+    if (!actions.length) {
+        return "";
+    }
+    const resourceType = message.blocks?.[0]?.resourceType || (message.domain === "EXERCISE" ? "EXERCISE" : "MEAL");
+    const exclusions = (message.blocks || []).map((block) => block.resourceId).filter(Boolean).join(",");
+    return `<div class="recommendation-actions" aria-label="推荐操作">
+        ${actions.map((action) => `<button class="btn ${action.type === "GET_ALTERNATIVE" ? "soft" : "ghost"}"
+            data-action="alternative" data-alternative-action="${escapeHtml(action.type)}"
+            data-resource-type="${escapeHtml(resourceType)}" data-base-trace-id="${escapeHtml(message.traceId || "")}"
+            data-exclusions="${escapeHtml(exclusions)}">${escapeHtml(action.label)}</button>`).join("")}
+    </div>`;
+}
+
 /**
  * 发送消息；后端在会话不存在（如后端数据重置后本地残留旧 sessionId）
  * 时返回 404，此时清空本地会话并以新会话重试一次。
  */
-async function requestHealthChat(message, signal, retried) {
+async function requestHealthChat(message, signal, retried, alternative) {
     try {
         return await healthChat({
             sessionId: state.sessionId || undefined,
             requestId: newRequestId(),
             message,
-            context: {}
+            context: {},
+            alternative
         }, { signal });
     } catch (error) {
         // 会话相关失败（后端数据重置/匿名身份轮换后本地残留旧 sessionId）可能以 4xx 返回
@@ -209,7 +228,7 @@ async function requestHealthChat(message, signal, retried) {
         if (!retried && error.status >= 400 && error.status < 500) {
             clearChatSession();
             state.sessionId = null;
-            return requestHealthChat(message, signal, true);
+            return requestHealthChat(message, signal, true, alternative);
         }
         throw error;
     }
@@ -292,7 +311,31 @@ function handleClick(event) {
             const scope = target.dataset.planScope || "EXERCISE";
             navigate(`/plans?generate=1&scope=${encodeURIComponent(scope)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
         }
+    } else if (target.dataset.action === "alternative") {
+        submitAlternative(target);
     }
+}
+
+function submitAlternative(target) {
+    if (state.sending || requestController.isPending()) {
+        return;
+    }
+    const action = target.dataset.alternativeAction;
+    const exclusions = (target.dataset.exclusions || "").split(",").filter(Boolean);
+    const relaxConstraints = action === "RELAX_CONSTRAINTS";
+    const allowRepeat = action === "REPEAT_SHOWN";
+    const text = relaxConstraints ? "放宽条件换一批" : allowRepeat ? "重复已展示结果" : "换一批";
+    state.messages.push({ role: "user", text });
+    void requestController.submit({
+        message: "换一批",
+        alternative: {
+            resourceType: target.dataset.resourceType,
+            baseTraceId: target.dataset.baseTraceId || null,
+            addedExclusions: exclusions,
+            allowRepeat,
+            relaxConstraints
+        }
+    });
 }
 
 function handleSubmit(event) {

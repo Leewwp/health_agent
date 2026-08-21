@@ -21,7 +21,7 @@
 ### 3. 动作筛选/收藏与详情
 
 - URL：`http://127.0.0.1:8090/#/exercises`
-- 操作：加载 30 条；难度“入门”筛选（12 条）；打开动作详情抽屉（plan_ready 徽章、目标/辅助肌群、风险标签、来源 gym-visual-exercises-dataset、媒体署名 © Gym visual）。
+- 操作：加载完整动作目录 1324 条；按难度、部位和器材筛选；打开动作详情抽屉（plan_ready 徽章、目标/辅助肌群、风险标签、来源 gym-visual-exercises-dataset、媒体署名 © Gym visual）。
 - 结果：通过。
 
 ### 4. 健康档案与周计划（DRAFT 编辑/激活/历史）
@@ -88,9 +88,9 @@
 - 环境修复（验收前置）：`health-nginx-test` 容器挂载的 `/var/folders/.../opencode/nginx-local.conf` 是 29 小时前的旧版本（无 `/mcp` location，`POST /mcp` 直接 nginx 405），已按当前 `deploy/nginx.conf` 重新生成（`127.0.0.1:8080` → `host.docker.internal:8080`）并 `nginx -s reload` 后恢复。
 - #61 MCP 经 Nginx（`curl -X POST http://localhost:8090/mcp`）：无 Authorization → 401 `{"error":"缺少或无效的 MCP Bearer token"}`；错误 token → 401 同上；合法 token + `Origin: http://evil.example` → 403 `{"error":"Origin 不在允许列表"}`；合法 token + `Origin: http://localhost:8090` + `Accept: application/json, text/event-stream` → 200 initialize JSON-RPC（`serverInfo: health-agent-mcp 0.1.0`）；带 `Mcp-Session-Id` 续调 `tools/list` → 200，4 个工具（calculate_targets / get_meal_detail / search_meals / get_routine_facts）全中文 schema 描述。全程经 Nginx 反代，无直连。
 - #64 动作浏览页（URL `http://localhost:8090/#/exercises`，桌面 + 移动）：
-  - 列表来自浏览 API（`/api/v1/health/exercises` 分页拉全，共 30 条），槽位全部为归一中文：训练部位「背/核心/肩/全身/手臂/腿/胸」、器材「弹力带/徒手/哑铃」、难度「进阶/入门」、动作模式「蹲/核心/踝/髋/拉/推/有氧」，筛选下拉无英文原始值。
+  - 列表来自浏览 API（`/api/v1/health/exercises` 分页拉全，共 1324 条），槽位全部为归一中文：训练部位「背/核心/肩/全身/手臂/腿/胸/臀/颈部」、器材「弹力带/徒手/哑铃/杠铃/壶铃/器械」、难度「进阶/入门」、动作模式「蹲/核心/踝/髋/拉/推/有氧」，筛选下拉无英文原始值。
   - 搜索「登山者」→ 单卡显示「进阶 / 全身 / 徒手」；详情抽屉显示「训练部位：全身 · 难度：进阶 · 动作模式：有氧」+ 目标肌群「核心」，全文无 `cardio`/`body weight` 等英文原始值（DOM 正则断言 + 抽屉内文本核对）。
-  - 筛选：难度=入门 → 12 条；分页：30 条 / 每页 18 → 第 1/2 页 18 卡 ↔ 下一页 12 卡 ↔ 上一页回 18 卡，页码文案正确。
+  - 筛选与分页：完整目录可按中文槽位组合过滤，分页跨页无重复，页码和总数文案正确。
   - 归一机制佐证：DB `exercise_item` 行 38/58/59/60 存英文原始值（`cardio`/`body weight`/`upper legs`/`waist`/`中级`），`DbReviewedExerciseReader` 归一后 API 输出全中文（38 登山者→全身/徒手/进阶/有氧；60 侧平板支撑→核心/徒手/进阶/核心）；合法映射值不产生日志，只有真正未收录值才从用户标签集合过滤并打 WARN。
   - 移动端 390×844：卡片/筛选/抽屉正常，`scrollWidth=clientWidth=390` 无横向溢出，导航无溢出。
 - #65 收藏/取消收藏（网络 payload 拦截 + DOM 状态 + 刷新持久 + DB 落库四方核对）：
@@ -172,3 +172,14 @@
 
 - #90 及 #91–#94 的本地开发、自动化门控、真实模型 smoke 和真实浏览器验收已具备解除 #89 阻塞的证据；完整测试数字和迁移证据见 `docs/release-evidence.md`。
 - 本记录不包含公网 URL、HTTPS、DNS/TLS、云服务器、远端 Compose、生产数据库或云端密钥结果；这些均明确留给 #89，当前任务在此停止。
+
+## 产品体验增强收尾验收（2026-08-20）
+
+- 验收环境：当前工作树 Spring Boot `8082` + Nginx 同源入口 `http://127.0.0.1:8092`，真实 Chromium（ego-browser 任务空间 39）；桌面 `1710×983`，移动端 `390×844`。健康检查 `http://127.0.0.1:8092/actuator/health` 返回 `{"status":"UP"}`。
+- 聊天主流程（桌面）：输入“今晚想吃得清淡一点”后直接得到 `MEAL / RECOMMEND / RESPOND`，候选包含清蒸鱼、柠檬腌梅蒸鲳鱼和低脂意大利香肠晚餐；聊天文档宽度 `1710=1710`。
+- “换一批”（桌面）：点击真实按钮提交 `/api/v1/health/chat`，请求包含 `resourceType=MEAL`、原候选 `2425/2392/2397`、`allowRepeat=false`；返回候选变为 `2539/2473/2332`，未复用上一批资源。
+- 反馈（桌面）：收藏显示 `aria-pressed=true` 并写入 localStorage，减少推荐可撤销；模拟反馈 `404` 后收藏 UI 和 localStorage 回滚，toast 显示“反馈资源不存在”。
+- 周计划（桌面）：通过聊天简报确认“减脂、胸/腿/核心、徒手、入门、周一/三/五、19:00-20:00”，生成规则降级草稿；周表显示 7 天、训练参数和来源。打开“死虫式”详情抽屉可见 `plan_ready`、动作来源、媒体署名、日期/时间/备注编辑字段。
+- 计划生命周期（桌面）：草稿确认激活后显示 `ACTIVE`；“设为当前安排”后 `GET /api/v1/health/plans/current?scope=EXERCISE` 返回计划与版本；确认“取消当前安排”后返回空引用且计划保留；复制编辑草稿后，删除确认可取消，二次确认后草稿从计划选择器移除。
+- 移动端：在 `390×844` 输入同一餐食请求，消息区可独立滚动到最新结果，`document/body/clientWidth` 均为 `390` 且未发现溢出节点；计划详情抽屉宽度为 `390`，长来源版本号换行后无内部横向溢出。
+- 截图证据：[`chat-alternative-desktop.png`](evidence/product-refinement/chat-alternative-desktop.png)、[`chat-feedback-desktop.png`](evidence/product-refinement/chat-feedback-desktop.png)、[`plan-detail-desktop.png`](evidence/product-refinement/plan-detail-desktop.png)、[`chat-mobile-390.png`](evidence/product-refinement/chat-mobile-390.png)、[`plan-detail-mobile-390.png`](evidence/product-refinement/plan-detail-mobile-390.png)。

@@ -21,7 +21,7 @@ import java.util.Set;
  * 偏好消费服务（17 号票；#65 两维折叠）：读最近 100 条用户反馈，对每个 TYPE:ID 独立折叠
  * 收藏状态（最新 FAVORITE/UNFAVORITE）与推荐倾向（DISLIKE→NEGATIVE、LIKE/FAVORITE/ADOPT→
  * POSITIVE，UNFAVORITE 只撤销仍有效的 FAVORITE 贡献），由餐食/动作模块在推荐内部消费：
- * DISLIKE 硬过滤 + LIKE/FAVORITE/ADOPT 确定性重排。
+ * DISLIKE/REDUCE_RECOMMENDATION 资源级过滤；LIKE/ADOPT 仅保留旧兼容语义。
  * 读取失败或不在 Web 请求上下文时确定性降级为空集合，不抛错。
  */
 @Service
@@ -128,18 +128,19 @@ public class PreferenceService {
                 }
                 case FeedbackConstants.ACTION_FAVORITE -> {
                     favorite = true;
-                    // 撤销此 FAVORITE 后：曾覆盖的更早 DISLIKE 不恢复（null=NEUTRAL），其余保留
-                    contributionFallback = affinity == Affinity.NEGATIVE ? null : affinity;
-                    affinity = Affinity.POSITIVE;
-                    contributionActive = true;
                 }
                 case FeedbackConstants.ACTION_UNFAVORITE -> {
                     favorite = false;
-                    if (contributionActive) {
-                        affinity = contributionFallback;
-                        contributionActive = false;
-                        contributionFallback = null;
-                    }
+                }
+                case FeedbackConstants.ACTION_REDUCE_RECOMMENDATION -> {
+                    affinity = Affinity.NEGATIVE;
+                    contributionActive = false;
+                    contributionFallback = null;
+                }
+                case FeedbackConstants.ACTION_UNDO_REDUCE_RECOMMENDATION -> {
+                    affinity = null;
+                    contributionActive = false;
+                    contributionFallback = null;
                 }
                 default -> {
                     // 未知 action 不参与折叠

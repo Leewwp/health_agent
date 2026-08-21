@@ -565,7 +565,7 @@ class MysqlTransactionIntegrationTest {
 
     @Test
     void 反馈完整序列经真实findRecent折叠成两维状态() {
-        // EXERCISE:9001：DISLIKE -> FAVORITE -> UNFAVORITE = 未收藏 + NEUTRAL
+        // EXERCISE:9001：DISLIKE -> FAVORITE -> UNFAVORITE = 未收藏 + 仍减少推荐
         feedbackService.save(USER, new HealthFeedbackRequest("sess-65-a", "EXERCISE", "9001", "DISLIKE", null, null, null, null, null));
         feedbackService.save(USER, new HealthFeedbackRequest("sess-65-b", "EXERCISE", "9001", "FAVORITE", null, null, null, null, null));
         feedbackService.save(USER, new HealthFeedbackRequest("sess-65-c", "EXERCISE", "9001", "UNFAVORITE", null, null, null, null, null));
@@ -595,9 +595,9 @@ class MysqlTransactionIntegrationTest {
                             new com.diet.health.module.HealthResource("MEAL", "M1", "a", "PUBLIC", "s", null, false, java.util.Map.of()),
                             new com.diet.health.module.HealthResource("EXERCISE", "9001", "b", "PUBLIC", "s", null, true, java.util.Map.of()),
                             new com.diet.health.module.HealthResource("MEAL", "M3", "c", "PUBLIC", "s", null, false, java.util.Map.of())));
-            assertEquals(List.of("MEAL:M1", "EXERCISE:9001", "MEAL:M3"), result.stream()
+            assertEquals(List.of("MEAL:M1", "MEAL:M3"), result.stream()
                             .map(item -> item.resourceType() + ":" + item.resourceId()).toList(),
-                    "MEAL:M1 保持 POSITIVE 提升置前，EXERCISE:9001 为 NEUTRAL 不排除也不提升且顺序稳定");
+                    "MEAL:M1 保持旧 POSITIVE 提升置前，EXERCISE:9001 的收藏不应抵消减少推荐且不应提升排序");
         } finally {
             RequestContextHolder.resetRequestAttributes();
         }

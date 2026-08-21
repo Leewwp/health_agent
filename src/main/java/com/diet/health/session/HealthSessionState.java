@@ -33,6 +33,9 @@ public record HealthSessionState(
         MealPlanBrief mealPlanBrief
 ) {
 
+    /** 替代推荐和同一任务连续推荐的有界资源历史，避免会话 JSON 无限增长。 */
+    public static final int MAX_RESOURCE_HISTORY = 50;
+
     public HealthSessionState(String sessionId, Long userId, HealthPhase phase, HealthDomain domain,
                               HealthTask task, List<String> riskFlags, Map<String, List<String>> slots,
                               List<SessionResourceRef> lastResources, List<PreferenceSignal> preferenceSignals,
@@ -77,10 +80,14 @@ public record HealthSessionState(
         if (newRefs == null || newRefs.isEmpty()) {
             return this;
         }
-        Set<SessionResourceRef> merged = new LinkedHashSet<>(lastResources);
+        Set<SessionResourceRef> merged = new LinkedHashSet<>(lastResources == null ? List.of() : lastResources);
         merged.addAll(newRefs);
+        List<SessionResourceRef> bounded = new ArrayList<>(merged);
+        if (bounded.size() > MAX_RESOURCE_HISTORY) {
+            bounded = bounded.subList(bounded.size() - MAX_RESOURCE_HISTORY, bounded.size());
+        }
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
-                List.copyOf(merged), preferenceSignals, planBrief, mealPlanBrief);
+                List.copyOf(bounded), preferenceSignals, planBrief, mealPlanBrief);
     }
 
     /**
@@ -102,6 +109,9 @@ public record HealthSessionState(
             }
         }
         newRefs.stream().distinct().forEach(merged::add);
+        if (merged.size() > MAX_RESOURCE_HISTORY) {
+            merged = new ArrayList<>(merged.subList(merged.size() - MAX_RESOURCE_HISTORY, merged.size()));
+        }
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots,
                 List.copyOf(merged), preferenceSignals, planBrief, mealPlanBrief);
     }

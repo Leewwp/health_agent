@@ -121,7 +121,9 @@ public class HealthIntentRevisionService {
                 raw.fallbackReason()
         );
         boolean clarifyDomain = genericRecommendation;
-        boolean clarifyUnsafe = normalized.requiresClarification() && isRecommendDomain(domain);
+        // 只有歧义/冲突才追问；明确否定属于本轮临时约束，不能因为缺少被否定槽位而反向追问。
+        boolean clarifyUnsafe = normalized.requiresClarification()
+                && normalized.negatedSlots().isEmpty() && isRecommendDomain(domain);
         return new Revision(revised, clarifyDomain, clarifyUnsafe);
     }
 

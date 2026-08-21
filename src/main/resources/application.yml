@@ -42,6 +42,8 @@ diet:
   seed:
     # 本地完整媒体目录默认不导入；dev profile 在媒体包存在时显式启用。
     local-media-catalog: ${DIET_LOCAL_MEDIA_CATALOG_ENABLED:false}
+    # 完整目录的确定性计划资格补全；dev 默认启用，生产可显式关闭。
+    auto-qualify-catalog: ${DIET_AUTO_QUALIFY_CATALOG:false}
   llm:
     # 主生成与轻量意图模型可由环境覆盖；默认使用当前百炼账号已授权的 Qwen 系列。
     main-model: ${DIET_LLM_MAIN_MODEL:qwen-turbo}
