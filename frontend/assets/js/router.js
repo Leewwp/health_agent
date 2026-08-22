@@ -6,9 +6,16 @@ import { closeDrawer } from "./ui/detail-drawer.js";
 
 const ROUTES = new Map();
 const NAV_ACTIVE_PREFIX = ["/chat", "/meals", "/exercises", "/plans", "/profile"];
+const ROUTE_LEAVE_GUARDS = new Map();
 
 export function register(path, loader) {
     ROUTES.set(path, loader);
+}
+
+/** 注册页面离开前的未保存确认，页面卸载时由页面自行处理原生 beforeunload。 */
+export function registerRouteLeaveGuard(path, guard) {
+    ROUTE_LEAVE_GUARDS.set(path, guard);
+    return () => ROUTE_LEAVE_GUARDS.delete(path);
 }
 
 export function currentRoute() {
@@ -17,7 +24,16 @@ export function currentRoute() {
 }
 
 export function navigate(route) {
-    if (currentRoute() === route) {
+    const current = currentRoute();
+    const next = String(route || "/chat").split("?")[0];
+    const guard = ROUTE_LEAVE_GUARDS.get(current);
+    if (guard && next !== current) {
+        void Promise.resolve(guard(next)).then((allowed) => {
+            if (allowed) location.hash = route;
+        });
+        return;
+    }
+    if (current === route) {
         render();
     } else {
         location.hash = route;
@@ -26,6 +42,7 @@ export function navigate(route) {
 
 export function initRouter(app) {
     window.addEventListener("hashchange", () => render(app));
+    document.addEventListener("click", handleNavigationClick, true);
     app.addEventListener("click", (event) => {
         const retry = event.target.closest("[data-action='retry-render']");
         if (retry && retry.dataset.route) {
@@ -33,6 +50,20 @@ export function initRouter(app) {
         }
     });
     render(app);
+}
+
+function handleNavigationClick(event) {
+    const link = event.target.closest("a[href^='#/']");
+    if (!link || event.defaultPrevented) return;
+    const current = currentRoute();
+    const nextHash = link.getAttribute("href").slice(1);
+    const next = nextHash.split("?")[0];
+    const guard = ROUTE_LEAVE_GUARDS.get(current);
+    if (!guard || next === current) return;
+    event.preventDefault();
+    void Promise.resolve(guard(next)).then((allowed) => {
+        if (allowed) location.hash = nextHash;
+    });
 }
 
 async function render(app, force) {

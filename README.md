@@ -159,7 +159,7 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。当前 Surefire 基线为 662 个测试：`mvn test` 621 通过 + 41 个环境门控跳过；MySQL 门控 658 通过 + 4 个独立门控跳过；MySQL + Qdrant 门控 661 通过 + 1 个 live-model 门控跳过。前端行为测试为 20/20。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。当前 Surefire 基线为 702 个测试：`mvn test` 658 通过 + 44 个环境门控跳过；MySQL 门控 698 通过 + 4 个独立门控跳过；MySQL + Qdrant 门控 701 通过 + 1 个 live-model 门控跳过。前端行为测试为 25/25。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -169,7 +169,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 37 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 7 + reviewed readers 12）；本次本机 MySQL 门控结果为 658 通过、4 个独立门控跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 结果为 661 通过、仅 1 个显式 live-model 门控跳过。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 40 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 7 + reviewed readers 15）；本次本机 MySQL 门控结果为 698 通过、4 个独立门控跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 结果为 701 通过、仅 1 个显式 live-model 门控跳过。
 
 ## 部署（Compose，spec 11）
 

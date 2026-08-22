@@ -2,6 +2,8 @@ package com.diet.agent.invoker;
 
 import com.diet.agent.invoker.AgentInvoker.AgentInvocation;
 import com.diet.agent.invoker.AgentInvoker.AgentInvocationResult;
+import com.diet.health.enums.HealthDomain;
+import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.risk.RiskRuleCatalog;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +24,7 @@ import java.util.regex.Pattern;
 public class FixtureAgentInvoker implements AgentInvoker {
 
     /** 当前固定夹具集版本。 */
-    public static final String FIXTURE_VERSION = "2026-08-17-v2";
+    public static final String FIXTURE_VERSION = "2026-08-22-v3";
 
     /** 从输入文本解析固定响应的策略。 */
     public interface FixtureResolver {
@@ -144,43 +146,21 @@ public class FixtureAgentInvoker implements AgentInvoker {
                     "ADJUST", "", riskFlag);
         }
         String domain;
-        StringBuilder slots = new StringBuilder();
         if (containsAny(prompt, "咖啡", "咖啡因", "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "训练时段")) {
             domain = "ROUTINE";
-            appendSlot(slots, "wakeTime", containsAny(prompt, "七点起", "7点起", "07:00") ? "07:00" : null);
         } else if (containsAny(prompt, "训练", "健身", "动作", "俯卧撑", "深蹲", "练", "胸肌", "胸部", "胸大肌",
                 "大腿", "小腿", "腿部", "臀部", "臀肌", "臀大肌", "初学者", "新手", "轻量", "自重", "无器械", "不用器械")) {
             domain = "EXERCISE";
-            appendSlot(slots, "bodyParts", exerciseBodyPart(prompt));
-            appendSlot(slots, "trainingGoal", containsAny(prompt, "减肥", "瘦身") ? "减脂" : pickOne(prompt, "增肌", "减脂", "耐力", "柔韧", "力量"));
-            appendSlot(slots, "difficulty", containsAny(prompt, "初学者", "新手", "轻量") ? "入门" : pickOne(prompt, "入门", "进阶", "挑战"));
-            appendSlot(slots, "equipment", containsAny(prompt, "自重", "无器械", "不用器械") ? "徒手" : pickOne(prompt, "徒手", "哑铃", "杠铃", "弹力带", "壶铃"));
         } else {
             domain = "MEAL";
-            String mealTime = pickOne(prompt, "早餐", "午餐", "晚餐");
-            if (mealTime == null && containsAny(prompt, "晚上", "晚饭")) {
-                mealTime = "晚餐";
-            }
-            appendSlot(slots, "mealTime", mealTime);
-            appendSlot(slots, "healthGoal", pickOne(prompt, "清淡", "减脂", "高蛋白", "养胃", "均衡"));
-            appendSlot(slots, "cuisine", pickOne(prompt, "川菜", "粤菜", "湘菜", "轻食", "日料", "火锅"));
-            // 微辣必须先于辣匹配，否则"微辣"会被截取为"辣"
-            appendSlot(slots, "taste", pickOne(prompt, "微辣", "辣", "甜"));
-            appendSlot(slots, "convenience",
-                    containsAny(prompt, "快的", "快点", "快速") ? "快速" : pickOne(prompt, "慢享", "外带方便"));
         }
-        return intentJson(domain, "RECOMMEND", slots.toString(), riskFlag);
-    }
-
-    private static String exerciseBodyPart(String prompt) {
-        if (containsAny(prompt, "胸大肌", "胸肌", "胸部", "胸")) return "胸";
-        if (containsAny(prompt, "背部", "背肌", "背")) return "背";
-        if (containsAny(prompt, "大腿", "小腿", "腿部", "腿")) return "腿";
-        if (containsAny(prompt, "臀大肌", "臀肌", "臀部", "臀")) return "臀";
-        if (containsAny(prompt, "腹部", "腹肌", "腰腹", "核心")) return "核心";
-        if (containsAny(prompt, "手臂", "胳膊")) return "手臂";
-        if (containsAny(prompt, "肩部", "肩膀", "肩")) return "肩";
-        return null;
+        Map<String, List<String>> normalized = new HealthInputNormalizer().normalize(
+                HealthDomain.valueOf(domain), prompt, Map.of()).slots();
+        if ("ROUTINE".equals(domain) && containsAny(prompt, "七点起", "7点起", "07:00")) {
+            normalized = new LinkedHashMap<>(normalized);
+            normalized.put("wakeTime", List.of("07:00"));
+        }
+        return intentJson(domain, "RECOMMEND", slotsJson(normalized), riskFlag);
     }
 
     /** 按风险关键词返回对应 flag（44 号票：来自 RiskRuleCatalog 唯一事实来源，命中首个规则）。 */
@@ -204,24 +184,19 @@ public class FixtureAgentInvoker implements AgentInvoker {
         return json.toString();
     }
 
-    private static void appendSlot(StringBuilder slots, String name, String value) {
-        if (value == null) {
-            return;
-        }
-        if (slots.length() > 0) {
-            slots.append(',');
-        }
-        slots.append('"').append(name).append("\":[\"").append(value).append("\"]");
-    }
-
-    /** 按出现顺序返回第一个命中的关键词。 */
-    private static String pickOne(String prompt, String... keywords) {
-        for (String keyword : keywords) {
-            if (prompt.contains(keyword)) {
-                return keyword;
+    private static String slotsJson(Map<String, List<String>> slots) {
+        StringBuilder json = new StringBuilder();
+        for (Map.Entry<String, List<String>> entry : slots.entrySet()) {
+            if (entry.getValue() == null || entry.getValue().isEmpty()) continue;
+            if (json.length() > 0) json.append(',');
+            json.append('"').append(entry.getKey()).append("\":[");
+            for (int i = 0; i < entry.getValue().size(); i++) {
+                if (i > 0) json.append(',');
+                json.append('"').append(entry.getValue().get(i)).append('"');
             }
+            json.append(']');
         }
-        return null;
+        return json.toString();
     }
 
     /** 澄清措辞固定结果。 */

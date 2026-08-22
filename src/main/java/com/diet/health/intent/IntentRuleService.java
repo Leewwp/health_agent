@@ -47,7 +47,7 @@ public class IntentRuleService {
         } else if (isRoutineFact(text)) {
             domain = HealthDomain.ROUTINE;
             task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿")) {
+        } else if (mealSignal(text)) {
             domain = HealthDomain.MEAL;
             task = HealthTask.RECOMMEND;
         } else if (containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练")
@@ -83,7 +83,7 @@ public class IntentRuleService {
         if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
             return null;
         }
-        boolean meal = containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿");
+        boolean meal = mealSignal(text);
         boolean exercise = containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练");
         // 本票快路径聚焦餐食、动作和计划；作息结构化理解仍沿用原有契约，避免改变事实槽位解析。
         boolean routine = isRoutineFact(text);
@@ -124,6 +124,14 @@ public class IntentRuleService {
     private boolean isRoutineFact(String text) {
         return containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")
                 || (containsAny(text, "训练", "运动") && containsAny(text, "什么时候", "几点", "时段", "时间"));
+    }
+
+    /** 识别没有明确餐次但仍在表达餐食需求的口语。 */
+    private boolean mealSignal(String text) {
+        return containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿",
+                "食物", "尽快能吃上", "尽快吃上", "马上能吃", "赶时间", "快速", "便利店", "速食", "外带", "胃口", "没食欲", "素食", "吃素", "酸甜口味", "酸甜口")
+                || (!normalizer.normalize(HealthDomain.MEAL, text, Map.of()).slots().isEmpty()
+                && !containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练"));
     }
 
     private boolean containsAny(String text, String... keywords) {
