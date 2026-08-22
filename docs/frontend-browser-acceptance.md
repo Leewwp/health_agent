@@ -206,3 +206,11 @@
 - 计划生命周期（桌面）：草稿确认激活后显示 `ACTIVE`；“设为当前安排”后 `GET /api/v1/health/plans/current?scope=EXERCISE` 返回计划与版本；确认“取消当前安排”后返回空引用且计划保留；复制编辑草稿后，删除确认可取消，二次确认后草稿从计划选择器移除。
 - 移动端：在 `390×844` 输入同一餐食请求，消息区可独立滚动到最新结果，`document/body/clientWidth` 均为 `390` 且未发现溢出节点；计划详情抽屉宽度为 `390`，长来源版本号换行后无内部横向溢出。
 - 截图证据：[`chat-alternative-desktop.png`](evidence/product-refinement/chat-alternative-desktop.png)、[`chat-feedback-desktop.png`](evidence/product-refinement/chat-feedback-desktop.png)、[`plan-detail-desktop.png`](evidence/product-refinement/plan-detail-desktop.png)、[`chat-mobile-390.png`](evidence/product-refinement/chat-mobile-390.png)、[`plan-detail-mobile-390.png`](evidence/product-refinement/plan-detail-mobile-390.png)。
+
+## 本地开发收尾验收（2026-08-22）
+
+- 验收入口：`http://127.0.0.1:18092`，Spring Boot 后端 `18080`，Nginx 同源反代，真实 Chromium/ego-browser 任务空间 49。
+- 桌面 `1710×983`：输入“今晚想吃得清淡一点，有什么推荐？”后识别用餐时间/清淡；输入“我今天比较忙，胃口不好，想吃素，想吃便利店能买的酸甜口味速食”后补充“晚餐”，确认摘要显示“今天的心情：没胃口、菜系或食材：素食、口味：酸甜、能接受的耗时和购买方式：快速”；输入“想要尽快能吃上的食物”后补充“晚餐”，显示快速偏好。页面可见文本未出现 `mealTime`、`mood`、`cuisine`、`taste`、`convenience`。
+- 计划名称：进入 `#/plans` 先显示标题，点击标题进入编辑态并显示“保存/取消”；空名称保存保留输入态并提示“计划名称不能为空”；保存“本地浏览器计划名称验证”成功后 toast 为“计划已保存”，随后取消临时名称修改恢复旧名称；注入保存网络失败后输入仍保留且显示“后端服务暂时不可用，请确认应用已启动后重试。”；输入未保存名称后点击聊天导航触发“放弃未保存修改？”，点击计划编辑栏“取消”同样触发未保存确认。验收后名称恢复为原长中文名称。
+- 计划空日期与长名称：空日期只包含一个 `data-plan-action=add` 的“添加项目”按钮；长计划名在计划库侧栏使用省略号，`.mp-plan-row-copy` 的 `min-width` 为 `0px`。桌面 `clientWidth=bodyScrollWidth=documentScrollWidth=1710`，移动 `390` 视口下三者均为 `390`，无横向溢出；状态点保持独立；移动端名称编辑器的输入框与“保存/取消”保持同一行。
+- 本次浏览器未执行远程发布、Issue 关闭、分支删除；截图服务未作为本轮判定依据，采用真实 DOM/可观察状态断言。

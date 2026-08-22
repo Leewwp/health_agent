@@ -70,4 +70,16 @@ class FixtureAgentInvokerTest {
         assertEquals(FixtureAgentInvoker.FIXTURE_VERSION, invoker.fixtureVersion());
         assertTrue(invoker.configured());
     }
+
+    @Test
+    void fixture与共享归一化器覆盖一条消息中的多个餐食口语条件() {
+        String text = invoker.invoke(invocation("IntentAgent",
+                "今晚胃口不好，想吃素，想吃便利店能买的酸甜口味速食")).text();
+        assertTrue(text.contains("\"domain\":\"MEAL\""));
+        assertTrue(text.contains("\"mealTime\":[\"晚餐\"]"));
+        assertTrue(text.contains("\"mood\":[\"没胃口\"]"));
+        assertTrue(text.contains("\"cuisine\":[\"素食\"]"));
+        assertTrue(text.contains("\"taste\":[\"酸甜\"]"));
+        assertTrue(text.contains("\"convenience\":[\"快速\"]"));
+    }
 }

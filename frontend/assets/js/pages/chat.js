@@ -24,6 +24,7 @@ import { renderPlanActions } from "../ui/plan-actions.js";
 import { navigate } from "../router.js";
 import { devConfig } from "../config.js";
 import { createChatRequestController, submitPresetChatMessage } from "./chat-request.js";
+import { formatSlotSummary, slotLabel } from "../ui/health-slot-labels.js";
 
 const QUICK_PROMPTS = [
     "今晚想吃得清淡一点，有什么推荐？",
@@ -31,31 +32,6 @@ const QUICK_PROMPTS = [
     "晚上几点前应该停止喝咖啡？",
     "帮我安排一下这周的健身计划"
 ];
-
-const SLOT_LABELS = {
-    domain: "推荐类型",
-    mealTime: "用餐时间",
-    mood: "心情状态",
-    scene: "用餐场景",
-    healthGoal: "健康目标",
-    cuisine: "菜系偏好",
-    taste: "口味偏好",
-    convenience: "便利程度",
-    bodyPart: "训练部位",
-    equipment: "器材",
-    goal: "训练目标",
-    bodyParts: "训练部位",
-    trainingGoal: "训练目标",
-    difficulty: "难度",
-    weekStart: "目标周",
-    trainingDays: "训练日期",
-    timeWindow: "训练时段"
-};
-
-/** 缺失槽位的中文标签；未知槽位名兜底为通用中文标签，不暴露内部字段名。 */
-function slotLabel(slot) {
-    return SLOT_LABELS[slot] || "其他偏好";
-}
 
 const state = {
     sessionId: getChatSessionId(),
@@ -159,10 +135,10 @@ function renderMessage(message) {
     const planEntry = renderPlanActions(message);
     const recommendationActions = renderRecommendationActions(message);
     const recommendationSummary = message.confirmedSlots?.length
-        ? `<div class="chips"><span class="muted">已确认</span>${message.confirmedSlots.map((slot) => `<span class="chip selected">${escapeHtml(slot)}</span>`).join("")}</div>`
+        ? `<div class="chips"><span class="muted">已确认</span>${message.confirmedSlots.map((slot) => `<span class="chip selected">${escapeHtml(formatSlotSummary(slot))}</span>`).join("")}</div>`
         : "";
     const optionalSummary = message.optionalSlots?.length
-        ? `<p class="muted" style="margin:0;">可继续补充：${escapeHtml(message.optionalSlots.join("、"))}</p>`
+        ? `<p class="muted" style="margin:0;">可继续补充：${escapeHtml(message.optionalSlots.map(slotLabel).join("、"))}</p>`
         : "";
     const metaParts = [];
     if (message.traceId) {

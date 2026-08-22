@@ -112,3 +112,13 @@
 - 单次动作推荐改用完整目录候选；正式审核资源列表和周计划候选仍分别沿用 `APPROVED` 与 `plan_ready` 白名单，dev 启动时由确定性资格服务将完整目录中字段齐全的动作扩展到计划边界。
 - 替代推荐候选耗尽时新增可选 `resultCode=CANDIDATES_EXHAUSTED`，普通无候选响应保持 `resultCode=null`，并继续提供显式放宽/重复操作。
 - `mvn test`：686 tests，0 failures，43 环境门控跳过；`mvn test -Ditest.mysql=true`：686 tests，0 failures，4 独立门控跳过；`node --test frontend/tests/*.test.mjs`：20/20；`git diff --check` 通过。
+
+## 本地开发收尾（2026-08-22）
+
+> 本节是当前工作树的最新基线；前面按日期记录的历史验收数字保留作当时证据，不作为当前测试总数。
+
+- 当前工作树自动化结果：`mvn -DskipTests compile` 通过；定向 Java 回归 77/77；`node --test frontend/tests/*.test.mjs` 25/25；`mvn test` 共 702 个测试，无失败，其中 658 通过、44 个环境门控跳过。
+- 门控复核：`mvn test -Ditest.mysql=true` 为 698 通过、4 跳过（Qdrant 3、live-model 1），40 个真实 MySQL 场景全部执行（事务 18、reviewed 计划/餐食 7、reviewed readers 15）；`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 为 701 通过、1 跳过（live-model）。未配置外部模型凭证，因此没有执行成功的 live-model smoke。
+- 健康聊天回归覆盖：统一中文槽位标签、后端确认摘要不泄漏 `mealTime/mood/cuisine/taste/convenience`，并识别尽快/便利店速食/胃口不好/素食/酸甜等口语及多槽位合并。
+- 计划页真实 Chromium 验收入口：`http://127.0.0.1:18092`，桌面 `1710×983` 与移动 `390×844`；名称标题/编辑/保存/取消、空名称中文错误、保存失败保留输入、未保存离开与取消项目编辑确认、空日期单一“添加项目”入口和长名称省略均通过，两个视口页面宽度均等于 390/1710。
+- 本地收尾未执行云端发布、DNS/TLS、公网验收、Issue 关闭或分支删除；#89 仍需云端交付闭环。

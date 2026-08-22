@@ -11,6 +11,7 @@ import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.intent.HealthSlotDictionary;
+import com.diet.health.profile.HealthProfileService;
 import com.diet.health.intent.IntentRuleService;
 import com.diet.health.enums.HealthResponseType;
 import com.diet.health.model.HealthChatRequest;
@@ -169,6 +170,64 @@ class HealthOrchestratorServiceTest {
         assertFalse(response.displayBlocks().isEmpty());
         assertEquals("MEAL", response.displayBlocks().get(0).resourceType());
         assertEquals("5", response.displayBlocks().get(0).resourceId());
+    }
+
+    @Test
+    void 编排器合并一条消息中的多个口语餐食槽位() {
+        org.mockito.ArgumentCaptor<Map<String, List<String>>> slots =
+                org.mockito.ArgumentCaptor.forClass(Map.class);
+        when(mealModule.recommendMeals(slots.capture(), any(), anyString())).thenReturn(List.of(
+                new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of())
+        ));
+
+        HealthChatResponse response = chat("今晚胃口不好，想吃素，想吃便利店能买的酸甜口味速食");
+
+        assertEquals(HealthResponseType.ANSWER, response.responseType());
+        assertEquals(List.of("晚餐"), slots.getValue().get("mealTime"));
+        assertEquals(List.of("没胃口"), slots.getValue().get("mood"));
+        assertEquals(List.of("素食"), slots.getValue().get("cuisine"));
+        assertEquals(List.of("酸甜"), slots.getValue().get("taste"));
+        assertEquals(List.of("快速"), slots.getValue().get("convenience"));
+    }
+
+    @Test
+    void 推荐前确认摘要使用中文槽位文案() {
+        HealthOrchestratorService preflight = new HealthOrchestratorService(
+                sessionService, new SessionService(sessionMapper, new JsonService(objectMapper), 10),
+                new HealthIntentAgentService(
+                        new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper),
+                                new AgentTraceService(traceMapper, objectMapper)),
+                        new PromptLoader(), new HealthSlotDictionary(TestSupport.slotOptionService()),
+                        new IntentRuleService(new HealthInputNormalizer()), new HealthInputNormalizer(),
+                        "qwen-turbo", "v1", 1000),
+                new HealthIntentRevisionService(new HealthInputNormalizer()), new HealthInputNormalizer(),
+                new HealthClarifyRuleService(),
+                new HealthClarifyAgentService(
+                        new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper),
+                                new AgentTraceService(traceMapper, objectMapper)),
+                        new PromptLoader(), new HealthClarifyRuleService(), "qwen-turbo", "v1", 1000),
+                new HealthRiskRuleService(), mealModule,
+                new ExerciseModule(new SeedResourceProvider(), preferenceService),
+                new RoutineModule(new SeedResourceProvider()), new SeedResourceProvider(),
+                new HealthRecommendResponseService(
+                        new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper),
+                                new AgentTraceService(traceMapper, objectMapper)),
+                        new PromptLoader(), "qwen-max", "v1", 1000),
+                new AgentTraceService(traceMapper, objectMapper), objectMapper,
+                mock(HealthProfileService.class), null, null);
+
+        HealthChatResponse response = preflight.healthChat(1L,
+                new HealthChatRequest(null, "req-preflight-labels", "今晚胃口不好，想吃素，想吃便利店能买的酸甜口味速食", Map.of()));
+
+        assertTrue(response.speechText().contains("今天的心情：没胃口"));
+        assertTrue(response.speechText().contains("菜系或食材：素食"));
+        assertTrue(response.speechText().contains("口味：酸甜"));
+        assertTrue(response.speechText().contains("能接受的耗时和购买方式：快速"));
+        assertFalse(response.speechText().contains("mealTime"));
+        assertFalse(response.speechText().contains("mood"));
+        assertFalse(response.speechText().contains("cuisine"));
+        assertFalse(response.speechText().contains("taste"));
+        assertFalse(response.speechText().contains("convenience"));
     }
 
     @Test

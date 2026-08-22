@@ -188,6 +188,10 @@ public class HealthIntentAgentService {
             if (legalRawCount < entry.getValue().stream().distinct().count()) {
                 slotDegraded = true;
             }
+            if (legalRawCount == 0) {
+                // 模型明确给出了当前槽位但全部非法时，不能让同一轮原文别名偷偷覆盖模型错误。
+                slots.remove(entry.getKey());
+            }
         }
 
         List<String> riskFlags = new ArrayList<>();

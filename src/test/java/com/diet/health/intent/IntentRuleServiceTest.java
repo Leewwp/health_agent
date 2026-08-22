@@ -115,4 +115,20 @@ class IntentRuleServiceTest {
         HealthIntentResult result = rules.fallback("几点睡合适", Map.of(), "TIMEOUT");
         assertTrue(result.slots().isEmpty());
     }
+
+    @Test
+    void 没有餐次的口语餐食请求仍路由到MEAL() {
+        HealthIntentResult result = rules.fallback("想要尽快能吃上的食物", Map.of(), "TIMEOUT");
+        assertEquals(HealthDomain.MEAL, result.domain());
+        assertEquals(List.of("快速"), result.slots().get("convenience"));
+    }
+
+    @Test
+    void 单独便捷表达也路由到餐食并保留快速槽位() {
+        for (String input : List.of("尽快能吃上", "马上能吃", "赶时间", "快速")) {
+            HealthIntentResult result = rules.fallback(input, Map.of(), "TIMEOUT");
+            assertEquals(HealthDomain.MEAL, result.domain(), input);
+            assertEquals(List.of("快速"), result.slots().get("convenience"), input);
+        }
+    }
 }

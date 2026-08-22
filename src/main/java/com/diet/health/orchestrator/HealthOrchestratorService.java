@@ -17,6 +17,7 @@ import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentResult;
 import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.intent.HealthPlanIntentMatcher;
+import com.diet.health.intent.HealthSlotLabels;
 import com.diet.health.model.HealthChatRequest;
 import com.diet.health.model.HealthChatResponse;
 import com.diet.health.model.HealthDisplayBlock;
@@ -683,7 +684,7 @@ public class HealthOrchestratorService {
             String summary = confirmed.isEmpty() ? "我已理解你的基本需求" : "我已确认：" + String.join("；", confirmed);
             HealthChatResponse preflight = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
                     riskFlags, HealthPhase.RESPOND,
-                    withContext(summary + "。还可以补充：" + (optional.isEmpty() ? "无" : String.join("、", optional))
+                    withContext(summary + "。还可以补充：" + (optional.isEmpty() ? "无" : String.join("、", optional.stream().map(HealthSlotLabels::label).toList()))
                             + "。要现在为你推荐吗？", advisoryCopy, currentAssignmentContext), List.of())
                     .withActions(List.of(new HealthAction("CONFIRM_RECOMMENDATION", "为我推荐", traceId),
                             new HealthAction("CONTINUE_RECOMMENDATION", "继续补充需求", traceId)))
@@ -826,7 +827,7 @@ public class HealthOrchestratorService {
         if (slots == null || slots.isEmpty()) return List.of();
         return slots.entrySet().stream()
                 .filter(entry -> entry.getValue() != null && !entry.getValue().isEmpty())
-                .flatMap(entry -> entry.getValue().stream().map(value -> entry.getKey() + "：" + value))
+                .flatMap(entry -> entry.getValue().stream().map(value -> HealthSlotLabels.label(entry.getKey()) + "：" + value))
                 .toList();
     }
 
