@@ -7,7 +7,6 @@ register("/chat", () => import("./pages/chat.js"));
 register("/meals", () => import("./pages/meals.js"));
 register("/exercises", () => import("./pages/exercises.js"));
 register("/plans", () => import("./pages/plans.js"));
-register("/prototype/my-plan", () => import("./pages/my-plan-prototype.js"));
 register("/profile", () => import("./pages/profile.js"));
 
 register("/diet", () => import("./pages/legacy.js").then((m) => m.dietHome()));
