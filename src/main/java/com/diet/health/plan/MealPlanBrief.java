@@ -27,7 +27,7 @@ public record MealPlanBrief(
 
     @JsonIgnore
     public boolean isComplete() {
-        return weekStart != null && !mealTimes.isEmpty();
+        return weekStart != null && !mealTimes.isEmpty() && healthGoal != null && !healthGoal.isBlank();
     }
 
     @JsonIgnore

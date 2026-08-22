@@ -34,11 +34,23 @@ class MealPlanBriefServiceTest {
     void 不完整餐食简报给字段指引且普通训练输入不写入() {
         MealPlanBriefService.UpdateResult partial = service.update(MealPlanBrief.empty(), "下周餐食计划");
         assertFalse(partial.brief().isComplete());
-        assertEquals(List.of("mealTimes"), partial.missingFields());
+        assertTrue(partial.missingFields().contains("mealTimes"));
+        assertTrue(partial.missingFields().contains("healthGoal"));
         assertTrue(partial.guidance().contains("餐次"));
 
         MealPlanBriefService.UpdateResult unrelated = service.update(partial.brief(), "我想练胸和背");
         assertEquals(BriefInterpretationStatus.UNRELATED, unrelated.status());
         assertEquals(partial.brief(), unrelated.brief());
+    }
+
+    @Test
+    void 只有目标周和餐次时必须继续追问餐食目标() {
+        MealPlanBriefService.UpdateResult partial = service.update(MealPlanBrief.empty(),
+                "下周安排早餐、午餐和晚餐");
+
+        assertFalse(partial.brief().isComplete());
+        assertEquals(List.of("healthGoal"), partial.missingFields());
+        assertTrue(partial.guidance().contains("餐食目标"));
+        assertFalse(partial.brief().isConfirmedAndComplete());
     }
 }

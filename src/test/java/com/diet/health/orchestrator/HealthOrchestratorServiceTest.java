@@ -500,6 +500,27 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
+    void 餐食计划只有餐次时不能直接生成且允许继续补充() {
+        String sessionId = "sess_meal_plan_requires_goal";
+        chatInSession(sessionId, "一周餐食计划");
+
+        HealthChatResponse partial = chatInSession(sessionId, "下周安排早餐、午餐和晚餐");
+        assertFalse(partial.mealPlanBrief().isComplete(), partial.toString());
+        assertTrue(partial.speechText().contains("餐食目标"), partial.speechText());
+        assertTrue(partial.actions().isEmpty());
+        assertFalse(partial.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
+
+        HealthChatResponse collected = chatInSession(sessionId, "餐食计划目标想减脂");
+        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", collected.actions().get(0).type());
+        assertEquals("CONTINUE_MEAL_PLAN_BRIEF", collected.actions().get(1).type());
+        assertFalse(collected.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
+
+        HealthChatResponse stillPartial = chatInSession(sessionId, "继续补充或调整");
+        assertFalse(stillPartial.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
+        assertFalse(stillPartial.mealPlanBrief().isConfirmedAndComplete());
+    }
+
+    @Test
     void 综合计划必须分别确认训练和餐食简报() {
         String sessionId = "sess_composite_plan_brief";
         HealthChatResponse first = chatInSession(sessionId, "一周训练和餐食计划");
@@ -514,7 +535,7 @@ class HealthOrchestratorServiceTest {
         assertTrue(confirmedTraining.speechText().contains("餐食"));
         assertTrue(confirmedTraining.actions().isEmpty());
 
-        HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐");
+        HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
         assertEquals("CONFIRM_MEAL_PLAN_BRIEF", meal.actions().get(0).type());
         HealthChatResponse confirmedMeal = chatInSession(sessionId, "确认餐食计划");
         assertEquals("GENERATE_PLAN", confirmedMeal.actions().get(0).type());

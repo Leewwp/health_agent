@@ -45,6 +45,15 @@ public class EnabledPlanContextService {
                 .toList();
     }
 
+    /** 返回当前启用计划 ID，供聊天发起“追加到当前计划”编辑流程。 */
+    public Long enabledPlanId(Long userId, PlanScope requestedScope) {
+        if (userId == null || requestedScope == null) return null;
+        WeeklyPlanRow plan = planMapper.findActiveByUser(userId);
+        if (plan == null) return null;
+        PlanScope actual = scopeGuard.parse(plan.getPlanScope());
+        return actual == PlanScope.COMPOSITE || actual == requestedScope ? plan.getId() : null;
+    }
+
     private List<WeeklyPlanItemRow> todayItems(Long userId, PlanScope requestedScope) {
         if (userId == null || requestedScope == null) {
             return List.of();

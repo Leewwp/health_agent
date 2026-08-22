@@ -112,6 +112,15 @@ class PlanBriefServiceTest {
     }
 
     @Test
+    void 中文时间范围允许省略前一个时间点的点字() {
+        PlanBriefService.UpdateResult result = service.update(PlanBrief.empty(), "下午五到六点");
+
+        assertEquals(BriefInterpretationStatus.EXTRACTED, result.status());
+        assertEquals(new TrainingTimeWindow(LocalTime.of(17, 0), LocalTime.of(18, 0)),
+                result.brief().timeWindow());
+    }
+
+    @Test
     void 解释状态区分冲突无效无关且无效不会写成成功() {
         assertEquals(BriefInterpretationStatus.AMBIGUOUS,
                 service.interpret(PlanBrief.empty(), "三天，二四六一").status());
