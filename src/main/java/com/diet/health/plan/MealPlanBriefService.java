@@ -50,6 +50,7 @@ public class MealPlanBriefService {
         List<String> missing = new ArrayList<>();
         if (value.weekStart() == null) missing.add("weekStart");
         if (value.mealTimes().isEmpty()) missing.add("mealTimes");
+        if (value.healthGoal() == null || value.healthGoal().isBlank()) missing.add("healthGoal");
         return List.copyOf(missing);
     }
 
@@ -122,6 +123,7 @@ public class MealPlanBriefService {
         return switch (field == null ? "" : field) {
             case "weekStart" -> "请补充目标周，例如“下周”或“目标周 2026-08-24”。";
             case "mealTimes" -> "请补充餐次，例如“早餐、午餐和晚餐”或“每天三餐”。";
+            case "healthGoal" -> "请补充餐食目标，例如减脂、增肌、维持健康或均衡饮食。";
             default -> "请补充餐食计划信息，例如“目标周下周，安排早餐、午餐和晚餐”。";
         };
     }

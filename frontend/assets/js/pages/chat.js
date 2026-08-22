@@ -300,10 +300,15 @@ function handleClick(event) {
             submitPresetChatMessage(requestController, "确认餐食计划", (message) => {
                 state.messages.push({ role: "user", text: message });
             });
+        } else if (action === "CONTINUE_MEAL_PLAN_BRIEF") {
+            document.querySelector("#chatForm textarea[name=message]")?.focus();
         } else if (action === "GENERATE_PLAN") {
             const requestId = target.dataset.requestId || "";
             const scope = target.dataset.planScope || "EXERCISE";
             navigate(`/plans?generate=1&scope=${encodeURIComponent(scope)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
+        } else if (action === "APPEND_TO_CURRENT_PLAN") {
+            const [, planId, appendScope] = String(target.dataset.requestId || "").split(":");
+            if (planId) navigate(`/plans?appendPlanId=${encodeURIComponent(planId)}&appendScope=${encodeURIComponent(appendScope || "MEAL")}`);
         }
     } else if (target.dataset.action === "recommendation-preflight") {
         if (target.dataset.preflightAction === "CONFIRM_RECOMMENDATION") {

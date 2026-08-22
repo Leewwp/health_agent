@@ -29,6 +29,7 @@ const state = {
     sidebarCollapsed: false, detailFilter: "ALL", mobileDay: 0,
     picker: null, pickerToken: 0, generationError: null, generating: false,
     generationAttemptedKey: null, generationTraceId: null, generationPlanId: null,
+    appendAttemptedKey: null, appending: false, appendError: null,
     resourceCache: new Map()
 };
 
@@ -39,12 +40,28 @@ export async function render(app) {
         startGeneration(app);
         return;
     }
+    const appendKey = appendPlanKey(location.hash);
+    if (appendKey && state.appendAttemptedKey !== appendKey) {
+        state.appendAttemptedKey = appendKey;
+        startAppend(app, appendKey);
+        return;
+    }
     if (!generationKey) {
         state.generationAttemptedKey = null;
         state.generationError = null;
     }
     if (state.generating) {
         app.innerHTML = generationState();
+        bind(app);
+        return;
+    }
+    if (state.appending) {
+        app.innerHTML = `<section class="section"><div class="empty" aria-live="polite" aria-busy="true"><span class="loading-spinner" aria-hidden="true"></span><strong>正在打开当前计划的编辑副本</strong><p class="muted">原计划保持不变，稍后选择要追加的资源。</p></div></section>`;
+        bind(app);
+        return;
+    }
+    if (state.appendError) {
+        app.innerHTML = `<section class="section"><div class="empty"><strong>无法打开当前计划</strong><p class="muted">${escapeHtml(state.appendError)}</p><a class="btn ghost" href="#/plans">返回计划</a></div></section>`;
         bind(app);
         return;
     }
@@ -143,7 +160,7 @@ function renderEvent(item, editable) {
     const end = shortTime(item.endTime);
     const detail = type === "meal" ? `${params.caloriesKcal ?? "-"} kcal · ${params.mealTime || "餐食"}` : `${params.durationMinutes ?? "-"} 分钟 · ${params.sets ?? "-"} 组 × ${params.reps ?? "-"} 次`;
     registerResource(`plan-card-${item.id}`, { ...item, resourceType: item.resourceType, resourceId: item.resourceId });
-    return `<div class="mp-board-event ${type}"><button class="mp-event-open" data-plan-action="open" data-item-id="${escapeHtml(item.id)}" aria-label="查看${escapeHtml(item.name)}详情"><span class="mp-event-type">${escapeHtml(RESOURCE_TYPE_LABELS[item.resourceType] || item.resourceType)} · ${shortTime(item.startTime)}-${end}</span><strong>${escapeHtml(item.name || item.resourceId)}</strong><small>${escapeHtml(detail)}</small>${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}</button>${editable ? `<button class="mp-event-move" data-plan-action="move" data-item-id="${escapeHtml(item.id)}" title="移动项目" aria-label="移动${escapeHtml(item.name)}">↕</button>` : ""}</div>`;
+    return `<div class="mp-board-event ${type}"><button class="mp-event-open" data-plan-action="open" data-item-id="${escapeHtml(item.id)}" aria-label="查看${escapeHtml(item.name)}详情"><span class="mp-event-type">${escapeHtml(RESOURCE_TYPE_LABELS[item.resourceType] || item.resourceType)} · ${shortTime(item.startTime)}-${end}</span><strong>${escapeHtml(item.name || item.resourceId)}</strong><small>${escapeHtml(detail)}</small>${item.note ? `<em>${escapeHtml(item.note)}</em>` : ""}</button></div>`;
 }
 
 function planName(plan) {
@@ -215,7 +232,6 @@ async function confirmLeavePlans() {
 
 function renderPicker() {
     const picker = state.picker;
-    if (picker.mode === "move") return renderMovePicker(picker);
     const type = picker.type;
     const fields = type === "MEAL"
         ? [["mealTime", "餐次", ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"]], ["cuisine", "菜系", ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"]], ["healthGoal", "目标", ["低油", "均衡", "控碳水", "清淡", "高蛋白"]]]
@@ -229,13 +245,6 @@ function renderPickerItem(item) {
     const favorite = Boolean(item.favorite ?? isFavorite(type, item.id));
     const detail = type === "MEAL" ? `${item.nutrition?.caloriesKcal ?? "-"} kcal · ${(item.tags?.mealTime || []).join("、") || "餐食"}` : `${item.bodyPart || "-"} · ${item.equipment || "-"}${item.planReady ? " · 可入周计划" : " · 不可入周计划"}`;
     return `<article class="mp-resource-card"><div class="mp-thumb ${type === "MEAL" ? "meal" : "exercise"}">${type === "MEAL" ? "餐" : "练"}</div><div><strong>${escapeHtml(item.name || item.id)}</strong><p><span>${escapeHtml(detail)}</span></p><small>${escapeHtml(item.sourceName || "审核资源")}</small></div><div class="mp-resource-actions"><button class="mp-fav-toggle ${favorite ? "active" : ""}" data-plan-action="picker-favorite" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}" aria-pressed="${favorite}" title="${favorite ? "取消收藏" : "收藏"}">${favorite ? "♥" : "♡"}</button><button class="mp-btn primary small" data-plan-action="choose-resource" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}">选择</button></div></article>`;
-}
-
-function renderMovePicker(picker) {
-    const item = findItem(picker.itemId);
-    const duration = item ? timeMinutes(item.endTime) - timeMinutes(item.startTime) : 30;
-    const slots = Array.from({ length: 48 }, (_, index) => index * 30).filter((start) => start + duration <= 1440);
-    return `<div class="mp-overlay"><section class="mp-modal mp-move-modal" role="dialog" aria-modal="true" aria-label="选择移动目标"><header><div><span class="mp-eyebrow">移动项目</span><h2>${escapeHtml(item?.name || "计划项目")}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭移动选择">×</button></header><p class="mp-muted">选择目标日期和时间，保存时会校验整周冲突。</p><div class="mp-move-grid">${buildDays(state.detail.weekStart).map((day, index) => `<div class="mp-plan-move-day"><strong>${WEEKDAY_LABELS[index]} · ${escapeHtml(formatDateLabel(day))}</strong>${slots.map((start) => `<button class="mp-plan-move-slot" data-plan-action="move-target" data-local-date="${escapeHtml(day)}" data-start-time="${timeValue(start)}">${timeValue(start)}</button>`).join("")}</div>`).join("")}</div></section></div>`;
 }
 
 function statusLabel(status) { return { ENABLED: "已启用", UNENABLED: "未启用", DRAFT: "草稿", HISTORY: "历史" }[status] || status || "计划"; }
@@ -253,6 +262,37 @@ function positiveInteger(value) { const number = Number(value); return Number.is
 
 function generationState() { return `<section class="section"><div class="empty" aria-live="polite" aria-busy="true"><span class="loading-spinner" aria-hidden="true"></span><strong>正在生成计划草稿</strong><p class="muted">正在读取确认简报和审核资源。</p></div></section>`; }
 function generationError() { return `<section class="section"><div class="empty"><strong>计划生成失败</strong><p class="muted">${escapeHtml(state.generationError)}</p><div class="button-row"><button class="btn primary" data-plan-action="retry-generation">重新生成</button><a class="btn ghost" href="#/chat">返回聊天</a><a class="btn soft" href="#/profile">完善档案</a></div></div></section>`; }
+
+function appendPlanKey(hash) {
+    const query = new URLSearchParams((hash || "").split("?")[1] || "");
+    const planId = query.get("appendPlanId");
+    return planId ? `${planId}:${query.get("appendScope") || "MEAL"}` : "";
+}
+
+async function startAppend(app, key) {
+    const [planId, scope] = key.split(":");
+    state.appending = true;
+    state.appendError = null;
+    render(app);
+    try {
+        const source = state.summaries.find((plan) => String(plan.id) === String(planId));
+        const result = source?.status === "ENABLED" ? await editPlan(planId) : await getPlan(planId);
+        state.summaries = await listPlans();
+        state.detail = result;
+        state.draftItems = cloneItems(result.items || []);
+        state.selectedId = result.id;
+        state.loaded = true;
+        state.appending = false;
+        resetPlanEditing(result);
+        history.replaceState(null, "", "#/plans");
+        render(app);
+        openPicker("add", result.weekStart, "12:00", scope === "EXERCISE" ? "EXERCISE" : "MEAL");
+    } catch (error) {
+        state.appending = false;
+        state.appendError = error.message || "当前计划编辑副本创建失败";
+        render(app);
+    }
+}
 
 async function startGeneration(app) {
     state.generating = true; state.generationError = null; render(app);
@@ -301,8 +341,6 @@ function handleClick(event) {
     if (action === "mobile-day") { state.mobileDay = Number(target.dataset.day) || 0; render(document.getElementById("app")); return; }
     if (action === "add") { openPicker("add", target.dataset.localDate, target.dataset.startTime, preferredPickerType()); return; }
     if (action === "open") { openItem(target.dataset.itemId); return; }
-    if (action === "move") { openMovePicker(target.dataset.itemId); return; }
-    if (action === "move-target") { moveItem(target.dataset.localDate, target.dataset.startTime); return; }
     if (action === "save") { saveAll(); return; }
     if (action === "cancel") { cancelEdits(); return; }
     if (action === "confirm" || action === "enable" || action === "disable" || action === "archive") { mutateStatus(action, target.dataset.planId); return; }
@@ -363,11 +401,10 @@ async function togglePickerFavorite(type, id) {
 function chooseResource(type, resourceId) {
     const resource = state.picker?.items.find((item) => item.resourceType === type && String(item.id) === String(resourceId)); if (!resource) return;
     state.resourceCache.set(`${type}:${resourceId}`, resource);
-    if (state.picker.mode === "move") return;
     if (state.picker.mode === "replace") {
         const item = findItem(state.picker.itemId);
         if (item) { item.resourceType = type; item.resourceId = String(resourceId); item.name = resource.name; item.params = defaultPlanParams(resource); markItemsDirty(); }
-        state.picker = null; closeDrawer({ restoreFocus: false }); render(document.getElementById("app")); showToast("资源已替换，保存后生效"); return;
+        state.picker = null; render(document.getElementById("app")); openItem(item?.id); showToast("资源已替换，保存后生效"); return;
     }
     const total = timeMinutes(state.picker.startTime) + 30;
     const item = { id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, resourceType: type, resourceId: String(resourceId), name: resource.name, localDate: state.picker.localDate, startTime: `${shortTime(state.picker.startTime)}:00`, endTime: `${timeValue(total)}:00`, note: "", params: defaultPlanParams(resource) };
@@ -391,8 +428,6 @@ function applyDrawerEdit(item, values) {
     item.localDate = values.localDate; item.startTime = `${values.startTime}:00`; item.endTime = `${values.endTime}:00`; item.note = values.note || ""; markItemsDirty(); closeDrawer(); render(document.getElementById("app")); showToast("项目修改已加入批量保存");
 }
 async function removeItem(item) { if (!(await requestConfirmation({ title: "删除计划项目", description: `确定删除“${item.name}”吗？`, confirmLabel: "删除" }))) return; state.draftItems = state.draftItems.filter((entry) => entry !== item); markItemsDirty(); closeDrawer(); render(document.getElementById("app")); }
-function openMovePicker(itemId) { const item = findItem(itemId); if (item && editablePlan(state.detail)) openPicker("move", item.localDate, shortTime(item.startTime), item.resourceType, itemId); }
-function moveItem(localDate, startTime) { const item = findItem(state.picker?.itemId); if (!item) return; const duration = timeMinutes(item.endTime) - timeMinutes(item.startTime); const start = timeMinutes(startTime); if (duration <= 0 || start + duration > 1440) { showToast("项目不能跨午夜", "error"); return; } item.localDate = localDate; item.startTime = `${startTime}:00`; item.endTime = `${timeValue(start + duration)}:00`; markItemsDirty(); state.picker = null; render(document.getElementById("app")); showToast("项目已移动，保存后生效"); }
 
 async function saveAll() {
     if (state.saving || !state.detail || !editablePlan(state.detail)) return;
@@ -429,6 +464,6 @@ async function mutateStatus(action, planId) {
 async function copyPlanToDraft(planId) { if (String(planId) === String(state.selectedId) && !(await confirmDiscardChanges("复制计划会丢失当前编辑。"))) return; try { const result = await copyPlan(planId, mutationPayload(planId)); state.summaries = await listPlans(); state.detail = result; state.draftItems = cloneItems(result.items || []); state.selectedId = result.id; resetPlanEditing(result); showToast("已复制为草稿"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "复制失败", "error"); } }
 async function editEnabledPlan(planId) { if (String(planId) === String(state.selectedId) && !(await confirmDiscardChanges("创建编辑草稿会丢失当前编辑。"))) return; if (!(await requestConfirmation({ title: "创建编辑草稿", description: "原计划保持启用，系统会创建一份草稿副本。", confirmLabel: "创建草稿" }))) return; try { const result = await editPlan(planId); state.summaries = await listPlans(); state.detail = result; state.draftItems = cloneItems(result.items || []); state.selectedId = result.id; resetPlanEditing(result); showToast("已创建编辑草稿"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "创建草稿失败", "error"); } }
 async function discardDraft(planId) { if (String(planId) === String(state.selectedId) && !(await confirmDiscardChanges("删除草稿会丢失当前编辑。"))) return; if (!(await requestConfirmation({ title: "删除草稿", description: "删除后不能恢复。", confirmLabel: "删除草稿" }))) return; try { const response = await fetch(`/api/v1/health/plans/${encodeURIComponent(planId)}`, { method: "DELETE" }); if (!response.ok) throw new Error("删除草稿失败"); state.summaries = await listPlans(); state.selectedId = state.summaries[0]?.id || null; state.detail = state.selectedId ? await getPlan(state.selectedId) : null; state.draftItems = cloneItems(state.detail?.items || []); resetPlanEditing(state.detail); showToast("草稿已删除"); render(document.getElementById("app")); } catch (error) { showToast(error.message || "删除草稿失败", "error"); } }
-function resetAndReload() { state.error = null; state.summaries = []; state.detail = null; state.selectedId = null; state.loaded = false; state.loading = false; state.nameEditor = null; state.nameEditorPlanId = null; state.itemsDirty = false; syncDirty(); render(document.getElementById("app")); }
+function resetAndReload() { state.error = null; state.summaries = []; state.detail = null; state.selectedId = null; state.loaded = false; state.loading = false; state.nameEditor = null; state.nameEditorPlanId = null; state.itemsDirty = false; state.appendAttemptedKey = null; state.appendError = null; syncDirty(); render(document.getElementById("app")); }
 
 export const __plansTest = { defaultPlanParams, timeMinutes, nextHalfHour };

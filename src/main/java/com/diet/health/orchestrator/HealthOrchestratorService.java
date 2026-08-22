@@ -332,6 +332,12 @@ public class HealthOrchestratorService {
         Map<String, List<String>> mergedSlots = mergeSlots(state.slots(), intent.slots());
         agentTraceService.recordEvent("SLOTS_MERGED", "SLOT", Map.of("stateSlots", state.slots(), "intentSlots", intent.slots()), mergedSlots);
 
+        HealthChatResponse appendResponse = appendToCurrentPlanResponse(userId, intent, sessionId, traceId,
+                risk.matchedFlags(), advisoryCopy, userInput);
+        if (appendResponse != null) {
+            return persistAndRespond(state, intent, mergedSlots, appendResponse, traceId, deadlineNanos);
+        }
+
         // “可以推荐了”等确认语义复用同一推荐通道；只在当前会话已有待确认摘要时生效。
         if (alternative == null && state.recommendationPreflightPending()
                 && isRecommendationConfirmation(userInput)
@@ -416,6 +422,37 @@ public class HealthOrchestratorService {
         return handleRecommend(sessionId, traceId, requestState, intent, mergedSlots, activeSlots, excludeIds,
                 risk.matchedFlags(), advisoryCopy, currentAssignmentContext, userInput,
                 revision.clarifyUnsafe(), alternative, deadlineNanos);
+    }
+
+    /** 将聊天中的“追加到当前计划”转成显式编辑副本操作，不直接静默改写 ENABLED 计划。 */
+    private HealthChatResponse appendToCurrentPlanResponse(Long userId, HealthIntentResult intent,
+                                                            String sessionId, String traceId,
+                                                            List<String> riskFlags, String advisoryCopy,
+                                                            String userInput) {
+        if (!isAppendToCurrentPlan(userInput) || enabledPlanContextService == null) return null;
+        PlanScope scope = intent.domain() == HealthDomain.EXERCISE ? PlanScope.EXERCISE
+                : intent.domain() == HealthDomain.MEAL ? PlanScope.MEAL : null;
+        if (scope == null) return null;
+        Long planId = enabledPlanContextService.enabledPlanId(userId, scope);
+        if (planId == null) {
+            return HealthChatResponse.answer(sessionId, traceId, intent.domain(), HealthTask.PLAN,
+                    riskFlags, HealthPhase.RESPOND,
+                    withAdvisory("当前没有可追加的已启用" + (scope == PlanScope.MEAL ? "餐食" : "训练")
+                            + "计划，请先生成并启用一份计划。", advisoryCopy), List.of());
+        }
+        String actionId = "APPEND:" + planId + ":" + scope.name();
+        return HealthChatResponse.answer(sessionId, traceId, intent.domain(), HealthTask.PLAN,
+                riskFlags, HealthPhase.RESPOND,
+                withAdvisory("我会先为当前已启用计划创建编辑副本，保留原计划不变；进入计划页后选择要追加的"
+                        + (scope == PlanScope.MEAL ? "餐食" : "动作") + "并保存。", advisoryCopy), List.of())
+                .withPlanBrief(PlanBrief.empty(), List.of(new HealthAction("APPEND_TO_CURRENT_PLAN",
+                        "追加到当前计划", actionId)), HealthNextAction.WAIT_USER);
+    }
+
+    private boolean isAppendToCurrentPlan(String input) {
+        if (input == null) return false;
+        return containsAny(input, "追加到当前计划", "加入当前计划", "追加到现有计划", "加入现有计划",
+                "当前计划追加", "现有计划追加", "在当前计划里加", "在现有计划里加");
     }
 
     /** 训练简报闭环：解析/合并只在 PLAN 上下文运行，普通推荐不会触碰 planBrief。 */
@@ -505,10 +542,13 @@ public class HealthOrchestratorService {
         } else {
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("餐食偏好已整理：" + mealPlanBriefService.summary(brief) + "。请确认后生成计划。", advisoryCopy),
+                    withAdvisory("餐食偏好已整理：" + mealPlanBriefService.summary(brief)
+                            + "。你还可以补充或调整餐食目标、餐次和目标周；确认当前信息后再生成计划。", advisoryCopy),
                     List.of())
                     .withMealPlanBrief(brief)
-                    .withPlanBrief(state.planBrief(), List.of(new HealthAction("CONFIRM_MEAL_PLAN_BRIEF", "确认餐食计划", requestId)),
+                    .withPlanBrief(state.planBrief(), List.of(
+                                    new HealthAction("CONFIRM_MEAL_PLAN_BRIEF", "确认餐食计划", requestId),
+                                    new HealthAction("CONTINUE_MEAL_PLAN_BRIEF", "继续补充或调整", requestId)),
                             HealthNextAction.CONFIRM_PLAN_BRIEF);
         }
         return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,

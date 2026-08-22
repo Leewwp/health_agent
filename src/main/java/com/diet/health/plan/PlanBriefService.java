@@ -29,9 +29,13 @@ public class PlanBriefService {
     private static final Pattern NUMERIC_TIME_RANGE = Pattern.compile(
             "([01]?\\d|2[0-3])[:：]([0-5]\\d)\\s*[-到至~～—]+\\s*([01]?\\d|2[0-3])[:：]([0-5]\\d)");
     private static final String TIME_POINT = "(?:(?:上午|早上|中午|下午|晚上|夜里)\\s*)?(?:[01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})\\s*(?:点|时)(?:半|一刻|三刻)?";
+    private static final String BARE_TIME_POINT = "(?:(?:上午|早上|中午|下午|晚上|夜里)\\s*)?(?:[01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})";
     private static final Pattern HAN_TIME_RANGE = Pattern.compile("(" + TIME_POINT + ")\\s*(?:到|至|[-—])\\s*(" + TIME_POINT + ")");
+    private static final Pattern HAN_TIME_RANGE_BARE_START = Pattern.compile("(" + BARE_TIME_POINT + ")\\s*(?:到|至|[-—])\\s*(" + TIME_POINT + ")");
     private static final Pattern HAN_TIME_POINT = Pattern.compile(
             "(?:(上午|早上|中午|下午|晚上|夜里)\\s*)?([01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})\\s*(?:点|时)(半|一刻|三刻)?");
+    private static final Pattern HAN_BARE_TIME_POINT = Pattern.compile(
+            "(?:(上午|早上|中午|下午|晚上|夜里)\\s*)?([01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})");
     private static final Pattern DECLARED_DAY_COUNT = Pattern.compile("(?:([1-7])|([一二三四五六七]))天");
     private static final Pattern DAY_RANGE = Pattern.compile("(?:周|星期)([一二三四五六日天])\\s*(?:到|至|-)\\s*(?:周|星期)?([一二三四五六日天])");
     private static final Pattern PREFIXED_DAYS = Pattern.compile("(?:周|星期)([一二三四五六日天]{2,7})");
@@ -281,6 +285,15 @@ public class PlanBriefService {
                     ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false)
                     : new TimeParse(null, null, null, false, true);
         }
+        Matcher bareStart = HAN_TIME_RANGE_BARE_START.matcher(text);
+        if (bareStart.find()) {
+            String period = timePeriod(bareStart.group(1));
+            LocalTime start = parseBareTimePoint(bareStart.group(1), null);
+            LocalTime end = parseTimePoint(bareStart.group(2), period);
+            return start != null && end != null && start.isBefore(end)
+                    ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false)
+                    : new TimeParse(null, null, null, false, true);
+        }
         String point = findSingleTimePoint(text);
         if (point != null) {
             LocalTime parsed = parseTimePoint(point, null);
@@ -326,9 +339,22 @@ public class PlanBriefService {
         return LocalTime.of(hour, minute);
     }
 
+    private LocalTime parseBareTimePoint(String point, String inheritedPeriod) {
+        Matcher han = HAN_BARE_TIME_POINT.matcher(point.trim());
+        if (!han.matches()) return null;
+        int hour = chineseNumber(han.group(2));
+        if (hour > 23) return null;
+        String period = han.group(1) == null ? inheritedPeriod : han.group(1);
+        if (("下午".equals(period) || "晚上".equals(period) || "夜里".equals(period)) && hour < 12) hour += 12;
+        if ("中午".equals(period) && hour < 11) hour += 12;
+        return LocalTime.of(hour, 0);
+    }
+
     private String timePeriod(String point) {
         Matcher matcher = HAN_TIME_POINT.matcher(point.trim());
-        return matcher.matches() ? matcher.group(1) : null;
+        if (matcher.matches()) return matcher.group(1);
+        Matcher bare = HAN_BARE_TIME_POINT.matcher(point.trim());
+        return bare.matches() ? bare.group(1) : null;
     }
 
     private String continuationPeriod(LocalTime start) {
