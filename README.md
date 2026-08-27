@@ -28,6 +28,20 @@
 
 环境要求：Java 21、Maven 3.9+、MySQL 8。
 
+### 一键启动（推荐）
+
+```bash
+./scripts/start-local.sh     # 启动并自动打开 http://localhost:8092/#/chat
+./scripts/stop-local.sh      # 停止后端与前端 Nginx 容器（不动 MySQL/Qdrant 数据）
+```
+
+脚本行为：检查 Java 21 / Maven / Docker / 本机 MySQL → 编译并后台启动 Spring Boot（默认 `8082`）→ 等待 `/actuator/health` 变为 `UP` → 以无状态容器 `health-agent-local-nginx` 在默认 `8092` 端口重建前端 Nginx 并同源反代 `/api/` 与健康检查 → 自检通过后打开浏览器。日志在 `.local-run/logs/`（已 gitignore），后端 pid 在 `.local-run/backend.pid`。复用本机 MySQL 而非 Compose MySQL，不触发 prod 必填配置校验，也不占用 80 端口；Compose 的 MySQL/Qdrant 及其数据卷不受影响。
+
+- **端口占用**：若目标端口已被本应用占住且健康则直接复用；被无关进程占用会报错退出，绝不静默换端口。可用环境变量换端口：`BACKEND_PORT=8083 FRONTEND_PORT=8093 ./scripts/start-local.sh`。
+- **其他可选项**：`WAIT_TIMEOUT_SECS`（等 UP 的超时秒数，默认 300）、`NO_OPEN=1`（不自动开浏览器）。未配置 `DASHSCOPE_API_KEY` 时服务照常启动，聊天回答确定性降级为模板文案。
+
+### 手动启动
+
 1. 启动本机 MySQL（默认 `root/123456`）。
 2. 启动应用（Flyway 自动完成建库迁移，全新库直接建表，已有旧库自动基线；启动时自动幂等导入审核资源）：
 

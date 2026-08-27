@@ -52,3 +52,6 @@ data/meal/processed/
 
 # 动作原始数据集（可经 jsDelivr 重新下载，见 scripts/build_reviewed_resources.py）
 data/exercise/raw/exercises.json
+
+# 本地一键启停脚本运行时产物（后端/构建日志、pid、生成的 nginx 配置）
+.local-run/
