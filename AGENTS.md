@@ -29,7 +29,7 @@ Multi-agent diet recommendation service (Spring Boot + AgentScope/DashScope + My
 
 - Trace code (javadoc/comments) says "agent_traces 表" but the real table is `diet_request_trace` (see `AgentTraceMapper.xml`). Do not create an `agent_traces` table.
 - This repo's git root is `health-agent/` itself, remote `origin` = `Leewwp/health_agent` (main 与 origin 同步). 上级目录 `/Users/pp/Desktop/file` 仍是另一个备份 git 仓库（remote `Leewwp/backup`）——不要在该目录执行本仓库的 git 操作。`groupproject-team_9` remote 属于另一个项目，忽略。
-- Deployment: `docker compose up -d --build` (mysql 8.4 + app multi-stage JRE 21 + nginx same-origin proxy, prod profile requires `DASHSCOPE_API_KEY`/`DIET_SESSION_SECRET`/`ADMIN_TOKEN` per `deploy/.env.example`). CI runs on push/PR to `main`; acceptance evidence checklist lives in `docs/release-evidence.md` (M0-M4).
+- Deployment: `docker compose up -d --build` (mysql 8.4 + app multi-stage JRE 21 + nginx same-origin proxy, prod profile requires `DASHSCOPE_API_KEY`/`DIET_SESSION_SECRET`/`ADMIN_TOKEN` per `deploy/.env.example`). 本地一键启停用 `scripts/start-local.sh` / `stop-local.sh`（dev 后端默认 8082 + 无状态 Nginx 容器默认 8092，复用本机 MySQL，绕开 prod 校验与 80 端口冲突；端口经 `BACKEND_PORT`/`FRONTEND_PORT` 覆盖，运行产物在 gitignored 的 `.local-run/`）。CI runs on push/PR to `main`; acceptance evidence checklist lives in `docs/release-evidence.md` (M0-M4).
 - Per the parent rules at `/Users/pp/Desktop/file/code/AGENTS.md`: UI changes must be verified in a real browser against the running app, with the URL, interactions, and result reported.
 
 ## Agent skills
