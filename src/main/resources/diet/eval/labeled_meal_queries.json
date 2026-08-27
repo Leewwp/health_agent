@@ -1,6 +1,6 @@
 {
   "querySetVersion": "1.1.0",
-  "note": "60 条固定评测查询：六层各 10 条（精确标签/自然语言/长尾表达/同义词/排除项/过敏原）。expectedSourceIds 为满足槽位与硬约束的全部审核 APPROVED 餐食 sourceId。",
+  "note": "60 条固定评测查询：六层各 10 条（精确标签/自然语言/长尾表达/同义词/排除项/过敏原）。expectedSourceIds 已按 current-corpus-v1 的 295 条审核 APPROVED 餐食逐条核对，表示满足槽位与硬约束的全部 sourceId。",
   "queries": [
     {
       "id": "q-exact-breakfast-protein",

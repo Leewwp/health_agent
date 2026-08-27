@@ -6,6 +6,7 @@ import io.agentscope.core.model.ExecutionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -18,6 +19,7 @@ import java.util.Optional;
  * 一次调用、不重试，与 AgentScopeInvoker 的单次调用约定一致。
  */
 @Component
+@ConditionalOnProperty(value = "diet.embedding.provider", havingValue = "dashscope", matchIfMissing = true)
 public class DashScopeEmbeddingClient implements EmbeddingClient {
 
     private static final Logger log = LoggerFactory.getLogger(DashScopeEmbeddingClient.class);

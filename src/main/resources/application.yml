@@ -65,22 +65,32 @@ diet:
     # reviewed=数据库审核子集（正式）；fixture=内存种子（离线演示/测试，prod 禁止）
     mode: reviewed
   rag:
-    # structured=只用结构化检索；hybrid=结构化+语义合并（embedding 失败自动降级）
-    mode: hybrid
+    # structured=线上默认只用结构化检索；hybrid=实验性结构化+语义合并（embedding 失败自动降级）
+    mode: structured
     # hybrid 融合权重：结构化分权重（语义分权重 = 1-w），默认 0.5（#77 消融经测试接缝注入，不静默改线上）
     fusion-weight: 0.5
     # 启动时运行 RAG 评估（固定查询集 → data/reports/rag_evaluation.json）
     eval-run: false
     eval-report-path: data/reports/rag_evaluation.json
+    # 语义挑战集需人工完成 Top-5 标注后才允许运行；草案只输出 NOT_RUN。
+    semantic-eval-run: false
+    semantic-eval-report-path: data/reports/semantic_challenge_v1.json
   embedding:
+    # dashscope=默认稳定路径；minimax=实验性原生 HTTP 适配器（需单独配置 key）
+    provider: ${DIET_EMBEDDING_PROVIDER:dashscope}
     # 可独立覆盖的 embedding 端点；DashScope 专属空间的原生与 OpenAI 兼容 base-url 不同（原生 /api/v1），
     # 留空时回退 agentscope.dashscope.base-url
     base-url: ${DASHSCOPE_EMBEDDING_BASE_URL:}
-    model: text-embedding-v3
-    dimensions: 1024
+    model: ${DIET_EMBEDDING_MODEL:text-embedding-v3}
+    dimensions: ${DIET_EMBEDDING_DIMENSIONS:1024}
     timeout-ms: ${DIET_EMBEDDING_TIMEOUT_MS:5000}
     # 启动时是否离线生成餐食向量（需要真实 API key，默认关闭）
     generate-on-startup: false
+    minimax:
+      api-key: ${MINIMAX_API_KEY:}
+      base-url: ${MINIMAX_EMBEDDING_BASE_URL:https://api.minimaxi.com}
+      model: ${MINIMAX_EMBEDDING_MODEL:embo-01}
+      group-id: ${MINIMAX_GROUP_ID:}
   vectorstore:
     # in-memory=内存适配器（测试/离线演示，默认）；qdrant=真实 Qdrant（gRPC 明文）
     mode: ${DIET_VECTORSTORE_MODE:in-memory}
@@ -92,7 +102,7 @@ diet:
     index-on-startup: false
     # collection 身份（provider+model+dimension+version）：model/dimension 默认跟随
     # diet.embedding.*（切换 embedding 模型/维度时自动换 collection 身份），可显式覆盖
-    provider: dashscope
+    provider: ${DIET_VECTORSTORE_PROVIDER:${DIET_EMBEDDING_PROVIDER:dashscope}}
   prompt:
     version: v1
   session:

@@ -65,7 +65,7 @@ public class RagEvaluationRunner implements ApplicationRunner {
 
     public RagEvaluationRunner(
             @Qualifier("structuredMealRetriever") MealRetriever structuredRetriever,
-            @Qualifier("mealRetriever") MealRetriever mealRetriever,
+            @Qualifier("hybridMealRetriever") MealRetriever mealRetriever,
             ReviewedMealReader reviewedMealReader,
             EmbeddingClient embeddingClient,
             VectorStore vectorStore,
@@ -113,7 +113,7 @@ public class RagEvaluationRunner implements ApplicationRunner {
             sourceById.put(meal.id(), meal.sourceId());
         }
 
-        // 基线：结构化 vs 生产 hybrid（0.5 权重 + 用户原话，即线上默认口径）
+        // 评测对照：结构化 vs 显式配置的 hybrid（0.5 权重 + 用户原话）；线上默认仍为结构化。
         RetrieverEvaluation structured = RecallEvaluationService.evaluateRetriever(
                 structuredRetriever, queries, sourceById, TOP_K, false, EmbeddingTextMode.USER_TEXT);
         RetrieverEvaluation defaultHybrid = RecallEvaluationService.evaluateRetriever(
@@ -136,7 +136,8 @@ public class RagEvaluationRunner implements ApplicationRunner {
         }
 
         Map<String, Object> environment = new LinkedHashMap<>();
-        environment.put("gitCommit", gitCommit);
+        environment.put("gitCommit", resolveGitCommit());
+        environment.put("gitWorktreeDirty", isGitWorktreeDirty());
         environment.put("querySetVersion", querySet.querySetVersion());
         environment.put("resourceVersion", resourceProvider.resourceVersion());
         environment.put("embeddingProvider", embeddingProvider);
@@ -204,5 +205,32 @@ public class RagEvaluationRunner implements ApplicationRunner {
         comparison.put("precisionAt3Delta", hybrid.avgPrecisionAt3() - structured.avgPrecisionAt3());
         comparison.put("p95LatencyMsDelta", hybrid.p95LatencyMs() - structured.p95LatencyMs());
         return comparison;
+    }
+
+    private String resolveGitCommit() {
+        if (gitCommit != null && !gitCommit.isBlank() && !"unknown".equalsIgnoreCase(gitCommit)) {
+            return gitCommit;
+        }
+        return runGitCommand("rev-parse", "HEAD").orElse("unknown");
+    }
+
+    private boolean isGitWorktreeDirty() {
+        return runGitCommand("status", "--porcelain").map(value -> !value.isBlank()).orElse(false);
+    }
+
+    private java.util.Optional<String> runGitCommand(String... arguments) {
+        try {
+            List<String> command = new java.util.ArrayList<>();
+            command.add("git");
+            command.addAll(List.of(arguments));
+            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            if (process.waitFor() == 0 && !output.isBlank()) {
+                return java.util.Optional.of(output);
+            }
+        } catch (Exception ignored) {
+            // 运行在无 git 的打包环境时保留 unknown，不影响评测结果生成。
+        }
+        return java.util.Optional.empty();
     }
 }

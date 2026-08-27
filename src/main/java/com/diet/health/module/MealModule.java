@@ -4,7 +4,8 @@ import com.diet.enums.SourceMode;
 import com.diet.health.feedback.PreferenceService;
 import com.diet.health.rag.EmbeddingClient;
 import com.diet.health.rag.MealRetrievalQuery;
-import com.diet.health.rag.MealRetriever;
+import com.diet.health.rag.MealRetrievalDecision;
+import com.diet.health.rag.MealRetrievalRouter;
 import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalResult;
 import com.diet.health.reader.meal.ReviewedMealIds;
@@ -20,7 +21,6 @@ import com.diet.service.meal.MealSearchService;
 import com.diet.service.trace.AgentTraceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -49,15 +49,17 @@ public class MealModule {
     private final MealSearchService mealSearchService;
     private final MealRankService mealRankService;
     private final AgentTraceService agentTraceService;
-    private final MealRetriever mealRetriever;
+    private final MealRetrievalRouter retrievalRouter;
     private final PreferenceService preferenceService;
     private final EmbeddingClient embeddingClient;
     private final VectorStoreIdentity vectorStoreIdentity;
     private final HealthResourceProvider resourceProvider;
 
+    /** Spring 线上构造：路由在结构化与语义实验路径之间选择。 */
+    @org.springframework.beans.factory.annotation.Autowired
     public MealModule(MealSearchService mealSearchService, MealRankService mealRankService,
                       AgentTraceService agentTraceService,
-                      @Qualifier("mealRetriever") MealRetriever mealRetriever,
+                      MealRetrievalRouter retrievalRouter,
                       PreferenceService preferenceService,
                       EmbeddingClient embeddingClient,
                       VectorStoreIdentity vectorStoreIdentity,
@@ -65,7 +67,7 @@ public class MealModule {
         this.mealSearchService = mealSearchService;
         this.mealRankService = mealRankService;
         this.agentTraceService = agentTraceService;
-        this.mealRetriever = mealRetriever;
+        this.retrievalRouter = retrievalRouter;
         this.preferenceService = preferenceService;
         this.embeddingClient = embeddingClient;
         this.vectorStoreIdentity = vectorStoreIdentity;
@@ -102,8 +104,12 @@ public class MealModule {
                 healthSlots.getOrDefault("allergen", List.of()),
                 text
         );
-        RetrievalResult result = mealRetriever.retrieve(query, RECOMMEND_LIMIT);
+        MealRetrievalDecision decision = retrievalRouter.retrieveWithDecision(query, RECOMMEND_LIMIT);
+        RetrievalResult result = decision.result();
         Map<String, Object> traceDetail = new LinkedHashMap<>();
+        traceDetail.put("route", decision.route().name());
+        traceDetail.put("actualRetriever", decision.actualRetriever());
+        traceDetail.put("retrievalLatencyMs", decision.elapsedMs());
         traceDetail.put("mode", result.mode().name());
         traceDetail.put("degradationReason", result.degradationReason());
         traceDetail.put("vectorProvider", vectorStoreIdentity.provider());
@@ -225,5 +231,10 @@ public class MealModule {
         }
         return new HealthResource.Nutrition(nutrition.caloriesKcal(), nutrition.proteinG(), nutrition.fatG(),
                 nutrition.carbohydrateG(), nutrition.basis(), nutrition.estimated());
+    }
+
+    /** 仅供 Spring wiring 测试确认生产构造注入了路由。 */
+    MealRetrievalRouter retrievalRouterForTest() {
+        return retrievalRouter;
     }
 }
