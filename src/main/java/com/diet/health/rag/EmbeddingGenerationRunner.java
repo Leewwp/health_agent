@@ -13,6 +13,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -61,9 +62,21 @@ public class EmbeddingGenerationRunner implements ApplicationRunner {
             return;
         }
         List<ReviewedMeal> meals = reviewedMealReader.snapshotAll();
+        List<Long> mealIds = meals.stream().map(ReviewedMeal::id).toList();
+        List<MealEmbeddingRow> existingRows = embeddingMapper.findByMealIds(
+                mealIds, embeddingClient.modelName(), embeddingClient.modelVersion());
+        Map<Long, MealEmbeddingRow> existingByMealId = existingRows == null ? Map.of()
+                : existingRows.stream().filter(row -> row.getMealId() != null)
+                .collect(Collectors.toMap(MealEmbeddingRow::getMealId, row -> row, (left, right) -> right));
         int generated = 0;
         for (ReviewedMeal meal : meals) {
-            Optional<float[]> vector = embeddingClient.embed(embedText(meal));
+            MealEmbeddingRow existing = existingByMealId.get(meal.id());
+            if (existing != null && existing.getVector() != null && !existing.getVector().isBlank()) {
+                continue;
+            }
+            String text = embedText(meal);
+            Optional<float[]> vector = embeddingClient instanceof TypedEmbeddingClient typed
+                    ? typed.embedDocument(text) : embeddingClient.embed(text);
             if (vector.isEmpty()) {
                 log.warn("餐食 {} 向量生成失败，中止本轮生成（已生成 {} 条）", meal.id(), generated);
                 return;

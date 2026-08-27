@@ -29,7 +29,7 @@ public class VectorStoreConfiguration {
      */
     @Bean
     public VectorStoreIdentity vectorStoreIdentity(
-            @Value("${diet.vectorstore.provider:dashscope}") String provider,
+            @Value("${diet.vectorstore.provider:${diet.embedding.provider:dashscope}}") String provider,
             @Value("${diet.vectorstore.model:${diet.embedding.model:text-embedding-v3}}") String model,
             @Value("${diet.vectorstore.dimension:${diet.embedding.dimensions:1024}}") int dimension,
             @Value("${diet.vectorstore.version:v3-${diet.embedding.dimensions:1024}}") String version) {

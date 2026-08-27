@@ -68,7 +68,7 @@ class HealthEvalRunnerTest {
         PreferenceService preferenceService = new PreferenceService(mock(FeedbackMapper.class));
         MealModule mealModule = new MealModule(
                 mock(MealSearchService.class), mock(MealRankService.class), traceService,
-                mock(MealRetriever.class), preferenceService,
+                new com.diet.health.rag.MealRetrievalRouter(mock(MealRetriever.class), mock(MealRetriever.class)), preferenceService,
                 mock(EmbeddingClient.class), new VectorStoreIdentity("dashscope", "text-embedding-v3", 1024, "v3-1024"),
                 provider);
         ExerciseModule exerciseModule = new ExerciseModule(provider, preferenceService);

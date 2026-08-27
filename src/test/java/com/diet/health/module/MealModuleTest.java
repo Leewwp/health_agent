@@ -4,6 +4,7 @@ import com.diet.enums.SourceMode;
 import com.diet.health.feedback.PreferenceService;
 import com.diet.health.rag.MealRetrievalQuery;
 import com.diet.health.rag.MealRetriever;
+import com.diet.health.rag.MealRetrievalRouter;
 import com.diet.health.rag.RetrievalItem;
 import com.diet.health.rag.RetrievalMode;
 import com.diet.health.rag.RetrievalResult;
@@ -52,8 +53,8 @@ class MealModuleTest {
 
     @BeforeEach
     void setUp() {
-        module = new MealModule(search, new MealRankService(), trace, retriever, preference,
-                embedding, identity, provider);
+        module = new MealModule(search, new MealRankService(), trace,
+                new MealRetrievalRouter(retriever, retriever), preference, embedding, identity, provider);
     }
 
     @Test
@@ -130,6 +131,9 @@ class MealModuleTest {
         verify(trace).recordEvent(eq("MEAL_RETRIEVED"), eq("RETRIEVE"), any(), detailCaptor.capture());
         Map<String, Object> detail = detailCaptor.getValue();
         assertEquals("STRUCTURED", detail.get("mode"));
+        assertEquals("STRUCTURED", detail.get("route"));
+        assertEquals("STRUCTURED", detail.get("actualRetriever"));
+        assertTrue((Double) detail.get("retrievalLatencyMs") >= 0);
         assertEquals("embedding_unavailable", detail.get("degradationReason"));
         assertEquals("dashscope", detail.get("vectorProvider"));
         assertEquals("text-embedding-v3", detail.get("vectorModel"));
@@ -203,6 +207,25 @@ class MealModuleTest {
 
         assertTrue(resources.isEmpty());
         verify(retriever, never()).retrieve(any(), anyInt());
+    }
+
+    @Test
+    void 路由在生产构造中保护强约束且语义请求才调用Hybrid() {
+        MealRetriever structured = mock(MealRetriever.class);
+        MealRetriever hybrid = mock(MealRetriever.class);
+        MealRetrievalRouter router = new MealRetrievalRouter(structured, hybrid);
+        MealModule routed = new MealModule(search, new MealRankService(), trace, router, preference,
+                embedding, identity, provider);
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        when(structured.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null));
+        when(hybrid.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(List.of(), RetrievalMode.HYBRID, null));
+
+        routed.recommendMeals(Map.of("mealTime", List.of("早餐")), List.of(), "早餐来点清淡的");
+        verify(structured).retrieve(any(), eq(10));
+        verify(hybrid, never()).retrieve(any(), anyInt());
+
+        routed.recommendMeals(Map.of(), List.of(), "有没有像妈妈做的菜");
+        verify(hybrid).retrieve(any(), eq(10));
     }
 
     @Test
