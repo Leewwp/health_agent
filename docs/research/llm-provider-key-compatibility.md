@@ -1,6 +1,6 @@
 # LLM 供应商密钥与 AgentScope/Qdrant 兼容性研究
 
-研究日期：2026-08-10  
+研究日期：2026-08-27（基于真实 MiniMax smoke 与评测更新）
 研究范围：本项目 `agentscope-spring-boot-starter:1.0.11`、聊天模型切换、餐食 Embedding 生成和 Qdrant 接入。
 
 ## 结论摘要
@@ -14,8 +14,8 @@
 1. 聊天若使用 DeepSeek 或 MiniMax，改用 AgentScope 已提供的
    `OpenAIChatModel`（OpenAI-compatible wire format），为每个供应商配置独立的
    `baseUrl`、模型名和 key。
-2. Embedding 仍使用 DashScope 的原生 Embedding API；只有在拿到 MiniMax 官方明确的
-   Embedding endpoint 后，才考虑另写 MiniMax 专用适配器。
+2. Embedding 默认仍使用 DashScope 的原生 Embedding API；本项目已另写并实测
+   MiniMax 原生 Embeddings 适配器，但它只作为可切换实验 provider，不改变线上 Structured 默认。
    DeepSeek key 本身不能完成餐食向量化，因为 DeepSeek 官方公开 API 文档只定义聊天
    与相关生成能力，没有可供本项目使用的 Embeddings API。
 3. Qdrant 与模型供应商无关，但一个 collection 的向量维度/距离必须固定；切换模型时
@@ -72,6 +72,12 @@ DeepSeek 永远不会提供 embedding；拿到 key 后仍应以 `/models` 和官
 
 ### MiniMax 与 Coding Plan
 
+2026-08-27 复核了 MiniMax 官方 Embeddings 文档入口并完成真实账号 smoke：
+<https://platform.minimaxi.com/docs/api-reference/embeddings>。
+实际验证使用 `POST /v1/embeddings`、Bearer key、`GroupId` 查询参数；成功响应为
+`base_resp.status_code=0`，`embo-01` 返回 1536 维向量。该结论适用于当前账号和区域，
+不代表所有 MiniMax 套餐的额度与 endpoint 都相同。
+
 MiniMax Open Platform 文档同时提供原生 API 与 OpenAI/Anthropic 兼容入口；兼容入口仍要求
 使用平台认可的 API key、正确区域 base URL 和模型名。MiniMax 的 Coding Plan 是套餐/产品
 授权，不能从“我有 Coding Plan”推导出“任意 OpenAI SDK 都能使用”。实际接入前必须从
@@ -96,10 +102,10 @@ MiniMax Token/Coding Plan 文档把订阅 key（常见 `sk-cp-` 前缀）和普�
 不同区域和产品线的 MiniMax 文档域名/路径可能不同；若上面的入口发生跳转，应以控制台
 当前显示的 endpoint、认证方式和模型列表为准。
 
-MiniMax 官方 API 目录当前没有 Embeddings 条目，因此不能把聊天 API 的兼容性外推到向量
-API。若后续 MiniMax 文档明确提供专用 Embeddings endpoint，现有 AgentScope
-`OpenAITextEmbedding` 只理解 OpenAI 标准 `input` + `data[].embedding`，届时必须根据
-官方 payload/response 新建 `MiniMaxEmbeddingClient`，不能只替换类名或 URL。
+本项目已通过实际账号验证 `POST /v1/embeddings`：`base_resp.status_code=0`，`embo-01`
+返回 1536 维向量。由于响应使用 MiniMax 原生 `vectors + base_resp`，不能复用
+AgentScope `OpenAITextEmbedding` 的 `input + data[].embedding` 解析；当前实现为独立
+`MiniMaxEmbeddingClient`，并保留 HTTP/业务错误降级。
 
 ## 对 Qdrant 一周实现的影响
 
@@ -118,8 +124,8 @@ MealRetriever    -> query embedding -> Qdrant search + payload hard-filter
   embedding provider；collection 的模型元数据必须记录实际 embedding provider，不能写
   成 DeepSeek。
 - MiniMax：聊天可走 `OpenAIChatModel`（前提是拿到 OpenAI-compatible API key/endpoint）；
-  官方当前未提供可确认的 embedding API，因此向量仍用 DashScope/第三方。只有实际拿到
-  官方 embedding endpoint 后，才创建专用 HTTP adapter，并以实际向量长度创建 collection。
+  Embedding 使用独立原生 adapter，collection 按 `provider/model/dimension/version` 隔离，
+  当前实验 collection 为 `meal_minimax_embo-01_1536_minimax-1536`。
 
 切换 embedding 模型时的最低迁移动作：停止混合写入、按新维度创建 collection、批量重算
 全部审核餐食、记录 `provider/model/version/dimension`，再切换检索路由。旧向量保留一段
@@ -133,7 +139,6 @@ DashScope embedding 的模型、维度和预计算建议见 [阿里云 Model Stu
 
 ## 推荐决策
 
-面试作品的一周冲刺优先使用 **DashScope key 做 embedding + Qdrant**，如需展示多供应商，
-再把聊天模型抽象到 `OpenAIChatModel` 并用 DeepSeek 或 MiniMax 做 smoke test。不要把
-MiniMax Coding Plan 凭证当成已验证的普通 API key；它应作为单独的鉴权/endpoint 适配决策，
-待拿到官方套餐凭证和成功的 `/models`、chat、embedding 实测结果后再写入开发计划。
+面试作品线上默认仍使用 **Structured + MySQL**；需要展示多供应商时，可用
+`DIET_EMBEDDING_PROVIDER=minimax` 启用独立 MiniMax collection 做对照。不要把 MiniMax
+Coding Plan 凭证当成已验证的普通 API key；聊天模型仍需单独完成 endpoint、模型和额度 smoke test。

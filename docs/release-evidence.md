@@ -28,7 +28,9 @@
 | 资源基线（295 餐食/1324 动作目录/15 事实；dev 启动后完整动作目录自动取得 plan_ready） | `ReviewedResourceSeedValidatorTest`（30 条审核种子）以及 `ReviewedResourceSeeder`/`LocalMediaCatalogSeeder` 幂等导入；`DbReviewedResourceProviderTest`、`MysqlReviewedReadersIntegrationTest` |
 | 浏览 API 分页边界 | `health/browse` 测试（page 超上限返回 400、size≤50）；浏览器验收第 2/3 节 |
 | hybrid RAG 与结构化降级 | `health/rag` 测试；固定查询集（60 条六层，querySetVersion 1.1.0）评估见 `docs/research/meal-rag-evaluation.md`。当前报告已记录 Structured/Vector/Fused 数量、向量状态、阶段延迟，并区分 `REAL_HYBRID`、`PARTIAL_HYBRID`、`FALLBACK_ONLY`。 |
-| 真实 key 下 RAG 对比 | 2026-08-19 本地 MySQL + Qdrant 1.17.0 实跑：295/295 条索引、60/60 条零降级，`REAL_HYBRID`；Recall@3 Structured/Hybrid 均为 0.351，硬约束命中率均为 1.0，Hybrid P95 为 159.407 ms。结果详见 `data/reports/rag_evaluation.json`，不宣称效果提升。 |
+| 真实 key 下 RAG 对比 | 2026-08-27 本地 MySQL + Qdrant 1.17.0 实跑：295/295 条索引、60/60 条零降级，`REAL_HYBRID`；Recall@3 Structured 0.2646 / Hybrid 0.2716（+0.0070），硬约束命中率均为 1.0，Hybrid P95 为 247.361 ms（Structured 9.121 ms）。结果详见 `data/reports/rag_evaluation.json`；单次运行不能宣称稳定效果提升。 |
+| 两段式语义挑战 | 2026-08-27 `semantic-challenge-v1`：12 条人工复核查询，Structured/Hybrid/TwoStage 均零硬约束违规；Recall@3 分别为 0.0333/0.1000/0.0333，平均延迟 5.68/212.20/83.70 ms。原始报告见 `data/reports/semantic_challenge_v1.json`；仅作为路由实验依据，不替代 60 条主评测。 |
+| MiniMax 对照 | 2026-08-27 使用 `embo-01` 1536 维独立 collection，60/60 条主查询零降级；Structured/Hybrid Recall@3 为 0.2646/0.2776（+0.0131），P95 延迟 2.75/479.83 ms，硬约束命中率均 1.0。原始报告见 `data/reports/rag_evaluation_minimax.json`；单轮结果不能宣称稳定收益。 |
 
 ## M3：健康档案、周计划、风险校验与反馈
 

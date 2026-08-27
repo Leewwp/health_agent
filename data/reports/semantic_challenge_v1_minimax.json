@@ -1,0 +1,148 @@
+{
+  "runAt" : "2026-08-27T16:37:22.242092",
+  "challengeSetVersion" : "semantic-challenge-v1",
+  "corpusVersion" : "current-corpus-v1",
+  "queryCount" : 12,
+  "status" : "REAL_OR_DEGRADED",
+  "sourceMappingCount" : 295,
+  "results" : {
+    "STRUCTURED" : {
+      "top3" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 12
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 12
+        },
+        "avgLatencyMs" : 4.462451333333335,
+        "avgRecall" : 0.03333333333333333,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top5" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 12
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 12
+        },
+        "avgLatencyMs" : 4.462451333333335,
+        "avgRecall" : 0.06666666666666667,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top10" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 12
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 12
+        },
+        "avgLatencyMs" : 4.462451333333335,
+        "avgRecall" : 0.21666666666666667,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      }
+    },
+    "HYBRID" : {
+      "top3" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "HYBRID" : 12
+        },
+        "routeCategories" : {
+          "SEMANTIC_EXPERIMENT" : 12
+        },
+        "avgLatencyMs" : 295.9902639166667,
+        "avgRecall" : 0.10000000000000002,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top5" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "HYBRID" : 12
+        },
+        "routeCategories" : {
+          "SEMANTIC_EXPERIMENT" : 12
+        },
+        "avgLatencyMs" : 295.9902639166667,
+        "avgRecall" : 0.15,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top10" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "HYBRID" : 12
+        },
+        "routeCategories" : {
+          "SEMANTIC_EXPERIMENT" : 12
+        },
+        "avgLatencyMs" : 295.9902639166667,
+        "avgRecall" : 0.2333333333333333,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      }
+    },
+    "TWOSTAGE" : {
+      "top3" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 7,
+          "HYBRID" : 5
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 7,
+          "SEMANTIC_EXPERIMENT" : 5
+        },
+        "avgLatencyMs" : 143.57511125,
+        "avgRecall" : 0.03333333333333333,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top5" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 7,
+          "HYBRID" : 5
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 7,
+          "SEMANTIC_EXPERIMENT" : 5
+        },
+        "avgLatencyMs" : 143.57511125,
+        "avgRecall" : 0.08333333333333333,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      },
+      "top10" : {
+        "hardConstraintViolations" : 0,
+        "actualModes" : {
+          "STRUCTURED" : 7,
+          "HYBRID" : 5
+        },
+        "routeCategories" : {
+          "STRUCTURED" : 7,
+          "SEMANTIC_EXPERIMENT" : 5
+        },
+        "avgLatencyMs" : 143.57511125,
+        "avgRecall" : 0.19999999999999998,
+        "degradationReasons" : {
+          "无" : 12
+        }
+      }
+    }
+  }
+}

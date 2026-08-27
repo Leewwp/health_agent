@@ -64,12 +64,27 @@ mvn spring-boot:run
 
 ### 餐食向量与 RAG 评估（需要真实 API key）
 
+线上默认路线是 Structured；MiniMax 仅用于独立实验 collection 对照。MySQL 是餐食事实源，
+Qdrant 是可重建索引。评测报告会记录查询集、语料版本、provider/model/dimension、collection、
+git commit 和工作树状态。
+
 ```bash
 # 生成向量（幂等写入 meal_item_embedding）
 mvn spring-boot:run -Dspring-boot.run.arguments="--diet.embedding.generate-on-startup=true"
 # 运行固定查询集评估 → data/reports/rag_evaluation.json
 mvn spring-boot:run -Dspring-boot.run.arguments="--diet.rag.eval-run=true"
 ```
+
+MiniMax 对照需在本地 `.env` 配置 `DIET_EMBEDDING_PROVIDER=minimax`、
+`MINIMAX_API_KEY`、`MINIMAX_EMBEDDING_MODEL=embo-01`、`DIET_EMBEDDING_DIMENSIONS=1536`
+和可选 `MINIMAX_GROUP_ID`，并使用独立报告路径：
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.arguments="--diet.embedding.provider=minimax --diet.embedding.model=embo-01 --diet.embedding.dimensions=1536 --diet.vectorstore.provider=minimax --diet.vectorstore.model=embo-01 --diet.vectorstore.dimension=1536 --diet.vectorstore.version=minimax-1536 --diet.vectorstore.mode=qdrant --diet.rag.mode=hybrid --diet.rag.eval-run=true --diet.rag.eval-report-path=data/reports/rag_evaluation_minimax.json"
+```
+
+MiniMax 评测只用于效果对照，不改变 `diet.rag.mode=structured` 的线上默认。不要提交 `.env`
+或任何真实 API key。
 
 ### Qdrant 向量索引与重建（M5 #54）
 
