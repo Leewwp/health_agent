@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -123,6 +123,41 @@ class McpToolsIntegrationTest {
                 .build();
     }
 
+    /**
+     * 断言 callTool 以 McpError 失败，并对传输层 keep-alive 连接竞态重试一次。
+     * <p>
+     * JDK HttpClient 连接池可能选中一条刚被内嵌 Tomcat 关闭的连接，请求尚未到达工具层便以
+     * "HTTP/1.1 header parser received no bytes"（Reactor 包装的 IOException）失败，CI 上已
+     * 两次偶发误报。该失败与被测错误语义无关：仅当根因为该 IOException 时重试一次（新连接
+     * 必达）；调用意外成功或其余异常原样抛出。
+     */
+    private McpError callToolExpectingMcpError(McpSyncClient client, McpSchema.CallToolRequest request) {
+        RuntimeException transportRace = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                client.callTool(request);
+                throw new AssertionError("callTool 应当抛出 McpError，实际成功返回");
+            } catch (McpError expected) {
+                return expected;
+            } catch (RuntimeException failure) {
+                if (!isKeepAliveConnectionRace(failure)) {
+                    throw failure;
+                }
+                transportRace = failure;
+            }
+        }
+        throw transportRace;
+    }
+
+    private boolean isKeepAliveConnectionRace(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof IOException io && String.valueOf(io.getMessage()).contains("no bytes")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Test
     void 工具列表暴露四个白名单工具() {
         try (McpSyncClient client = client()) {
@@ -154,8 +189,8 @@ class McpToolsIntegrationTest {
             assertEquals(Boolean.FALSE, ok.isError());
             assertTrue(String.valueOf(ok.structuredContent()).contains("鸡胸肉糙米饭"));
 
-            McpError notFound = assertThrows(McpError.class, () -> client.callTool(new McpSchema.CallToolRequest(
-                    "get_meal_detail", Map.of("mealId", 999))));
+            McpError notFound = callToolExpectingMcpError(client, new McpSchema.CallToolRequest(
+                    "get_meal_detail", Map.of("mealId", 999)));
             assertEquals(McpSchema.ErrorCodes.RESOURCE_NOT_FOUND,
                     notFound.getJsonRpcError().code(), "不存在的餐食必须映射为 RESOURCE_NOT_FOUND");
         }
@@ -189,9 +224,9 @@ class McpToolsIntegrationTest {
     void 非法枚举被Schema拒绝() {
         try (McpSyncClient client = client()) {
             client.initialize();
-            McpError error = assertThrows(McpError.class, () -> client.callTool(new McpSchema.CallToolRequest(
+            McpError error = callToolExpectingMcpError(client, new McpSchema.CallToolRequest(
                     "calculate_targets", Map.of("age", 30, "sex", "MALE", "heightCm", 175,
-                    "weightKg", 70, "activityLevel", "EXTREME", "goal", "MAINTAIN"))));
+                    "weightKg", 70, "activityLevel", "EXTREME", "goal", "MAINTAIN")));
             assertEquals(McpSchema.ErrorCodes.INVALID_PARAMS,
                     error.getJsonRpcError().code(), "非法枚举必须映射为 INVALID_PARAMS");
         }
@@ -201,8 +236,8 @@ class McpToolsIntegrationTest {
     void 缺失必填参数被Schema拒绝() {
         try (McpSyncClient client = client()) {
             client.initialize();
-            McpError error = assertThrows(McpError.class, () -> client.callTool(new McpSchema.CallToolRequest(
-                    "get_meal_detail", Map.of())));
+            McpError error = callToolExpectingMcpError(client, new McpSchema.CallToolRequest(
+                    "get_meal_detail", Map.of()));
             assertEquals(McpSchema.ErrorCodes.INVALID_PARAMS,
                     error.getJsonRpcError().code(), "缺失必填参数必须映射为 INVALID_PARAMS");
         }
@@ -212,8 +247,8 @@ class McpToolsIntegrationTest {
     void 非法槽位类型被Schema拒绝() {
         try (McpSyncClient client = client()) {
             client.initialize();
-            McpError error = assertThrows(McpError.class, () -> client.callTool(new McpSchema.CallToolRequest(
-                    "search_meals", Map.of("slots", "晚餐"))));
+            McpError error = callToolExpectingMcpError(client, new McpSchema.CallToolRequest(
+                    "search_meals", Map.of("slots", "晚餐")));
             assertEquals(McpSchema.ErrorCodes.INVALID_PARAMS,
                     error.getJsonRpcError().code(), "非对象 slots 必须映射为 INVALID_PARAMS");
         }
