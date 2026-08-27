@@ -13,7 +13,7 @@
 - **领域模块**：`MealModule`（餐食混合检索）、`ExerciseModule`、`RoutineModule`，统一通过 `HealthResourceProvider` 读取审核资源（数据库审核子集 / fixture 种子两种互斥模式）；
 - **Java 规则决定澄清**：ClarifyAgent 只优化措辞，模板追问可独立继续会话；
 - **风险规则**：单一版本化 `RiskRuleCatalog`（唯一事实来源），`NORMAL/ADVISORY/BLOCK_PLAN` 三档与固定中文文案，三阶段 Guard（候选前/组合时/输出后）；
-- **健康档案与范围化周计划**：Mifflin-St Jeor 能量区间、DRAFT/ACTIVE/ARCHIVED 生命周期、版本快照（档案/规则/会话/事实/资源生成依据）、`/api/v1/health/plans/**`、事务化写入 + 行锁 + 数据库级 ACTIVE 唯一约束；新计划只允许 `EXERCISE`、`MEAL`、`COMPOSITE`，并在计划和版本快照中保存 `planScope`；
+- **健康档案与范围化周计划**：Mifflin-St Jeor 能量区间、DRAFT/UNENABLED/ENABLED/HISTORY 生命周期（V18 起统一综合计划语义）、版本快照（档案/规则/会话/事实/资源生成依据）、`/api/v1/health/plans/**`、事务化写入 + 行锁 + 数据库级按用户 ENABLED 唯一约束；新计划只允许 `EXERCISE`、`MEAL`、`COMPOSITE`，并在计划和版本快照中保存 `planScope`；
 - **口语化计划简报（#91）**：训练/餐食分别维护独立简报，确定性解析星期和中文时间，解释结果区分 `EXTRACTED/PARTIAL/AMBIGUOUS/UNRELATED/INVALID`；规则无法安全解析且仍疑似回答当前字段时才调用一次结构化提取 Agent，候选经 Java 校验后合并；话题切换会保留未完成简报并回到完整意图链；
 - **隔离生成闭环（#92）**：训练、餐食分别受约束生成，综合计划仅在两个子简报分别确认后由确定性服务合并并一次性持久化；任何新计划不隐式加入餐食、训练或作息之外的项目；V15 清理旧测试计划并增加范围约束，V16 扩展生成来源字段；
 - **详情优先计划页（#93）**：历史计划收敛为选择器，当前详情占主宽度；纯训练/纯餐食只展示相关统计与操作，综合计划支持全部/训练/餐食筛选；宽屏、中等宽度和移动端按内容重排，保留详情编辑抽屉；
@@ -21,7 +21,7 @@
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
 - **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实）；dev 另行幂等导入 1,324 条本地动作目录与已授权媒体，动作浏览展示完整目录，推荐和周计划仍只消费审核/计划资格动作；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
 - **餐食 RAG（M5 #52 融合；#77 扩展评测）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
-- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V16，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段、V13 训练目标标签、V14 计划生成来源/元数据、V15 计划范围与旧测试数据清理、V16 生成来源扩容）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
+- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V20，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段、V13 训练目标标签、V14 计划生成来源/元数据、V15 计划范围与旧测试数据清理、V16 生成来源扩容、V18 统一综合计划生命周期与写入幂等（ACTIVE 约束收敛为按用户 ENABLED 唯一）、V20 动作源保真与资格审计）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
 ## 本地启动
@@ -178,7 +178,7 @@ mvn test
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
-39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V16）上验证 saveProfile/范围化生成/activate 任一步写入失败时数据库无半成品、并发激活只有一个有效 ACTIVE、激活后档案版本与能量区间与快照一致；#90–#94 另外覆盖训练/餐食/综合 requestId 幂等、失败回滚、候选 Guard、范围一致性和激活重检。需要本机 MySQL（root/123456，与 dev 配置一致）：
+39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V20）上验证 saveProfile/范围化生成/启用任一步写入失败时数据库无半成品、并发启用只有一份 ENABLED、激活后档案版本与能量区间与快照一致；#90–#94 另外覆盖训练/餐食/综合 requestId 幂等、失败回滚、候选 Guard、范围一致性和激活重检。需要本机 MySQL（root/123456，与 dev 配置一致）：
 
 ```bash
 mvn test -Ditest.mysql=true
