@@ -117,10 +117,17 @@
 
 ## 本地开发收尾（2026-08-22）
 
-> 本节是当前工作树的最新基线；前面按日期记录的历史验收数字保留作当时证据，不作为当前测试总数。
+> 本节数字为 2026-08-22 工作树基线；当前工作树的最新基线见下方 2026-08-27 一节，前面按日期记录的历史验收数字保留作当时证据，不作为当前测试总数。
 
 - 当前工作树自动化结果：`mvn -DskipTests compile` 通过；定向 Java 回归 77/77；`node --test frontend/tests/*.test.mjs` 25/25；`mvn test` 共 702 个测试，无失败，其中 658 通过、44 个环境门控跳过。
 - 门控复核：`mvn test -Ditest.mysql=true` 为 698 通过、4 跳过（Qdrant 3、live-model 1），40 个真实 MySQL 场景全部执行（事务 18、reviewed 计划/餐食 7、reviewed readers 15）；`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 为 701 通过、1 跳过（live-model）。未配置外部模型凭证，因此没有执行成功的 live-model smoke。
 - 健康聊天回归覆盖：统一中文槽位标签、后端确认摘要不泄漏 `mealTime/mood/cuisine/taste/convenience`，并识别尽快/便利店速食/胃口不好/素食/酸甜等口语及多槽位合并。
 - 计划页真实 Chromium 验收入口：`http://127.0.0.1:18092`，桌面 `1710×983` 与移动 `390×844`；名称标题/编辑/保存/取消、空名称中文错误、保存失败保留输入、未保存离开与取消项目编辑确认、空日期单一“添加项目”入口和长名称省略均通过，两个视口页面宽度均等于 390/1710。
 - 本地收尾未执行云端发布、DNS/TLS、公网验收、Issue 关闭或分支删除；#89 仍需云端交付闭环。
+
+## 餐食 RAG 语料清单与嵌入对照（2026-08-27）
+
+> 本节是当前工作树的最新基线；上面按日期记录的历史验收数字保留作当时证据，不作为当前测试总数。
+
+- 对应提交 e594a0d（两段式餐食召回路由 + MiniMax 嵌入适配器 + `current-corpus-v1` 语料 manifest 冻结）与 046b5f7（MCP 工具测试对 keep-alive 连接竞态重试）；RAG/MiniMax/语义挑战效果证据见上方 M2 表 2026-08-27 各行，后续任务入口为 `docs/research/rag-status-and-next-steps.md`。
+- 当前工作树自动化结果：`mvn test` 共 715 个测试，无失败，其中 671 通过、44 个环境门控跳过；`mvn test -Ditest.mysql=true` 为 711 通过、4 个独立门控跳过（Qdrant 3、live-model 1），40 个真实 MySQL 场景全部执行（事务 18、reviewed 计划/餐食 7、reviewed readers 15）；`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 为 714 通过、1 个跳过（live-model）。`node --test frontend/tests/*.test.mjs` 25/25 通过。未配置外部模型凭证，因此没有执行成功的 live-model smoke。

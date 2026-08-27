@@ -10,7 +10,7 @@
 - **Agent 运行接口**：`AgentInvoker`（`AgentScopeInvoker` 真实 DashScope / `FixtureAgentInvoker` 固定夹具），业务模块不直接持有 `ReActAgent`；
 - **Agent 契约模块**：Prompt/契约版本、JSON/Schema/枚举/候选 ID 校验、超时、失败分类（`TIMEOUT/UPSTREAM_UNAVAILABLE/INVALID_JSON/SCHEMA_VIOLATION/CANDIDATE_VIOLATION/MISSING_CONFIG`）与确定性降级，全部写入 Trace；
 - **正交意图模型**：`domain(MEAL/EXERCISE/ROUTINE/COMPOSITE) × task(CHAT/BROWSE/RECOMMEND/PLAN/ADJUST) × riskFlags × phase`，支持 `preferenceSignals`；
-- **领域模块**：`MealModule`（餐食混合检索）、`ExerciseModule`、`RoutineModule`，统一通过 `HealthResourceProvider` 读取审核资源（数据库审核子集 / fixture 种子两种互斥模式）；
+- **领域模块**：`MealModule`（餐食两段式检索路由）、`ExerciseModule`、`RoutineModule`，统一通过 `HealthResourceProvider` 读取审核资源（数据库审核子集 / fixture 种子两种互斥模式）；
 - **Java 规则决定澄清**：ClarifyAgent 只优化措辞，模板追问可独立继续会话；
 - **风险规则**：单一版本化 `RiskRuleCatalog`（唯一事实来源），`NORMAL/ADVISORY/BLOCK_PLAN` 三档与固定中文文案，三阶段 Guard（候选前/组合时/输出后）；
 - **健康档案与范围化周计划**：Mifflin-St Jeor 能量区间、DRAFT/UNENABLED/ENABLED/HISTORY 生命周期（V18 起统一综合计划语义）、版本快照（档案/规则/会话/事实/资源生成依据）、`/api/v1/health/plans/**`、事务化写入 + 行锁 + 数据库级按用户 ENABLED 唯一约束；新计划只允许 `EXERCISE`、`MEAL`、`COMPOSITE`，并在计划和版本快照中保存 `planScope`；
@@ -20,7 +20,7 @@
 - **Trace 最小诊断工作台（#87）**：管理员可查看 `SUCCESS + DEGRADED`、总耗时/Agent 耗时、模型与 token 状态、解析/Guard/fallback 结果、按 `stepOrder` 排序的事件时间线和脱敏 JSON；API 继续受 `ADMIN_TOKEN` 保护。
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
 - **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实）；dev 另行幂等导入 1,324 条本地动作目录与已授权媒体，动作浏览展示完整目录，推荐和周计划仍只消费审核/计划资格动作；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
-- **餐食 RAG（M5 #52 融合；#77 扩展评测）**：`EmbeddingClient`（DashScope text-embedding 适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
+- **餐食 RAG（M5 #52 融合；#77 扩展评测）**：线上检索经 `MealRetrievalRouter` 两段式路由（含餐次/过敏原/排除项等强约束或常规表达走结构化，无强约束的主观/长尾表达进入语义实验），`EmbeddingClient`（DashScope 默认适配器，可经 `diet.embedding.provider=minimax` 切换实验适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
 - **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V20，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段、V13 训练目标标签、V14 计划生成来源/元数据、V15 计划范围与旧测试数据清理、V16 生成来源扩容、V18 统一综合计划生命周期与写入幂等（ACTIVE 约束收敛为按用户 ENABLED 唯一）、V20 动作源保真与资格审计）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
@@ -174,7 +174,7 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束。当前 Surefire 基线为 702 个测试：`mvn test` 658 通过 + 44 个环境门控跳过；MySQL 门控 698 通过 + 4 个独立门控跳过；MySQL + Qdrant 门控 701 通过 + 1 个 live-model 门控跳过。前端行为测试为 25/25。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束、餐食两段式检索路由、MiniMax 嵌入适配器与语料清单校验。当前 Surefire 基线为 715 个测试：`mvn test` 671 通过 + 44 个环境门控跳过；MySQL 门控 711 通过 + 4 个独立门控跳过；MySQL + Qdrant 门控 714 通过 + 1 个 live-model 门控跳过。前端行为测试为 25/25。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
@@ -184,7 +184,7 @@ mvn test
 mvn test -Ditest.mysql=true
 ```
 
-CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 40 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 7 + reviewed readers 15）；本次本机 MySQL 门控结果为 698 通过、4 个独立门控跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 结果为 701 通过、仅 1 个显式 live-model 门控跳过。
+CI 的 MySQL 服务容器以同一账号启动，因此 CI 会运行 40 个 MySQL 集成场景（事务 18 + reviewed 计划/餐食 7 + reviewed readers 15）；本次本机 MySQL 门控结果为 711 通过、4 个独立门控跳过。Qdrant 1.17.0 在本机 gRPC 6334 端口运行时，`mvn test -Ditest.mysql=true -Ditest.qdrant=true` 结果为 714 通过、仅 1 个显式 live-model 门控跳过。
 
 ## 部署（Compose，spec 11）
 
