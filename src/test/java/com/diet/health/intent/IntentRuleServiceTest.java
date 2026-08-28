@@ -96,18 +96,50 @@ class IntentRuleServiceTest {
     }
 
     @Test
-    void 健身别名与无关对话安全路由() {
-        assertEquals(HealthDomain.EXERCISE, rules.fallback("胸肌", Map.of(), null).domain());
-        assertEquals(List.of("腿"), rules.fallback("大腿", Map.of(), null).slots().get("bodyParts"));
-        assertEquals(List.of("臀"), rules.fallback("臀大肌", Map.of(), null).slots().get("bodyParts"));
+    void 健身任务词路由且槽位别名短句不猜测领域() {
+        assertEquals(HealthDomain.EXERCISE, rules.fallback("想练胸", Map.of(), null).domain());
+        assertEquals(List.of("腿"), rules.fallback("想练大腿", Map.of(), null).slots().get("bodyParts"));
+        assertEquals(List.of("臀"), rules.fallback("练臀大肌", Map.of(), null).slots().get("bodyParts"));
         assertEquals(HealthDomain.OTHER, rules.fallback("推荐电影", Map.of(), null).domain());
         assertEquals(HealthDomain.OTHER, rules.fallback("你是 AI 吗", Map.of(), null).domain());
+    }
+
+    @Test
+    void 新会话槽位别名短句不猜测领域() {
+        // ADR-0016：单独的槽位别名（口味/目标/难度/器材/部位）不构成任务词，不猜测餐食或训练。
+        for (String input : List.of("清淡一点", "入门徒手", "素食", "便利店速食", "赶时间", "快速", "胸肌", "哑铃")) {
+            HealthIntentResult result = rules.fallback(input, Map.of(), "TIMEOUT");
+            assertEquals(HealthDomain.OTHER, result.domain(), input);
+            assertEquals(HealthTask.CHAT, result.task(), input);
+            assertTrue(result.slots().isEmpty(), input + " 不应把模糊短句写成槽位");
+        }
+    }
+
+    @Test
+    void 活动上下文中的槽位短答继承当前领域() {
+        Map<String, List<String>> mealContext = Map.of("mealTime", List.of("午餐"));
+        HealthIntentResult meal = rules.fallback("清淡一点", mealContext, "TIMEOUT");
+        assertEquals(HealthDomain.MEAL, meal.domain());
+        assertEquals(HealthTask.RECOMMEND, meal.task());
+
+        Map<String, List<String>> fitnessContext = Map.of("bodyParts", List.of("胸"));
+        HealthIntentResult exercise = rules.fallback("入门", fitnessContext, "TIMEOUT");
+        assertEquals(HealthDomain.EXERCISE, exercise.domain());
+    }
+
+    @Test
+    void 明确任务词仍进入正确领域() {
+        assertEquals(HealthDomain.MEAL, rules.fallback("早餐", Map.of(), null).domain());
+        assertEquals(HealthDomain.EXERCISE, rules.fallback("推荐动作", Map.of(), null).domain());
+        assertEquals(HealthDomain.MEAL, rules.fallback("尽快能吃上", Map.of(), null).domain());
+        assertEquals(HealthDomain.MEAL, rules.fallback("马上能吃", Map.of(), null).domain());
     }
 
     @Test
     void 咖啡与训练时段路由到作息事实() {
         assertEquals(HealthDomain.ROUTINE, rules.fallback("晚上几点前停止喝咖啡", Map.of(), null).domain());
         assertEquals(HealthDomain.ROUTINE, rules.fallback("什么时候训练合适", Map.of(), null).domain());
+        assertEquals(HealthDomain.ROUTINE, rules.fallback("晚上几点后停止锻炼", Map.of(), null).domain());
         assertEquals(HealthDomain.EXERCISE, rules.fallback("适合新手的训练", Map.of(), null).domain());
     }
 
@@ -138,8 +170,8 @@ class IntentRuleServiceTest {
     }
 
     @Test
-    void 单独便捷表达也路由到餐食并保留快速槽位() {
-        for (String input : List.of("尽快能吃上", "马上能吃", "赶时间", "快速")) {
+    void 进食动词路由到餐食并保留快速槽位() {
+        for (String input : List.of("尽快能吃上", "马上能吃")) {
             HealthIntentResult result = rules.fallback(input, Map.of(), "TIMEOUT");
             assertEquals(HealthDomain.MEAL, result.domain(), input);
             assertEquals(List.of("快速"), result.slots().get("convenience"), input);

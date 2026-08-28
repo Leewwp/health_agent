@@ -67,8 +67,8 @@
 
 | 条目 | 证据 |
 |---|---|
-| 训练计划需求简报与确认 | `PlanBriefServiceTest`、`HealthSessionServiceTest`、`HealthOrchestratorServiceTest`；独立 `planBrief` JSON、PLAN 上下文合并/纠正/确认和缺档案保留简报；V13 训练目标标签迁移兼容 fresh/legacy DB |
-| 受约束 Agent 训练计划 | `TrainingPlanGenerationServiceTest`、MySQL 事务门控；服务端重读确认简报，审核 `plan_ready` 候选白名单，确定性 Guard/fallback，V14 生成来源/元数据和 requestId 幂等；fixture 场景完成草稿查看、七日安排和激活 |
+| 训练计划需求简报（无确认阶段） | `PlanBriefServiceTest`、`HealthSessionServiceTest`、`HealthOrchestratorServiceTest`；独立 `planBrief` JSON、PLAN 上下文合并/纠正和缺档案保留简报；简报完整即提供开始生成/补充，服务端重读当前完整简报，无独立确认阶段（ADR-0016）；V13 训练目标标签迁移兼容 fresh/legacy DB |
+| 受约束 Agent 训练计划 | `TrainingPlanGenerationServiceTest`、MySQL 事务门控；服务端重读当前完整简报（无独立确认阶段，ADR-0016），审核 `plan_ready` 候选白名单，确定性 Guard/fallback，V14 生成来源/元数据和 requestId 幂等；fixture 场景完成草稿查看、七日安排和激活 |
 | Trace 最小诊断工作台 | `AgentTraceDiagnosticTest` 与既有 admin token/脱敏测试；支持 `SUCCESS + DEGRADED`、耗时聚合、模型/token/解析/Guard/fallback、按 `stepOrder` 的时间线和脱敏嵌套 JSON |
 | 真实浏览器 | `docs/frontend-browser-acceptance.md` 当前 #85-#87 段：`http://localhost:18092/#/chat`、`#/plans`、`#/admin/traces`；桌面 1710×983、移动 390×844；生成/激活、Trace 展示、401 鉴权边界和移动端无文档级横向溢出通过 |
 | 历史自动化结果 | 本表上方记录的是 #85–#87 当时的 684-test 运行；本轮 #90–#94 的最新结果见下方，不用历史数字代表当前工作树 |

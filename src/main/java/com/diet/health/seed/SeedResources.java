@@ -18,7 +18,7 @@ public final class SeedResources {
     /** 种子资源版本，Trace 与说明文档引用。 */
     public static final String SEED_VERSION = "2026-08-10-v1";
 
-    /** 健身种子动作（ID 9001-9008，全部 plan_ready，来源 Gym visual 数据集）。 */
+    /** 健身种子动作（ID 9001-9009，全部 plan_ready，来源 Gym visual 数据集；9009 为明确全身标签）。 */
     public static final List<HealthResource> EXERCISES = List.of(
             exercise("9001", "俯卧撑", "胸", "徒手", "入门", List.of("胸", "手臂", "核心"), List.of("增肌", "力量", "保持健康"), "推"),
             exercise("9002", "深蹲", "腿", "徒手", "入门", List.of("腿", "臀", "核心"), List.of("增肌", "力量", "耐力", "保持健康"), "蹲"),
@@ -27,7 +27,8 @@ public final class SeedResources {
             exercise("9005", "臀桥", "臀", "徒手", "入门", List.of("臀", "核心", "腿"), List.of("力量", "保持健康"), "髋"),
             exercise("9006", "靠墙俯卧撑", "胸", "徒手", "入门", List.of("胸", "手臂"), List.of("力量", "保持健康"), "推"),
             exercise("9007", "弹力带划船", "背", "弹力带", "入门", List.of("背", "手臂"), List.of("力量", "保持健康"), "拉"),
-            exercise("9008", "站姿提踵", "腿", "徒手", "入门", List.of("腿"), List.of("耐力", "保持健康"), "踝")
+            exercise("9008", "站姿提踵", "腿", "徒手", "入门", List.of("腿"), List.of("耐力", "保持健康"), "踝"),
+            exercise("9009", "开合跳", "全身", "徒手", "入门", List.of("全身", "腿", "手臂", "核心"), List.of("减脂", "耐力", "保持健康"), "有氧")
     );
 
     /** 作息事实种子（版本化，来源见 01 号调研）。 */

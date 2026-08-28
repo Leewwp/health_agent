@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,6 +57,27 @@ class DbReviewedExerciseReaderTest {
         assertEquals(30, reader.count());
         verify(exerciseMapper).browse(20, 10);
         verify(exerciseMapper).count();
+    }
+
+    @Test
+    void 名称搜索透传query并选择过滤SQL() {
+        // #105：动作名称搜索走 filtered SQL，query 原样透传（trim，空串归 null），中英文同口径。
+        when(exerciseMapper.browseFiltered(eq(7L), eq(false), eq("push"), eq(null), eq(null), eq(null), eq(null), eq(20), eq(10)))
+                .thenReturn(List.of(row(2L)));
+        when(exerciseMapper.countFiltered(7L, false, "push", null, null, null, null)).thenReturn(12);
+
+        assertEquals(1, reader.browse(20, 10, 7L, false, " push ", Map.of()).size());
+        assertEquals(12, reader.count(7L, false, " push ", Map.of()));
+        verify(exerciseMapper).browseFiltered(7L, false, "push", null, null, null, null, 20, 10);
+        verify(exerciseMapper).countFiltered(7L, false, "push", null, null, null, null);
+    }
+
+    @Test
+    void 空白名称搜索归一为null并保持过滤SQL选择() {
+        reader.browse(0, 20, 7L, true, "", Map.of());
+        reader.count(7L, true, "   ", Map.of());
+        verify(exerciseMapper).browseFiltered(7L, true, null, null, null, null, null, 0, 20);
+        verify(exerciseMapper).countFiltered(7L, true, null, null, null, null, null);
     }
 
     @Test

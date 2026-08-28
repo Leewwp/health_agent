@@ -86,7 +86,7 @@ class LiveTrainingPlanSmokeTest {
                 WEEK_START,
                 List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
                 new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
-                Map.of(), true, 1, LocalDateTime.now());
+                Map.of(), null, 0, null);
         sessionService.save(HealthSessionState.fresh(SESSION, USER).withPlanBrief(brief));
 
         TrainingPlanGenerationResponse response = generationService.generate(USER,

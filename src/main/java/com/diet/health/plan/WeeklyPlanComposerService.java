@@ -32,7 +32,7 @@ public class WeeklyPlanComposerService {
         return composeMeals(calorieLow, calorieHigh, weekStart, List.of("早餐", "午餐", "晚餐"));
     }
 
-    /** 只生成已确认简报中的餐次，并在一周内按使用次数优先更换餐食。 */
+    /** 只生成当前简报选择的餐次，并在一周内按使用次数优先更换餐食。 */
     public List<PlanItemDraft> composeMeals(int calorieLow, int calorieHigh, LocalDate weekStart,
                                             List<String> mealTimes) {
         List<PlanItemDraft> items = new ArrayList<>();

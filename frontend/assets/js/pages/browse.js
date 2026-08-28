@@ -16,6 +16,31 @@ import { currentRoute } from "../router.js";
 
 const PAGE_SIZE = 20;
 
+/**
+ * 唯一路由事件委托（#105）：所有浏览页共享同一组绑定在 #app 上的 click/change/submit
+ * 监听器，按当前路由分发给活跃页面控制器。监听器数量与页面实例无关，
+ * 餐食↔动作来回切换不会累积旧监听器，也不会处理非当前路由的表单。
+ */
+const delegatedPages = new Map();
+let delegationBound = false;
+
+function dispatchToActivePage(handler, event) {
+    const page = delegatedPages.get(currentRoute());
+    if (page) {
+        page[handler](event);
+    }
+}
+
+function ensureSharedDelegation(app) {
+    if (delegationBound) {
+        return;
+    }
+    delegationBound = true;
+    app.addEventListener("click", (event) => dispatchToActivePage("handleClick", event));
+    app.addEventListener("change", (event) => dispatchToActivePage("handleChange", event));
+    app.addEventListener("submit", (event) => dispatchToActivePage("handleSubmit", event));
+}
+
 export function createBrowsePage(definition) {
     const { title, subtitle, route, load, filterFields, pageSize, resourceOptions } = definition;
     const size = pageSize || PAGE_SIZE;
@@ -74,15 +99,14 @@ export function createBrowsePage(definition) {
     }
 
     function bind(app) {
-        if (listenersBound) {
-            return;
+        // 注册/刷新当前路由 → 页面控制器的委托映射；共享监听器只绑定一次。
+        delegatedPages.set(route, { handleClick, handleChange, handleSubmit });
+        ensureSharedDelegation(app);
+        if (!listenersBound) {
+            listenersBound = true;
+            bindDrawer(app);
+            bindFeedbackControl(app);
         }
-        listenersBound = true;
-        app.addEventListener("click", handleClick);
-        app.addEventListener("change", handleChange);
-        app.addEventListener("submit", handleSubmit);
-        bindDrawer(app);
-        bindFeedbackControl(app);
     }
 
     async function loadPage() {
@@ -240,7 +264,9 @@ export function createBrowsePage(definition) {
             render(document.getElementById("app"));
             return;
         }
-        const select = event.target.closest("[data-browse-filter]");
+        // 只处理筛选下拉框本体；表单容器也带 data-browse-filter 标记，
+        // 回车提交时文本框的 change 事件不得把表单当成筛选控件（否则会重渲染并清空搜索词）。
+        const select = event.target.closest("select[data-browse-filter]");
         if (!select) {
             return;
         }

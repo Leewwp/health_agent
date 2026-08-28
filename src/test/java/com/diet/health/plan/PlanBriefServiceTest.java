@@ -12,10 +12,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 训练简报的确定性合并、日期/星期和确认失效规则。 */
+/** 训练简报的确定性合并、日期/星期和难度单选冲突规则。 */
 class PlanBriefServiceTest {
 
     private final PlanBriefService service = new PlanBriefService(new HealthInputNormalizer());
@@ -28,17 +29,52 @@ class PlanBriefServiceTest {
         assertEquals(LocalDate.of(2026, 8, 24), first.brief().weekStart());
         assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), first.brief().trainingDays());
         assertEquals(new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), first.brief().timeWindow());
-        assertFalse(first.brief().confirmed());
 
-        PlanBriefService.UpdateResult confirmed = service.update(first.brief(), "确认训练偏好");
-        assertTrue(confirmed.confirmedNow());
-        assertTrue(confirmed.brief().isConfirmedAndComplete());
-        assertEquals(1, confirmed.brief().confirmationVersion());
-
-        PlanBriefService.UpdateResult corrected = service.update(confirmed.brief(), "改成 20:00-21:00");
-        assertFalse(corrected.brief().confirmed());
+        // 简报没有独立确认状态：完整即可继续修改，修改后仍是当前简报。
+        PlanBriefService.UpdateResult corrected = service.update(first.brief(), "改成 20:00-21:00");
         assertEquals(LocalTime.of(20, 0), corrected.brief().timeWindow().start());
         assertEquals(LocalTime.of(21, 0), corrected.brief().timeWindow().end());
+        assertTrue(corrected.brief().isComplete());
+    }
+
+    @Test
+    void 首次多难度输入报告冲突并要求重新选择() {
+        PlanBriefService.UpdateResult result = service.update(PlanBrief.empty(), "入门 进阶");
+        assertEquals(BriefInterpretationStatus.EXTRACTED, result.status());
+        assertTrue(result.guidance().contains("只能选择一个难度"));
+        assertTrue(result.missingFields().contains("difficulty"));
+        assertNull(result.brief().difficulty());
+    }
+
+    @Test
+    void 已有难度时多难度冲突保留原值并提示() {
+        PlanBrief base = service.update(PlanBrief.empty(), "我想减脂，练胸，徒手，入门").brief();
+        assertEquals("入门", base.difficulty());
+
+        PlanBriefService.UpdateResult result = service.update(base, "难度改成 入门 进阶");
+        assertEquals(BriefInterpretationStatus.EXTRACTED, result.status());
+        assertTrue(result.guidance().contains("只能选择一个难度"));
+        assertTrue(result.guidance().contains("入门"));
+        assertEquals("入门", result.brief().difficulty(), "已有难度必须保持原值，不得静默取新值");
+    }
+
+    @Test
+    void Agent候选携带多难度时同样报告冲突且不取第一个值() {
+        PlanBriefService.UpdateResult result = service.applyAgentCandidate(PlanBrief.empty(), Map.of(
+                "trainingGoal", List.of("减脂"),
+                "bodyParts", List.of("胸"),
+                "equipment", List.of("徒手"),
+                "difficulty", List.of("入门", "进阶"),
+                "weekStart", List.of("2026-08-24"),
+                "trainingDays", List.of("MONDAY", "WEDNESDAY", "FRIDAY"),
+                "timeStart", List.of("19:00"),
+                "timeEnd", List.of("20:00")
+        ), "原文证据");
+
+        assertEquals(BriefInterpretationStatus.EXTRACTED, result.status());
+        assertTrue(result.guidance().contains("只能选择一个难度"));
+        assertNull(result.brief().difficulty());
+        assertTrue(!result.brief().isComplete(), "难度冲突时简报不得视为完整");
     }
 
     @Test
@@ -128,7 +164,6 @@ class PlanBriefServiceTest {
                 service.interpret(PlanBrief.empty(), "三天，二四六一").status());
         PlanBriefService.UpdateResult invalid = service.update(PlanBrief.empty(), "蓝色跑鞋");
         assertEquals(BriefInterpretationStatus.INVALID, invalid.status());
-        assertFalse(invalid.confirmedNow());
         assertFalse(invalid.brief().isComplete());
         assertEquals(BriefInterpretationStatus.UNRELATED,
                 service.interpret(PlanBrief.empty(), "我想先看看晚餐吃什么").status());

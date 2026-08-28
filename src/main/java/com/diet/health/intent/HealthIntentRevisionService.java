@@ -13,11 +13,17 @@ import java.util.Optional;
 /**
  * 健康意图修正：以当前轮明确证据优先，随后处理澄清继承、调整上下文和安全澄清。
  * 本类不读取资源或数据库，只修正意图与槽位。
+ * <p>
+ * ADR-0016 显式任务路由：新会话（无活动健康上下文）中，没有明确任务词的模糊短句
+ * 不得进入任何领域推荐，统一降级为 OTHER + CHAT 领域澄清。
  */
 @Service
 public class HealthIntentRevisionService {
 
     private final HealthInputNormalizer normalizer;
+
+    /** 明确任务词与槽位别名的统一判定，与意图兜底规则共享同一语义。 */
+    private final HealthTaskEvidence taskEvidence = new HealthTaskEvidence();
 
     public HealthIntentRevisionService(HealthInputNormalizer normalizer) {
         this.normalizer = normalizer;
@@ -33,7 +39,11 @@ public class HealthIntentRevisionService {
         }
         String text = userInput == null ? "" : userInput.trim();
         HealthDomain explicit = explicitDomain(text);
-        boolean compositePlanReply = state.domain() == HealthDomain.COMPOSITE
+        // 作息事实提问与明显非健康闲聊永远不是综合简报续答，显式切出后交完整意图链处理。
+        boolean routineOrOtherSwitch = (explicit == HealthDomain.ROUTINE || explicit == HealthDomain.OTHER)
+                && explicit != state.domain();
+        boolean compositePlanReply = !routineOrOtherSwitch
+                && state.domain() == HealthDomain.COMPOSITE
                 && state.task() == HealthTask.PLAN && isCompositeBriefReply(text);
         if (explicit != null && explicit != state.domain() && !compositePlanReply) {
             return Optional.empty();
@@ -62,8 +72,12 @@ public class HealthIntentRevisionService {
                         raw.confidence(), raw.degraded(), raw.fallbackReason());
                 return new Revision(clarify, true, false);
             }
+            // 综合计划请求固定为 COMPOSITE + PLAN（HealthPlanIntentMatcher 组合词命中）；
+            // 无计划词的综合引导（如"综合安排饮食训练作息"）保持 RECOMMEND 引导，不进入简报收集。
+            HealthTask compositeTask = HealthPlanIntentMatcher.matchesComposite(text)
+                    ? HealthTask.PLAN : raw.task();
             HealthIntentResult composite = new HealthIntentResult(
-                    HealthDomain.COMPOSITE, raw.task(), raw.riskFlags(), Map.of(), raw.preferenceSignals(),
+                    HealthDomain.COMPOSITE, compositeTask, raw.riskFlags(), Map.of(), raw.preferenceSignals(),
                     raw.confidence(), raw.degraded(), raw.fallbackReason());
             return new Revision(composite, false, false);
         }
@@ -76,7 +90,9 @@ public class HealthIntentRevisionService {
                 && isPlanDomain(state.domain())
                 && (state.phase() == HealthPhase.CLARIFY || isPlanContinuation(text)
                 || HealthPlanIntentMatcher.matches(text))
-                && !looksLikeRecommendationRequest(text);
+                && !looksLikeRecommendationRequest(text)
+                // 显式切到非计划领域（如作息事实提问）不是计划续轮，不得把任务强制为 PLAN。
+                && (explicitDomain == null || explicitDomain == state.domain() || isPlanDomain(explicitDomain));
         if (explicitDomain != null) {
             domain = explicitDomain;
             task = domain == HealthDomain.OTHER ? HealthTask.CHAT
@@ -84,7 +100,7 @@ public class HealthIntentRevisionService {
                     : adjust ? HealthTask.ADJUST
                     : HealthTask.RECOMMEND;
         } else if (planContinuation) {
-            // 计划简报确认/纠正继承当前 PLAN 领域，不能被普通意图兜底改写。
+            // 计划简报字段更新/纠正继承当前 PLAN 领域，不能被普通意图兜底改写。
             domain = state.domain();
             task = HealthTask.PLAN;
         } else if (adjust && isRecommendDomain(state.domain())) {
@@ -109,7 +125,23 @@ public class HealthIntentRevisionService {
             task = HealthTask.CHAT;
         }
 
+        // 新会话没有明确任务词时，不得根据槽位别名或模型猜测进入领域推荐；统一领域澄清。
+        boolean noActiveHealthContext = state.domain() == null || state.domain() == HealthDomain.OTHER;
+        boolean ambiguousShortPhrase = noActiveHealthContext
+                && task == HealthTask.RECOMMEND
+                && domain != HealthDomain.OTHER
+                && !taskEvidence.hasTaskEvidence(text, domain);
+        if (ambiguousShortPhrase) {
+            domain = HealthDomain.OTHER;
+            task = HealthTask.CHAT;
+        }
+
         HealthInputNormalizer.NormalizationResult normalized = normalizer.normalize(domain, text, raw.slots());
+        if (ambiguousShortPhrase) {
+            // 模糊短句不把槽位别名当作推荐条件写入会话，避免下一轮被旧值带偏。
+            normalized = new HealthInputNormalizer.NormalizationResult(Map.of(), normalized.requiresClarification(),
+                    normalized.negatedSlots());
+        }
         HealthIntentResult revised = new HealthIntentResult(
                 domain,
                 task,
@@ -120,7 +152,7 @@ public class HealthIntentRevisionService {
                 raw.degraded(),
                 raw.fallbackReason()
         );
-        boolean clarifyDomain = genericRecommendation;
+        boolean clarifyDomain = genericRecommendation || ambiguousShortPhrase;
         // 只有歧义/冲突才追问；明确否定属于本轮临时约束，不能因为缺少被否定槽位而反向追问。
         boolean clarifyUnsafe = normalized.requiresClarification()
                 && normalized.negatedSlots().isEmpty() && isRecommendDomain(domain);
@@ -149,14 +181,14 @@ public class HealthIntentRevisionService {
         }
         if (containsAny(text, "咖啡", "咖啡因", "睡眠", "作息", "睡多久", "几点睡", "几点起", "午睡", "午休",
                 "生物钟", "训练时段")
-                || (containsAny(text, "训练", "运动") && containsAny(text, "什么时候", "几点", "时段", "时间"))) {
+                || (containsAny(text, "训练", "运动", "锻炼") && containsAny(text, "什么时候", "几点", "时段", "时间"))) {
             return HealthDomain.ROUTINE;
         }
         if (containsAny(text, "吃什么", "想吃", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "餐食", "饮食")) {
             return HealthDomain.MEAL;
         }
-        if (containsAny(text, "健身", "训练", "动作", "俯卧撑", "深蹲", "练")
-                || !normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots().isEmpty()) {
+        // 只有明确任务词才判为训练域；单独出现难度/器材/部位别名属于模糊短句，交给意图链澄清。
+        if (containsAny(text, "健身", "训练", "动作", "俯卧撑", "深蹲", "练")) {
             return HealthDomain.EXERCISE;
         }
         return null;
@@ -171,7 +203,7 @@ public class HealthIntentRevisionService {
     }
 
     private boolean isPlanContinuation(String text) {
-        return containsAny(text, "确认训练偏好", "确认简报", "按这个生成", "改成", "换成", "改为", "调整为",
+        return containsAny(text, "按这个生成", "改成", "换成", "改为", "调整为",
                 "目标周", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
                 "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量",
                 "确认餐食", "确认饮食", "早餐", "午餐", "晚餐", "下周", "本周", "这周");

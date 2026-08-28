@@ -79,7 +79,7 @@ class HealthSessionServiceTest {
                 .withPreferenceSignals(List.of(new PreferenceSignal("EXERCISE", "9001", "LIKE")));
         PlanBrief brief = new PlanBrief("增肌", List.of("胸"), List.of("徒手"), "入门",
                 LocalDate.of(2026, 8, 24), List.of(DayOfWeek.MONDAY),
-                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), Map.of(), true, 2, null);
+                new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), Map.of(), null, 0, null);
         saved = saved.withPlanBrief(brief);
         service.save(saved);
         verify(mapper).update(any());

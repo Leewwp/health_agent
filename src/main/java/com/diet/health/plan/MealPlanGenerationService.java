@@ -53,8 +53,9 @@ public class MealPlanGenerationService {
             return ChatIdempotencySupport.restore(objectMapper, previous.getResponseJson(), TrainingPlanGenerationResponse.class);
         }
         HealthProfileService.HealthProfileView profile = profileService.getProfile(userId);
-        if (session.mealPlanBrief() == null || !session.mealPlanBrief().isConfirmedAndComplete()) {
-            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先完成并确认餐食计划简报");
+        // 生成前服务端重读会话并校验当前简报完整性；不再存在确认字段或确认版本。
+        if (session.mealPlanBrief() == null || !session.mealPlanBrief().isComplete()) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先在当前会话整理完整的餐食计划简报，再开始生成");
         }
         LocalDate weekStart = session.mealPlanBrief().weekStart();
         MealPlanBrief brief = session.mealPlanBrief();
@@ -70,14 +71,13 @@ public class MealPlanGenerationService {
                     Map.of("source", "RULE_MEAL_COMPOSER"));
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("planScope", PlanScope.MEAL.name());
-            metadata.put("mealBriefConfirmationVersion", session.mealPlanBrief().confirmationVersion());
             metadata.put("mealTimes", brief.mealTimes());
             metadata.put("calorieAllocation", "按早餐/午餐/晚餐 30/40/30 权重对已选餐次归一化");
             metadata.put("generationSource", "RULE_MEAL_COMPOSER");
             PlanView plan = weeklyPlanService.persistScopedGeneratedDraft(userId,
                     new DraftPlanRequest(session.sessionId(), weekStart, profile.timezone(), null, PlanScope.MEAL),
                     PlanScope.MEAL, items, "RULE_MEAL_COMPOSER", metadata,
-                    "餐食计划已按已确认的餐次和档案能量区间生成。");
+                    "餐食计划已按当前简报选择的餐次和档案能量区间生成。");
             TrainingPlanGenerationResponse response = new TrainingPlanGenerationResponse(plan.id(), traceId,
                     "RULE_MEAL_COMPOSER", "SUCCESS", "餐食计划草稿已生成", plan);
             traceService.recordEvent("PLAN_PERSISTED", "PERSIST", Map.of("planId", plan.id()),

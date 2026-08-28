@@ -22,8 +22,8 @@ class SeedResourceProviderTest {
     @Test
     void 返回种子动作与事实ID集合() {
         List<HealthResource> exercises = provider.exercises();
-        assertEquals(8, exercises.size());
-        assertTrue(exercises.stream().allMatch(item -> item.resourceId().matches("900[1-8]")));
+        assertEquals(9, exercises.size());
+        assertTrue(exercises.stream().allMatch(item -> item.resourceId().matches("900[1-9]")));
         assertTrue(provider.planReadyExerciseIds().containsAll(List.of("9001", "9002", "9003", "9004", "9005", "9006", "9007", "9008")));
         List<RoutineFact> facts = provider.routineFacts();
         assertEquals(5, facts.size());

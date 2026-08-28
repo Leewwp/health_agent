@@ -123,7 +123,7 @@ public class TrainingPlanGenerationService {
                                 "contractVersion", CONTRACT_VERSION, "applicationTimeoutMs", applicationTimeout.toMillis(),
                                 "modelTimeoutMs", modelTimeout.toMillis()));
                 HealthProfileView profile = requireProfile(userId);
-                PlanBrief brief = requireConfirmedBrief(session);
+                PlanBrief brief = requireCompleteBrief(session);
                 HealthRiskRuleService.RiskDecision risk = riskRuleService.assessProfile(
                         profile.age(), true, profile.riskConditions());
                 if (risk.blocked()) {
@@ -136,11 +136,10 @@ public class TrainingPlanGenerationService {
                 List<HealthResource> candidates = candidateSelection.resources();
                 traceService.recordEvent("PLAN_CANDIDATES_FILTERED", "RETRIEVE", brief,
                         Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList(),
-                                "resourceVersion", resourceProvider.resourceVersion(),
-                                "goalRelaxed", candidateSelection.goalRelaxed(),
-                                "difficultyRelaxed", candidateSelection.difficultyRelaxed()));
+                                "resourceVersion", resourceProvider.resourceVersion()));
                 if (candidates.isEmpty()) {
-                    throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有满足部位和器材偏好的动作");
+                    throw new HealthApiException(HealthApiException.CODE_CONFLICT,
+                            "当前审核动作库没有同时满足部位、器材、难度和目标的动作，请回到聊天补充或修改训练条件");
                 }
 
                 String source = "AGENT";
@@ -182,10 +181,9 @@ public class TrainingPlanGenerationService {
                 PlanView plan = weeklyPlanService.persistGeneratedDraft(userId,
                         new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null,
                                 PlanScope.EXERCISE),
-                        allItems, source, generationMetadata(brief, candidates, trainingItems, candidateSelection.goalRelaxed(),
-                                candidateSelection.difficultyRelaxed(),
+                        allItems, source, generationMetadata(brief, candidates, trainingItems,
                                 source, modelName, actualModel, fallbackReason),
-                        deterministicExplanation(source, trainingItems));
+                        deterministicExplanation(source, trainingItems, candidates));
                 traceService.recordEvent("PLAN_PERSISTED", "PERSIST", Map.of("planId", plan.id()),
                         Map.of("status", plan.status(), "generationSource", source));
                 TrainingPlanGenerationResponse response = new TrainingPlanGenerationResponse(plan.id(), traceId, source,
@@ -205,10 +203,11 @@ public class TrainingPlanGenerationService {
     /** 综合计划使用的训练子计划生成：只返回已约束的 EXERCISE 项目，不负责持久化。 */
     public List<PlanItemDraft> generateExerciseItemsForComposite(Long userId, HealthSessionState session) {
         HealthProfileView profile = requireProfile(userId);
-        PlanBrief brief = requireConfirmedBrief(session);
+        PlanBrief brief = requireCompleteBrief(session);
         CandidateSelection selection = filterCandidates(brief);
         if (selection.resources().isEmpty()) {
-            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核动作库没有满足训练简报的候选");
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT,
+                    "当前审核动作库没有同时满足部位、器材、难度和目标的训练候选，请回到聊天补充或修改训练简报");
         }
         try {
             List<PlanItemDraft> items = guardAgentOutput(brief, selection.resources(),
@@ -369,12 +368,13 @@ public class TrainingPlanGenerationService {
         Set<String> excludedParts = Set.copyOf(brief.hardConstraints().getOrDefault("excludeBodyParts", List.of()));
         Set<String> excludedEquipment = Set.copyOf(brief.hardConstraints().getOrDefault("excludeEquipment", List.of()));
         Set<String> excludedExercises = Set.copyOf(brief.hardConstraints().getOrDefault("excludeExercises", List.of()));
-        boolean allBody = brief.bodyParts().contains("全身");
+        // 部位是硬约束：候选 bodyParts 标签必须包含简报部位；“全身”只匹配明确归一为全身的动作，
+        // 不按名称、辅助肌群或模型推断补全全身资格，也绝不自动放宽条件。
         List<HealthResource> equipmentCandidates = resourceProvider.planReadyExercises().stream().filter(resource -> {
             List<String> parts = resource.tags().getOrDefault("bodyParts", List.of());
             List<String> equipment = resource.tags().getOrDefault("equipment", List.of());
             return resource.planReady()
-                    && (allBody || brief.bodyParts().stream().anyMatch(parts::contains))
+                    && brief.bodyParts().stream().anyMatch(parts::contains)
                     && brief.equipment().stream().anyMatch(equipment::contains)
                     && excludedParts.stream().noneMatch(parts::contains)
                     && excludedEquipment.stream().noneMatch(equipment::contains)
@@ -387,10 +387,10 @@ public class TrainingPlanGenerationService {
         List<HealthResource> strictGoal = strictDifficulty.stream()
                 .filter(resource -> resource.tags().getOrDefault("trainingGoal", List.of()).contains(brief.trainingGoal()))
                 .toList();
-        return new CandidateSelection(strictGoal, false, false);
+        return new CandidateSelection(strictGoal);
     }
 
-    private record CandidateSelection(List<HealthResource> resources, boolean goalRelaxed, boolean difficultyRelaxed) {
+    private record CandidateSelection(List<HealthResource> resources) {
     }
 
     private void validateForPersistence(HealthProfileView profile, List<PlanItemDraft> items) {
@@ -405,29 +405,25 @@ public class TrainingPlanGenerationService {
 
     private HealthProfileView requireProfile(Long userId) { return profileService.getProfile(userId); }
 
-    private PlanBrief requireConfirmedBrief(HealthSessionState session) {
-        if (session.planBrief() == null || !session.planBrief().isConfirmedAndComplete()) {
-            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先在当前会话确认完整的训练偏好");
+    private PlanBrief requireCompleteBrief(HealthSessionState session) {
+        // 生成前服务端重读会话并校验当前简报完整性；不再存在确认字段或确认版本。
+        if (session.planBrief() == null || !session.planBrief().isComplete()) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先在当前会话整理完整的训练偏好，再开始生成");
         }
         return session.planBrief();
     }
 
     private Map<String, Object> generationMetadata(PlanBrief brief, List<HealthResource> candidates,
                                                    List<PlanItemDraft> finalItems,
-                                                   boolean goalRelaxed,
-                                                   boolean difficultyRelaxed,
                                                    String generationSource, String requestedModel, String actualModel,
                                                    String fallbackReason) {
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("briefConfirmationVersion", brief.confirmationVersion());
         metadata.put("planScope", PlanScope.EXERCISE.name());
         metadata.put("candidateIds", candidates.stream().map(HealthResource::resourceId).toList());
         metadata.put("candidateCount", candidates.size());
         metadata.put("trainingDayCount", brief.trainingDays().size());
         metadata.put("fallbackUsageCounts", finalItems.stream().collect(java.util.stream.Collectors.groupingBy(
                 PlanItemDraft::resourceId, LinkedHashMap::new, java.util.stream.Collectors.counting())));
-        metadata.put("goalRelaxed", goalRelaxed);
-        metadata.put("difficultyRelaxed", difficultyRelaxed);
         metadata.put("resourceVersion", resourceProvider.resourceVersion());
         metadata.put("generationSource", generationSource);
         metadata.put("requestedModel", requestedModel);
@@ -457,9 +453,15 @@ public class TrainingPlanGenerationService {
         return new HealthApiException(HealthApiException.CODE_TIMEOUT, "训练计划生成已超过应用截止时间，请重试");
     }
 
-    private String deterministicExplanation(String source, List<PlanItemDraft> items) {
-        return "训练安排已按你确认的训练日、时间窗口和动作偏好生成。" + ("AGENT".equals(source) ? "本次由 Agent 从审核候选中完成动作排期。" : "模型结果未通过校验，已使用同一批候选按规则降级。")
-                + "组数和次数由确定性规则生成。";
+    private String deterministicExplanation(String source, List<PlanItemDraft> items, List<HealthResource> candidates) {
+        int trainingDayCount = items.size();
+        // 唯一/少量候选复用是明确告知的降级说明，不是静默放宽：候选不足时按指定训练日复用并提示。
+        String scarcity = candidates.size() < trainingDayCount
+                ? "符合全部条件的候选动作只有 " + candidates.size() + " 个，不足以为每个训练日安排不同动作，已按指定训练日复用候选。"
+                : "";
+        return "训练安排已按当前训练简报的训练日、时间窗口和动作偏好生成。"
+                + ("AGENT".equals(source) ? "本次由 Agent 从审核候选中完成动作排期。" : "模型结果未通过校验，已使用同一批候选按规则降级。")
+                + scarcity + "组数和次数由确定性规则生成。";
     }
 
     private String text(JsonNode node, String field) throws AgentFailureException {

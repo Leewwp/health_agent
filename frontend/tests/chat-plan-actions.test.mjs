@@ -16,14 +16,19 @@ test("仅后端 COMPLETE_PROFILE 动作显示完善档案入口", () => {
     assert.match(html, /#\/profile/);
 });
 
-test("餐食确认动作提交餐食确认语句并携带范围", () => {
+test("餐食简报完整时只提供开始生成和补充，不出现确认动作", () => {
     const html = renderPlanActions({
         task: "PLAN",
         domain: "MEAL",
         mealPlanBriefSummary: "餐食目标周 2026-08-24",
-        actions: [{ type: "CONFIRM_MEAL_PLAN_BRIEF", label: "确认餐食计划" }]
+        actions: [
+            { type: "GENERATE_PLAN", label: "开始生成", requestId: "r-1" },
+            { type: "CONTINUE_MEAL_PLAN_BRIEF", label: "补充", requestId: "r-1" }
+        ]
     });
-    assert.match(html, /确认餐食计划/);
+    assert.match(html, /开始生成/);
+    assert.match(html, /补充/);
+    assert.doesNotMatch(html, /确认/);
     assert.match(html, /data-plan-scope="MEAL"/);
 });
 
@@ -31,7 +36,8 @@ test("综合计划生成动作携带COMPOSITE范围", () => {
     const html = renderPlanActions({
         task: "PLAN",
         domain: "COMPOSITE",
-        actions: [{ type: "GENERATE_PLAN", label: "生成综合计划", requestId: "r-1" }]
+        actions: [{ type: "GENERATE_PLAN", label: "开始生成", requestId: "r-1" }]
     });
     assert.match(html, /data-plan-scope="COMPOSITE"/);
+    assert.match(html, /开始生成/);
 });

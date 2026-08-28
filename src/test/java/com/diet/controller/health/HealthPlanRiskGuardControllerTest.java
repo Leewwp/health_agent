@@ -227,7 +227,7 @@ class HealthPlanRiskGuardControllerTest {
                 resource.tags().getOrDefault("difficulty", List.of("入门")).get(0),
                 weekStart, List.of(DayOfWeek.MONDAY),
                 new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(21, 0)),
-                Map.of(), true, 1, LocalDateTime.now());
+                Map.of(), null, 0, null);
         sessionState = sessionState.withPlanBrief(brief);
         PlanItemDraft item = new PlanItemDraft(
                 "EXERCISE", resource.resourceId(), resource.name(), weekStart,

@@ -186,18 +186,19 @@ public class WeeklyPlanService {
         }
         scopeGuard.requireCompatible(scope, items);
         HealthSessionState session = sessionService.loadOrCreate(request.sessionId(), userId);
-        boolean briefConfirmed = switch (scope) {
-            case EXERCISE -> session.planBrief() != null && session.planBrief().isConfirmedAndComplete()
+        // 生成写入前服务端重读会话简报：只要求当前完整且目标周一致，不依赖历史确认字段或确认版本。
+        boolean briefReady = switch (scope) {
+            case EXERCISE -> session.planBrief() != null && session.planBrief().isComplete()
                     && weekStart.equals(session.planBrief().weekStart());
-            case MEAL -> session.mealPlanBrief() != null && session.mealPlanBrief().isConfirmedAndComplete()
+            case MEAL -> session.mealPlanBrief() != null && session.mealPlanBrief().isComplete()
                     && weekStart.equals(session.mealPlanBrief().weekStart());
-            case COMPOSITE -> session.planBrief() != null && session.planBrief().isConfirmedAndComplete()
-                    && session.mealPlanBrief() != null && session.mealPlanBrief().isConfirmedAndComplete()
+            case COMPOSITE -> session.planBrief() != null && session.planBrief().isComplete()
+                    && session.mealPlanBrief() != null && session.mealPlanBrief().isComplete()
                     && weekStart.equals(session.planBrief().weekStart())
                     && weekStart.equals(session.mealPlanBrief().weekStart());
         };
-        if (!briefConfirmed) {
-            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "计划简报已变化，请重新确认后生成");
+        if (!briefReady) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "计划简报不完整或已变化，请回到聊天整理简报后重新生成");
         }
         requireItemsInWeek(items, weekStart);
         PlanValidationService.ValidationResult result = validationService.validate(

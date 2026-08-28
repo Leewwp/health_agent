@@ -256,7 +256,7 @@ class WeeklyPlanServiceTest {
     private HealthSessionState confirmedExerciseSession() {
         PlanBrief brief = new PlanBrief("保持健康", List.of("胸"), List.of("徒手"), "入门", MONDAY,
                 List.of(DayOfWeek.MONDAY), new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
-                Map.of(), true, 1, null);
+                Map.of(), null, 0, null);
         return HealthSessionState.fresh("sess", USER).withPlanBrief(brief);
     }
 

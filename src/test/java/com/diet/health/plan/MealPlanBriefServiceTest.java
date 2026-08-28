@@ -9,25 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 餐食计划简报必须独立于训练字段，并要求单独确认。 */
+/** 餐食计划简报必须独立于训练字段；简报完整即可生成，不存在独立确认状态。 */
 class MealPlanBriefServiceTest {
 
     private final MealPlanBriefService service = new MealPlanBriefService();
 
     @Test
-    void 餐食简报解析目标周和餐次并单独确认() {
+    void 餐食简报解析目标周和餐次且完整即视为就绪() {
         MealPlanBriefService.UpdateResult collected = service.update(MealPlanBrief.empty(),
                 "下周安排早餐、午餐和晚餐，想减脂");
 
         assertEquals(List.of("早餐", "午餐", "晚餐"), collected.brief().mealTimes());
         assertEquals(DayOfWeek.MONDAY, collected.brief().weekStart().getDayOfWeek());
         assertTrue(collected.brief().isComplete());
-        assertFalse(collected.brief().confirmed());
-
-        MealPlanBriefService.UpdateResult confirmed = service.update(collected.brief(), "确认餐食计划");
-        assertTrue(confirmed.confirmedNow());
-        assertTrue(confirmed.brief().isConfirmedAndComplete());
-        assertEquals(1, confirmed.brief().confirmationVersion());
+        assertTrue(collected.missingFields().isEmpty());
     }
 
     @Test
@@ -51,6 +46,5 @@ class MealPlanBriefServiceTest {
         assertFalse(partial.brief().isComplete());
         assertEquals(List.of("healthGoal"), partial.missingFields());
         assertTrue(partial.guidance().contains("餐食目标"));
-        assertFalse(partial.brief().isConfirmedAndComplete());
     }
 }

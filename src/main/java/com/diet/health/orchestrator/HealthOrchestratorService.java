@@ -407,7 +407,7 @@ public class HealthOrchestratorService {
             String copy = switch (intent.domain()) {
                 case COMPOSITE -> "我可以分别帮你安排饮食、训练和作息，也可以先从其中一个方面开始，你想先看哪个？";
                 default -> intent.task() == HealthTask.PLAN
-                        ? "我会在当前对话中继续完成计划生成。请先确认需求简报，确认后即可生成训练、餐食或综合计划。"
+                        ? "我会在当前对话中继续完成计划生成。请先整理需求简报，完成后即可开始生成训练、餐食或综合计划。"
                         : "餐食和动作可以在对应页面浏览，也可以直接告诉我你的需求，我来帮你筛选。";
             };
             HealthChatResponse notice = HealthChatResponse.answer(sessionId, traceId, intent.domain(), intent.task(),
@@ -498,7 +498,7 @@ public class HealthOrchestratorService {
         }
         PlanBrief brief = update.brief();
         agentTraceService.recordEvent("PLAN_BRIEF_UPDATED", "PLAN", Map.of("input", userInput),
-                Map.of("brief", brief, "missingFields", update.missingFields(), "confirmedNow", update.confirmedNow(),
+                Map.of("brief", brief, "missingFields", update.missingFields(),
                         "status", update.status(), "evidence", update.evidence()));
         HealthChatResponse response;
         if (!brief.isComplete()) {
@@ -513,22 +513,21 @@ public class HealthOrchestratorService {
         } else if (!hasHealthProfile(userId)) {
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("我已保留这份训练偏好。健康档案还缺少生成计划必需的年龄、身高、体重、活动水平和主要目标，请补齐后回到当前会话继续确认。", advisoryCopy), List.of())
+                    withAdvisory("我已保留这份训练偏好。健康档案还缺少生成计划必需的年龄、身高、体重、活动水平和主要目标，请补齐后回到当前会话开始生成。", advisoryCopy), List.of())
                     .withPlanBrief(brief, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
-        } else if (brief.isConfirmedAndComplete()) {
-            String generationRequestId = requestId + "-plan";
-            response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
-                    riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("训练偏好已确认，可以生成本周训练计划。", advisoryCopy), List.of())
-                    .withPlanBrief(brief, List.of(new HealthAction("GENERATE_PLAN", "生成训练计划", generationRequestId)),
-                            HealthNextAction.GENERATE_PLAN);
         } else {
+            // 简报完整即提供"开始生成/补充"，服务端在生成时重读当前简报并校验，不再有独立确认阶段。
+            String note = update.guidance() == null || update.guidance().isBlank()
+                    ? "" : update.guidance();
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("训练偏好已整理：" + planBriefService.summary(brief) + "。请确认后生成计划。", advisoryCopy), List.of())
-                    .withPlanBrief(brief, List.of(new HealthAction("CONFIRM_PLAN_BRIEF", "确认训练偏好", requestId)),
-                            HealthNextAction.CONFIRM_PLAN_BRIEF);
+                    withAdvisory("训练偏好已整理：" + planBriefService.summary(brief) + "。"
+                            + note + "可以直接开始生成，或继续补充。", advisoryCopy), List.of())
+                    .withPlanBrief(brief, List.of(
+                                    new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-plan"),
+                                    new HealthAction("CONTINUE_PLAN_BRIEF", "补充", requestId)),
+                            HealthNextAction.GENERATE_PLAN);
         }
         return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos, brief);
     }
@@ -549,30 +548,23 @@ public class HealthOrchestratorService {
         } else if (!hasHealthProfile(userId)) {
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("我已保留这份餐食偏好。健康档案还缺少生成计划必需的信息，请补齐后回到当前会话继续确认。", advisoryCopy),
+                    withAdvisory("我已保留这份餐食偏好。健康档案还缺少生成计划必需的信息，请补齐后回到当前会话开始生成。", advisoryCopy),
                     List.of())
                     .withMealPlanBrief(brief)
                     .withPlanBrief(state.planBrief(), List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
-        } else if (brief.isConfirmedAndComplete()) {
-            String generationRequestId = requestId + "-meal";
-            response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
-                    riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("餐食偏好已确认，可以生成本周餐食计划。", advisoryCopy), List.of())
-                    .withMealPlanBrief(brief)
-                    .withPlanBrief(state.planBrief(), List.of(new HealthAction("GENERATE_PLAN", "生成餐食计划", generationRequestId)),
-                            HealthNextAction.GENERATE_PLAN);
         } else {
+            // 简报完整即提供"开始生成/补充"；生成时服务端重读当前简报并按所选餐次生成。
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
                     withAdvisory("餐食偏好已整理：" + mealPlanBriefService.summary(brief)
-                            + "。你还可以补充或调整餐食目标、餐次和目标周；确认当前信息后再生成计划。", advisoryCopy),
+                            + "。可以直接开始生成，或继续补充。", advisoryCopy),
                     List.of())
                     .withMealPlanBrief(brief)
                     .withPlanBrief(state.planBrief(), List.of(
-                                    new HealthAction("CONFIRM_MEAL_PLAN_BRIEF", "确认餐食计划", requestId),
-                                    new HealthAction("CONTINUE_MEAL_PLAN_BRIEF", "继续补充或调整", requestId)),
-                            HealthNextAction.CONFIRM_PLAN_BRIEF);
+                                    new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-meal"),
+                                    new HealthAction("CONTINUE_MEAL_PLAN_BRIEF", "补充", requestId)),
+                            HealthNextAction.GENERATE_PLAN);
         }
         return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,
                 state.planBrief(), brief);
@@ -587,76 +579,63 @@ public class HealthOrchestratorService {
         PlanBrief training = state.planBrief() == null ? PlanBrief.empty() : state.planBrief();
         MealPlanBrief meal = state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief();
         boolean recommendation = looksLikeRecommendationRequest(userInput);
+        // 目标周表达跟随仍未完成的子简报；两侧都完整时归训练侧，避免周表达无处写入。
+        boolean weekExpression = containsAny(userInput == null ? "" : userInput,
+                "下周", "本周", "这周", "目标周");
         boolean trainingInput = looksLikeTrainingBriefInput(userInput)
-                || (meal.isConfirmedAndComplete() && containsAny(userInput == null ? "" : userInput,
+                || (meal.isComplete() && weekExpression)
+                || (meal.isComplete() && containsAny(userInput == null ? "" : userInput,
                 "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康"));
-        boolean mealInput = looksLikeMealBriefInput(userInput, meal, trainingInput);
+        boolean mealInput = looksLikeMealBriefInput(userInput, meal, trainingInput)
+                || (!trainingInput && !meal.isComplete() && weekExpression);
         PlanBriefService.UpdateResult trainingUpdate = null;
         MealPlanBriefService.UpdateResult mealUpdate = null;
         if (!recommendation && trainingInput) {
             trainingUpdate = updateTrainingBrief(training, userInput, deadlineNanos);
-            if (isUsableBriefUpdate(trainingUpdate.status(), trainingUpdate.confirmedNow())) {
+            if (isUsableBriefUpdate(trainingUpdate.status())) {
                 training = trainingUpdate.brief();
             }
         }
         if (!recommendation && mealInput) {
             mealUpdate = mealPlanBriefService.update(meal, userInput);
-            if (isUsableBriefUpdate(mealUpdate.status(), mealUpdate.confirmedNow())) {
+            if (isUsableBriefUpdate(mealUpdate.status())) {
                 meal = mealUpdate.brief();
             }
         }
 
-        // 综合计划允许共享健康目标，但每一侧仍保留自己的确认版本。
+        // 综合计划允许共享健康目标在两侧继承，但两侧简报的字段保持独立、互不覆盖。
         if ((training.trainingGoal() == null || training.trainingGoal().isBlank())
                 && meal.healthGoal() != null && !meal.healthGoal().isBlank()) {
             PlanBriefService.UpdateResult inherited = updateTrainingBrief(training, meal.healthGoal(), deadlineNanos);
-            if (isUsableBriefUpdate(inherited.status(), inherited.confirmedNow())) training = inherited.brief();
+            if (isUsableBriefUpdate(inherited.status())) training = inherited.brief();
         }
         if ((meal.healthGoal() == null || meal.healthGoal().isBlank())
                 && training.trainingGoal() != null && !training.trainingGoal().isBlank()) {
             MealPlanBriefService.UpdateResult inherited = mealPlanBriefService.update(meal, training.trainingGoal());
-            if (isUsableBriefUpdate(inherited.status(), inherited.confirmedNow())) meal = inherited.brief();
+            if (isUsableBriefUpdate(inherited.status())) meal = inherited.brief();
         }
 
-        // 默认先收集餐食，再收集训练；另一侧可先写入，但不打断当前阶段的追问。
-        if (!meal.isConfirmedAndComplete()) {
-            if (!meal.isComplete()) {
-                String guidance = mealUpdate != null && mealUpdate.guidance() != null && !mealUpdate.guidance().isBlank()
-                        ? mealUpdate.guidance() : mealGuidance(meal);
-                List<String> missing = mealUpdate == null ? mealPlanBriefService.missing(meal) : mealUpdate.missingFields();
-                HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
-                        HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
-                        .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
-                return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                        response, training, meal, traceId, deadlineNanos);
-            }
-            HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId,
-                    HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("餐食简报已整理：" + mealPlanBriefService.summary(meal) + "。请确认餐食简报；确认后继续补充训练简报。", advisoryCopy),
-                    List.of()).withPlanBrief(training,
-                    List.of(new HealthAction("CONFIRM_MEAL_PLAN_BRIEF", "确认餐食计划", requestId)),
-                    HealthNextAction.CONFIRM_PLAN_BRIEF);
+        // 默认先收集餐食，再收集训练；子简报完整即视为该侧就绪，不存在独立确认阶段。
+        if (!meal.isComplete()) {
+            String guidance = mealUpdate != null && mealUpdate.guidance() != null && !mealUpdate.guidance().isBlank()
+                    ? mealUpdate.guidance() : mealGuidance(meal);
+            List<String> missing = mealUpdate == null ? mealPlanBriefService.missing(meal) : mealUpdate.missingFields();
+            HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
+                    HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
+                    .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
                     response, training, meal, traceId, deadlineNanos);
         }
 
-        if (!training.isConfirmedAndComplete()) {
-            if (!training.isComplete()) {
-                String guidance = trainingUpdate != null && trainingUpdate.guidance() != null && !trainingUpdate.guidance().isBlank()
-                        ? trainingUpdate.guidance() : planBriefService.question(planBriefService.missing(training));
-                List<String> missing = trainingUpdate == null ? planBriefService.missing(training) : trainingUpdate.missingFields();
-                HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
-                        HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
-                        .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
-                return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                        response, training, meal, traceId, deadlineNanos);
-            }
-            HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId,
-                    HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("训练简报已整理：" + planBriefService.summary(training) + "。请确认训练简报。", advisoryCopy),
-                    List.of()).withPlanBrief(training,
-                    List.of(new HealthAction("CONFIRM_PLAN_BRIEF", "确认训练偏好", requestId)),
-                    HealthNextAction.CONFIRM_PLAN_BRIEF);
+        if (!training.isComplete()) {
+            String trainingGuidance = trainingUpdate != null && trainingUpdate.guidance() != null && !trainingUpdate.guidance().isBlank()
+                    ? trainingUpdate.guidance() : planBriefService.question(planBriefService.missing(training));
+            String guidance = "餐食简报已整理：" + mealPlanBriefService.summary(meal) + "。接下来请补充训练条件。"
+                    + trainingGuidance;
+            List<String> missing = trainingUpdate == null ? planBriefService.missing(training) : trainingUpdate.missingFields();
+            HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
+                    HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
+                    .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
                     response, training, meal, traceId, deadlineNanos);
         }
@@ -664,7 +643,7 @@ public class HealthOrchestratorService {
         if (!hasHealthProfile(userId)) {
             HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.COMPOSITE,
                     HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("训练和餐食简报都已确认。请先完善健康档案，再回来生成综合计划。", advisoryCopy), List.of())
+                    withAdvisory("餐食和训练简报都已整理完成。请先完善健康档案，再回来生成综合计划。", advisoryCopy), List.of())
                     .withPlanBrief(training, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
@@ -672,16 +651,18 @@ public class HealthOrchestratorService {
         }
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.COMPOSITE,
                 HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                withAdvisory("训练和餐食简报都已确认，可以生成综合计划。", advisoryCopy), List.of())
+                withAdvisory("餐食简报：" + mealPlanBriefService.summary(meal) + "。训练简报：" + planBriefService.summary(training)
+                        + "。可以直接开始生成综合计划，或继续补充。", advisoryCopy), List.of())
                 .withPlanBrief(training,
-                        List.of(new HealthAction("GENERATE_PLAN", "生成综合计划", requestId + "-composite")),
+                        List.of(new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-composite"),
+                                new HealthAction("CONTINUE_PLAN_BRIEF", "补充", requestId)),
                         HealthNextAction.GENERATE_PLAN);
         return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
                 response, training, meal, traceId, deadlineNanos);
     }
 
-    private boolean isUsableBriefUpdate(BriefInterpretationStatus status, boolean confirmedNow) {
-        return confirmedNow || status == BriefInterpretationStatus.EXTRACTED || status == BriefInterpretationStatus.PARTIAL;
+    private boolean isUsableBriefUpdate(BriefInterpretationStatus status) {
+        return status == BriefInterpretationStatus.EXTRACTED || status == BriefInterpretationStatus.PARTIAL;
     }
 
     private String mealGuidance(MealPlanBrief brief) {
@@ -712,7 +693,7 @@ public class HealthOrchestratorService {
         boolean mealSpecific = containsAny(text, "餐食", "饮食", "早餐", "午餐", "晚餐", "三餐", "餐次");
         boolean sharedGoalOnly = containsAny(text, "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康");
         // 综合计划已进入训练阶段后，裸目标属于训练补充；明确餐食词才回写餐食简报。
-        return mealSpecific || (!trainingInput && (meal == null || !meal.isConfirmedAndComplete()) && sharedGoalOnly);
+        return mealSpecific || (!trainingInput && (meal == null || !meal.isComplete()) && sharedGoalOnly);
     }
 
     private boolean hasBriefMutation(String input) {
@@ -729,7 +710,8 @@ public class HealthOrchestratorService {
         String text = input == null ? "" : input;
         return state.phase() == HealthPhase.CLARIFY
                 || text.contains("确认") || text.contains("改成") || text.contains("改为")
-                || text.contains("调整为") || text.contains("换成") || text.contains("按这个生成");
+                || text.contains("调整为") || text.contains("换成") || text.contains("按这个生成")
+                || text.contains("目标周");
     }
 
     private boolean isProfileCompletionInput(String input) {
@@ -807,7 +789,8 @@ public class HealthOrchestratorService {
                 Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList()));
 
         // 候选只有 1-2 个时直接展示，避免确认后仍只得到极少结果；较大候选集先让用户确认。
-        if (recommendationPreflightEnabled && candidates.size() > 2
+        // 作息事实问答不属于单次推荐，直接返回事实卡，不进入推荐前预览。
+        if (recommendationPreflightEnabled && domain != HealthDomain.ROUTINE && candidates.size() > 2
                 && alternative == null && !state.recommendationConfirmed()) {
             List<String> confirmed = slotSummary(activeSlots);
             List<String> optional = clarifyRuleService.optionalRecommendationSlots(domain, activeSlots);
