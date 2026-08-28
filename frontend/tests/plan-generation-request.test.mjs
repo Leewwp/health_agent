@@ -9,6 +9,7 @@ import {
 } from "../assets/js/pages/plan-generation-request.js";
 import { createChatRequestController, submitPresetChatMessage } from "../assets/js/pages/chat-request.js";
 import { renderRawTraceJson } from "../assets/js/admin/trace-detail-view.js";
+import { planGenerationSourceLabel } from "../assets/js/ui/plan-generation-source.js";
 
 test("计划生成前端截止时间晚于代理且不超过 20 秒", () => {
     assert.equal(PLAN_GENERATION_FRONTEND_TIMEOUT_MS, 20_000);
@@ -34,6 +35,13 @@ test("计划生成按 requestId 去重且修正偏好后的新请求不会复用
     assert.equal(planGenerationRequestKey("#/plans?generate=1&requestId=req-a"), "req-a");
     assert.equal(planGenerationRequestKey("#/plans?generate=1&requestId=req-b"), "req-b");
     assert.equal(planGenerationRequestKey("#/plans?generate=1"), "__generated_request__");
+});
+
+test("计划生成来源在标题与提示中使用同一用户文案", () => {
+    assert.equal(planGenerationSourceLabel("AGENT"), "Agent 生成");
+    assert.equal(planGenerationSourceLabel("FALLBACK"), "规则降级");
+    assert.equal(planGenerationSourceLabel("RULE_MEAL_COMPOSER"), "餐食规则组合");
+    assert.equal(planGenerationSourceLabel("COMPOSITE_RULE_MERGE"), "综合规则合并");
 });
 
 test("确认训练偏好动作直接提交而不是只填写输入框", async () => {

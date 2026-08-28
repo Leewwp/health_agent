@@ -57,7 +57,9 @@ public class MealPlanGenerationService {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先完成并确认餐食计划简报");
         }
         LocalDate weekStart = session.mealPlanBrief().weekStart();
-        List<PlanItemDraft> items = composer.composeMeals(profile.calorieLow(), profile.calorieHigh(), weekStart);
+        MealPlanBrief brief = session.mealPlanBrief();
+        List<PlanItemDraft> items = composer.composeMeals(profile.calorieLow(), profile.calorieHigh(), weekStart,
+                brief.mealTimes());
         if (items.isEmpty()) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核餐食库没有可生成的餐食候选");
         }
@@ -69,6 +71,8 @@ public class MealPlanGenerationService {
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("planScope", PlanScope.MEAL.name());
             metadata.put("mealBriefConfirmationVersion", session.mealPlanBrief().confirmationVersion());
+            metadata.put("mealTimes", brief.mealTimes());
+            metadata.put("calorieAllocation", "按早餐/午餐/晚餐 30/40/30 权重对已选餐次归一化");
             metadata.put("generationSource", "RULE_MEAL_COMPOSER");
             PlanView plan = weeklyPlanService.persistScopedGeneratedDraft(userId,
                     new DraftPlanRequest(session.sessionId(), weekStart, profile.timezone(), null, PlanScope.MEAL),

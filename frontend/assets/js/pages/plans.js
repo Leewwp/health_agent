@@ -9,7 +9,7 @@ import {
     editPlan, updatePlanItems, getMealDetail, getExerciseDetail, listMeals, listExercises,
     addFavorite, removeFavorite
 } from "../api.js";
-import { registerResource, getOrCreateClientSessionId, getChatSessionId, isFavorite, syncFavorites } from "../store.js";
+import { registerResource, getOrCreateClientSessionId, getChatSessionId, isFavorite, syncFavorites, toggleFavorite } from "../store.js";
 import { openDrawer, closeDrawer, bindDrawer } from "../ui/detail-drawer.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { requestConfirmation } from "../ui/modal.js";
@@ -17,6 +17,8 @@ import { currentRoute, navigate } from "../router.js";
 import { registerRouteLeaveGuard } from "../router.js";
 import { planGenerationRequestKey, runPlanGenerationRequest } from "./plan-generation-request.js";
 import { createPlanNameEditor } from "./plan-name-editor.js";
+import { planGenerationSourceLabel } from "../ui/plan-generation-source.js";
+import { renderMedia } from "../ui/media-state.js";
 
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 const RESOURCE_TYPE_LABELS = { MEAL: "餐食", EXERCISE: "动作", ROUTINE: "作息" };
@@ -27,7 +29,7 @@ const state = {
     loading: false, loaded: false, error: null, saving: false, dirty: false, itemsDirty: false,
     nameEditor: null, nameEditorPlanId: null,
     sidebarCollapsed: false, detailFilter: "ALL", mobileDay: 0,
-    picker: null, pickerToken: 0, generationError: null, generating: false,
+    picker: null, pickerToken: 0, pickerDetail: null, pickerDetailToken: 0, generationError: null, generating: false,
     generationAttemptedKey: null, generationTraceId: null, generationPlanId: null,
     appendAttemptedKey: null, appending: false, appendError: null,
     resourceCache: new Map()
@@ -127,7 +129,7 @@ function renderHeader(plan) {
             ? `<div class="mp-name-editor"><input class="mp-name-input" data-plan-name value="${escapeHtml(nameEditorState(plan).draftName)}" maxlength="128" aria-label="计划名称"><div class="mp-name-actions"><button class="mp-btn primary small" type="button" data-plan-action="save-name">保存</button><button class="mp-btn ghost small" type="button" data-plan-action="cancel-name">取消</button></div></div>`
             : `<h1 id="plans-title"><button class="mp-name-display" type="button" data-plan-action="edit-name" aria-label="编辑计划名称">${escapeHtml(name)}</button></h1>`
         : `<h1 id="plans-title">${escapeHtml(name)}</h1>`;
-    return `<header class="mp-head"><div><span class="mp-eyebrow">我的计划</span>${title}<p>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(buildDays(plan.weekStart)[6])} · ${escapeHtml(scopeLabel(plan.planScope))} · <span class="mp-badge ${String(status).toLowerCase()}">${escapeHtml(statusLabel(status))}</span>${plan.generationSource ? ` · ${escapeHtml(sourceLabel(plan.generationSource))}` : ""}</p></div><div class="mp-actions"><button class="mp-btn ghost" data-plan-action="new" title="从聊天新建草稿">新建草稿</button>${actions}</div></header>`;
+    return `<header class="mp-head"><div><span class="mp-eyebrow">我的计划</span>${title}<p>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(buildDays(plan.weekStart)[6])} · ${escapeHtml(scopeLabel(plan.planScope))} · <span class="mp-badge ${String(status).toLowerCase()}">${escapeHtml(statusLabel(status))}</span>${plan.generationSource ? ` · ${escapeHtml(planGenerationSourceLabel(plan.generationSource))}` : ""}</p></div><div class="mp-actions"><button class="mp-btn ghost" data-plan-action="new" title="从聊天新建草稿">新建草稿</button>${actions}</div></header>`;
 }
 
 function renderToolbar(plan) {
@@ -237,19 +239,54 @@ function renderPicker() {
         ? [["mealTime", "餐次", ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"]], ["cuisine", "菜系", ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"]], ["healthGoal", "目标", ["低油", "均衡", "控碳水", "清淡", "高蛋白"]]]
         : [["bodyPart", "部位", ["全身", "胸", "背", "肩", "手臂", "腿", "核心", "臀", "颈部"]], ["equipment", "器材", ["徒手", "哑铃", "杠铃", "壶铃", "弹力带", "器械"]], ["difficulty", "难度", ["入门", "进阶", "挑战"]], ["movementPattern", "模式", ["推", "拉", "蹲", "髋", "踝", "核心", "有氧"]]];
     const pages = Math.max(1, Math.ceil((picker.total || 0) / PICKER_PAGE_SIZE));
-    return `<div class="mp-overlay" data-picker-overlay><section class="mp-modal" role="dialog" aria-modal="true" aria-label="选择审核资源"><header><div><span class="mp-eyebrow">${picker.mode === "replace" ? "替换资源" : "新增项目"}</span><h2>选择${RESOURCE_TYPE_LABELS[type]}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭资源选择">×</button></header><div class="mp-modal-tabs">${["MEAL", "EXERCISE"].map((kind) => `<button class="${kind === type ? "active" : ""}" data-plan-action="picker-type" data-type="${kind}">${RESOURCE_TYPE_LABELS[kind]}</button>`).join("")}</div><form class="mp-search" data-picker-search><input name="q" value="${escapeHtml(picker.query)}" placeholder="搜索名称" autocomplete="off"><button class="mp-btn ghost small" type="submit">搜索</button><button class="mp-fav-toggle ${picker.favoriteOnly ? "active" : ""}" type="button" data-plan-action="picker-favorites" aria-pressed="${picker.favoriteOnly}">♡ 仅看收藏</button></form><div class="mp-structured-filters">${fields.map(([key, label, values]) => `<label>${label}<select data-plan-action="picker-filter" data-filter-key="${key}"><option value="">全部</option>${values.map((value) => `<option value="${escapeHtml(value)}" ${picker.filters[key] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>`).join("")}</div>${picker.loading ? `<div class="mp-empty">资源加载中...</div>` : picker.error ? `<div class="mp-empty">${escapeHtml(picker.error)}</div>` : picker.items.length ? `<div class="mp-resource-list">${picker.items.map(renderPickerItem).join("")}</div>` : `<div class="mp-empty">没有符合条件的审核资源。</div>`}<footer><span>第 ${picker.page} / ${pages} 页 · 共 ${picker.total || 0} 条</span><div class="mp-actions"><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page - 1}" ${picker.page <= 1 ? "disabled" : ""}>上一页</button><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page + 1}" ${picker.page >= pages ? "disabled" : ""}>下一页</button></div></footer></section></div>`;
+    return `<div class="mp-overlay" data-picker-overlay><section class="mp-modal" role="dialog" aria-modal="true" aria-label="选择审核资源"><header><div><span class="mp-eyebrow">${picker.mode === "replace" ? "替换资源" : "新增项目"}</span><h2>选择${RESOURCE_TYPE_LABELS[type]}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭资源选择">×</button></header><div class="mp-modal-tabs">${["MEAL", "EXERCISE"].map((kind) => `<button class="${kind === type ? "active" : ""}" data-plan-action="picker-type" data-type="${kind}">${RESOURCE_TYPE_LABELS[kind]}</button>`).join("")}</div><form class="mp-search" data-picker-search><input name="q" value="${escapeHtml(picker.query)}" placeholder="搜索名称" autocomplete="off"><button class="mp-btn ghost small" type="submit">搜索</button><button class="mp-fav-toggle ${picker.favoriteOnly ? "active" : ""}" type="button" data-plan-action="picker-favorites" aria-pressed="${picker.favoriteOnly}">♡ 仅看收藏</button></form><div class="mp-structured-filters">${fields.map(([key, label, values]) => `<label>${label}<select data-plan-action="picker-filter" data-filter-key="${key}"><option value="">全部</option>${values.map((value) => `<option value="${escapeHtml(value)}" ${picker.filters[key] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>`).join("")}</div>${picker.loading ? `<div class="mp-empty">资源加载中...</div>` : picker.error ? `<div class="mp-empty">${escapeHtml(picker.error)}</div>` : picker.items.length ? `<div class="mp-resource-list">${picker.items.map(renderPickerItem).join("")}</div>` : `<div class="mp-empty">没有符合条件的审核资源。</div>`}<footer><span>第 ${picker.page} / ${pages} 页 · 共 ${picker.total || 0} 条</span><div class="mp-actions"><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page - 1}" ${picker.page <= 1 ? "disabled" : ""}>上一页</button><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page + 1}" ${picker.page >= pages ? "disabled" : ""}>下一页</button></div></footer></section>${pickerDetailMarkup()}</div>`;
+}
+
+function pickerDetailMarkup() {
+    const detail = state.pickerDetail;
+    if (!detail) return "";
+    const item = detail.item;
+    const resource = detail.data || item;
+    const type = item.resourceType;
+    const favorite = isFavorite(type, item.id);
+    const body = detail.loading ? `<div class="mp-empty">详情加载中...</div>`
+        : detail.error ? `<div class="mp-empty">${escapeHtml(detail.error)}</div>`
+            : `<div class="mp-picker-detail-body">${renderPickerDetailBody(resource, type)}</div>`;
+    return `<div class="mp-picker-detail-overlay" data-picker-detail-overlay><section class="mp-picker-detail" role="dialog" aria-modal="true" aria-label="资源详情"><header><div><span class="mp-eyebrow">${escapeHtml(RESOURCE_TYPE_LABELS[type] || "资源")}详情</span><h2>${escapeHtml(resource.name || item.id)}</h2></div><button class="mp-close" data-plan-action="close-picker-detail" aria-label="关闭资源详情">×</button></header>${body}<footer class="drawer-footer"><button class="mp-fav-toggle ${favorite ? "active" : ""}" data-plan-action="picker-favorite" data-resource-type="${escapeHtml(type)}" data-resource-id="${escapeHtml(item.id)}" aria-pressed="${favorite}" title="${favorite ? "取消收藏" : "收藏"}">${favorite ? "♥ 已收藏" : "♡ 收藏"}</button></footer></section></div>`;
+}
+
+function renderPickerDetailBody(resource, type) {
+    const mediaUrl = type === "EXERCISE" ? (resource.mediaUrl || resource.thumbnailUrl || null) : (resource.mediaUrl || null);
+    const media = resource.mediaUrl || resource.thumbnailUrl || resource.mediaStatus !== undefined || resource.mediaState !== undefined
+        ? renderMedia(mediaUrl, resource.name, { credit: resource.mediaCredit }) : "";
+    const common = `<div class="kv-list"><div class="kv"><span>资源 ID</span><span>${escapeHtml(resource.id)}</span></div><div class="kv"><span>审核状态</span><span>${escapeHtml(resource.reviewStatus || "未提供")}</span></div><div class="kv"><span>来源</span><span>${escapeHtml(resource.sourceName || resource.sourceType || "未提供")}${resource.sourceId ? ` · ${escapeHtml(resource.sourceId)}` : ""}${resource.sourceVersion ? ` · v${escapeHtml(resource.sourceVersion)}` : ""}</span></div></div>`;
+    if (type === "MEAL") {
+        const nutrition = resource.nutrition || {};
+        const serving = resource.serving || {};
+        const tags = Object.entries(resource.tags || {}).flatMap(([key, values]) => `${key}：${arrayText(values)}`);
+        return `${media}<h3>餐食详情</h3>${common}<div class="kv-list"><div class="kv"><span>英文名/别名</span><span>${escapeHtml([resource.nameEn, arrayText(resource.aliases)].filter(Boolean).join(" · ") || "未提供")}</span></div><div class="kv"><span>媒体状态</span><span>${escapeHtml(resource.mediaStatus || "未提供")}</span></div><div class="kv"><span>描述</span><span>${escapeHtml(resource.description || "未提供")}</span></div><div class="kv"><span>食材</span><span>${escapeHtml(arrayText(resource.ingredients) || "未提供")}</span></div><div class="kv"><span>份量</span><span>${escapeHtml(serving.count == null ? "未提供" : `${serving.count} 份${serving.size == null ? "" : ` · ${serving.size} ${serving.unit || "g"}`}`)}</span></div><div class="kv"><span>营养</span><span>${escapeHtml(`热量 ${nutrition.caloriesKcal ?? "-"} kcal · 蛋白质 ${nutrition.proteinG ?? "-"} g · 脂肪 ${nutrition.fatG ?? "-"} g · 碳水 ${nutrition.carbohydrateG ?? "-"} g`)}</span></div><div class="kv"><span>营养依据</span><span>${escapeHtml(nutrition.basis || "未提供")}</span></div><div class="kv"><span>过敏原</span><span>${escapeHtml(arrayText(resource.allergens) || "未提供")} · ${escapeHtml(resource.allergenStatus || "未提供")}</span></div></div>${tags.length ? `<div class="chips">${tags.map((tag) => `<span class="chip selected">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}`;
+    }
+    const steps = Array.isArray(resource.steps) ? resource.steps : [];
+    const instruction = steps.length ? `<h3>动作步骤</h3><ol class="ordered-list">${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>` : `<h3>动作讲解</h3><p style="line-height:1.7;margin:0;">${escapeHtml(resource.instructionsZh || "未提供")}</p>`;
+    return `${media}<h3>动作详情</h3>${common}<div class="kv-list"><div class="kv"><span>英文名/别名</span><span>${escapeHtml([resource.nameEn, arrayText(resource.aliases)].filter(Boolean).join(" · ") || "未提供")}</span></div><div class="kv"><span>媒体状态</span><span>${escapeHtml(resource.mediaState || "未提供")}</span></div><div class="kv"><span>类别</span><span>${escapeHtml(resource.category || "未标注")}</span></div><div class="kv"><span>部位</span><span>${escapeHtml(resource.bodyPart || "未标注")}</span></div><div class="kv"><span>目标肌群</span><span>${escapeHtml(arrayText(resource.targetMuscles) || "未标注")}</span></div><div class="kv"><span>辅助肌群</span><span>${escapeHtml(arrayText(resource.secondaryMuscles) || "未标注")}</span></div><div class="kv"><span>器材</span><span>${escapeHtml(resource.equipment || "未标注")}</span></div><div class="kv"><span>难度</span><span>${escapeHtml(resource.difficulty || "未标注")}</span></div><div class="kv"><span>动作模式</span><span>${escapeHtml(resource.movementPattern || "未标注")}</span></div><div class="kv"><span>风险标签</span><span>${escapeHtml(arrayText(resource.riskTags) || "未标注")}</span></div><div class="kv"><span>替代组</span><span>${escapeHtml(resource.alternativeGroup || "未标注")}</span></div><div class="kv"><span>计划资格</span><span>${resource.planReady ? "可入周计划" : "不可入周计划"}</span></div><div class="kv"><span>资格审核</span><span>${escapeHtml([resource.qualificationVersion, resource.qualificationVisible ? "可浏览" : "不可浏览", resource.qualificationRecommendable ? "可推荐" : "不可推荐", resource.qualificationPlanReady ? "可入计划" : "不可入计划"].filter(Boolean).join(" · ") || "未提供")}</span></div><div class="kv"><span>原始来源字段</span><span>${escapeHtml([resource.sourceCategory, resource.sourceBodyPart, resource.sourceEquipment, resource.sourceTarget, resource.sourceMuscleGroup, arrayText(resource.sourceSecondaryMuscles)].filter(Boolean).join(" · ") || "未提供")}</span></div></div>${instruction}`;
+}
+
+function arrayText(value) {
+    if (Array.isArray(value)) return value.join("、");
+    return value == null ? "" : String(value);
 }
 
 function renderPickerItem(item) {
     const type = item.resourceType;
-    const favorite = Boolean(item.favorite ?? isFavorite(type, item.id));
+    const favorite = isFavorite(type, item.id);
     const detail = type === "MEAL" ? `${item.nutrition?.caloriesKcal ?? "-"} kcal · ${(item.tags?.mealTime || []).join("、") || "餐食"}` : `${item.bodyPart || "-"} · ${item.equipment || "-"}${item.planReady ? " · 可入周计划" : " · 不可入周计划"}`;
-    return `<article class="mp-resource-card"><div class="mp-thumb ${type === "MEAL" ? "meal" : "exercise"}">${type === "MEAL" ? "餐" : "练"}</div><div><strong>${escapeHtml(item.name || item.id)}</strong><p><span>${escapeHtml(detail)}</span></p><small>${escapeHtml(item.sourceName || "审核资源")}</small></div><div class="mp-resource-actions"><button class="mp-fav-toggle ${favorite ? "active" : ""}" data-plan-action="picker-favorite" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}" aria-pressed="${favorite}" title="${favorite ? "取消收藏" : "收藏"}">${favorite ? "♥" : "♡"}</button><button class="mp-btn primary small" data-plan-action="choose-resource" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}">选择</button></div></article>`;
+    const key = `picker-${type}-${item.id}`;
+    registerResource(key, { ...item, resourceType: type, resourceId: String(item.id), __detailLoader: type === "MEAL" ? () => getMealDetail(item.id) : () => getExerciseDetail(item.id) });
+    return `<article class="mp-resource-card"><button class="mp-resource-main" data-plan-action="picker-detail" data-resource-key="${escapeHtml(key)}" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}"><div class="mp-thumb ${type === "MEAL" ? "meal" : "exercise"}">${type === "MEAL" ? "餐" : "练"}</div><div><strong>${escapeHtml(item.name || item.id)}</strong><p><span>${escapeHtml(detail)}</span></p><small>${escapeHtml(item.sourceName || "审核资源")}</small></div></button><div class="mp-resource-actions"><button class="mp-fav-toggle ${favorite ? "active" : ""}" data-plan-action="picker-favorite" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}" aria-pressed="${favorite}" title="${favorite ? "取消收藏" : "收藏"}">${favorite ? "♥" : "♡"}</button><button class="mp-btn primary small" data-plan-action="choose-resource" data-resource-type="${type}" data-resource-id="${escapeHtml(item.id)}">选择</button></div></article>`;
 }
 
 function statusLabel(status) { return { ENABLED: "已启用", UNENABLED: "未启用", DRAFT: "草稿", HISTORY: "历史" }[status] || status || "计划"; }
 function scopeLabel(scope) { return { EXERCISE: "训练", MEAL: "餐食", COMPOSITE: "综合" }[scope] || "综合"; }
-function sourceLabel(source) { return { AGENT: "Agent 生成", FALLBACK: "规则降级", RULE_COMPOSER: "规则组合", RULE_MEAL_COMPOSER: "餐食规则组合", COMPOSITE_RULE_MERGE: "综合规则合并" }[source] || source; }
 function editablePlan(plan) { return plan && (plan.status === "DRAFT" || plan.status === "UNENABLED"); }
 function buildDays(weekStart) { const start = new Date(`${weekStart}T00:00:00`); return Array.from({ length: 7 }, (_, index) => localDateOf(new Date(start.getTime() + index * 86400000))); }
 function visibleItems(plan) { return (state.draftItems || plan.items || []).filter((item) => state.detailFilter === "ALL" || item.resourceType === state.detailFilter); }
@@ -300,7 +337,7 @@ async function startGeneration(app) {
         const query = new URLSearchParams((location.hash || "").split("?")[1] || "");
         const result = await runPlanGenerationRequest((payload, signal) => generateTrainingPlan(payload, { signal }), { sessionId: getChatSessionId(), requestId: query.get("requestId") || newRequestId(), planScope: query.get("scope") || "COMPOSITE" });
         state.generating = false; state.detail = result.plan; state.draftItems = cloneItems(result.plan?.items || []); state.selectedId = result.plan?.id || null; state.summaries = await listPlans(); state.loaded = true; resetPlanEditing(result.plan);
-        history.replaceState(null, "", "#/plans"); showToast(result.generationSource === "FALLBACK" ? "计划已生成（规则降级）" : "计划已生成（Agent）"); render(app);
+        history.replaceState(null, "", "#/plans"); showToast(`计划已生成（${planGenerationSourceLabel(result.generationSource)}）`); render(app);
     } catch (error) { state.generating = false; state.generationError = error.message || "计划生成失败"; render(app); }
 }
 
@@ -322,11 +359,15 @@ function bind(app) {
     const drawerRoot = document.getElementById("drawer-root");
     if (drawerRoot && drawerRoot.dataset.planBound !== "true") { drawerRoot.dataset.planBound = "true"; drawerRoot.addEventListener("click", handleDrawerClick); }
     window.addEventListener("beforeunload", handleBeforeUnload);
+    if (!window.__plansPickerEscapeBound) { window.__plansPickerEscapeBound = true; window.addEventListener("keydown", handlePlansKeydown); }
     registerRouteLeaveGuard("/plans", confirmLeavePlans);
 }
 function handleBeforeUnload(event) { if (currentRoute() === "/plans" && state.dirty) { event.preventDefault(); event.returnValue = ""; } }
+function handlePlansKeydown(event) { if (event.key === "Escape" && state.pickerDetail) { event.preventDefault(); closePickerDetail(true); } else if (event.key === "Escape" && state.picker) { event.preventDefault(); closePicker(); } }
 
 function handleClick(event) {
+    if (event.target.matches("[data-picker-detail-overlay]")) { closePickerDetail(true); return; }
+    if (event.target.matches("[data-picker-overlay]")) { closePicker(); return; }
     const target = event.target.closest("[data-plan-action], [data-plan-id]"); if (!target) return;
     if (target.dataset.planId && !target.dataset.planAction) { if (state.sidebarCollapsed) state.sidebarCollapsed = false; selectPlan(target.dataset.planId); return; }
     const action = target.dataset.planAction;
@@ -347,11 +388,13 @@ function handleClick(event) {
     if (action === "copy") { copyPlanToDraft(target.dataset.planId); return; }
     if (action === "edit") { editEnabledPlan(target.dataset.planId); return; }
     if (action === "discard") { discardDraft(target.dataset.planId); return; }
-    if (action === "close-picker") { state.picker = null; render(document.getElementById("app")); return; }
+    if (action === "close-picker") { closePicker(); return; }
+    if (action === "close-picker-detail") { closePickerDetail(true); return; }
     if (action === "picker-type") { state.picker.type = target.dataset.type; state.picker.page = 1; state.picker.filters = {}; loadPicker(); return; }
     if (action === "picker-favorites") { state.picker.favoriteOnly = !state.picker.favoriteOnly; state.picker.page = 1; loadPicker(); return; }
     if (action === "picker-page") { const page = Number(target.dataset.page); if (page > 0) { state.picker.page = page; loadPicker(); } return; }
     if (action === "choose-resource") { chooseResource(target.dataset.resourceType, target.dataset.resourceId); return; }
+    if (action === "picker-detail") { openPickerDetail(target); return; }
     if (action === "picker-favorite") { togglePickerFavorite(target.dataset.resourceType, target.dataset.resourceId); }
 }
 
@@ -373,10 +416,34 @@ async function selectPlan(planId) {
     await loadDetail(planId); render(document.getElementById("app"));
 }
 function preferredPickerType() { return state.detail?.planScope === "EXERCISE" ? "EXERCISE" : "MEAL"; }
+function closePicker() { state.picker = null; state.pickerDetail = null; state.pickerDetailToken++; render(document.getElementById("app")); }
+function closePickerDetail(restoreFocus) {
+    const resource = state.pickerDetail?.item;
+    state.pickerDetail = null; state.pickerDetailToken++;
+    render(document.getElementById("app"));
+    if (restoreFocus && resource) document.querySelector(`[data-plan-action="picker-detail"][data-resource-id="${CSS.escape(String(resource.id))}"]`)?.focus();
+}
+function openPickerDetail(target) {
+    const picker = state.picker;
+    const item = picker?.items.find((entry) => entry.resourceType === target.dataset.resourceType && String(entry.id) === String(target.dataset.resourceId));
+    if (!item) return;
+    const token = ++state.pickerDetailToken;
+    state.pickerDetail = { item, loading: true, error: null, data: null };
+    render(document.getElementById("app"));
+    const loader = item.resourceType === "MEAL" ? () => getMealDetail(item.id) : () => getExerciseDetail(item.id);
+    Promise.resolve().then(loader).then((data) => {
+        if (!state.pickerDetail || token !== state.pickerDetailToken || String(state.pickerDetail.item.id) !== String(item.id)) return;
+        state.pickerDetail.loading = false; state.pickerDetail.data = data; render(document.getElementById("app"));
+    }).catch((error) => {
+        if (!state.pickerDetail || token !== state.pickerDetailToken || String(state.pickerDetail.item.id) !== String(item.id)) return;
+        state.pickerDetail.loading = false; state.pickerDetail.error = error.message || "资源详情加载失败"; render(document.getElementById("app"));
+    });
+}
 function openPicker(mode, localDate, startTime, type, itemId) {
     if (!editablePlan(state.detail)) return;
     const item = itemId ? findItem(itemId) : null;
-    state.picker = { mode, type: type || item?.resourceType || preferredPickerType(), itemId: itemId || null, localDate: localDate || item?.localDate || state.detail.weekStart, startTime: startTime || shortTime(item?.startTime) || "12:00", query: "", filters: {}, favoriteOnly: false, page: 1, total: 0, items: [], loading: true, error: null };
+    state.pickerDetail = null;
+    state.picker = { mode, type: type || item?.resourceType || (mode === "add" ? "MEAL" : preferredPickerType()), itemId: itemId || null, localDate: localDate || item?.localDate || state.detail.weekStart, startTime: startTime || shortTime(item?.startTime) || "12:00", query: "", filters: {}, favoriteOnly: false, page: 1, total: 0, items: [], loading: true, error: null };
     render(document.getElementById("app")); loadPicker();
 }
 
@@ -394,8 +461,16 @@ async function loadPicker() {
 }
 
 async function togglePickerFavorite(type, id) {
-    try { if (isFavorite(type, id)) await removeFavorite(type, id); else await addFavorite(type, id); await syncFavorites(type); render(document.getElementById("app")); }
-    catch (error) { showToast(error.message || "收藏操作失败", "error"); }
+    const currentlyFavorite = isFavorite(type, id);
+    try {
+        await toggleFavorite(type, id, () => currentlyFavorite
+            ? removeFavorite(type, id)
+            : addFavorite(type, id));
+        render(document.getElementById("app"));
+        showToast(isFavorite(type, id) ? "已收藏" : "已取消收藏");
+    } catch (error) {
+        // toggleFavorite 已完成失败回滚和错误提示。
+    }
 }
 
 function chooseResource(type, resourceId) {

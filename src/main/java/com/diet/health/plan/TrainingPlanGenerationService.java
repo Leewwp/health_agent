@@ -151,7 +151,11 @@ public class TrainingPlanGenerationService {
                     PlanAgentOutput agentOutput = callAgent(brief, profile, candidates, deadlineNanos);
                     actualModel = modelName;
                     trainingItems = guardAgentOutput(brief, candidates, agentOutput);
-                    // 在写入前复用同一套计划 Guard，覆盖时间冲突、连续部位和其他组合不变量。
+                    traceService.recordEvent("PLAN_AGENT_OUTPUT", "MODEL",
+                            Map.of("schedule", agentOutput.schedule().stream().map(item -> Map.of(
+                                    "exerciseId", item.exerciseId(), "localDate", item.localDate().toString())).toList()),
+                            Map.of("candidateCount", candidates.size(), "trainingDayCount", brief.trainingDays().size()));
+                    // 在写入前复用同一套计划 Guard，覆盖时间冲突和其他组合不变量。
                     validateForPersistence(profile, trainingItems);
                 } catch (RuntimeException error) {
                     if (!(error instanceof AgentFailureException failure)
@@ -178,7 +182,7 @@ public class TrainingPlanGenerationService {
                 PlanView plan = weeklyPlanService.persistGeneratedDraft(userId,
                         new DraftPlanRequest(session.sessionId(), brief.weekStart(), profile.timezone(), null,
                                 PlanScope.EXERCISE),
-                        allItems, source, generationMetadata(brief, candidates, candidateSelection.goalRelaxed(),
+                        allItems, source, generationMetadata(brief, candidates, trainingItems, candidateSelection.goalRelaxed(),
                                 candidateSelection.difficultyRelaxed(),
                                 source, modelName, actualModel, fallbackReason),
                         deterministicExplanation(source, trainingItems));
@@ -271,12 +275,20 @@ public class TrainingPlanGenerationService {
     }
 
     private List<PlanItemDraft> guardAgentOutput(PlanBrief brief, List<HealthResource> candidates, PlanAgentOutput output) {
-        if (output == null || output.schedule().isEmpty() || output.schedule().size() > brief.trainingDays().size()) {
+        if (output == null || output.schedule().isEmpty() || output.schedule().size() != brief.trainingDays().size()) {
             throw new IllegalArgumentException("训练安排数量不符合简报");
+        }
+        Set<LocalDate> expectedDates = Set.copyOf(brief.scheduledDates());
+        Set<LocalDate> actualDates = output.schedule().stream().map(PlanAgentOutput.ScheduledExercise::localDate).collect(java.util.stream.Collectors.toSet());
+        if (!expectedDates.equals(actualDates) || actualDates.size() != output.schedule().size()) {
+            throw new IllegalArgumentException("训练安排未覆盖全部指定日期");
         }
         Map<String, HealthResource> byId = new HashMap<>();
         candidates.forEach(candidate -> byId.put(candidate.resourceId(), candidate));
         List<PlanItemDraft> result = new ArrayList<>();
+        Map<LocalDate, String> selectedByDate = new HashMap<>();
+        Set<String> selectedIds = new java.util.HashSet<>();
+        boolean requireGlobalUnique = candidates.size() >= brief.trainingDays().size();
         for (PlanAgentOutput.ScheduledExercise item : output.schedule()) {
             HealthResource resource = byId.get(item.exerciseId());
             if (resource == null || !resource.planReady()) throw new IllegalArgumentException("动作不在审核候选白名单");
@@ -288,6 +300,10 @@ public class TrainingPlanGenerationService {
             if (!brief.timeWindow().contains(start) || availableMinutes < duration) {
                 throw new IllegalArgumentException("训练时间不在用户可用窗口内");
             }
+            if (requireGlobalUnique && !selectedIds.add(item.exerciseId())) {
+                throw new IllegalArgumentException("候选充足时同一周不得重复动作");
+            }
+            selectedByDate.put(item.localDate(), item.exerciseId());
             LocalTime end = start.plusMinutes(duration);
             result.add(trainingItem(resource, item.localDate(), start, end, brief));
         }
@@ -296,25 +312,39 @@ public class TrainingPlanGenerationService {
 
     private List<PlanItemDraft> fallback(PlanBrief brief, List<HealthResource> candidates) {
         List<PlanItemDraft> result = new ArrayList<>();
-        String previousPart = null;
-        LocalDate previousDate = null;
+        Map<String, Integer> usage = new HashMap<>();
+        String previousExercise = null;
         List<HealthResource> ordered = candidates.stream().sorted(Comparator.comparing(HealthResource::resourceId)).toList();
+        boolean requireGlobalUnique = ordered.size() >= brief.trainingDays().size();
         for (LocalDate date : brief.scheduledDates()) {
-            String previous = date.minusDays(1).equals(previousDate) ? previousPart : null;
+            String previous = previousExercise;
             HealthResource selected = ordered.stream()
-                    .filter(candidate -> previous == null
-                            || !candidate.tags().getOrDefault("primaryBodyPart", List.of()).contains(previous))
-                    .findFirst().orElse(null);
+                    .filter(candidate -> !requireGlobalUnique || !usage.containsKey(candidate.resourceId()))
+                    .min(Comparator
+                            .comparingInt((HealthResource candidate) -> usage.getOrDefault(candidate.resourceId(), 0))
+                            .thenComparing(candidate -> candidate.resourceId().equals(previous))
+                            .thenComparing(HealthResource::resourceId))
+                    .orElse(null);
+            if (selected == null && !ordered.isEmpty()) {
+                selected = ordered.stream()
+                        .min(Comparator
+                                .comparingInt((HealthResource candidate) -> usage.getOrDefault(candidate.resourceId(), 0))
+                                .thenComparing(candidate -> candidate.resourceId().equals(previous))
+                                .thenComparing(HealthResource::resourceId))
+                        .orElse(ordered.get(0));
+            }
             if (selected == null) continue;
             int available = (int) Duration.between(brief.timeWindow().start(), brief.timeWindow().end()).toMinutes();
             int duration = Math.min(60, (available / 30) * 30);
             if (duration < MIN_DURATION_MINUTES) continue;
             LocalTime start = brief.timeWindow().start();
             result.add(trainingItem(selected, date, start, start.plusMinutes(duration), brief));
-            previousPart = selected.tags().getOrDefault("primaryBodyPart", List.of()).stream().findFirst().orElse(null);
-            previousDate = date;
+            previousExercise = selected.resourceId();
+            usage.merge(selected.resourceId(), 1, Integer::sum);
         }
-        if (result.isEmpty()) throw new HealthApiException(HealthApiException.CODE_CONFLICT, "无法依据当前训练偏好生成可执行安排");
+        if (result.size() != brief.trainingDays().size()) {
+            throw new HealthApiException(HealthApiException.CODE_CONFLICT, "无法覆盖用户指定的全部训练日");
+        }
         return result;
     }
 
@@ -354,14 +384,10 @@ public class TrainingPlanGenerationService {
         List<HealthResource> strictDifficulty = equipmentCandidates.stream()
                 .filter(resource -> resource.tags().getOrDefault("difficulty", List.of()).contains(brief.difficulty()))
                 .toList();
-        boolean difficultyRelaxed = strictDifficulty.isEmpty() && !equipmentCandidates.isEmpty();
-        List<HealthResource> candidates = difficultyRelaxed ? equipmentCandidates : strictDifficulty;
-        List<HealthResource> strictGoal = candidates.stream()
+        List<HealthResource> strictGoal = strictDifficulty.stream()
                 .filter(resource -> resource.tags().getOrDefault("trainingGoal", List.of()).contains(brief.trainingGoal()))
                 .toList();
-        return strictGoal.isEmpty()
-                ? new CandidateSelection(candidates, !candidates.isEmpty(), difficultyRelaxed)
-                : new CandidateSelection(strictGoal, false, difficultyRelaxed);
+        return new CandidateSelection(strictGoal, false, false);
     }
 
     private record CandidateSelection(List<HealthResource> resources, boolean goalRelaxed, boolean difficultyRelaxed) {
@@ -387,6 +413,7 @@ public class TrainingPlanGenerationService {
     }
 
     private Map<String, Object> generationMetadata(PlanBrief brief, List<HealthResource> candidates,
+                                                   List<PlanItemDraft> finalItems,
                                                    boolean goalRelaxed,
                                                    boolean difficultyRelaxed,
                                                    String generationSource, String requestedModel, String actualModel,
@@ -395,6 +422,10 @@ public class TrainingPlanGenerationService {
         metadata.put("briefConfirmationVersion", brief.confirmationVersion());
         metadata.put("planScope", PlanScope.EXERCISE.name());
         metadata.put("candidateIds", candidates.stream().map(HealthResource::resourceId).toList());
+        metadata.put("candidateCount", candidates.size());
+        metadata.put("trainingDayCount", brief.trainingDays().size());
+        metadata.put("fallbackUsageCounts", finalItems.stream().collect(java.util.stream.Collectors.groupingBy(
+                PlanItemDraft::resourceId, LinkedHashMap::new, java.util.stream.Collectors.counting())));
         metadata.put("goalRelaxed", goalRelaxed);
         metadata.put("difficultyRelaxed", difficultyRelaxed);
         metadata.put("resourceVersion", resourceProvider.resourceVersion());

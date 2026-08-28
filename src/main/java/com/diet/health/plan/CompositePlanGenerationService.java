@@ -64,7 +64,9 @@ public class CompositePlanGenerationService {
         HealthProfileService.HealthProfileView profile = profileService.getProfile(userId);
         LocalDate weekStart = session.planBrief().weekStart();
         List<PlanItemDraft> exerciseItems = trainingGenerationService.generateExerciseItemsForComposite(userId, session);
-        List<PlanItemDraft> mealItems = mealComposer.composeMeals(profile.calorieLow(), profile.calorieHigh(), weekStart);
+        MealPlanBrief mealBrief = session.mealPlanBrief();
+        List<PlanItemDraft> mealItems = mealComposer.composeMeals(profile.calorieLow(), profile.calorieHigh(), weekStart,
+                mealBrief.mealTimes());
         if (mealItems.isEmpty()) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "当前审核餐食库没有可生成的餐食候选");
         }
@@ -76,6 +78,8 @@ public class CompositePlanGenerationService {
             metadata.put("planScope", PlanScope.COMPOSITE.name());
             metadata.put("exerciseBriefConfirmationVersion", session.planBrief().confirmationVersion());
             metadata.put("mealBriefConfirmationVersion", session.mealPlanBrief().confirmationVersion());
+            metadata.put("mealTimes", mealBrief.mealTimes());
+            metadata.put("calorieAllocation", "按早餐/午餐/晚餐 30/40/30 权重对已选餐次归一化");
             metadata.put("generationSource", "COMPOSITE_RULE_MERGE");
             PlanView plan = weeklyPlanService.persistScopedGeneratedDraft(userId,
                     new DraftPlanRequest(session.sessionId(), weekStart, profile.timezone(), null, PlanScope.COMPOSITE),

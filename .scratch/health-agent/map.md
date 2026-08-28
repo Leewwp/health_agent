@@ -8,6 +8,26 @@
 
 ## Notes
 
+## 2026-08-28 健康聊天显式任务路由与计划生成约束
+
+- 本轮规格见 [`health-agent-conversation-contracts/spec.md`](../health-agent-conversation-contracts/spec.md)，决策地图见 [`health-agent-conversation-contracts/map.md`](../health-agent-conversation-contracts/map.md)。
+- GitHub 父票 [#103](https://github.com/Leewwp/health_agent/issues/103) 与子票 [#104](https://github.com/Leewwp/health_agent/issues/104)、[#105](https://github.com/Leewwp/health_agent/issues/105)、[#106](https://github.com/Leewwp/health_agent/issues/106)、[#107](https://github.com/Leewwp/health_agent/issues/107)、[#108](https://github.com/Leewwp/health_agent/issues/108) 已发布，均保持 `OPEN + ready-for-agent`。
+- 用户已确认：新会话只由特定任务词触发；全身严格匹配；零候选不自动放宽、唯一候选允许复用；移除简报确认状态；作息文档/RAG 延后。
+- ADR：[`ADR-0016`](../../docs/adr/0016-explicit-health-task-routing-and-plan-preflight.md)。GitHub 父票 #103 与子票 #104-#108 已发布，均保持 `OPEN + ready-for-agent`。
+
+## 2026-08-28 训练计划与跨品类交互修复复核
+
+- 目标会话的最终规格见 [`health-agent-plan-interaction-fixes/spec.md`](../health-agent-plan-interaction-fixes/spec.md)，复核报告见同目录 [`audit.md`](../health-agent-plan-interaction-fixes/audit.md)。
+- 实现票见 [`issues/102-cross-category-plan-fixes.md`](../health-agent-plan-interaction-fixes/issues/102-cross-category-plan-fixes.md)，本地票已 `resolved`；GitHub #102 保持 OPEN，待人工审阅。
+- 复核除原五项训练/选择器问题外，确认了两个跨品类缺陷：餐食简报的 `mealTimes` 未传入餐食/综合生成；COMPOSITE 两份简报都确认后再次修改不会失效对应确认。2026-08-28 已确认只生成所选餐次、按所选餐次归一化热量，并按候选规模做跨日软多样性。
+- 历史 #101 不重开；本轮已创建 [GitHub #102](https://github.com/Leewwp/health_agent/issues/102) 承载修复合同，规格已转 `ready-for-human`，实现和门控已完成，等待人工审阅。
+
+## 2026-08-28 面试 MVP 两阶段收口
+
+- 第一阶段范围与验收以 [`docs/mvp-phases.md`](../../docs/mvp-phases.md) 为准：餐食/动作推荐、详情、严格匹配与多选追加、健康档案回跳、训练/餐食/综合计划生成和启用必须在本地完整跑通。
+- 第二阶段包括 Agent 自然语言修改既有计划、长期偏好记忆、复杂 RAG、全量动作处方、新品类、云部署、App 和长期行为能力。
+- 历史已完成票不重开；本轮回归和缺口集中跟踪在 [#101 第一阶段面试 MVP 主流程收口](https://github.com/Leewwp/health_agent/issues/101)。远端票已关闭，但本地审计状态保持 `claimed`，直到 `docs/mvp-phases.md` 的第二轮优先收口完成并取得浏览器证据。
+
 ## 2026-08-20 统一综合周计划与时间网格编辑器
 
 - 本轮确定的计划生命周期、单一当前启用计划、三种 Agent 生成流程和时间网格编辑规格见 [unified-plan-editor/spec.md](../health-agent-unified-plan-editor/spec.md)，状态为 `implemented / ready-for-human`。P0/P1 已实现并通过自动化验证；桌面拖拽专项体验和复杂历史复制列为 P2 延期项。

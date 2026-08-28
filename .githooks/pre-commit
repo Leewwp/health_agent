@@ -23,7 +23,7 @@ ALLOWED='^(src/test/|\.scratch/|\.githooks/|\.github/)'
 
 PATTERNS=(
   # OpenAI/DashScope/Anthropic 类 API key（要求 16+ 位非占位后缀，规避 sk-xxx 这种文档示例）
-  'sk-[A-Za-z0-9_-]{16,}'
+  '(^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}'
   # 常见凭证环境变量被赋成"真实形态"的值：要么 sk- 开头（≥8 位，跳过 sk-xxx 文档示例），
   # 要么 ≥24 位无空格字符串（过滤 dev-only-change-me 等常见占位符；${VAR:...} 已在上方掩码删除）
   '(DASHSCOPE_API_KEY|MCP_API_TOKEN|ADMIN_TOKEN|DIET_SESSION_SECRET|DATABASE_PASSWORD|DATABASE_USERNAME|MYSQL_ROOT_PASSWORD|POSTGRES_PASSWORD)[ \t]*[=:][ \t]*(sk-[A-Za-z0-9_-]{8,}|[A-Za-z0-9_=+./-]{24,})'

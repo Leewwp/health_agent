@@ -144,7 +144,8 @@ public class HybridMealRetriever implements MealRetriever {
 
         List<RetrievalItem> merged = new ArrayList<>();
         for (ReviewedMeal meal : mealById.values()) {
-            if (excludeIds.contains(meal.id()) || MealAllergenConstraint.intersects(meal, allergens)) {
+            if (excludeIds.contains(meal.id()) || MealAllergenConstraint.intersects(meal, allergens)
+                    || !matchesSlots(meal, query.slots())) {
                 continue;
             }
             Double semantic = semanticById.get(meal.id());
@@ -161,6 +162,19 @@ public class HybridMealRetriever implements MealRetriever {
                 RetrievalMode.HYBRID, null,
                 new RetrievalEvidence(base.items().size(), hits.size(), merged.size(),
                         VectorRetrievalStatus.AVAILABLE, vectorLatencyMs));
+    }
+
+    /** 向量命中回查时重做全部显式槽位硬过滤，防止语义召回绕过结构化条件。 */
+    private boolean matchesSlots(ReviewedMeal meal, Map<String, List<String>> slots) {
+        if (slots == null || slots.isEmpty()) return true;
+        for (Map.Entry<String, List<String>> entry : slots.entrySet()) {
+            List<String> values = entry.getValue();
+            if (values == null || values.isEmpty()) continue;
+            if (!meal.tags().containsKey(entry.getKey())) return false;
+            List<String> tags = meal.tags().getOrDefault(entry.getKey(), List.of());
+            if (tags.isEmpty() || values.stream().noneMatch(tags::contains)) return false;
+        }
+        return true;
     }
 
     /** 独立向量召回；embedding 不可用返回 null（降级信号），Qdrant 故障抛 {@link VectorStoreException}。 */

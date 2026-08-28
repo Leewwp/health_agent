@@ -27,7 +27,7 @@ public class PlanBriefService {
 
     private static final Pattern ISO_DATE = Pattern.compile("(20\\d{2}-\\d{2}-\\d{2})");
     private static final Pattern NUMERIC_TIME_RANGE = Pattern.compile(
-            "([01]?\\d|2[0-3])[:：]([0-5]\\d)\\s*[-到至~～—]+\\s*([01]?\\d|2[0-3])[:：]([0-5]\\d)");
+            "([01]?\\d|2[0-3])[:：]([0-5]\\d)(?::([0-5]\\d))?\\s*[-到至~～—]+\\s*([01]?\\d|2[0-3])[:：]([0-5]\\d)(?::([0-5]\\d))?");
     private static final String TIME_POINT = "(?:(?:上午|早上|中午|下午|晚上|夜里)\\s*)?(?:[01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})\\s*(?:点|时)(?:半|一刻|三刻)?";
     private static final String BARE_TIME_POINT = "(?:(?:上午|早上|中午|下午|晚上|夜里)\\s*)?(?:[01]?\\d|2[0-3]|[零〇一二三四五六七八九十两]{1,3})";
     private static final Pattern HAN_TIME_RANGE = Pattern.compile("(" + TIME_POINT + ")\\s*(?:到|至|[-—])\\s*(" + TIME_POINT + ")");
@@ -40,6 +40,7 @@ public class PlanBriefService {
     private static final Pattern DAY_RANGE = Pattern.compile("(?:周|星期)([一二三四五六日天])\\s*(?:到|至|-)\\s*(?:周|星期)?([一二三四五六日天])");
     private static final Pattern PREFIXED_DAYS = Pattern.compile("(?:周|星期)([一二三四五六日天]{2,7})");
     private static final Pattern COMPACT_DAYS = Pattern.compile("(?<![一二三四五六日天])([一二三四五六日天]{2,7})(?![一二三四五六日天])");
+    private static final Pattern SEPARATED_DAYS = Pattern.compile("([一二三四五六日天](?:[、,，和及\\s]+[一二三四五六日天])+)");
     private static final Pattern EXCLUDED_EXERCISE = Pattern.compile("(?:不要做|不做|排除动作[：:]?)([\\p{IsHan}A-Za-z0-9（）()·-]{2,30})");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final Map<String, DayOfWeek> DAY_NAMES = dayNames();
@@ -87,6 +88,10 @@ public class PlanBriefService {
         Map<String, List<String>> hardConstraints = parseHardConstraints(text);
         rejectUnsupportedHardConstraints(text);
 
+        if (time.invalidSeconds()) {
+            return new PlanBriefInterpretation(BriefInterpretationStatus.INVALID, base, Map.of(), text,
+                    "时间秒数只能为 00，请使用整点或半点时间。", true);
+        }
         if (days.ambiguous() || time.ambiguous()) {
             String field = days.ambiguous() ? "trainingDays" : "timeWindow";
             return new PlanBriefInterpretation(BriefInterpretationStatus.AMBIGUOUS, base, Map.of(), text,
@@ -247,6 +252,15 @@ public class PlanBriefService {
             }
         }
         if (days.isEmpty()) {
+            Matcher separated = SEPARATED_DAYS.matcher(text);
+            while (separated.find()) {
+                for (char dayValue : separated.group(1).toCharArray()) {
+                    DayOfWeek day = dayOf(String.valueOf(dayValue));
+                    if (day != null) days.add(day);
+                }
+            }
+        }
+        if (days.isEmpty()) {
             Matcher compact = COMPACT_DAYS.matcher(text);
             while (compact.find()) {
                 String value = compact.group(1);
@@ -272,9 +286,12 @@ public class PlanBriefService {
         Matcher numeric = NUMERIC_TIME_RANGE.matcher(text);
         if (numeric.find()) {
             LocalTime start = LocalTime.of(Integer.parseInt(numeric.group(1)), Integer.parseInt(numeric.group(2)));
-            LocalTime end = LocalTime.of(Integer.parseInt(numeric.group(3)), Integer.parseInt(numeric.group(4)));
-            return start.isBefore(end) ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false)
-                    : new TimeParse(null, null, null, false, true);
+            LocalTime end = LocalTime.of(Integer.parseInt(numeric.group(4)), Integer.parseInt(numeric.group(5)));
+            boolean invalidSeconds = (numeric.group(3) != null && !"00".equals(numeric.group(3)))
+                    || (numeric.group(6) != null && !"00".equals(numeric.group(6)));
+            return invalidSeconds ? new TimeParse(null, null, null, false, false, true)
+                    : start.isBefore(end) ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false, false)
+                    : new TimeParse(null, null, null, false, true, false);
         }
         Matcher han = HAN_TIME_RANGE.matcher(text);
         if (han.find()) {
@@ -282,8 +299,8 @@ public class PlanBriefService {
             LocalTime start = parseTimePoint(han.group(1), null);
             LocalTime end = parseTimePoint(han.group(2), period);
             return start != null && end != null && start.isBefore(end)
-                    ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false)
-                    : new TimeParse(null, null, null, false, true);
+                    ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false, false)
+                    : new TimeParse(null, null, null, false, true, false);
         }
         Matcher bareStart = HAN_TIME_RANGE_BARE_START.matcher(text);
         if (bareStart.find()) {
@@ -291,22 +308,22 @@ public class PlanBriefService {
             LocalTime start = parseBareTimePoint(bareStart.group(1), null);
             LocalTime end = parseTimePoint(bareStart.group(2), period);
             return start != null && end != null && start.isBefore(end)
-                    ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false)
-                    : new TimeParse(null, null, null, false, true);
+                    ? new TimeParse(new TrainingTimeWindow(start, end), null, end, false, false, false)
+                    : new TimeParse(null, null, null, false, true, false);
         }
         String point = findSingleTimePoint(text);
         if (point != null) {
             LocalTime parsed = parseTimePoint(point, null);
-            if (parsed == null) return new TimeParse(null, null, null, false, true);
+            if (parsed == null) return new TimeParse(null, null, null, false, true, false);
             if (base != null && base.partialStartTime() != null && isEndOnlyExpression(text)) {
                 LocalTime end = parseTimePoint(point, continuationPeriod(base.partialStartTime()));
                 return end != null && base.partialStartTime().isBefore(end)
-                        ? new TimeParse(new TrainingTimeWindow(base.partialStartTime(), end), null, end, false, false)
-                        : new TimeParse(null, null, null, false, true);
+                        ? new TimeParse(new TrainingTimeWindow(base.partialStartTime(), end), null, end, false, false, false)
+                        : new TimeParse(null, null, null, false, true, false);
             }
-            return new TimeParse(null, parsed, null, true, false);
+            return new TimeParse(null, parsed, null, true, false, false);
         }
-        return new TimeParse(null, null, null, false, false);
+        return new TimeParse(null, null, null, false, false, false);
     }
 
     private String findSingleTimePoint(String text) {
@@ -555,7 +572,8 @@ public class PlanBriefService {
     }
 
     private record DayParse(List<DayOfWeek> days, boolean ambiguous) { }
-    private record TimeParse(TrainingTimeWindow range, LocalTime start, LocalTime end, boolean partial, boolean ambiguous) { }
+    private record TimeParse(TrainingTimeWindow range, LocalTime start, LocalTime end, boolean partial, boolean ambiguous,
+                             boolean invalidSeconds) { }
 
     public record UpdateResult(PlanBrief brief, boolean confirmedNow, List<String> missingFields,
                                BriefInterpretationStatus status, String evidence, String guidance,

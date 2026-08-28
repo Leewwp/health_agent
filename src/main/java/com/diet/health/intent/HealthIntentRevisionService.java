@@ -132,6 +132,18 @@ public class HealthIntentRevisionService {
                 "天气怎么样", "写代码", "讲个笑话")) {
             return HealthDomain.OTHER;
         }
+        // 计划简报可能同时出现“训练 + 时间”等作息词，计划领域优先于作息事实路由。
+        if (HealthPlanIntentMatcher.matches(text)) {
+            if (HealthPlanIntentMatcher.matchesComposite(text)) {
+                return HealthDomain.COMPOSITE;
+            }
+            if (containsAny(text, "餐食", "饮食", "早餐", "午餐", "晚餐", "吃饭")) {
+                return HealthDomain.MEAL;
+            }
+            if (containsAny(text, "训练", "健身", "动作", "练")) {
+                return HealthDomain.EXERCISE;
+            }
+        }
         if (HealthPlanIntentMatcher.matchesComposite(text)) {
             return HealthDomain.COMPOSITE;
         }
@@ -159,7 +171,7 @@ public class HealthIntentRevisionService {
     }
 
     private boolean isPlanContinuation(String text) {
-        return containsAny(text, "确认训练偏好", "确认简报", "按这个生成", "改成", "换成",
+        return containsAny(text, "确认训练偏好", "确认简报", "按这个生成", "改成", "换成", "改为", "调整为",
                 "目标周", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
                 "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量",
                 "确认餐食", "确认饮食", "早餐", "午餐", "晚餐", "下周", "本周", "这周");
@@ -173,7 +185,7 @@ public class HealthIntentRevisionService {
         if (containsAny(text, "推荐", "吃什么", "浏览", "换一批")) return false;
         return containsAny(text, "训练", "健身", "练", "胸", "背", "腿", "核心", "徒手", "哑铃", "杠铃",
                 "入门", "进阶", "挑战", "早餐", "午餐", "晚餐", "下周", "本周", "这周", "确认", "目标周",
-                "一三五", "二四六", "时间", "点", ":");
+                "一三五", "二四六", "时间", "点", ":", "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康");
     }
 
     private boolean looksLikeRecommendationRequest(String text) {

@@ -10,14 +10,16 @@
  */
 import { escapeHtml, formatTime } from "../util/dom.js";
 import { getResource } from "../store.js";
-import { renderFeedbackControl } from "./feedback-control.js";
+import { bindFeedbackControl, renderFeedbackControl } from "./feedback-control.js";
 import { renderMedia } from "./media-state.js";
 
 const root = document.getElementById("drawer-root");
 let drawerContext = null;
 let openerElement = null;
+let detailRequestVersion = 0;
 
 export function openDrawer(key, context) {
+    const requestVersion = ++detailRequestVersion;
     openerElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     drawerContext = context || {};
     const resource = getResource(key);
@@ -36,8 +38,10 @@ export function openDrawer(key, context) {
     const resourceId = String(resource.resourceId ?? resource.id ?? "");
 
     const editForm = drawerContext.editForm || "";
-    const body = renderBody(resource, resourceType);
-    const detailArea = typeof drawerContext.detailLoader === "function"
+    const detailLoader = typeof drawerContext.detailLoader === "function" ? drawerContext.detailLoader : resource.__detailLoader;
+    // 有详情接口时只保留异步完整详情，避免摘要媒体与完整媒体同时出现。
+    const body = typeof detailLoader === "function" ? "" : renderBody(resource, resourceType);
+    const detailArea = typeof detailLoader === "function"
         ? `<div class="drawer-resource-detail" data-drawer-detail="1"><p class="muted"><span class="loading-spinner" aria-hidden="true"></span>正在读取资源详情...</p></div>`
         : "";
     const footerParts = [];
@@ -63,27 +67,28 @@ export function openDrawer(key, context) {
                 </div>
                 <button class="btn drawer-close" data-drawer-close="1" aria-label="关闭详情">✕</button>
             </header>
-            <div class="drawer-body">${body}${detailArea}${editForm}</div>
+            <div class="drawer-body">${detailArea || body}${editForm}</div>
             ${footer}
         </div>
     `;
     root.classList.add("open");
     root.setAttribute("aria-hidden", "false");
     root.querySelector("[data-drawer-close]")?.focus({ preventScroll: true });
-    if (typeof drawerContext.detailLoader === "function") {
-        const loader = drawerContext.detailLoader;
-        void loadResourceDetail(resourceType, loader);
+    if (typeof detailLoader === "function") {
+        void loadResourceDetail(resourceType, detailLoader, requestVersion);
     }
 }
 
-async function loadResourceDetail(resourceType, loader) {
+async function loadResourceDetail(resourceType, loader, requestVersion) {
     try {
         const detail = await loader();
+        if (requestVersion !== detailRequestVersion) return;
         const target = root.querySelector("[data-drawer-detail]");
         if (target) {
             target.innerHTML = renderBody(detail, resourceType);
         }
     } catch (error) {
+        if (requestVersion !== detailRequestVersion) return;
         const target = root.querySelector("[data-drawer-detail]");
         if (target) {
             target.innerHTML = `<p class="muted drawer-detail-error">资源详情暂时不可用，计划参数仍保留。${escapeHtml(error.message || "请稍后重试")}</p>`;
@@ -92,6 +97,7 @@ async function loadResourceDetail(resourceType, loader) {
 }
 
 export function closeDrawer(options) {
+    detailRequestVersion += 1;
     const restoreFocus = !options || options.restoreFocus !== false;
     root.classList.remove("open");
     root.setAttribute("aria-hidden", "true");
@@ -129,6 +135,8 @@ export function bindDrawer(container) {
         return;
     }
     drawerBound = true;
+    // drawer-root 不在页面容器内，必须单独绑定反馈事件委托。
+    bindFeedbackControl(root);
     root.addEventListener("click", (event) => {
         if (event.target === root) {
             closeDrawer();
@@ -235,13 +243,12 @@ function renderExerciseBody(exercise) {
             ${exercise.mediaCredit ? `<div class="kv"><span>媒体署名</span><span>${escapeHtml(exercise.mediaCredit)}</span></div>` : ""}
         </div>
         ${chips.length ? `<div class="chips">${chips.map((chip) => `<span class="chip selected">${escapeHtml(chip)}</span>`).join("")}</div>` : ""}
-        ${exercise.instructionsZh ? `<p style="line-height:1.7;margin:0;">${escapeHtml(exercise.instructionsZh)}</p>` : ""}
         ${exercise.steps && exercise.steps.length ? `
             <div>
                 <h3 style="margin:0 0 8px;">动作步骤</h3>
                 <ol class="ordered-list">${exercise.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
             </div>
-        ` : ""}
+        ` : exercise.instructionsZh ? `<p style="line-height:1.7;margin:0;">${escapeHtml(exercise.instructionsZh)}</p>` : ""}
         ${exercise.reason ? `<p class="muted" style="line-height:1.65;">推荐理由：${escapeHtml(exercise.reason)}</p>` : ""}
     `;
 }

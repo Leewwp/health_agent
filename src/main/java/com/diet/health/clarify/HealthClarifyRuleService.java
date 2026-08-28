@@ -48,7 +48,7 @@ public class HealthClarifyRuleService {
         return missing;
     }
 
-    /** 推荐前确认使用的最低条件；其余槽位仅作为可选补充，不阻断一次推荐。 */
+    /** 推荐前确认使用的最低条件；健身动作的器械和难度属于安全/匹配必填项。 */
     public List<String> minimumRecommendationSlots(HealthDomain domain, Map<String, List<String>> slots) {
         Map<String, List<String>> safe = slots == null ? Map.of() : slots;
         List<String> missing = new ArrayList<>();
@@ -57,6 +57,8 @@ public class HealthClarifyRuleService {
             case EXERCISE -> {
                 if (isEmpty(safe.get("trainingGoal"))) missing.add("trainingGoal");
                 else if (isEmpty(safe.get("bodyParts"))) missing.add("bodyParts");
+                else if (isEmpty(safe.get("equipment"))) missing.add("equipment");
+                else if (isEmpty(safe.get("difficulty"))) missing.add("difficulty");
             }
             case ROUTINE -> missing.addAll(missingSlots(domain, safe));
             default -> { }

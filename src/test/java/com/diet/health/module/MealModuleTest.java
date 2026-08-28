@@ -85,6 +85,39 @@ class MealModuleTest {
     }
 
     @Test
+    void 显式槽位缺少标签或标签为空时严格拒绝资源() {
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "未标注餐食", SlotBundle.empty(), 0.9);
+        when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(
+                List.of(new RetrievalItem(item, 0.9, null, 0.9)), RetrievalMode.STRUCTURED, null));
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("早餐")), List.of());
+
+        assertTrue(resources.isEmpty());
+    }
+
+    @Test
+    void 同字段多值按OR且跨字段按AND严格匹配() {
+        when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
+        MealItem matched = new MealItem(5L, SourceMode.PUBLIC, null, "高蛋白午餐",
+                new SlotBundle(List.of("午餐"), List.of(), List.of(), List.of("高蛋白"),
+                        List.of(), List.of(), List.of()), 0.9);
+        MealItem wrongGoal = new MealItem(6L, SourceMode.PUBLIC, null, "普通午餐",
+                new SlotBundle(List.of("午餐"), List.of(), List.of(), List.of("均衡"),
+                        List.of(), List.of(), List.of()), 0.8);
+        when(retriever.retrieve(any(), eq(10))).thenReturn(new RetrievalResult(List.of(
+                new RetrievalItem(matched, 0.9, null, 0.9),
+                new RetrievalItem(wrongGoal, 0.8, null, 0.8)), RetrievalMode.STRUCTURED, null));
+
+        List<HealthResource> resources = module.recommendMeals(Map.of(
+                "mealTime", List.of("早餐", "午餐"),
+                "healthGoal", List.of("高蛋白")), List.of());
+
+        assertEquals(List.of("5"), resources.stream().map(HealthResource::resourceId).toList());
+    }
+
+    @Test
     void 检索查询携带排除ID和过敏原约束() {
         when(provider.providerMode()).thenReturn(ResourceMode.REVIEWED_DB);
         MealItem item = new MealItem(5L, SourceMode.PUBLIC, null, "清蒸鲈鱼", SlotBundle.empty(), 0.9);
@@ -148,7 +181,7 @@ class MealModuleTest {
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         List<HealthResource> resources = module.recommendMeals(
-                Map.of("mealTime", List.of("早餐"), "healthGoal", List.of("增肌")), List.of());
+                Map.of("mealTime", List.of("早餐")), List.of());
 
         verify(retriever, never()).retrieve(any(), anyInt());
         verify(embedding, never()).embed(any());
@@ -171,14 +204,25 @@ class MealModuleTest {
     }
 
     @Test
-    void fixture模式无匹配餐次时确定性回退全部候选() {
+    void fixture模式无匹配餐次时返回空候选而不静默放宽() {
         when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
         when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
 
         List<HealthResource> resources = module.recommendMeals(
                 Map.of("mealTime", List.of("夜宵")), List.of());
 
-        assertEquals(9, resources.size(), "无餐次命中时回退全部 M1-M9（确定性降级）");
+        assertTrue(resources.isEmpty(), "显式餐次无匹配时不得回退到错误餐次");
+    }
+
+    @Test
+    void fixture模式只严格校验种子实际提供的餐次维度() {
+        when(provider.providerMode()).thenReturn(ResourceMode.FIXTURE_SEED);
+        when(provider.planMealCandidates()).thenReturn(SeedResources.MEAL_CANDIDATES);
+
+        List<HealthResource> resources = module.recommendMeals(
+                Map.of("mealTime", List.of("午餐"), "cuisine", List.of("西餐")), List.of());
+
+        assertEquals(4, resources.size(), "fixture 不冒充正式库多维筛选，只保证其餐次维度");
     }
 
     @Test

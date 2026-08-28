@@ -57,6 +57,10 @@ public class HealthInputNormalizer {
                     .toList();
             for (Map.Entry<String, String> alias : aliases) {
                 List<int[]> ranges = occurrences(text, alias.getKey());
+                // “器械：哑铃”中的“器械”是字段标签，不是用户选择的器材值。
+                if ("equipment".equals(slot) && "器械".equals(alias.getKey())) {
+                    ranges = ranges.stream().filter(range -> !isFieldLabelOccurrence(text, range)).toList();
+                }
                 if (ranges.isEmpty() || ranges.stream().noneMatch(range -> isUncovered(range, matchedRanges))) {
                     continue;
                 }
@@ -93,6 +97,14 @@ public class HealthInputNormalizer {
             from = index + alias.length();
         }
         return ranges;
+    }
+
+    private boolean isFieldLabelOccurrence(String text, int[] range) {
+        int index = range[1];
+        while (index < text.length() && Character.isWhitespace(text.charAt(index))) {
+            index++;
+        }
+        return index < text.length() && (text.charAt(index) == ':' || text.charAt(index) == '：');
     }
 
     private boolean isUncovered(int[] range, List<int[]> matchedRanges) {

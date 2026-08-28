@@ -79,6 +79,12 @@ public class IntentRuleService {
             return HealthIntentResult.parsed(HealthDomain.COMPOSITE, HealthTask.RECOMMEND,
                     List.of(), Map.of(), List.of(), 1.0);
         }
+        // 计划简报常带训练日与时间等词，先判定 PLAN，避免被“训练时段”规则误路由为作息。
+        if (HealthPlanIntentMatcher.matches(text)) {
+            HealthIntentResult plan = fallback(text, knownSlots, null);
+            return HealthIntentResult.parsed(plan.domain(), plan.task(), plan.riskFlags(), plan.slots(),
+                    plan.preferenceSignals(), 1.0);
+        }
         // 复合诉求必须保留给一次结构化理解，不能被单品类关键词抢先路由。
         if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
             return null;
@@ -102,10 +108,6 @@ public class IntentRuleService {
             if (domains != 1) {
                 return null;
             }
-        }
-        if (HealthPlanIntentMatcher.matches(text)) {
-            HealthIntentResult plan = fallback(text, knownSlots, null);
-            return HealthIntentResult.parsed(plan.domain(), plan.task(), plan.riskFlags(), plan.slots(), plan.preferenceSignals(), 1.0);
         }
         if (domains != 1) {
             return null;

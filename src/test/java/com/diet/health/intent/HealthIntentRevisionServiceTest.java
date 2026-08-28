@@ -105,4 +105,15 @@ class HealthIntentRevisionServiceTest {
         assertEquals(HealthDomain.COMPOSITE, revision.intent().domain());
         assertEquals(HealthTask.PLAN, revision.intent().task());
     }
+
+    @Test
+    void 训练简报带时间字段仍保持EXERCISE_PLAN() {
+        HealthSessionState state = HealthSessionState.fresh("s", 1L);
+        String input = "训练偏好已整理：训练目标：增肌；部位：全身；器械：哑铃；难度：进阶；目标周：2026-08-24；训练日：周一、周二、周三、周四、周五；时间：18:00-19:00。请确认后生成计划。";
+        HealthIntentResult raw = HealthIntentResult.parsed(HealthDomain.ROUTINE, HealthTask.PLAN,
+                List.of(), Map.of(), List.of(), 1.0);
+        HealthIntentRevisionService.Revision revision = service.revise(input, state, raw);
+        assertEquals(HealthDomain.EXERCISE, revision.intent().domain());
+        assertEquals(HealthTask.PLAN, revision.intent().task());
+    }
 }

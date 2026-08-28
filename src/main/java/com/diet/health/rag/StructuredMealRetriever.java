@@ -68,7 +68,7 @@ public class StructuredMealRetriever implements MealRetriever {
         return SlotBundle.fromHealthSlots(healthSlots);
     }
 
-    /** 餐次用于缩小候选集；口味、菜系和目标是排序偏好，不应在 SQL 中叠加为 AND。 */
+    /** 餐次用于缩小候选集；其余显式槽位由 MealModule/向量回查执行严格 OR/AND 过滤。 */
     private Map<String, List<String>> hardRecallSlots(Map<String, List<String>> slots) {
         if (slots == null || slots.getOrDefault("mealTime", List.of()).isEmpty()) {
             return Map.of();

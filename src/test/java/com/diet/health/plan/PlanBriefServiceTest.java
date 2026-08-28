@@ -88,6 +88,8 @@ class PlanBriefServiceTest {
                 service.interpret(PlanBrief.empty(), "三天，二四六").parsed().trainingDays());
         assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
                 service.interpret(PlanBrief.empty(), "一三五").parsed().trainingDays());
+        assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY),
+                service.interpret(PlanBrief.empty(), "一、三、五").parsed().trainingDays());
         assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY),
                 service.interpret(PlanBrief.empty(), "周一到周三").parsed().trainingDays());
     }

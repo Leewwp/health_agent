@@ -33,7 +33,7 @@ export function renderResourceCard(resource, options) {
         return "";
     }
     const key = `card-${cardSequence++}`;
-    registerResource(key, resource);
+    registerResource(key, opts.detailLoader ? { ...resource, __detailLoader: opts.detailLoader } : resource);
 
     const name = resource.name || "未命名";
     const meta = buildCardMeta(resource, resourceType);

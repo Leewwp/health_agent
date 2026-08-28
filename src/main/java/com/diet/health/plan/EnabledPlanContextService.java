@@ -63,7 +63,7 @@ public class EnabledPlanContextService {
             return List.of();
         }
         PlanScope actualScope = scopeGuard.parse(plan.getPlanScope());
-        if (actualScope != PlanScope.COMPOSITE) {
+        if (actualScope != PlanScope.COMPOSITE && actualScope != requestedScope) {
             return List.of();
         }
         ZoneId zone;

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /** 餐食子计划的确定性组合器，只生成 MEAL 项目，不附带训练或作息。 */
 @Service
@@ -28,11 +29,19 @@ public class WeeklyPlanComposerService {
 
     /** 按日预算生成餐食项目；结果只包含 MEAL。 */
     public List<PlanItemDraft> composeMeals(int calorieLow, int calorieHigh, LocalDate weekStart) {
+        return composeMeals(calorieLow, calorieHigh, weekStart, List.of("早餐", "午餐", "晚餐"));
+    }
+
+    /** 只生成已确认简报中的餐次，并在一周内按使用次数优先更换餐食。 */
+    public List<PlanItemDraft> composeMeals(int calorieLow, int calorieHigh, LocalDate weekStart,
+                                            List<String> mealTimes) {
         List<PlanItemDraft> items = new ArrayList<>();
+        Map<String, Integer> usage = new HashMap<>();
         for (int offset = 0; offset < 7; offset++) {
             LocalDate date = weekStart.plusDays(offset);
-            for (MealPlanPicker.MealPick pick : mealPlanPicker.pickForDay(calorieLow, calorieHigh)) {
+            for (MealPlanPicker.MealPick pick : mealPlanPicker.pickForDay(calorieLow, calorieHigh, mealTimes, usage)) {
                 items.add(mealItem(date, pick));
+                usage.merge(pick.resourceId(), 1, Integer::sum);
             }
         }
         return items;

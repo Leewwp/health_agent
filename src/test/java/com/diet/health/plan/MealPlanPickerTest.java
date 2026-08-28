@@ -144,4 +144,14 @@ class MealPlanPickerTest {
         int sum = picks.stream().mapToInt(MealPlanPicker.MealPick::caloriesKcal).sum();
         assertTrue(sum >= 2150 && sum <= 2400, "高预算日总热量应落在预算区间，实际 " + sum);
     }
+    @Test
+    void 只生成确认的餐次() {
+        when(provider.planMealCandidates()).thenReturn(List.of(
+                meal(1, "b", "早餐", 600, List.of("早餐")),
+                meal(2, "l", "午餐", 800, List.of("午餐")),
+                meal(3, "d", "晚餐", 700, List.of("晚餐"))));
+        List<MealPlanPicker.MealPick> picks = picker.pickForDay(1200, 1800,
+                List.of("早餐", "午餐"), new java.util.HashMap<>());
+        assertEquals(List.of("早餐", "午餐"), picks.stream().map(MealPlanPicker.MealPick::mealTime).toList());
+    }
 }

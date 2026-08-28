@@ -535,8 +535,17 @@ class MysqlReviewedReadersIntegrationTest {
 
     @Test
     void Hybrid融合后向量独有候选经真库回查一致且过期索引丢弃() {
-        long structuredHit = firstApprovedPublicMealWithBreakfastId();
-        long vectorOnly = firstApprovedPublicMealWithoutBreakfastId();
+        MealRetrievalQuery query = new MealRetrievalQuery(
+                Map.of("mealTime", List.of("早餐")), List.of(), List.of(), "早餐");
+        List<Long> structuredIds = structuredRetriever.retrieve(query, 10).items().stream()
+                .map(item -> item.meal().id()).toList();
+        long structuredHit = structuredIds.get(0);
+        long vectorOnly = mealReader.snapshotAll().stream()
+                .filter(meal -> meal.tags().getOrDefault("mealTime", List.of()).contains("早餐"))
+                .map(ReviewedMeal::id)
+                .filter(id -> !structuredIds.contains(id))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("测试库需要至少 11 个早餐候选"));
         long staleIndexId = 99999991L;
 
         EmbeddingClient embeddingClient = mock(EmbeddingClient.class);
@@ -548,8 +557,7 @@ class MysqlReviewedReadersIntegrationTest {
                 new VectorPoint(staleIndexId, new float[]{1f, 0f, 0f, 0f}, approvedPayload())));
         HybridMealRetriever hybrid = hybridWith(embeddingClient, vectorStore);
 
-        RetrievalResult result = hybrid.retrieve(new MealRetrievalQuery(
-                Map.of("mealTime", List.of("早餐")), List.of(), List.of(), "早餐"), 10);
+        RetrievalResult result = hybrid.retrieve(query, 10);
 
         assertEquals(RetrievalMode.HYBRID, result.mode());
         assertNull(result.degradationReason(), "向量路径可用不得降级");

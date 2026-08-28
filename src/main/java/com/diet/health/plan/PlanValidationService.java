@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -19,7 +18,7 @@ import java.util.TreeMap;
 /**
  * 组合时 Guard（34 号，规格 8.2/8.3/9）：
  * 确定性校验周计划不变量——未满 18 岁、65 岁以上训练计划、作息/训练时间冲突、
- * 同一训练部位连续两天、资源资格与引用、餐食日能量区间。
+ * 资源资格与引用、餐食日能量区间。
  * <p>
  * 结果分类：BLOCK_PLAN → HARD_ERROR（拒绝保存/激活）、ADVISORY → WARNING（可保存不可激活）、
  * 无命中 → OK。多规则取最高等级，规则命中带 ruleCode/ruleVersion/stage/severity 供 Trace。
@@ -52,9 +51,6 @@ public class PlanValidationService {
     public static final String INVALID_TIME_RANGE_COPY = "项目开始时间与结束时间相同，请调整后再保存。";
     public static final String INVALID_TIME_GRANULARITY_COPY = "项目时间只能使用整点或半点，请调整后再保存。";
     public static final String CROSS_MIDNIGHT_COPY = "项目不能跨午夜，请调整日期或时间。";
-
-    /** 训练部位连续两天文案。 */
-    public static final String BODY_PART_CONSECUTIVE_COPY = "同一主要训练部位不宜连续两天安排，请错开训练部位。";
 
     /** 资源资格文案。 */
     public static final String RESOURCE_NOT_PLAN_READY_COPY = "计划中引用了暂不具备自动计划资格的动作。";
@@ -118,7 +114,6 @@ public class PlanValidationService {
 
         hits.addAll(checkAge(profile, safeItems));
         hits.addAll(checkScheduleOverlap(safeItems));
-        hits.addAll(checkBodyPartConsecutive(safeItems));
         hits.addAll(checkEnergyRange(profile, safeItems));
         hits.addAll(checkMealTimeWindow(safeItems));
         hits.addAll(checkResources(safeItems, catalog));
@@ -210,27 +205,6 @@ public class PlanValidationService {
 
     /** 分钟级时间区间（跨午夜已拆段；date 由分桶键承载，detail 记录真实瞬间）。 */
     private record Interval(PlanItemDraft item, int start, int end) {
-    }
-
-    /** 同一主训练部位不得安排连续两天。 */
-    private List<RuleHit> checkBodyPartConsecutive(List<PlanItemDraft> items) {
-        Map<String, List<LocalDate>> datesByPart = new HashMap<>();
-        for (PlanItemDraft item : items) {
-            if (item.isExercise() && item.bodyPart() != null) {
-                datesByPart.computeIfAbsent(item.bodyPart(), key -> new ArrayList<>()).add(item.localDate());
-            }
-        }
-        List<RuleHit> hits = new ArrayList<>();
-        for (Map.Entry<String, List<LocalDate>> entry : datesByPart.entrySet()) {
-            List<LocalDate> dates = entry.getValue().stream().sorted().toList();
-            for (int i = 1; i < dates.size(); i++) {
-                if (ChronoUnit.DAYS.between(dates.get(i - 1), dates.get(i)) == 1) {
-                    hits.add(hit("BODY_PART_CONSECUTIVE", HealthRiskLevel.BLOCK_PLAN, BODY_PART_CONSECUTIVE_COPY,
-                            "bodyPart=" + entry.getKey() + ", dates=" + dates.get(i - 1) + "," + dates.get(i)));
-                }
-            }
-        }
-        return hits;
     }
 
     /** 餐食只校验日能量区间（每餐 caloriesKcal 之和 ∈ [low, high]），越界为 WARNING。 */
