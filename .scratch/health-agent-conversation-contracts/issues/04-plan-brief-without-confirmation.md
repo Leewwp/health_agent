@@ -1,7 +1,7 @@
 # 无确认步骤的餐食/训练计划简报与生成
 
 Type: task
-Status: ready-for-agent
+Status: resolved / ready-for-human
 Blocked by: none
 Priority: P0
 GitHub: https://github.com/Leewwp/health_agent/issues/104
@@ -26,3 +26,14 @@ GitHub: https://github.com/Leewwp/health_agent/issues/104
 删除确认状态时需评估现有持久化数据兼容和写入清理；不新增数据库迁移来重建另一套状态。
 
 餐次传递、单餐/双餐热量归一化、餐食跨日软多样性和综合计划有序收集沿用前置实现票 [#102](https://github.com/Leewwp/health_agent/issues/102)，本票不得回退这些不变量。
+
+## 实现与验收记录（2026-08-28）
+
+- 模型层：`PlanBrief`/`MealPlanBrief` 删除 `confirmed/confirmationVersion/confirmedAt` 字段及 `confirm()/isConfirmedAndComplete()/invalidate()`；完整性判定统一为 `isComplete()`。
+- 服务层：`PlanBriefService`/`MealPlanBriefService` 删除确认分支与 `isConfirmation`，`UpdateResult` 去掉 `confirmedNow`。
+- 编排层：简报完整即提供"开始生成（GENERATE_PLAN）+ 补充（CONTINUE_*_PLAN_BRIEF）"两个动作，无确认按钮/确认文案/确认阶段；`HealthNextAction.CONFIRM_PLAN_BRIEF` 枚举删除。
+- 生成门槛：`TrainingPlanGenerationService.requireCompleteBrief`、`MealPlanGenerationService`、`CompositePlanGenerationService`、`WeeklyPlanService.persistScopedGeneratedDraft` 全部改为"服务端重读会话 + `isComplete()` + 目标周一致"，生成 metadata 不再写任何确认版本。
+- 持久化兼容：`HealthSessionService` 不再写入确认字段；旧会话 JSON 中的 `confirmed/confirmationVersion/confirmedAt` 读取时忽略（无迁移、无新表）。
+- 前端：chat.js 删除确认动作处理，GENERATE_PLAN 动作文案"开始生成"；plans.js 文案改为"从当前聊天简报生成/正在读取当前简报"。
+- 不变量回归：餐食计划只生成所选 `mealTimes` 并按所选餐次归一化热量、七天优先换餐、综合计划餐食→训练有序收集与两侧隔离均保持（`MealPlanPickerTest`、`WeeklyPlanComposerServiceTest`、编排器同构测试继续通过）。
+- 测试：`HealthOrchestratorServiceTest`（38：餐食简报完整即开始生成+补充、综合两侧完整后开始生成+单侧修改即时生效、训练简报完整出现开始生成+字段纠正即时生效）、`PlanBriefServiceTest`、`MealPlanBriefServiceTest`、`WeeklyPlanServiceTest`、`HealthPlanRiskGuardControllerTest`、前端 `chat-plan-actions.test.mjs`（完整时只出现开始生成/补充且无"确认"）同步改写。

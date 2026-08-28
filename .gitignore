@@ -55,3 +55,5 @@ data/exercise/raw/exercises.json
 
 # 本地一键启停脚本运行时产物（后端/构建日志、pid、生成的 nginx 配置）
 .local-run/
+
+.workbuddy/

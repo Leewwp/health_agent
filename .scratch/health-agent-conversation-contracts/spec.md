@@ -1,6 +1,8 @@
 # 健康聊天显式任务路由与计划生成约束规格
 
-Status: ready-for-agent
+Status: implemented / ready-for-human
+
+实现状态：#104/#105/#106/#108 的代码、自动化测试与真实浏览器验收已完成；#107 输出独立研究文档（[`research/routine-grounded-docs-future.md`](research/routine-grounded-docs-future.md)）并明确本轮不实现。验收证据见各 issue 文件与 `docs/frontend-browser-acceptance.md`。
 
 ## Problem Statement
 

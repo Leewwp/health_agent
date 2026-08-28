@@ -48,6 +48,7 @@ public class RoutineModule {
         map.put("午休", "午睡");
         map.put("训练", "训练时段");
         map.put("运动", "训练时段");
+        map.put("锻炼", "训练时段");
         map.put("生物钟", "作息规律");
         map.put("规律", "作息规律");
         map.put("睡眠", "睡眠");

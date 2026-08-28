@@ -179,7 +179,7 @@ class MysqlTransactionIntegrationTest {
                 candidate.tags().get("difficulty").get(0), MON,
                 List.of(DayOfWeek.MONDAY),
                 new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
-                Map.of(), true, 1, LocalDateTime.now());
+                Map.of(), null, 0, null);
         sessionService.save(HealthSessionState.fresh(sessionId, USER).withPlanBrief(brief));
         return sessionId;
     }

@@ -20,16 +20,8 @@ public class MealPlanBriefService {
     public UpdateResult update(MealPlanBrief current, String input) {
         MealPlanBrief base = current == null ? MealPlanBrief.empty() : current;
         String text = input == null ? "" : input.trim();
-        if (isConfirmation(text)) {
-            if (base.isComplete()) {
-                return new UpdateResult(base.confirm(), true, BriefInterpretationStatus.EXTRACTED,
-                        missing(base), "", false);
-            }
-            return new UpdateResult(base, false, BriefInterpretationStatus.PARTIAL,
-                    missing(base), guidance(firstMissing(base)), false);
-        }
         if (isUnrelated(text)) {
-            return new UpdateResult(base, false, BriefInterpretationStatus.UNRELATED,
+            return new UpdateResult(base, BriefInterpretationStatus.UNRELATED,
                     missing(base), "已保留当前未完成的餐食简报，先处理你刚才的新话题。", false);
         }
 
@@ -37,11 +29,11 @@ public class MealPlanBriefService {
         List<String> mealTimes = parseMealTimes(text);
         String healthGoal = parseGoal(text);
         if (weekStart == null && mealTimes.isEmpty() && healthGoal == null) {
-            return new UpdateResult(base, false, BriefInterpretationStatus.INVALID,
+            return new UpdateResult(base, BriefInterpretationStatus.INVALID,
                     missing(base), guidance(firstMissing(base)), looksLikeMealInput(text));
         }
         MealPlanBrief merged = base.withValues(weekStart, mealTimes, healthGoal);
-        return new UpdateResult(merged, false, BriefInterpretationStatus.EXTRACTED,
+        return new UpdateResult(merged, BriefInterpretationStatus.EXTRACTED,
                 missing(merged), guidance(firstMissing(merged)), true);
     }
 
@@ -66,11 +58,6 @@ public class MealPlanBriefService {
         return !parseMealTimes(text).isEmpty()
                 || text.contains("餐食") || text.contains("饮食") || text.contains("吃什么")
                 || text.contains("减脂") || text.contains("增肌");
-    }
-
-    private boolean isConfirmation(String text) {
-        return text.contains("确认") && (text.contains("餐食") || text.contains("饮食")
-                || text.contains("简报") || text.contains("计划"));
     }
 
     private boolean isUnrelated(String text) {
@@ -128,7 +115,7 @@ public class MealPlanBriefService {
         };
     }
 
-    public record UpdateResult(MealPlanBrief brief, boolean confirmedNow, BriefInterpretationStatus status,
+    public record UpdateResult(MealPlanBrief brief, BriefInterpretationStatus status,
                                List<String> missingFields, String guidance, boolean agentEligible) {
         public UpdateResult {
             missingFields = missingFields == null ? List.of() : List.copyOf(missingFields);

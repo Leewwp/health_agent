@@ -232,6 +232,38 @@ class MysqlReviewedReadersIntegrationTest {
     }
 
     @Test
+    void 餐食与动作名称搜索支持中英文并保持审核边界() {
+        // #105：名称搜索 SQL name/name_en LIKE 在真库验证中英文命中，且只返回 APPROVED + PUBLIC 行。
+        try {
+            long approvedMeal = insertMeal("q-zh", "APPROVED", "PUBLIC", null, "[\"早餐\"]", "[]");
+            jdbc.update("UPDATE meal_item SET name = '宫保鸡丁', name_en = 'Kung Pao Chicken' WHERE id = ?", approvedMeal);
+            long pendingMeal = insertMeal("q-pending", "PENDING", "PUBLIC", null, "[\"早餐\"]", "[]");
+            jdbc.update("UPDATE meal_item SET name = '宫保鸡丁副本', name_en = 'Kung Pao Copy' WHERE id = ?", pendingMeal);
+            long exerciseId = insertExercise("q-exercise", "APPROVED");
+            jdbc.update("UPDATE exercise_item SET name = 'itest 俯卧撑变式', name_en = 'Itest Push Up Variant' WHERE id = ?", exerciseId);
+
+            assertEquals(List.of(approvedMeal),
+                    mealReader.browse(0, 20, null, false, "宫保鸡丁", Map.of()).stream().map(ReviewedMeal::id).toList(),
+                    "中文名必须命中，且 PENDING 同名行不得返回");
+            assertEquals(List.of(approvedMeal),
+                    mealReader.browse(0, 20, null, false, "Kung Pao", Map.of()).stream().map(ReviewedMeal::id).toList(),
+                    "英文名（name_en）必须命中");
+            assertEquals(1, mealReader.countPublic(null, false, "Kung Pao", Map.of()),
+                    "计数与列表必须同口径");
+            assertTrue(mealReader.browse(0, 20, null, false, "完全不存在的菜名组合", Map.of()).isEmpty(),
+                    "无关搜索词必须返回空");
+
+            List<Long> exerciseHits = exerciseReader.browse(0, 50, null, false, "Push Up Variant", Map.of())
+                    .stream().map(ReviewedExercise::id).toList();
+            assertTrue(exerciseHits.contains(exerciseId), "动作英文名搜索必须命中自造行");
+        } finally {
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
+            jdbc.update("DELETE FROM exercise_item WHERE source_name = ?", ITEST_EXERCISE_SOURCE);
+        }
+        assertEquals(295, mealReader.countPublic(), "清理后必须恢复 295 基线");
+    }
+
+    @Test
     void 餐食分页id升序稳定且翻页不重不漏() {
         List<ReviewedMeal> snapshot = mealReader.snapshotAll();
         assertEquals(295, snapshot.size(), "审核餐食发布基线 295 条");

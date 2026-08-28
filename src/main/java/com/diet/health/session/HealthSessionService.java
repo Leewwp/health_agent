@@ -160,9 +160,8 @@ public class HealthSessionService {
         ObjectNode constraints = objectMapper.createObjectNode();
         brief.hardConstraints().forEach((key, value) -> constraints.set(key, objectMapper.valueToTree(value)));
         node.set("hardConstraints", constraints);
-        node.put("confirmed", brief.confirmed());
-        node.put("confirmationVersion", brief.confirmationVersion());
-        if (brief.confirmedAt() != null) node.put("confirmedAt", brief.confirmedAt().toString());
+        // 简报没有独立确认状态（ADR-0016）：不再写入 confirmed/confirmationVersion/confirmedAt，
+        // 旧会话 JSON 中的这些字段在读取时被忽略。
         if (brief.expectedField() != null) node.put("expectedField", brief.expectedField());
         node.put("failedAttempts", brief.failedAttempts());
         if (brief.partialStartTime() != null) node.put("partialStartTime", brief.partialStartTime().toString());
@@ -174,9 +173,6 @@ public class HealthSessionService {
         if (brief.weekStart() != null) node.put("weekStart", brief.weekStart().toString());
         node.set("mealTimes", objectMapper.valueToTree(brief.mealTimes()));
         node.put("healthGoal", brief.healthGoal());
-        node.put("confirmed", brief.confirmed());
-        node.put("confirmationVersion", brief.confirmationVersion());
-        if (brief.confirmedAt() != null) node.put("confirmedAt", brief.confirmedAt().toString());
         return node;
     }
 
@@ -244,15 +240,13 @@ public class HealthSessionService {
             if (windowNode.isObject()) {
                 windowNode.fields().forEachRemaining(entry -> constraints.put(entry.getKey(), readStringList(entry.getValue())));
             }
-            boolean confirmed = node.path("confirmed").asBoolean(false);
-            long version = node.path("confirmationVersion").asLong(0);
-            LocalDateTime confirmedAt = node.hasNonNull("confirmedAt") ? LocalDateTime.parse(node.get("confirmedAt").asText()) : null;
+            // 旧会话 JSON 可能仍带 confirmed/confirmationVersion/confirmedAt，读取时忽略（无确认语义）。
             String expectedField = textOrNull(node, "expectedField");
             int failedAttempts = node.path("failedAttempts").asInt(0);
             LocalTime partialStartTime = node.hasNonNull("partialStartTime")
                     ? LocalTime.parse(node.get("partialStartTime").asText()) : null;
             return new PlanBrief(goal, bodyParts, equipment, difficulty, weekStart, days, window, constraints,
-                    confirmed, version, confirmedAt, expectedField, failedAttempts, partialStartTime);
+                    expectedField, failedAttempts, partialStartTime);
         } catch (Exception ignored) {
             return PlanBrief.empty();
         }
@@ -264,11 +258,8 @@ public class HealthSessionService {
             LocalDate weekStart = node.hasNonNull("weekStart") ? LocalDate.parse(node.get("weekStart").asText()) : null;
             List<String> mealTimes = readStringList(node.path("mealTimes"));
             String goal = textOrNull(node, "healthGoal");
-            boolean confirmed = node.path("confirmed").asBoolean(false);
-            long version = node.path("confirmationVersion").asLong(0);
-            LocalDateTime confirmedAt = node.hasNonNull("confirmedAt")
-                    ? LocalDateTime.parse(node.get("confirmedAt").asText()) : null;
-            return new MealPlanBrief(weekStart, mealTimes, goal, confirmed, version, confirmedAt);
+            // 旧会话 JSON 可能仍带 confirmed/confirmationVersion/confirmedAt，读取时忽略（无确认语义）。
+            return new MealPlanBrief(weekStart, mealTimes, goal);
         } catch (Exception ignored) {
             return MealPlanBrief.empty();
         }

@@ -3,26 +3,25 @@ package com.diet.health.plan;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-/** 独立餐食计划简报，不复用训练字段。 */
+/**
+ * 独立餐食计划简报，不复用训练字段。
+ * 简报只表达"当前整理出的条件"，没有独立的用户确认状态或确认版本；
+ * 开始生成时由服务端重新读取并校验完整性（ADR-0016）。
+ */
 public record MealPlanBrief(
         LocalDate weekStart,
         List<String> mealTimes,
-        String healthGoal,
-        boolean confirmed,
-        long confirmationVersion,
-        LocalDateTime confirmedAt
+        String healthGoal
 ) {
     public MealPlanBrief {
         mealTimes = mealTimes == null ? List.of() : List.copyOf(new LinkedHashSet<>(mealTimes));
-        confirmationVersion = Math.max(0, confirmationVersion);
     }
 
     public static MealPlanBrief empty() {
-        return new MealPlanBrief(null, List.of(), null, false, 0, null);
+        return new MealPlanBrief(null, List.of(), null);
     }
 
     @JsonIgnore
@@ -30,25 +29,9 @@ public record MealPlanBrief(
         return weekStart != null && !mealTimes.isEmpty() && healthGoal != null && !healthGoal.isBlank();
     }
 
-    @JsonIgnore
-    public boolean isConfirmedAndComplete() {
-        return isComplete() && confirmed && confirmationVersion > 0;
-    }
-
-    public MealPlanBrief invalidate() {
-        return new MealPlanBrief(weekStart, mealTimes, healthGoal, false,
-                confirmationVersion, null);
-    }
-
     public MealPlanBrief withValues(LocalDate nextWeekStart, List<String> nextMealTimes, String nextHealthGoal) {
         return new MealPlanBrief(nextWeekStart == null ? weekStart : nextWeekStart,
                 nextMealTimes == null || nextMealTimes.isEmpty() ? mealTimes : nextMealTimes,
-                nextHealthGoal == null || nextHealthGoal.isBlank() ? healthGoal : nextHealthGoal,
-                false, confirmationVersion, null);
-    }
-
-    public MealPlanBrief confirm() {
-        return new MealPlanBrief(weekStart, mealTimes, healthGoal, true,
-                confirmationVersion + 1, LocalDateTime.now());
+                nextHealthGoal == null || nextHealthGoal.isBlank() ? healthGoal : nextHealthGoal);
     }
 }

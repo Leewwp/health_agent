@@ -176,14 +176,13 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 MON,
                 List.of(DayOfWeek.MONDAY),
                 new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)),
-                Map.of(), true, 1, LocalDateTime.now());
+                Map.of(), null, 0, null);
         sessionService.save(com.diet.health.session.HealthSessionState.fresh(sessionId, USER).withPlanBrief(brief));
         return brief;
     }
 
     private MealPlanBrief saveConfirmedMealBrief(String sessionId) {
-        MealPlanBrief brief = new MealPlanBrief(MON, List.of("早餐", "午餐", "晚餐"), "保持健康",
-                true, 1, LocalDateTime.now());
+        MealPlanBrief brief = new MealPlanBrief(MON, List.of("早餐", "午餐", "晚餐"), "保持健康");
         sessionService.save(com.diet.health.session.HealthSessionState.fresh(sessionId, USER)
                 .withMealPlanBrief(brief));
         return brief;

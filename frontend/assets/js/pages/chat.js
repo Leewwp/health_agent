@@ -23,14 +23,16 @@ import { bindDrawer } from "../ui/detail-drawer.js";
 import { renderPlanActions } from "../ui/plan-actions.js";
 import { navigate } from "../router.js";
 import { devConfig } from "../config.js";
-import { createChatRequestController, submitPresetChatMessage } from "./chat-request.js";
+import { createChatRequestController } from "./chat-request.js";
 import { formatSlotSummary, slotLabel } from "../ui/health-slot-labels.js";
 
+// 快捷问题首批五个基础入口：三类计划 + 两类单次推荐，后续可扩展（ADR-0016）。
 const QUICK_PROMPTS = [
+    "帮我安排一下这周的餐食计划",
+    "帮我安排一下这周的健身计划",
+    "帮我制定一份饮食和训练的综合计划",
     "今晚想吃得清淡一点，有什么推荐？",
-    "帮我推荐一份适合新手的轻量训练",
-    "晚上几点前应该停止喝咖啡？",
-    "帮我安排一下这周的健身计划"
+    "帮我推荐一份适合新手的轻量训练"
 ];
 
 const state = {
@@ -297,15 +299,7 @@ function handleClick(event) {
         navigate("/admin/traces");
     } else if (target.dataset.action === "plan-action") {
         const action = target.dataset.planAction;
-        if (action === "CONFIRM_PLAN_BRIEF") {
-            submitPresetChatMessage(requestController, "确认训练偏好", (message) => {
-                state.messages.push({ role: "user", text: message });
-            });
-        } else if (action === "CONFIRM_MEAL_PLAN_BRIEF") {
-            submitPresetChatMessage(requestController, "确认餐食计划", (message) => {
-                state.messages.push({ role: "user", text: message });
-            });
-        } else if (action === "CONTINUE_MEAL_PLAN_BRIEF") {
+        if (action === "CONTINUE_PLAN_BRIEF" || action === "CONTINUE_MEAL_PLAN_BRIEF") {
             document.querySelector("#chatForm textarea[name=message]")?.focus();
         } else if (action === "GENERATE_PLAN") {
             const requestId = target.dataset.requestId || "";

@@ -49,7 +49,7 @@ class TrainingPlanGenerationServiceTest {
     private static final PlanBrief BRIEF = new PlanBrief(
             "保持健康", List.of("胸"), List.of("徒手"), "入门", MONDAY,
             List.of(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.WEDNESDAY, java.time.DayOfWeek.FRIDAY),
-            new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), Map.of(), true, 1, null);
+            new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), Map.of(), null, 0, null);
     private static final HealthProfileService.HealthProfileView PROFILE = new HealthProfileService.HealthProfileView(
             1L, 30, ProfileSex.MALE, 175.0, 70.0, ActivityLevel.LIGHT, ProfileGoal.MAINTAIN,
             "Asia/Shanghai", 1200, 1800, true, 1L, "basis", List.of(), null);
@@ -62,6 +62,7 @@ class TrainingPlanGenerationServiceTest {
     private TrainingPlanGenerationService service;
     private List<PlanItemDraft> persistedItems;
     private Map<String, Object> persistedMetadata;
+    private String persistedExplanation;
 
     @BeforeEach
     void setUp() {
@@ -70,6 +71,7 @@ class TrainingPlanGenerationServiceTest {
         profileService = mock(HealthProfileService.class);
         weeklyPlanService = mock(WeeklyPlanService.class);
         persistedItems = new ArrayList<>();
+        persistedExplanation = null;
         traceMapper = new FakeAgentTraceMapper(objectMapper);
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(BRIEF));
@@ -80,6 +82,7 @@ class TrainingPlanGenerationServiceTest {
                     persistedItems.addAll(invocation.getArgument(2));
                     String source = invocation.getArgument(3);
                     persistedMetadata = invocation.getArgument(4);
+                    persistedExplanation = invocation.getArgument(5);
                     return new PlanView(42L, PlanStatus.DRAFT, MONDAY, "Asia/Shanghai", 1L,
                             1200, 1800, PlanValidationService.RULES_VERSION, PlanValidationLevel.OK,
                             List.of(), null, 1L, List.of(), false, "已生成", source, null);
@@ -262,7 +265,7 @@ class TrainingPlanGenerationServiceTest {
         PlanBrief excluded = new PlanBrief(
                 BRIEF.trainingGoal(), BRIEF.bodyParts(), BRIEF.equipment(), BRIEF.difficulty(), BRIEF.weekStart(),
                 BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of("excludeExercises", List.of("9001")),
-                true, 2, java.time.LocalDateTime.now());
+                null, 0, null);
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(excluded));
 
@@ -276,23 +279,77 @@ class TrainingPlanGenerationServiceTest {
     }
 
     @Test
-    void 全身减脂入门在严格目标无候选时拒绝错误匹配() {
-        PlanBrief wholeBodyFatLoss = new PlanBrief(
-                "减脂", List.of("全身"), List.of("徒手"), "入门", BRIEF.weekStart(),
-                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), true, 2, java.time.LocalDateTime.now());
+    void 全身简报零候选时不自动放宽并说明约束维度() {
+        // 全身 + 哑铃在审核库中没有候选：旧实现会把任意单部位哑铃动作当作全身候选，新实现必须拒绝。
+        PlanBrief wholeBodyDumbbell = new PlanBrief(
+                "保持健康", List.of("全身"), List.of("哑铃"), "入门", BRIEF.weekStart(),
+                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), null, 0, null);
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
-                HealthSessionState.fresh("sess-training", 1L).withPlanBrief(wholeBodyFatLoss));
+                HealthSessionState.fresh("sess-training", 1L).withPlanBrief(wholeBodyDumbbell));
 
-        assertThrows(com.diet.exception.HealthApiException.class, () -> createService("{\"schedule\":["
-                + schedule("9001", MONDAY) + "]}").generate(1L,
-                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-goal")));
+        com.diet.exception.HealthApiException error = assertThrows(com.diet.exception.HealthApiException.class,
+                () -> createService("{\"schedule\":[" + schedule("9007", MONDAY) + "]}").generate(1L,
+                        new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-goal")));
+        assertEquals(com.diet.exception.HealthApiException.CODE_CONFLICT, error.code());
+        assertTrue(error.getMessage().contains("部位"), error.getMessage());
+        assertTrue(error.getMessage().contains("难度"), error.getMessage());
+        org.mockito.Mockito.verify(weeklyPlanService, org.mockito.Mockito.never())
+                .persistGeneratedDraft(anyLong(), any(), any(), anyString(), any(), anyString());
+    }
+
+    @Test
+    void 全身简报只命中明确全身标签且单部位动作被拒绝() {
+        // Agent 输出胸部/腿部动作：不在全身候选白名单内，必须降级到唯一全身候选 9009 并复用。
+        PlanBrief wholeBody = new PlanBrief(
+                "保持健康", List.of("全身"), List.of("徒手"), "入门", BRIEF.weekStart(),
+                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), null, 0, null);
+        when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
+                HealthSessionState.fresh("sess-training", 1L).withPlanBrief(wholeBody));
+
+        TrainingPlanGenerationResponse response = createService("{\"schedule\":["
+                + schedule("9001", MONDAY) + "," + schedule("9002", MONDAY.plusDays(2)) + ","
+                + schedule("9004", MONDAY.plusDays(4)) + "]}")
+                .generate(1L, new GenerateTrainingPlanRequest("sess-training", "training-request-whole-body"));
+
+        assertEquals("FALLBACK", response.generationSource(), "单部位动作不得进入全身计划");
+        List<PlanItemDraft> exercises = persistedItems.stream().filter(PlanItemDraft::isExercise).toList();
+        assertEquals(List.of(MONDAY, MONDAY.plusDays(2), MONDAY.plusDays(4)),
+                exercises.stream().map(PlanItemDraft::localDate).toList(), "所有指定训练日都必须有安排");
+        assertTrue(exercises.stream().allMatch(item -> "9009".equals(item.resourceId())),
+                "全身简报只能使用明确归一为全身的候选");
+        assertTrue(persistedExplanation.contains("候选不足") || persistedExplanation.contains("复用"),
+                "候选不足必须明确说明：" + persistedExplanation);
+    }
+
+    @Test
+    void 唯一候选按全部指定训练日复用并明确提示候选不足() {
+        // 背 + 弹力带 + 力量 只命中 9007：候选数少于训练日数，允许复用且必须说明候选不足。
+        PlanBrief backBand = new PlanBrief(
+                "力量", List.of("背"), List.of("弹力带"), "入门", BRIEF.weekStart(),
+                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), null, 0, null);
+        when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
+                HealthSessionState.fresh("sess-training", 1L).withPlanBrief(backBand));
+
+        TrainingPlanGenerationResponse response = createService("{\"schedule\":["
+                + schedule("9007", MONDAY) + "," + schedule("9007", MONDAY.plusDays(2)) + ","
+                + schedule("9007", MONDAY.plusDays(4)) + "]}")
+                .generate(1L, new GenerateTrainingPlanRequest("sess-training", "training-request-unique-candidate"));
+
+        assertEquals("AGENT", response.generationSource());
+        List<PlanItemDraft> exercises = persistedItems.stream().filter(PlanItemDraft::isExercise).toList();
+        assertEquals(List.of(MONDAY, MONDAY.plusDays(2), MONDAY.plusDays(4)),
+                exercises.stream().map(PlanItemDraft::localDate).toList());
+        assertTrue(exercises.stream().allMatch(item -> "9007".equals(item.resourceId())),
+                "唯一候选允许覆盖全部指定训练日");
+        assertTrue(persistedExplanation.contains("候选不足") || persistedExplanation.contains("复用"),
+                "唯一候选复用必须说明候选不足：" + persistedExplanation);
     }
 
     @Test
     void 精确难度无候选时拒绝错误匹配() {
         PlanBrief challenge = new PlanBrief(
                 "增肌", List.of("胸"), List.of("徒手"), "挑战", BRIEF.weekStart(),
-                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), true, 2, java.time.LocalDateTime.now());
+                BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), null, 0, null);
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(challenge));
 

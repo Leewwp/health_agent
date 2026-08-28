@@ -8,6 +8,16 @@
 
 ## Notes
 
+## 2026-08-28 显式任务路由与计划生成约束实现收口（#103/#104-#108）
+
+- 规格见 [`health-agent-conversation-contracts/spec.md`](../health-agent-conversation-contracts/spec.md)（状态 `implemented / ready-for-human`），子票验收记录见同目录 [`issues/01..05`](../health-agent-conversation-contracts/map.md)；#107 产出独立研究文档 [`research/routine-grounded-docs-future.md`](../health-agent-conversation-contracts/research/routine-grounded-docs-future.md)，本轮不实现文档/RAG。
+- #104：`PlanBrief`/`MealPlanBrief` 删除确认字段与确认版本，编排器简报完整即提供"开始生成 + 补充"，生成入口（训练/餐食/综合/WeeklyPlanService）全部改为服务端重读 + `isComplete()` 校验；旧会话 JSON 确认字段读取时忽略，无迁移。
+- #106：新增 `HealthTaskEvidence` 任务词门槛（IntentRuleService 与 IntentRevisionService 共享），新会话槽位短句统一 `OTHER + CHAT` 澄清；"锻炼"补入作息路由；快捷问题五入口；无计划词综合引导保持 `COMPOSITE + RECOMMEND`（与 health-eval-v2 基准一致）。
+- #108：移除训练候选 `allBody` 旁路（"全身"只命中明确全身标签，种子新增 9009 开合跳），零候选不放宽并说明四维约束，唯一候选按日复用并明确提示，多难度冲突保留已有值并提示"只能选择一个难度"（Agent 路径同规则）。
+- #105：浏览页改为唯一路由事件委托（`#app` 上仅一套共享监听器，按当前路由分发），前端新增真实模块行为测试 `browse-search.test.mjs`；后端补 Controller/Reader q 透传与真库中英文名称搜索用例。
+- 自动化证据：`mvn test` 748（748 过/45 环境门控跳过）；`mvn test -Ditest.mysql=true` 748（744 过，仅 4 个 Qdrant/真模型门控跳过，40+ 真实 MySQL 场景执行，含新增名称搜索用例）；`node --test frontend/tests/*.test.mjs` 33/33；`docker compose config --quiet` 通过；`git diff --check` 通过。Qdrant 与真实模型门控保持独立跳过（本机无 Qdrant 服务、无可用 key），未通过跳过掩盖失败。
+- 真实浏览器验收记录见 `docs/frontend-browser-acceptance.md`（桌面 + 390×844）。
+
 ## 2026-08-28 健康聊天显式任务路由与计划生成约束
 
 - 本轮规格见 [`health-agent-conversation-contracts/spec.md`](../health-agent-conversation-contracts/spec.md)，决策地图见 [`health-agent-conversation-contracts/map.md`](../health-agent-conversation-contracts/map.md)。

@@ -6,7 +6,6 @@ public enum HealthNextAction {
     WAIT_USER,
     /** 需要用户回答问题。 */
     ASK_CLARIFY
-    ,CONFIRM_PLAN_BRIEF
     ,COMPLETE_PROFILE
     ,GENERATE_PLAN
     ,VIEW_TRACE,

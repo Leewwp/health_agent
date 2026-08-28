@@ -90,7 +90,7 @@ export async function render(app) {
 
 function renderPage() {
     if (!state.summaries.length) {
-        return `<section class="section"><div class="empty"><strong>还没有周计划</strong><p>从已确认的聊天简报生成第一份草稿。</p><a class="btn primary" href="#/chat">从聊天生成</a></div></section>`;
+        return `<section class="section"><div class="empty"><strong>还没有周计划</strong><p>从当前聊天简报生成第一份草稿。</p><a class="btn primary" href="#/chat">从聊天生成</a></div></section>`;
     }
     return `<section class="mp-production" aria-labelledby="plans-title">${state.detail ? renderWorkspace(state.detail) : `<div class="empty">请选择一份计划。</div>`}${state.picker ? renderPicker() : ""}</section>`;
 }
@@ -297,7 +297,7 @@ function timeMinutes(value) { const [hour, minute] = shortTime(value).split(":")
 function timeValue(value) { return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`; }
 function positiveInteger(value) { const number = Number(value); return Number.isInteger(number) && number > 0 ? number : null; }
 
-function generationState() { return `<section class="section"><div class="empty" aria-live="polite" aria-busy="true"><span class="loading-spinner" aria-hidden="true"></span><strong>正在生成计划草稿</strong><p class="muted">正在读取确认简报和审核资源。</p></div></section>`; }
+function generationState() { return `<section class="section"><div class="empty" aria-live="polite" aria-busy="true"><span class="loading-spinner" aria-hidden="true"></span><strong>正在生成计划草稿</strong><p class="muted">正在读取当前简报和审核资源。</p></div></section>`; }
 function generationError() { return `<section class="section"><div class="empty"><strong>计划生成失败</strong><p class="muted">${escapeHtml(state.generationError)}</p><div class="button-row"><button class="btn primary" data-plan-action="retry-generation">重新生成</button><a class="btn ghost" href="#/chat">返回聊天</a><a class="btn soft" href="#/profile">完善档案</a></div></div></section>`; }
 
 function appendPlanKey(hash) {

@@ -55,11 +55,12 @@ public class CompositePlanGenerationService {
         if (ChatIdempotencySupport.hasSnapshot(previous)) {
             return ChatIdempotencySupport.restore(objectMapper, previous.getResponseJson(), TrainingPlanGenerationResponse.class);
         }
-        if (session.planBrief() == null || !session.planBrief().isConfirmedAndComplete()
-                || session.mealPlanBrief() == null || !session.mealPlanBrief().isConfirmedAndComplete()
+        // 生成前服务端重读会话并校验两侧简报完整性与目标周一致；不再存在确认字段或确认版本。
+        if (session.planBrief() == null || !session.planBrief().isComplete()
+                || session.mealPlanBrief() == null || !session.mealPlanBrief().isComplete()
                 || !session.planBrief().weekStart().equals(session.mealPlanBrief().weekStart())) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT,
-                    "综合计划必须分别完成并确认训练和餐食简报");
+                    "综合计划必须分别整理完整的训练和餐食简报，且目标周一致");
         }
         HealthProfileService.HealthProfileView profile = profileService.getProfile(userId);
         LocalDate weekStart = session.planBrief().weekStart();
@@ -76,8 +77,6 @@ public class CompositePlanGenerationService {
         try (AgentTraceService.TraceScope scope = traceService.openTrace(traceId, session.sessionId(), userId, request.requestId())) {
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("planScope", PlanScope.COMPOSITE.name());
-            metadata.put("exerciseBriefConfirmationVersion", session.planBrief().confirmationVersion());
-            metadata.put("mealBriefConfirmationVersion", session.mealPlanBrief().confirmationVersion());
             metadata.put("mealTimes", mealBrief.mealTimes());
             metadata.put("calorieAllocation", "按早餐/午餐/晚餐 30/40/30 权重对已选餐次归一化");
             metadata.put("generationSource", "COMPOSITE_RULE_MERGE");

@@ -376,7 +376,8 @@ class HealthOrchestratorServiceTest {
 
     @Test
     void 新手轻量训练经常见部位短答完成健身推荐() {
-        for (String bodyPart : List.of("胸肌", "胸部", "胸大肌", "大腿", "小腿", "腿部", "臀部", "臀肌", "臀大肌")) {
+        // 种子库中没有“减脂+胸/臀+徒手+入门”候选：短答后仍无结果，只能提供追加条件操作。
+        for (String bodyPart : List.of("胸肌", "胸部", "胸大肌", "臀部", "臀肌", "臀大肌")) {
             String sessionId = "sess_exercise_alias_" + bodyPart;
             HealthChatResponse first = chatInSession(sessionId, "帮我推荐一份减脂、徒手、适合新手的轻量训练");
             assertEquals(HealthResponseType.CLARIFY, first.responseType());
@@ -390,6 +391,20 @@ class HealthOrchestratorServiceTest {
             assertTrue(second.actions().stream().anyMatch(action -> "APPEND_SLOT".equals(action.type())), bodyPart);
             assertTrue(second.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())), bodyPart);
         }
+    }
+
+    @Test
+    void 腿部短答在存在全身减脂候选时返回动作卡() {
+        // 9009 开合跳（全身/徒手/入门/减脂）加入种子后，“减脂+腿”短答应直接给出动作结果。
+        String sessionId = "sess_exercise_alias_legs";
+        chatInSession(sessionId, "帮我推荐一份减脂、徒手、适合新手的轻量训练");
+
+        HealthChatResponse second = chatInSession(sessionId, "大腿");
+        assertEquals(HealthResponseType.ANSWER, second.responseType());
+        assertEquals("EXERCISE", second.domain().name());
+        assertFalse(second.displayBlocks().isEmpty());
+        assertTrue(second.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())),
+                second.toString());
     }
 
     @Test
@@ -508,7 +523,95 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
-    void 一周餐食计划进入独立餐食简报并单独确认() {
+    void 新会话模糊短句返回OTHER领域澄清且不携带资源卡() {
+        // ADR-0016：新会话只有明确任务词才进入推荐；槽位别名短句不猜测领域。
+        for (String input : List.of("清淡一点", "入门徒手", "便利店速食", "胸肌")) {
+            HealthChatResponse response = chat(input);
+            assertEquals(HealthResponseType.CLARIFY, response.responseType(), input);
+            assertEquals("OTHER", response.domain().name(), input);
+            assertEquals("CHAT", response.task().name(), input);
+            assertTrue(response.displayBlocks().isEmpty(), input + " 不得返回任何资源卡");
+            assertTrue(response.speechText().contains("餐食推荐"), input + " 应给出领域澄清提示");
+            HealthSessionState state = sessionService.loadOrCreate(response.sessionId(), 1L);
+            assertTrue(state.slots().isEmpty(), input + " 不得把模糊短句写成会话槽位");
+        }
+    }
+
+    @Test
+    void 五类明确任务词仍进入正确领域与任务() {
+        assertEquals("MEAL", chat("今晚想吃清淡的").domain().name());
+        assertEquals("EXERCISE", chat("帮我推荐一份适合新手的轻量训练").domain().name());
+        assertEquals("PLAN", chat("帮我安排一下这周的餐食计划").task().name());
+        assertEquals("PLAN", chat("帮我安排一下这周的健身计划").task().name());
+        HealthChatResponse composite = chat("帮我制定一份饮食和训练的综合计划");
+        assertEquals("COMPOSITE", composite.domain().name());
+        assertEquals("PLAN", composite.task().name());
+    }
+
+    @Test
+    void 训练简报澄清中的作息提问仍返回作息事实且简报暂停可恢复() {
+        // 回归：计划澄清上下文中显式提问作息事实，不得被 planContinuation 强制为 PLAN。
+        String sessionId = "sess_training_clarify_routine";
+        chatInSession(sessionId, "帮我安排一周健身计划");
+        HealthChatResponse goal = chatInSession(sessionId, "训练目标减脂");
+        assertEquals("减脂", goal.planBrief().trainingGoal(), goal.toString());
+
+        HealthChatResponse response = chatInSession(sessionId, "晚上几点后停止锻炼");
+        assertEquals("ROUTINE", response.domain().name());
+        assertEquals("RECOMMEND", response.task().name());
+        assertTrue(response.displayBlocks().stream().allMatch(block -> "ROUTINE".equals(block.resourceType())),
+                response.toString());
+
+        // 作息提问后训练简报暂停保留；裸字段走普通推荐，不恢复也不污染计划简报。
+        HealthChatResponse plain = chatInSession(sessionId, "训练目标增肌");
+        assertEquals("EXERCISE", plain.domain().name());
+        assertEquals("RECOMMEND", plain.task().name());
+
+        // 明确的继续计划表达恢复暂停的训练简报，已收集字段不丢失。
+        HealthChatResponse resume = chatInSession(sessionId, "回到训练计划");
+        assertEquals("EXERCISE", resume.domain().name());
+        assertEquals("PLAN", resume.task().name());
+        assertEquals("减脂", resume.planBrief().trainingGoal(), "恢复后的简报保持暂停前字段");
+    }
+
+    @Test
+    void 停止锻炼时段问题只返回有来源的作息事实() {
+        HealthChatResponse response = chat("晚上几点后停止锻炼");
+        assertEquals("ROUTINE", response.domain().name());
+        assertEquals("RECOMMEND", response.task().name());
+        assertFalse(response.displayBlocks().isEmpty());
+        assertTrue(response.displayBlocks().stream().allMatch(block ->
+                "ROUTINE".equals(block.resourceType())), "作息问题不得返回餐食或动作卡");
+        assertTrue(response.displayBlocks().stream().allMatch(block ->
+                block.sourceName() != null && !block.sourceName().isBlank()), "作息事实必须带来源");
+    }
+
+    @Test
+    void 餐食简报进行中显式切换训练暂停旧简报且可恢复() {
+        String sessionId = "sess_cross_domain_pause";
+        chatInSession(sessionId, "一周餐食计划");
+        HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
+        assertEquals("GENERATE_PLAN", meal.actions().get(0).type());
+
+        // 显式切换训练：旧餐食简报保留但不进入当前训练澄清。
+        HealthChatResponse training = chatInSession(sessionId, "帮我安排一周健身计划");
+        assertEquals("EXERCISE", training.domain().name());
+        assertEquals("PLAN", training.task().name());
+        assertEquals(HealthResponseType.CLARIFY, training.responseType());
+        HealthSessionState state = sessionService.loadOrCreate(sessionId, 1L);
+        assertTrue(state.mealPlanBrief().isComplete(), "切换领域只暂停简报，不清空");
+        assertFalse(state.planBrief().isComplete(), "训练简报尚未收集完成");
+
+        // 明确继续表达后恢复餐食简报，已收集条件不丢失。
+        HealthChatResponse resume = chatInSession(sessionId, "回到餐食计划");
+        assertEquals("MEAL", resume.domain().name());
+        assertEquals("PLAN", resume.task().name());
+        assertEquals("GENERATE_PLAN", resume.actions().get(0).type());
+        assertEquals(List.of("早餐", "午餐", "晚餐"), resume.mealPlanBrief().mealTimes());
+    }
+
+    @Test
+    void 一周餐食计划进入独立餐食简报且完整即提供开始生成() {
         String sessionId = "sess_meal_plan_brief";
         HealthChatResponse first = chatInSession(sessionId, "一周餐食计划");
         assertEquals(HealthResponseType.CLARIFY, first.responseType());
@@ -518,13 +621,17 @@ class HealthOrchestratorServiceTest {
 
         HealthChatResponse collected = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
         assertFalse(collected.actions().isEmpty(), collected.toString());
-        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", collected.actions().get(0).type());
+        assertEquals("GENERATE_PLAN", collected.actions().get(0).type());
+        assertEquals("开始生成", collected.actions().get(0).label());
+        assertEquals("CONTINUE_MEAL_PLAN_BRIEF", collected.actions().get(1).type());
         assertEquals(List.of("早餐", "午餐", "晚餐"), collected.mealPlanBrief().mealTimes());
+        assertTrue(collected.mealPlanBrief().isComplete());
         assertTrue(collected.planBrief().bodyParts().isEmpty());
 
-        HealthChatResponse confirmed = chatInSession(sessionId, "确认餐食计划");
-        assertEquals("GENERATE_PLAN", confirmed.actions().get(0).type());
-        assertTrue(confirmed.mealPlanBrief().isConfirmedAndComplete());
+        // 简报完整后继续补充餐次：服务端以当前简报为准，不存在独立确认阶段。
+        HealthChatResponse adjusted = chatInSession(sessionId, "改成只要早餐和午餐");
+        assertEquals("GENERATE_PLAN", adjusted.actions().get(0).type());
+        assertEquals(List.of("早餐", "午餐"), adjusted.mealPlanBrief().mealTimes());
     }
 
     @Test
@@ -539,75 +646,87 @@ class HealthOrchestratorServiceTest {
         assertFalse(partial.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
 
         HealthChatResponse collected = chatInSession(sessionId, "餐食计划目标想减脂");
-        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", collected.actions().get(0).type());
+        assertEquals("GENERATE_PLAN", collected.actions().get(0).type());
         assertEquals("CONTINUE_MEAL_PLAN_BRIEF", collected.actions().get(1).type());
-        assertFalse(collected.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
+        assertTrue(collected.mealPlanBrief().isComplete());
 
-        HealthChatResponse stillPartial = chatInSession(sessionId, "继续补充或调整");
-        assertFalse(stillPartial.actions().stream().anyMatch(action -> "GENERATE_PLAN".equals(action.type())));
-        assertFalse(stillPartial.mealPlanBrief().isConfirmedAndComplete());
+        HealthChatResponse adjusted = chatInSession(sessionId, "改成只要早餐和午餐");
+        assertEquals("GENERATE_PLAN", adjusted.actions().get(0).type());
+        assertEquals(List.of("早餐", "午餐"), adjusted.mealPlanBrief().mealTimes(), "补充餐次后使用最新简报");
     }
 
     @Test
-    void 综合计划必须分别确认训练和餐食简报() {
+    void 综合计划两侧子简报完整后才提供开始生成且单侧修改即时生效() {
         String sessionId = "sess_composite_plan_brief";
         HealthChatResponse first = chatInSession(sessionId, "一周训练和餐食计划");
         assertEquals("COMPOSITE", first.domain().name());
         assertEquals("PLAN", first.task().name());
         assertEquals(HealthResponseType.CLARIFY, first.responseType());
 
+        // 餐食子简报完整后不再有确认动作，直接进入训练收集阶段。
         HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
-        assertEquals("CONFIRM_MEAL_PLAN_BRIEF", meal.actions().get(0).type());
-        HealthChatResponse confirmedMeal = chatInSession(sessionId, "确认餐食计划");
-        assertTrue(confirmedMeal.speechText().contains("训练"), confirmedMeal.toString());
-        assertTrue(confirmedMeal.actions().isEmpty(), confirmedMeal.toString());
+        assertTrue(meal.actions().isEmpty(), meal.toString());
+        assertTrue(meal.speechText().contains("训练"), meal.toString());
+        assertTrue(meal.mealPlanBrief().isComplete());
 
         HealthChatResponse training = chatInSession(sessionId,
                 "重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
-        assertEquals("CONFIRM_PLAN_BRIEF", training.actions().get(0).type());
-        HealthChatResponse confirmedTraining = chatInSession(sessionId, "确认训练偏好");
-        assertEquals("GENERATE_PLAN", confirmedTraining.actions().get(0).type());
-        assertTrue(confirmedTraining.mealPlanBrief().isConfirmedAndComplete(), confirmedTraining.toString());
-        assertTrue(confirmedTraining.planBrief().isConfirmedAndComplete(), confirmedTraining.toString());
+        assertEquals("GENERATE_PLAN", training.actions().get(0).type());
+        assertTrue(training.mealPlanBrief().isComplete(), training.toString());
+        assertTrue(training.planBrief().isComplete(), training.toString());
+
+        // 单侧修改只更新该侧并重新提供开始生成，另一侧保持不变。
+        HealthChatResponse mealRevision = chatInSession(sessionId, "餐次改成只要早餐和午餐");
+        assertEquals("GENERATE_PLAN", mealRevision.actions().get(0).type());
+        assertEquals(List.of("早餐", "午餐"), mealRevision.mealPlanBrief().mealTimes());
+        assertEquals("胸", mealRevision.planBrief().bodyParts().get(0), "餐食侧修改不得清空训练简报");
+
+        HealthChatResponse trainingRevision = chatInSession(sessionId, "训练日改成周二、周四");
+        assertEquals("GENERATE_PLAN", trainingRevision.actions().get(0).type());
+        assertTrue(trainingRevision.planBrief().trainingDays().contains(java.time.DayOfWeek.TUESDAY));
+        assertEquals(List.of("早餐", "午餐"), trainingRevision.mealPlanBrief().mealTimes(), "训练侧修改不得改写餐食简报");
+
+        // 目标周表达在训练阶段写入训练简报，不得静默写入已完整的餐食侧。
+        HealthChatResponse weekRevision = chatInSession(sessionId, "目标周 2026-09-07");
+        org.junit.jupiter.api.Assertions.assertTrue(weekRevision.speechText().contains("2026-09-07"), weekRevision.toString());
+        assertEquals("GENERATE_PLAN", weekRevision.actions().get(0).type());
+        assertEquals(java.time.LocalDate.of(2026, 9, 7), weekRevision.planBrief().weekStart());
+        assertEquals(List.of("早餐", "午餐"), weekRevision.mealPlanBrief().mealTimes());
     }
 
     @Test
-    void 综合计划训练阶段的裸目标不应回写已确认餐食简报() {
+    void 综合计划训练阶段的裸目标不应回写餐食简报() {
         String sessionId = "sess_composite_training_goal_isolated";
         chatInSession(sessionId, "一周训练和餐食计划");
         chatInSession(sessionId, "本周安排早餐、午餐和晚餐，想减脂");
-        chatInSession(sessionId, "确认餐食计划");
 
         HealthChatResponse training = chatInSession(sessionId,
                 "目标 增肌，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
         assertEquals("增肌", training.planBrief().trainingGoal(), training.toString());
         assertEquals("减脂", training.mealPlanBrief().healthGoal(), training.toString());
-        assertTrue(training.mealPlanBrief().isConfirmedAndComplete(), training.toString());
-        assertFalse(training.planBrief().isConfirmedAndComplete(), training.toString());
+        assertTrue(training.mealPlanBrief().isComplete(), training.toString());
+        assertTrue(training.planBrief().isComplete(), training.toString());
+        assertEquals("GENERATE_PLAN", training.actions().get(0).type(), training.toString());
     }
 
     @Test
-    void 训练简报确认后出现生成动作纠正会使确认失效且普通餐食不污染简报() {
+    void 训练简报完整即出现开始生成且字段纠正即时生效且普通餐食不污染简报() {
         String sessionId = "sess_plan_brief_flow";
         HealthChatResponse collected = chatInSession(sessionId,
                 "帮我安排一周健身计划：我想减脂，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
         assertEquals(HealthResponseType.ANSWER, collected.responseType());
-        assertEquals("CONFIRM_PLAN_BRIEF", collected.nextAction().name());
-        assertEquals("CONFIRM_PLAN_BRIEF", collected.actions().get(0).type());
+        assertEquals("GENERATE_PLAN", collected.nextAction().name());
+        assertEquals("GENERATE_PLAN", collected.actions().get(0).type());
+        assertEquals("开始生成", collected.actions().get(0).label());
         HealthSessionState collectedState = sessionService.loadOrCreate(sessionId, 1L);
         assertTrue(collectedState.planBrief().isComplete(), collectedState.toString());
         assertEquals("PLAN", collectedState.task().name(), collectedState.toString());
         assertEquals("EXERCISE", collectedState.domain().name(), collectedState.toString());
 
-        HealthChatResponse confirmed = chatInSession(sessionId, "确认训练偏好");
-        assertEquals("GENERATE_PLAN", confirmed.nextAction().name(), confirmed.toString());
-        assertTrue(confirmed.planBrief().isConfirmedAndComplete());
-        assertEquals("GENERATE_PLAN", confirmed.actions().get(0).type());
-
         HealthChatResponse corrected = chatInSession(sessionId, "改成 20:00-21:00");
-        assertEquals("CONFIRM_PLAN_BRIEF", corrected.nextAction().name());
-        assertFalse(corrected.planBrief().confirmed());
+        assertEquals("GENERATE_PLAN", corrected.nextAction().name());
         assertEquals("20:00", corrected.planBrief().timeWindow().start().toString());
+        assertEquals("GENERATE_PLAN", corrected.actions().get(0).type());
 
         HealthChatResponse meal = chatInSession(sessionId, "午餐想吃清淡的");
         assertEquals("MEAL", meal.domain().name());

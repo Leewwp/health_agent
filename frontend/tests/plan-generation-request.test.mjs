@@ -7,7 +7,7 @@ import {
     planGenerationRequestKey,
     runPlanGenerationRequest
 } from "../assets/js/pages/plan-generation-request.js";
-import { createChatRequestController, submitPresetChatMessage } from "../assets/js/pages/chat-request.js";
+import { createChatRequestController } from "../assets/js/pages/chat-request.js";
 import { renderRawTraceJson } from "../assets/js/admin/trace-detail-view.js";
 import { planGenerationSourceLabel } from "../assets/js/ui/plan-generation-source.js";
 
@@ -42,19 +42,6 @@ test("计划生成来源在标题与提示中使用同一用户文案", () => {
     assert.equal(planGenerationSourceLabel("FALLBACK"), "规则降级");
     assert.equal(planGenerationSourceLabel("RULE_MEAL_COMPOSER"), "餐食规则组合");
     assert.equal(planGenerationSourceLabel("COMPOSITE_RULE_MERGE"), "综合规则合并");
-});
-
-test("确认训练偏好动作直接提交而不是只填写输入框", async () => {
-    const submitted = [];
-    const messages = [];
-    const controller = createChatRequestController({
-        request: async (payload) => submitted.push(payload.message),
-        timeoutMs: 1000
-    });
-
-    assert.equal(await submitPresetChatMessage(controller, "确认训练偏好", (message) => messages.push(message)), true);
-    assert.deepEqual(messages, ["确认训练偏好"]);
-    assert.deepEqual(submitted, ["确认训练偏好"]);
 });
 
 test("Trace 原始 JSON 默认折叠", () => {

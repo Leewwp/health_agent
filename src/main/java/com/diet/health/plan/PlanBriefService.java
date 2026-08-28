@@ -79,7 +79,17 @@ public class PlanBriefService {
         Map<String, List<String>> slots = normalizer.normalize(
                 com.diet.health.enums.HealthDomain.EXERCISE, text, Map.of()).slots();
         String goal = first(slots.get("trainingGoal"));
-        String difficulty = first(slots.get("difficulty"));
+        // 难度是单选字段：同一轮出现多个难度属于冲突输入，不得静默取第一个值。
+        List<String> difficultyValues = slots.getOrDefault("difficulty", List.of());
+        String difficultyConflict = null;
+        if (difficultyValues.size() > 1) {
+            difficultyConflict = isBlank(base.difficulty())
+                    ? "一次只能选择一个难度。检测到：" + String.join("、", difficultyValues)
+                    + "，请重新说明一个难度，例如只说“入门”或“进阶”。"
+                    : "一次只能选择一个难度。检测到：" + String.join("、", difficultyValues)
+                    + "，已保留当前难度“" + base.difficulty() + "”，如需修改请只说明一个新难度。";
+        }
+        String difficulty = difficultyConflict == null ? first(slots.get("difficulty")) : null;
         List<String> bodyParts = slots.getOrDefault("bodyParts", List.of());
         List<String> equipment = slots.getOrDefault("equipment", List.of());
         LocalDate weekStart = parseWeekStart(text, LocalDate.now());
@@ -109,6 +119,14 @@ public class PlanBriefService {
         if (time.end() != null) put(candidateFields, "timeEnd", time.end().toString());
         hardConstraints.forEach(candidateFields::put);
 
+        if (difficultyConflict != null) {
+            // 多难度冲突：其他字段照常合并，难度保持原值（没有原值则留空等待重新选择）。
+            PlanBrief parsed = merge(base, goal, bodyParts, equipment, null, weekStart, days.days(), time, hardConstraints);
+            BriefInterpretationStatus status = time.partial() ? BriefInterpretationStatus.PARTIAL : BriefInterpretationStatus.EXTRACTED;
+            String expected = time.partial() ? "timeWindowEnd" : first(missing(parsed));
+            parsed = parsed.withProgress(expected, 0, time.partial() ? time.start() : null);
+            return new PlanBriefInterpretation(status, parsed, candidateFields, text, difficultyConflict, true);
+        }
         if (candidateFields.isEmpty()) {
             return invalid(base, guidance(base.expectedField(), BriefInterpretationStatus.INVALID),
                     likelyCurrentField(text, base));
@@ -117,33 +135,26 @@ public class PlanBriefService {
         BriefInterpretationStatus status = time.partial() ? BriefInterpretationStatus.PARTIAL : BriefInterpretationStatus.EXTRACTED;
         String expected = time.partial() ? "timeWindowEnd" : first(missing(parsed));
         parsed = parsed.withProgress(expected, 0, time.partial() ? time.start() : null);
-        return new PlanBriefInterpretation(status, parsed, candidateFields, text,
-                guidance(expected, status), true);
+        // 简报补齐后不再输出字段指引，避免完成轮次把默认提示带进"开始生成"文案。
+        String nextGuidance = expected == null ? "" : guidance(expected, status);
+        return new PlanBriefInterpretation(status, parsed, candidateFields, text, nextGuidance, true);
     }
 
     /** 解析并合并当前轮；Agent 候选也必须通过同一套 update seam。 */
     public UpdateResult update(PlanBrief current, String input) {
         PlanBrief base = current == null ? PlanBrief.empty() : current;
         String text = input == null ? "" : input.trim();
-        if (isConfirmation(text)) {
-            if (base.isComplete()) {
-                PlanBrief confirmed = base.confirm();
-                return result(confirmed, true, BriefInterpretationStatus.EXTRACTED, text, "", List.of());
-            }
-            return result(base.withProgress(first(missing(base)), base.failedAttempts(), base.partialStartTime()), false,
-                    BriefInterpretationStatus.PARTIAL, text, guidance(first(missing(base)), BriefInterpretationStatus.PARTIAL), missing(base));
-        }
         PlanBriefInterpretation interpretation = interpret(base, text);
         if (interpretation.status() == BriefInterpretationStatus.UNRELATED) {
-            return result(base, false, interpretation.status(), interpretation.evidence(), interpretation.guidance(), missing(base));
+            return result(base, interpretation.status(), interpretation.evidence(), interpretation.guidance(), missing(base));
         }
         if (interpretation.status() == BriefInterpretationStatus.EXTRACTED
                 || interpretation.status() == BriefInterpretationStatus.PARTIAL) {
-            return result(interpretation.parsed(), false, interpretation.status(), interpretation.evidence(),
+            return result(interpretation.parsed(), interpretation.status(), interpretation.evidence(),
                     interpretation.guidance(), missing(interpretation.parsed()));
         }
         PlanBrief failed = base.recordFailure(base.expectedField() == null ? first(missing(base)) : base.expectedField());
-        return result(failed, false, interpretation.status(), interpretation.evidence(), interpretation.guidance(),
+        return result(failed, interpretation.status(), interpretation.evidence(), interpretation.guidance(),
                 missing(failed), interpretation.likelyCurrentField());
     }
 
@@ -152,26 +163,26 @@ public class PlanBriefService {
         PlanBrief base = current == null ? PlanBrief.empty() : current;
         if (candidateFields == null || candidateFields.isEmpty()) {
             PlanBrief failed = base.recordFailure(null);
-            return result(failed, false, BriefInterpretationStatus.INVALID, evidence, guidance(failed.expectedField(), BriefInterpretationStatus.INVALID), missing(failed));
+            return result(failed, BriefInterpretationStatus.INVALID, evidence, guidance(failed.expectedField(), BriefInterpretationStatus.INVALID), missing(failed));
         }
         for (Map.Entry<String, List<String>> entry : candidateFields.entrySet()) {
             if (!isAllowedCandidateField(entry.getKey()) || entry.getValue() == null || entry.getValue().isEmpty()) {
                 PlanBrief failed = base.recordFailure(base.expectedField());
-                return result(failed, false, BriefInterpretationStatus.INVALID, evidence,
+                return result(failed, BriefInterpretationStatus.INVALID, evidence,
                         guidance(base.expectedField(), BriefInterpretationStatus.INVALID), missing(failed));
             }
         }
         if (candidateFields.containsKey("timeEnd") && !candidateFields.containsKey("timeStart")
                 && base.partialStartTime() == null) {
             PlanBrief failed = base.recordFailure(base.expectedField());
-            return result(failed, false, BriefInterpretationStatus.INVALID, evidence,
+            return result(failed, BriefInterpretationStatus.INVALID, evidence,
                     guidance(base.expectedField(), BriefInterpretationStatus.INVALID), missing(failed));
         }
         PlanBriefInterpretation parsed = interpret(base, candidateText(candidateFields, base));
         if (parsed.status() == BriefInterpretationStatus.UNRELATED || parsed.status() == BriefInterpretationStatus.AMBIGUOUS
                 || parsed.status() == BriefInterpretationStatus.INVALID) {
             PlanBrief failed = base.recordFailure(base.expectedField());
-            return result(failed, false, BriefInterpretationStatus.INVALID, evidence,
+            return result(failed, BriefInterpretationStatus.INVALID, evidence,
                     guidance(base.expectedField(), BriefInterpretationStatus.INVALID), missing(failed));
         }
         PlanBrief candidate = parsed.parsed();
@@ -179,7 +190,12 @@ public class PlanBriefService {
                 ? BriefInterpretationStatus.PARTIAL : BriefInterpretationStatus.EXTRACTED;
         candidate = candidate.withProgress(status == BriefInterpretationStatus.PARTIAL ? "timeWindowEnd" : first(missing(candidate)),
                 0, candidate.partialStartTime());
-        return result(candidate, false, status, evidence, guidance(candidate.expectedField(), status), missing(candidate));
+        // Agent 候选携带多难度时保留 interpret 的冲突提示，不得被通用字段指引覆盖。
+        boolean difficultyConflict = candidateFields.getOrDefault("difficulty", List.of()).size() > 1
+                && candidate.difficulty() == null;
+        String nextGuidance = difficultyConflict ? parsed.guidance()
+                : candidate.expectedField() == null ? "" : guidance(candidate.expectedField(), status);
+        return result(candidate, status, evidence, nextGuidance, missing(candidate));
     }
 
     public List<String> missing(PlanBrief brief) {
@@ -198,7 +214,7 @@ public class PlanBriefService {
     }
 
     public String question(List<String> missing) {
-        if (missing == null || missing.isEmpty()) return "请确认上面的训练偏好。";
+        if (missing == null || missing.isEmpty()) return "请补充或核对上面的训练偏好。";
         return guidance(missing.get(0), BriefInterpretationStatus.PARTIAL);
     }
 
@@ -222,7 +238,7 @@ public class PlanBriefService {
                 weekStart == null ? base.weekStart() : weekStart,
                 days.isEmpty() ? base.trainingDays() : days,
                 time.range() == null ? (time.partial() ? null : base.timeWindow()) : time.range(),
-                mergeHardConstraints(base.hardConstraints(), constraints), false, base.confirmationVersion(), null,
+                mergeHardConstraints(base.hardConstraints(), constraints),
                 null, 0, time.partial() ? time.start() : null);
     }
 
@@ -452,15 +468,15 @@ public class PlanBriefService {
         };
     }
 
-    private UpdateResult result(PlanBrief brief, boolean confirmed, BriefInterpretationStatus status, String evidence,
+    private UpdateResult result(PlanBrief brief, BriefInterpretationStatus status, String evidence,
                                 String guidance, List<String> missing) {
-        return result(brief, confirmed, status, evidence, guidance, missing,
+        return result(brief, status, evidence, guidance, missing,
                 status == BriefInterpretationStatus.AMBIGUOUS);
     }
 
-    private UpdateResult result(PlanBrief brief, boolean confirmed, BriefInterpretationStatus status, String evidence,
+    private UpdateResult result(PlanBrief brief, BriefInterpretationStatus status, String evidence,
                                 String guidance, List<String> missing, boolean agentEligible) {
-        return new UpdateResult(brief, confirmed, missing, status, evidence, guidance,
+        return new UpdateResult(brief, missing, status, evidence, guidance,
                 agentEligible);
     }
 
@@ -567,15 +583,11 @@ public class PlanBriefService {
         return text != null && java.util.Arrays.stream(values).anyMatch(text::contains);
     }
 
-    private boolean isConfirmation(String text) {
-        return text.contains("确认训练偏好") || text.equals("确认") || text.contains("确认简报") || text.contains("按这个生成");
-    }
-
     private record DayParse(List<DayOfWeek> days, boolean ambiguous) { }
     private record TimeParse(TrainingTimeWindow range, LocalTime start, LocalTime end, boolean partial, boolean ambiguous,
                              boolean invalidSeconds) { }
 
-    public record UpdateResult(PlanBrief brief, boolean confirmedNow, List<String> missingFields,
+    public record UpdateResult(PlanBrief brief, List<String> missingFields,
                                BriefInterpretationStatus status, String evidence, String guidance,
                                boolean agentEligible) { }
 }

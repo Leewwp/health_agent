@@ -12,6 +12,9 @@ import java.util.Map;
 /**
  * 意图 Java 兜底规则：LLM 失败/输出非法时的关键词路由与轻量槽位提取，保证三品类主流程可继续。
  * 固定置信度 0.2 并标记 degraded，不伪装成真实理解。
+ * <p>
+ * ADR-0016 显式任务路由：新会话（无活动槽位上下文）只有明确任务词才进入推荐/计划；
+ * 槽位别名单独出现属于模糊短句，按 OTHER + CHAT 或领域澄清处理，不猜测领域。
  */
 @Service
 public class IntentRuleService {
@@ -21,6 +24,9 @@ public class IntentRuleService {
 
     /** 模型与兜底路径共用的输入归一器。 */
     private final HealthInputNormalizer normalizer;
+
+    /** 明确任务词与槽位别名的统一判定。 */
+    private final HealthTaskEvidence taskEvidence = new HealthTaskEvidence();
 
     public IntentRuleService(HealthInputNormalizer normalizer) {
         this.normalizer = normalizer;
@@ -35,6 +41,7 @@ public class IntentRuleService {
                 riskFlags.add(entry.getValue());
             }
         }
+        boolean activeContext = knownSlots != null && !knownSlots.isEmpty();
         HealthDomain domain = HealthDomain.OTHER;
         HealthTask task = HealthTask.CHAT;
         if (HealthPlanIntentMatcher.matches(text)) {
@@ -47,11 +54,12 @@ public class IntentRuleService {
         } else if (isRoutineFact(text)) {
             domain = HealthDomain.ROUTINE;
             task = HealthTask.RECOMMEND;
-        } else if (mealSignal(text)) {
+        } else if (mealSignal(text) && (activeContext || taskEvidence.hasMealTaskEvidence(text))) {
             domain = HealthDomain.MEAL;
             task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练")
-                || !normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots().isEmpty()) {
+        } else if ((containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练")
+                || !normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots().isEmpty())
+                && (activeContext || taskEvidence.hasExerciseTaskEvidence(text))) {
             domain = HealthDomain.EXERCISE;
             task = HealthTask.RECOMMEND;
         } else if (containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")) {
@@ -68,6 +76,7 @@ public class IntentRuleService {
 
     /**
      * 明确短语的确定性快路径。无法唯一确定领域时返回 null，交给唯一一次结构化理解调用。
+     * 新会话中只有槽位别名的模糊短句同样返回 null，由意图链降级为 OTHER + CHAT。
      */
     public HealthIntentResult fastPath(String userInput, Map<String, List<String>> knownSlots) {
         String text = userInput == null ? "" : userInput;
@@ -89,15 +98,18 @@ public class IntentRuleService {
         if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
             return null;
         }
-        boolean meal = mealSignal(text);
-        boolean exercise = containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练");
+        boolean activeContext = knownSlots != null && !knownSlots.isEmpty();
+        // 新会话没有明确任务词时不进入快路径，交给意图链统一判定（含 OTHER + CHAT 澄清）。
+        boolean meal = mealSignal(text) && (activeContext || taskEvidence.hasMealTaskEvidence(text));
+        boolean exercise = containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练")
+                && (activeContext || taskEvidence.hasExerciseTaskEvidence(text));
         // 本票快路径聚焦餐食、动作和计划；作息结构化理解仍沿用原有契约，避免改变事实槽位解析。
         boolean routine = isRoutineFact(text);
         int domains = (meal ? 1 : 0) + (exercise ? 1 : 0) + (routine ? 1 : 0);
         if (domains > 1) {
             return null;
         }
-        if (domains == 0 && knownSlots != null && !knownSlots.isEmpty()) {
+        if (domains == 0 && activeContext) {
             Map<String, List<String>> mealSlots = normalizer.normalize(HealthDomain.MEAL, text, Map.of()).slots();
             Map<String, List<String>> exerciseSlots = normalizer.normalize(HealthDomain.EXERCISE, text, Map.of()).slots();
             Map<String, List<String>> routineSlots = normalizer.normalize(HealthDomain.ROUTINE, text, Map.of()).slots();
@@ -125,7 +137,7 @@ public class IntentRuleService {
 
     private boolean isRoutineFact(String text) {
         return containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")
-                || (containsAny(text, "训练", "运动") && containsAny(text, "什么时候", "几点", "时段", "时间"));
+                || (containsAny(text, "训练", "运动", "锻炼") && containsAny(text, "什么时候", "几点", "时段", "时间"));
     }
 
     /** 识别没有明确餐次但仍在表达餐食需求的口语。 */

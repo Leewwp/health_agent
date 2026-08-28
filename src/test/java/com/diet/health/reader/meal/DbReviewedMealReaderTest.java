@@ -98,6 +98,27 @@ class DbReviewedMealReaderTest {
     }
 
     @Test
+    void 名称搜索透传query并选择过滤SQL() {
+        // #105：名称搜索走 filtered SQL，query 原样透传（trim，空串归 null），中英文同口径。
+        when(mealMapper.browsePublicMealsFiltered(eq(7L), eq(false), eq("鸡"),
+                eq(null), eq(null), eq(null), eq(null), eq(10), eq(20))).thenReturn(List.of(row(3L, "APPROVED")));
+        when(mealMapper.countPublicMealsFiltered(7L, false, "鸡", null, null, null, null)).thenReturn(89);
+
+        assertEquals(1, reader.browse(10, 20, 7L, false, " 鸡 ", Map.of()).size());
+        assertEquals(89, reader.countPublic(7L, false, " 鸡 ", Map.of()));
+        verify(mealMapper).browsePublicMealsFiltered(7L, false, "鸡", null, null, null, null, 10, 20);
+        verify(mealMapper).countPublicMealsFiltered(7L, false, "鸡", null, null, null, null);
+    }
+
+    @Test
+    void 空白名称搜索归一为null并保持过滤SQL选择() {
+        reader.browse(0, 20, 7L, true, "   ", Map.of());
+        reader.countPublic(7L, true, "", Map.of());
+        verify(mealMapper).browsePublicMealsFiltered(7L, true, null, null, null, null, null, 0, 20);
+        verify(mealMapper).countPublicMealsFiltered(7L, true, null, null, null, null, null);
+    }
+
+    @Test
     void 快照选择稳定列表SQL() {
         when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(row(1L, "APPROVED")));
         List<ReviewedMeal> snapshot = reader.snapshotAll();
