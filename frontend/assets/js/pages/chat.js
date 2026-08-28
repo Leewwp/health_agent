@@ -9,7 +9,7 @@
  */
 import { escapeHtml, newRequestId } from "../util/dom.js";
 import { showToast } from "../ui/toast.js";
-import { healthChat } from "../api.js";
+import { healthChat, getMealDetail, getExerciseDetail } from "../api.js";
 import {
     getChatSessionId,
     setChatSessionId,
@@ -127,7 +127,12 @@ function bind(app) {
 
 function renderMessage(message) {
     const blocks = (message.blocks || []).map((block) =>
-        renderResourceCard(block, { sessionId: state.sessionId || getOrCreateClientSessionId(), traceId: message.traceId })
+        renderResourceCard(block, {
+            sessionId: state.sessionId || getOrCreateClientSessionId(),
+            traceId: message.traceId,
+            detailLoader: block.resourceType === "MEAL" ? () => getMealDetail(block.resourceId)
+                : block.resourceType === "EXERCISE" ? () => getExerciseDetail(block.resourceId) : null
+        })
     ).join("");
     const missingSlots = message.missingSlots && message.missingSlots.length
         ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
@@ -155,7 +160,7 @@ function renderMessage(message) {
     return `
         <article class="message ${message.role}">
             <div class="bubble">${escapeHtml(message.text)}</div>
-            ${planEntry}
+        ${planEntry}
             ${recommendationActions}
             ${recommendationSummary}
             ${optionalSummary}
@@ -179,7 +184,7 @@ async function submitChat(form) {
 
 function renderRecommendationActions(message) {
     const actions = (message.actions || []).filter((action) =>
-        ["CONFIRM_RECOMMENDATION", "CONTINUE_RECOMMENDATION", "GET_ALTERNATIVE", "RELAX_CONSTRAINTS", "REPEAT_SHOWN"].includes(action.type));
+        ["CONFIRM_RECOMMENDATION", "CONTINUE_RECOMMENDATION", "GET_ALTERNATIVE", "APPEND_SLOT", "RELAX_CONSTRAINTS", "REPEAT_SHOWN"].includes(action.type));
     if (!actions.length) {
         return "";
     }
@@ -196,7 +201,7 @@ function renderRecommendationActions(message) {
         ${actions.map((action) => `<button class="btn ${action.type === "GET_ALTERNATIVE" ? "soft" : "ghost"}"
             data-action="alternative" data-alternative-action="${escapeHtml(action.type)}"
             data-resource-type="${escapeHtml(resourceType)}" data-base-trace-id="${escapeHtml(message.traceId || "")}"
-            data-exclusions="${escapeHtml(exclusions)}">${escapeHtml(action.label)}</button>`).join("")}
+            data-exclusions="${escapeHtml(exclusions)}" data-added-slot="${escapeHtml(action.slot || "")}" data-added-value="${escapeHtml(action.value || "")}">${escapeHtml(action.label)}</button>`).join("")}
     </div>`;
 }
 
@@ -334,7 +339,9 @@ function submitAlternative(target) {
     const exclusions = (target.dataset.exclusions || "").split(",").filter(Boolean);
     const relaxConstraints = action === "RELAX_CONSTRAINTS";
     const allowRepeat = action === "REPEAT_SHOWN";
-    const text = relaxConstraints ? "放宽条件换一批" : allowRepeat ? "重复已展示结果" : "换一批";
+    const addedSlot = target.dataset.addedSlot || "";
+    const addedValue = target.dataset.addedValue || "";
+    const text = addedSlot ? `追加${addedValue}` : relaxConstraints ? "放宽条件换一批" : allowRepeat ? "重复已展示结果" : "换一批";
     state.messages.push({ role: "user", text });
     void requestController.submit({
         message: "换一批",
@@ -343,7 +350,8 @@ function submitAlternative(target) {
             baseTraceId: target.dataset.baseTraceId || null,
             addedExclusions: exclusions,
             allowRepeat,
-            relaxConstraints
+            relaxConstraints,
+            addedSlots: addedSlot && addedValue ? { [addedSlot]: [addedValue] } : {}
         }
     });
 }

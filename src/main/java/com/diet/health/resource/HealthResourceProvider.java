@@ -24,6 +24,15 @@ public interface HealthResourceProvider {
     /** 单次动作推荐候选：正式模式为完整动作目录，fixture 模式为全部种子动作。 */
     List<HealthResource> singleRecommendationExercises();
 
+    /** 单次餐食推荐候选；正式模式为审核公共餐食，fixture 模式为种子餐食。 */
+    default List<HealthResource> singleRecommendationMeals() {
+        return planMealCandidates().stream()
+                .map(candidate -> new HealthResource(candidate.resourceType(), candidate.resourceId(), candidate.name(),
+                        "PUBLIC", "餐食资源", null, false,
+                        java.util.Map.of("mealTime", candidate.mealTimeTags())))
+                .toList();
+    }
+
     /** 全部已审核作息事实（不可变拷贝）。 */
     List<RoutineFact> routineFacts();
 

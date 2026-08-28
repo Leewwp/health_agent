@@ -36,4 +36,12 @@ class WeeklyPlanComposerServiceTest {
 
         assertTrue(composer.composeMeals(1400, 1800, LocalDate.of(2026, 8, 17)).isEmpty());
     }
+    @Test
+    void 组合器只消费简报选中的餐次() {
+        MealPlanPicker picker = new MealPlanPicker(new SeedResourceProvider());
+        WeeklyPlanComposerService composer = new WeeklyPlanComposerService(new SeedResourceProvider(), picker);
+        List<PlanItemDraft> items = composer.composeMeals(1400, 1800, LocalDate.of(2026, 8, 17), List.of("早餐"));
+        assertFalse(items.isEmpty());
+        assertTrue(items.stream().allMatch(item -> "早餐".equals(item.planParams().get("mealTime"))));
+    }
 }

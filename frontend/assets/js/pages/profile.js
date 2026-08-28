@@ -14,7 +14,8 @@ const state = {
     loading: false,
     loaded: false,
     saving: false,
-    error: null
+    error: null,
+    justSaved: false
 };
 
 /** 身体状况条件中文名（选项与摘要共用，顺序即展示顺序）。 */
@@ -87,6 +88,8 @@ export async function render(app) {
                 ${formField("riskNote", "风险说明（选填）", `<textarea name="riskNote" maxlength="200" rows="2" placeholder="例如：右肩扭伤恢复中，遵医嘱服药">${escapeHtml(state.profile?.riskNote ?? "")}</textarea>`, "最长 200 字，仅作为补充说明")}
                 <div class="field full">
                     <button class="btn primary" type="submit">${state.saving ? "保存中..." : "保存档案"}</button>
+                    ${state.justSaved && new URLSearchParams((location.hash.split("?")[1] || "")).get("return") === "chat"
+                        ? `<a class="btn soft" href="#/chat">回到聊天</a>` : ""}
                 </div>
             </form>
         </section>
@@ -184,11 +187,12 @@ async function saveForm(form) {
     state.saving = true;
     try {
         state.profile = await saveProfile(payload);
+        state.justSaved = true;
         showToast("健康档案已保存");
-        render(appElement);
     } catch (error) {
         showToast(error.message || "保存失败", "error");
     } finally {
         state.saving = false;
+        render(appElement);
     }
 }

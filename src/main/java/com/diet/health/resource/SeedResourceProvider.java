@@ -30,6 +30,11 @@ public class SeedResourceProvider implements HealthResourceProvider {
     }
 
     @Override
+    public List<HealthResource> singleRecommendationMeals() {
+        return SeedResources.MEAL_CANDIDATES.stream().map(this::toMealResource).toList();
+    }
+
+    @Override
     public List<RoutineFact> routineFacts() {
         return List.copyOf(SeedResources.ROUTINE_FACTS);
     }

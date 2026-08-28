@@ -13,7 +13,7 @@ export function renderPlanActions(message) {
         ${summary ? `<p>${escapeHtml(summary)}</p>` : ""}
         <div class="button-row">
             ${actions.map((action) => action.type === "COMPLETE_PROFILE"
-                ? `<a class="btn primary" href="#/profile">${escapeHtml(action.label)}</a>`
+                ? `<a class="btn primary" href="#/profile?return=chat">${escapeHtml(action.label)}</a>`
                 : `<button class="btn ${["GENERATE_PLAN", "APPEND_TO_CURRENT_PLAN"].includes(action.type) ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-plan-scope="${escapeHtml(scope)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
         </div>
     </div>`;

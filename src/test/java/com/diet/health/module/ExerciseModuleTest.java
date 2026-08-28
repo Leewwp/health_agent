@@ -43,6 +43,33 @@ class ExerciseModuleTest {
     }
 
     @Test
+    void 同槽位多选为OR且跨槽位仍为AND() {
+        com.diet.health.resource.HealthResourceProvider provider = mock(com.diet.health.resource.HealthResourceProvider.class);
+        when(provider.singleRecommendationExercises()).thenReturn(List.of(
+                resource("1", Map.of("bodyParts", List.of("胸"), "equipment", List.of("哑铃"), "difficulty", List.of("入门"))),
+                resource("2", Map.of("bodyParts", List.of("背"), "equipment", List.of("徒手"), "difficulty", List.of("入门"))),
+                resource("3", Map.of("bodyParts", List.of("胸"), "equipment", List.of("杠铃"), "difficulty", List.of("进阶")))
+        ));
+        ExerciseModule strict = new ExerciseModule(provider, new PreferenceService(mock(FeedbackMapper.class)));
+
+        List<HealthResource> result = strict.recommend(Map.of(
+                "bodyParts", List.of("胸", "背"), "equipment", List.of("哑铃", "徒手"),
+                "difficulty", List.of("入门")), List.of(), 5);
+
+        assertEquals(List.of("1", "2"), result.stream().map(HealthResource::resourceId).toList());
+    }
+
+    @Test
+    void 显式槽位缺失时严格拒绝资源() {
+        com.diet.health.resource.HealthResourceProvider provider = mock(com.diet.health.resource.HealthResourceProvider.class);
+        when(provider.singleRecommendationExercises()).thenReturn(List.of(
+                resource("missing-equipment", Map.of("bodyParts", List.of("胸"), "difficulty", List.of("入门")))
+        ));
+        ExerciseModule strict = new ExerciseModule(provider, new PreferenceService(mock(FeedbackMapper.class)));
+        assertTrue(strict.recommend(Map.of("bodyParts", List.of("胸"), "equipment", List.of("哑铃")), List.of(), 5).isEmpty());
+    }
+
+    @Test
     void 排除ID后不再出现() {
         List<HealthResource> result = module.recommend(Map.of("bodyParts", List.of("胸")), List.of("9001"), 5);
         assertFalse(result.stream().anyMatch(item -> item.resourceId().equals("9001")));
@@ -126,5 +153,9 @@ class ExerciseModuleTest {
         row.setMovementPattern("有氧");
         row.setPlanReady(true);
         return row;
+    }
+
+    private static HealthResource resource(String id, Map<String, List<String>> tags) {
+        return new HealthResource("EXERCISE", id, "动作" + id, "PUBLIC", "测试", null, true, tags);
     }
 }

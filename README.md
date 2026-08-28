@@ -188,7 +188,7 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束、餐食两段式检索路由、MiniMax 嵌入适配器与语料清单校验。当前 Surefire 基线为 715 个测试：`mvn test` 671 通过 + 44 个环境门控跳过；MySQL 门控 711 通过 + 4 个独立门控跳过；MySQL + Qdrant 门控 714 通过 + 1 个 live-model 门控跳过。前端行为测试为 25/25。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、计划上下文和选择器交互回归、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束、餐食两段式检索路由、MiniMax 嵌入适配器与语料清单校验。当前 Surefire 基线为 729 个测试：`mvn test` 725 通过 + 4 个环境门控跳过；MySQL 门控 725 通过 + 4 个独立门控跳过。前端行为与交互契约测试为 31/31。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 

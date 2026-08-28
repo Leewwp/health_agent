@@ -135,7 +135,10 @@ public class MealModule {
                         reviewed == null ? null : toNutrition(reviewed.nutrition())
                     );
                 })
-                .toList();
+                .filter(resource -> matchesStrict(resource, healthSlots))
+                .collect(java.util.stream.Collectors.toMap(resource -> resource.resourceType() + ":" + resource.resourceId(),
+                        resource -> resource, (left, right) -> left, java.util.LinkedHashMap::new))
+                .values().stream().limit(RECOMMEND_LIMIT).toList();
         return preferenceService.applyPreference(resources);
     }
 
@@ -156,24 +159,48 @@ public class MealModule {
                 .sorted(Comparator.comparingDouble(Scored::score).reversed()
                         .thenComparingLong(scored1 -> scored1.candidate().sortKey()))
                 .toList();
-        boolean anyMatched = scored.stream().anyMatch(item -> item.score() > 0);
         List<HealthResource> ranked = scored.stream()
-                .filter(item -> !anyMatched || item.score() > 0)
-                .limit(RECOMMEND_LIMIT)
+                .filter(item -> queryMealTime.isEmpty() || item.score() > 0)
                 .map(item -> toSeedResource(item.candidate()))
+                .limit(RECOMMEND_LIMIT)
                 .toList();
         agentTraceService.recordEvent("MEAL_RETRIEVED", "RETRIEVE", healthSlots,
                 fixtureTraceDetail(ranked));
         return preferenceService.applyPreference(ranked);
     }
 
+    /** 显式槽位逐字段 AND、同字段多值 OR；缺少标签或空标签都不得视为命中。 */
+    private boolean matchesStrict(HealthResource item, Map<String, List<String>> query) {
+        if (query == null || query.isEmpty()) return true;
+        for (Map.Entry<String, List<String>> entry : query.entrySet()) {
+            List<String> values = entry.getValue();
+            if (values == null || values.isEmpty()) continue;
+            // 审核资源的显式筛选条件必须有对应标签并命中，避免向量召回绕过硬约束。
+            if (!item.tags().containsKey(entry.getKey())) return false;
+            List<String> tags = item.tags().getOrDefault(entry.getKey(), List.of());
+            if (tags.isEmpty() || values.stream().noneMatch(tags::contains)) return false;
+        }
+        return true;
+    }
+
+    /** 从当前餐食目录提取追加建议可用值。 */
+    public Map<String, List<String>> availableSlotValues() {
+        Map<String, java.util.LinkedHashSet<String>> values = new java.util.LinkedHashMap<>();
+        resourceProvider.singleRecommendationMeals().forEach(resource -> resource.tags().forEach((slot, tags) ->
+                values.computeIfAbsent(slot, key -> new java.util.LinkedHashSet<>()).addAll(tags)));
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        values.forEach((slot, slotValues) -> result.put(slot, List.copyOf(slotValues)));
+        return Map.copyOf(result);
+    }
+
     /** 种子候选餐次标签与查询餐次的重合比例（无查询餐次或候选全时段视为全部匹配）。 */
     private double mealTimeScore(PlanMealCandidate candidate, List<String> queryMealTime) {
-        if (queryMealTime.isEmpty() || candidate.mealTimeTags().isEmpty()) {
+        List<String> mealTimes = candidate.mealTimeTags();
+        if (queryMealTime.isEmpty() || mealTimes.isEmpty()) {
             return 1;
         }
-        long hits = candidate.mealTimeTags().stream().filter(queryMealTime::contains).count();
-        return (double) hits / candidate.mealTimeTags().size();
+        long hits = mealTimes.stream().filter(queryMealTime::contains).count();
+        return (double) hits / mealTimes.size();
     }
 
     /** 种子候选 → 类型化资源：resourceId 保持 M1-M9，标签只携带种子实际提供的餐次口径。 */

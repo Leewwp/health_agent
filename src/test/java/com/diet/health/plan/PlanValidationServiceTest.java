@@ -277,15 +277,14 @@ class PlanValidationServiceTest {
     }
 
     @Test
-    void 同一训练部位连续两天为HARD_ERROR() {
+    void 同一训练部位连续两天允许按用户安排() {
         List<PlanItemDraft> items = List.of(
                 sleep(MON), sleep(TUE),
                 exercise(MON, "9001", "胸"), exercise(TUE, "9006", "胸")
         );
         PlanValidationService.ValidationResult result = validation.validate(profile(30, 1400, 1800), items, CATALOG);
-        assertEquals(PlanValidationLevel.HARD_ERROR, result.level());
-        assertTrue(result.hits().stream().anyMatch(hit -> "BODY_PART_CONSECUTIVE".equals(hit.ruleCode())));
-        assertEquals(PlanValidationService.BODY_PART_CONSECUTIVE_COPY, result.copy());
+        assertEquals(PlanValidationLevel.OK, result.level());
+        assertTrue(result.hits().stream().noneMatch(hit -> "BODY_PART_CONSECUTIVE".equals(hit.ruleCode())));
     }
 
     @Test
@@ -383,7 +382,7 @@ class PlanValidationServiceTest {
         assertEquals(PlanValidationLevel.HARD_ERROR, result.level());
         List<String> codes = result.hits().stream().map(PlanValidationService.RuleHit::ruleCode).toList();
         assertTrue(codes.contains("SENIOR_TRAINING"));
-        assertTrue(codes.contains("BODY_PART_CONSECUTIVE"));
+        assertFalse(codes.contains("BODY_PART_CONSECUTIVE"));
         assertTrue(codes.contains("ENERGY_OUT_OF_RANGE"));
     }
 }

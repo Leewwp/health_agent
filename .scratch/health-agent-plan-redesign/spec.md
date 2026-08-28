@@ -4,6 +4,8 @@ Status: resolved
 Type: spec
 Date: 2026-08-21
 
+> 历史规格说明：本文记录 2026-08-21 的“推荐前确认”设计。现行语义由 ADR-0016 和 2026-08-28 的 `health-agent-conversation-contracts` 取代，使用“开始推荐/补充”预览，不保留独立确认状态；本文保留作为历史决策与实现背景，不作为新一轮实现合同。
+
 ## Problem Statement
 
 健康 Agent 当前存在四个相互影响的用户问题。

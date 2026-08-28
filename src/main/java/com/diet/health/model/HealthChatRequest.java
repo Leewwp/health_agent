@@ -14,14 +14,24 @@ public record HealthChatRequest(String sessionId, String requestId, String messa
 
     /** 替代推荐动作：沿用健康聊天幂等通道，排除只作用于当前会话和当前资源类型。 */
     public record AlternativeRequest(String resourceType, String baseTraceId, List<String> addedExclusions,
-                                     boolean allowRepeat, boolean relaxConstraints) {
+                                     boolean allowRepeat, boolean relaxConstraints,
+                                     Map<String, List<String>> addedSlots) {
         public AlternativeRequest {
             addedExclusions = addedExclusions == null ? List.of() : List.copyOf(addedExclusions);
+            addedSlots = addedSlots == null ? Map.of() : addedSlots.entrySet().stream()
+                    .filter(entry -> entry.getKey() != null && entry.getValue() != null)
+                    .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                            Map.Entry::getKey, entry -> entry.getValue().stream().filter(value -> value != null && !value.isBlank()).map(String::trim).distinct().toList()));
         }
 
         public AlternativeRequest(String resourceType, String baseTraceId, List<String> addedExclusions,
                                   boolean allowRepeat) {
-            this(resourceType, baseTraceId, addedExclusions, allowRepeat, false);
+            this(resourceType, baseTraceId, addedExclusions, allowRepeat, false, Map.of());
+        }
+
+        public AlternativeRequest(String resourceType, String baseTraceId, List<String> addedExclusions,
+                                  boolean allowRepeat, boolean relaxConstraints) {
+            this(resourceType, baseTraceId, addedExclusions, allowRepeat, relaxConstraints, Map.of());
         }
     }
 }

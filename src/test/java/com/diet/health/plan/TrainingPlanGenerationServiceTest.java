@@ -276,39 +276,29 @@ class TrainingPlanGenerationServiceTest {
     }
 
     @Test
-    void 全身减脂入门在严格目标无候选时仅放宽目标偏好() {
+    void 全身减脂入门在严格目标无候选时拒绝错误匹配() {
         PlanBrief wholeBodyFatLoss = new PlanBrief(
                 "减脂", List.of("全身"), List.of("徒手"), "入门", BRIEF.weekStart(),
                 BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), true, 2, java.time.LocalDateTime.now());
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(wholeBodyFatLoss));
 
-        TrainingPlanGenerationResponse response = createService("{\"schedule\":["
+        assertThrows(com.diet.exception.HealthApiException.class, () -> createService("{\"schedule\":["
                 + schedule("9001", MONDAY) + "]}").generate(1L,
-                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-goal"));
-
-        assertEquals("AGENT", response.generationSource());
-        assertEquals(true, persistedMetadata.get("goalRelaxed"));
-        assertFalse(((List<?>) persistedMetadata.get("candidateIds")).isEmpty());
-        assertTrue(persistedItems.stream().filter(PlanItemDraft::isExercise)
-                .allMatch(item -> item.planParams().get("sets").equals(2)), "入门难度仍必须作为硬约束");
+                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-goal")));
     }
 
     @Test
-    void 精确难度无候选时保留部位器材候选并记录放宽() {
+    void 精确难度无候选时拒绝错误匹配() {
         PlanBrief challenge = new PlanBrief(
                 "增肌", List.of("胸"), List.of("徒手"), "挑战", BRIEF.weekStart(),
                 BRIEF.trainingDays(), BRIEF.timeWindow(), Map.of(), true, 2, java.time.LocalDateTime.now());
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(challenge));
 
-        TrainingPlanGenerationResponse response = createService("{\"schedule\":["
+        assertThrows(com.diet.exception.HealthApiException.class, () -> createService("{\"schedule\":["
                 + schedule("9001", MONDAY) + "]}").generate(1L,
-                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-difficulty"));
-
-        assertEquals("AGENT", response.generationSource());
-        assertEquals(true, persistedMetadata.get("difficultyRelaxed"));
-        assertFalse(((List<?>) persistedMetadata.get("candidateIds")).isEmpty());
+                new GenerateTrainingPlanRequest("sess-training", "training-request-relaxed-difficulty")));
     }
 
     private TrainingPlanGenerationService createService(String output) {

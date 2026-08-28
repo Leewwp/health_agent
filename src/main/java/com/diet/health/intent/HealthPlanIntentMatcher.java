@@ -12,7 +12,8 @@ public final class HealthPlanIntentMatcher {
             "本周餐食计划", "本周饮食计划", "安排一周餐食", "安排一周饮食", "一周的计划", "一周安排",
             "这周计划", "这周的计划", "这周健身计划", "这周的健身计划", "这周训练计划", "这周的训练计划",
             "本周计划", "本周健身计划", "本周训练计划", "训练计划", "健身计划", "餐食计划", "饮食计划",
-            "回到训练计划", "返回训练计划", "继续训练计划", "回到餐食计划", "返回餐食计划"
+            "回到训练计划", "返回训练计划", "继续训练计划", "回到餐食计划", "返回餐食计划",
+            "生成计划", "确认后生成计划", "按这个生成"
     );
 
     private HealthPlanIntentMatcher() {
@@ -28,9 +29,10 @@ public final class HealthPlanIntentMatcher {
     public static boolean matchesComposite(String text) {
         if (text == null) return false;
         boolean planPhrase = matches(text) || text.contains("综合计划")
-                || (text.contains("计划") && containsAny(text, "训练和餐食", "训练+餐食", "健身和饮食", "健身+饮食"));
-        return planPhrase && containsAny(text, "训练和餐食", "训练+餐食", "健身和饮食", "健身+饮食",
-                "综合计划", "训练、餐食");
+                || (text.contains("计划") && containsAny(text, "训练和餐食", "训练+餐食", "训练和饮食", "训练+饮食",
+                "健身和餐食", "健身+餐食", "健身和饮食", "健身+饮食"));
+        return planPhrase && containsAny(text, "训练和餐食", "训练+餐食", "训练和饮食", "训练+饮食",
+                "健身和餐食", "健身+餐食", "健身和饮食", "健身+饮食", "综合计划", "训练、餐食");
     }
 
     public static boolean matchesMeal(String text) {

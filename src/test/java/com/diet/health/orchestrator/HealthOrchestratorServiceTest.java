@@ -192,6 +192,11 @@ class HealthOrchestratorServiceTest {
 
     @Test
     void 推荐前确认摘要使用中文槽位文案() {
+        when(mealModule.recommendMeals(any(), any(), anyString())).thenReturn(List.of(
+                new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库", null, false, Map.of()),
+                new HealthResource("MEAL", "7", "鸡胸肉沙拉", "PUBLIC", "公共餐食库", null, false, Map.of()),
+                new HealthResource("MEAL", "9", "番茄豆腐", "PUBLIC", "公共餐食库", null, false, Map.of())
+        ));
         HealthOrchestratorService preflight = new HealthOrchestratorService(
                 sessionService, new SessionService(sessionMapper, new JsonService(objectMapper), 10),
                 new HealthIntentAgentService(
@@ -228,6 +233,28 @@ class HealthOrchestratorServiceTest {
         assertFalse(response.speechText().contains("cuisine"));
         assertFalse(response.speechText().contains("taste"));
         assertFalse(response.speechText().contains("convenience"));
+    }
+
+    @Test
+    void 追加槽位写回会话并保留原条件() {
+        when(mealModule.recommendMeals(any(), any(), anyString()))
+                .thenReturn(List.of())
+                .thenReturn(List.of(new HealthResource("MEAL", "5", "素食午餐", "PUBLIC", "公共餐食库",
+                        null, false, Map.of("mealTime", List.of("午餐"), "healthGoal", List.of("清淡"),
+                        "cuisine", List.of("素食")))));
+        when(mealModule.availableSlotValues()).thenReturn(Map.of("cuisine", List.of("素食")));
+        String sessionId = "sess_append_slots";
+
+        HealthChatResponse empty = chatInSession(sessionId, "午餐想吃清淡的");
+        assertTrue(empty.actions().stream().anyMatch(action -> "APPEND_SLOT".equals(action.type())));
+        orchestrator.healthChat(1L, new HealthChatRequest(sessionId, "req-append-slots", "追加素食", Map.of(),
+                new HealthChatRequest.AlternativeRequest("MEAL", empty.traceId(), List.of(), false, false,
+                        Map.of("cuisine", List.of("素食")))));
+
+        HealthSessionState saved = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals(List.of("午餐"), saved.slots().get("mealTime"));
+        assertEquals(List.of("清淡"), saved.slots().get("healthGoal"));
+        assertEquals(List.of("素食"), saved.slots().get("cuisine"));
     }
 
     @Test
@@ -282,10 +309,8 @@ class HealthOrchestratorServiceTest {
         HealthChatResponse response = chat("想减脂练胸，徒手入门");
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertEquals("EXERCISE", response.domain().name());
-        assertFalse(response.displayBlocks().isEmpty());
-        assertTrue(response.displayBlocks().get(0).planReady());
-        assertEquals("Gym visual", response.displayBlocks().get(0).sourceName());
-        assertEquals("俯卧撑", response.displayBlocks().get(0).name());
+        assertTrue(response.displayBlocks().isEmpty());
+        assertTrue(response.actions().stream().anyMatch(action -> "APPEND_SLOT".equals(action.type())));
     }
 
     @Test
@@ -343,8 +368,10 @@ class HealthOrchestratorServiceTest {
         assertEquals(List.of("difficulty"), chatInSession(sessionId, "徒手").missingSlots());
         HealthChatResponse completed = chatInSession(sessionId, "入门");
         assertEquals(HealthResponseType.ANSWER, completed.responseType());
-        assertFalse(completed.displayBlocks().isEmpty());
-        assertTrue(completed.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())));
+        assertTrue(completed.displayBlocks().isEmpty());
+        assertTrue(completed.actions().stream().noneMatch(action ->
+                "CONFIRM_RECOMMENDATION".equals(action.type())),
+                "严格匹配无候选时不应误发确认推荐动作");
     }
 
     @Test
@@ -359,7 +386,8 @@ class HealthOrchestratorServiceTest {
             HealthChatResponse second = chatInSession(sessionId, bodyPart);
             assertEquals(HealthResponseType.ANSWER, second.responseType(), bodyPart);
             assertEquals("EXERCISE", second.domain().name(), bodyPart);
-            assertFalse(second.displayBlocks().isEmpty(), bodyPart);
+            assertTrue(second.displayBlocks().isEmpty(), bodyPart);
+            assertTrue(second.actions().stream().anyMatch(action -> "APPEND_SLOT".equals(action.type())), bodyPart);
             assertTrue(second.displayBlocks().stream().allMatch(block -> "EXERCISE".equals(block.resourceType())), bodyPart);
         }
     }
@@ -453,8 +481,8 @@ class HealthOrchestratorServiceTest {
         assertEquals("PLAN", response.task().name());
         assertTrue(response.displayBlocks().isEmpty(), "PLAN 引导回复不携带资源卡");
         assertFalse(response.speechText().contains("即将上线"), "不得宣称周计划尚未上线");
-        assertTrue(response.speechText().contains("我的计划"), "应引导进入已上线的计划页面");
-        assertTrue(response.speechText().contains("档案"), "应提示先完善健康档案");
+        assertFalse(response.speechText().contains("我的计划"), "不再引导进入旧的计划页面生成入口");
+        assertTrue(response.speechText().contains("当前对话"), "应在当前对话继续计划流程");
         assertEquals(1, insertedTraces.size(), "单轮 PLAN 聊天只产生一条 Trace，无任何计划写入");
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
                 orchestrator.healthChat(1L, new HealthChatRequest(null, "plan-no-write-" + System.nanoTime(),
@@ -528,19 +556,34 @@ class HealthOrchestratorServiceTest {
         assertEquals("PLAN", first.task().name());
         assertEquals(HealthResponseType.CLARIFY, first.responseType());
 
-        HealthChatResponse training = chatInSession(sessionId,
-                "减脂，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
-        assertEquals("CONFIRM_PLAN_BRIEF", training.actions().get(0).type());
-        HealthChatResponse confirmedTraining = chatInSession(sessionId, "确认训练偏好");
-        assertTrue(confirmedTraining.speechText().contains("餐食"));
-        assertTrue(confirmedTraining.actions().isEmpty());
-
         HealthChatResponse meal = chatInSession(sessionId, "下周安排早餐、午餐和晚餐，想减脂");
         assertEquals("CONFIRM_MEAL_PLAN_BRIEF", meal.actions().get(0).type());
         HealthChatResponse confirmedMeal = chatInSession(sessionId, "确认餐食计划");
-        assertEquals("GENERATE_PLAN", confirmedMeal.actions().get(0).type());
-        assertTrue(confirmedMeal.mealPlanBrief().isConfirmedAndComplete(), confirmedMeal.toString());
-        assertTrue(confirmedMeal.planBrief().isConfirmedAndComplete(), confirmedMeal.toString());
+        assertTrue(confirmedMeal.speechText().contains("训练"), confirmedMeal.toString());
+        assertTrue(confirmedMeal.actions().isEmpty(), confirmedMeal.toString());
+
+        HealthChatResponse training = chatInSession(sessionId,
+                "重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
+        assertEquals("CONFIRM_PLAN_BRIEF", training.actions().get(0).type());
+        HealthChatResponse confirmedTraining = chatInSession(sessionId, "确认训练偏好");
+        assertEquals("GENERATE_PLAN", confirmedTraining.actions().get(0).type());
+        assertTrue(confirmedTraining.mealPlanBrief().isConfirmedAndComplete(), confirmedTraining.toString());
+        assertTrue(confirmedTraining.planBrief().isConfirmedAndComplete(), confirmedTraining.toString());
+    }
+
+    @Test
+    void 综合计划训练阶段的裸目标不应回写已确认餐食简报() {
+        String sessionId = "sess_composite_training_goal_isolated";
+        chatInSession(sessionId, "一周训练和餐食计划");
+        chatInSession(sessionId, "本周安排早餐、午餐和晚餐，想减脂");
+        chatInSession(sessionId, "确认餐食计划");
+
+        HealthChatResponse training = chatInSession(sessionId,
+                "目标 增肌，重点练胸，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
+        assertEquals("增肌", training.planBrief().trainingGoal(), training.toString());
+        assertEquals("减脂", training.mealPlanBrief().healthGoal(), training.toString());
+        assertTrue(training.mealPlanBrief().isConfirmedAndComplete(), training.toString());
+        assertFalse(training.planBrief().isConfirmedAndComplete(), training.toString());
     }
 
     @Test

@@ -51,6 +51,20 @@ class IntentRuleServiceTest {
     }
 
     @Test
+    void 训练简报确认生成计划不得被训练时段误路由为作息() {
+        String input = "训练偏好已整理：训练目标：增肌；部位：全身；器械：哑铃；难度：进阶；目标周：2026-08-24；训练日：周一、周二、周三、周四、周五；时间：18:00-19:00。请确认后生成计划。";
+        HealthIntentResult result = rules.fastPath(input, Map.of());
+        assertEquals(HealthDomain.EXERCISE, result.domain());
+        assertEquals(HealthTask.PLAN, result.task());
+    }
+
+    @Test
+    void 训练简报字段标签不应被识别为器械值() {
+        HealthIntentResult result = rules.fallback("训练偏好已整理：器械：哑铃；难度：进阶", Map.of(), null);
+        assertEquals(List.of("哑铃"), result.slots().get("equipment"));
+    }
+
+    @Test
     void 单餐请求不得被PLAN关键词误路由() {
         // 回归：#72 PLAN 兜底关键词必须足够精确，避免「帮我安排一下午餐」被误判为周计划。
         HealthIntentResult meal = rules.fallback("帮我安排一下午餐", Map.of(), null);
