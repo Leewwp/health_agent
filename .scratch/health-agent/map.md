@@ -167,3 +167,8 @@
 - 当前地图已完成决策与规格补齐，进入实现交接，不再把路线图当作唯一实现依据。
 - 03 已完成原型和真实浏览器验收并进入 Decisions so far；17、18、22-28 和 30 的决策、审计和验收门槛已完成，29 号保持开放等待代码接纳和 clean build。
 - `.scratch/health-agent/spec.md` 已发布为正式规格；31-36 已拆分为按依赖推进的垂直实施票据，32 号优先建立可测试的 Agent 主流程，`docs/health-agent-implementation-plan.md` 继续作为里程碑辅助说明。
+
+## 2026-08-29 餐食标签数据与回归网加固（meal-facet-hardening）
+
+- 第三轮审查 + 独立核实：ETL 把三条人工补充餐食的标签按字符切碎（`["粤","菜"]` 级碎片，已在发布种子里）；295 行种子 cuisine 空 276 行、food_type 空 246 行，真实标签由启动逻辑按自增 id 轮换伪造，fresh/legacy 逐行收敛不可达；三条新 foodType 语句零测试执行、种子校验无 facet 断言、fresh-schema 验证缺失；取消测试放宽至不可证伪；路由未消费 foodTypes、类型无未支持通道；AGENTS.md/README 过期。
+- 修复规格已发布：`.scratch/health-agent-meal-facet-hardening/spec.md`（ready-for-agent，已按审查修订）。新增 V24 纠正迁移并明确修复非空非法碎片、复合稳定来源键算法、演示分类 provenance、canonical facet 文件、人工补充输入、manifest/向量索引同步、foodType 未支持解析矩阵、旧饮食链路回归和 INSERT IGNORE 全量覆盖门槛；fresh-schema V1–V24 迁移→导种→投影比对为发布阻塞测试。
