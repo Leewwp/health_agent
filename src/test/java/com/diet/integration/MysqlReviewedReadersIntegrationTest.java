@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
 /**
  * #68/#69/#70 方案 B 读取边界：审核读取模块、浏览/检索与批处理数据面的真实 MySQL 门控验证。
  * <p>
- * 在独立测试库 diet_db_itest 上（V1-V18 迁移 + 资源种子导入，295 道 APPROVED 公共餐食、
+ * 在独立测试库 diet_db_itest 上（V1-V24 迁移 + 资源种子导入，295 道 APPROVED 公共餐食、
  * 1324 个本地动作目录项，自动资格补全后全部具备计划资格），验证：
  * <ul>
  *   <li>#68 审核餐食/动作读取模块真库行为：仅 APPROVED + PUBLIC 返回（审核/来源过滤）、
@@ -112,22 +112,30 @@ class MysqlReviewedReadersIntegrationTest {
 
     // ---------- 工具：自造数据与真库查询 ----------
 
-    /** 插入一道自造餐食并返回主键（列口径与审核种子一致）。 */
+    /** 插入一道自造餐食并返回主键（列口径与审核种子一致，facet 默认为空数组）。 */
     private long insertMeal(String sourceId, String reviewStatus, String sourceType, Long owner,
                             String mealTimeJson, String allergenJson) {
+        return insertMeal(sourceId, reviewStatus, sourceType, owner, mealTimeJson, allergenJson,
+                "[]", "[]", "itest 测试餐食");
+    }
+
+    /** 插入一道携带 facet 契约的自造餐食并返回主键（列口径与审核种子一致）。 */
+    private long insertMeal(String sourceId, String reviewStatus, String sourceType, Long owner,
+                            String mealTimeJson, String allergenJson,
+                            String cuisineJson, String foodTypeJson, String name) {
         jdbc.update("INSERT INTO meal_item (source_type, owner_user_id, name, name_en, aliases,"
-                        + " meal_time, mood, scene, health_goal, cuisine, taste, convenience,"
+                        + " meal_time, mood, scene, health_goal, cuisine, food_type, taste, convenience,"
                         + " description, ingredients_json, serving_count, serving_size, serving_unit,"
                         + " calories_kcal, protein_g, fat_g, carbohydrate_g, nutrition_basis,"
                         + " nutrition_estimated, allergen_json, allergen_status, review_status,"
                         + " source_name, source_id, source_version, media_url, media_status,"
                         + " media_credit, created_at, updated_at)"
-                        + " VALUES (?, ?, 'itest 测试餐食', 'itest meal', NULL, ?, '[]', '[]', '[]', '[]',"
-                        + " '[]', '[]', '测试数据，用例后清理', '[\"测试食材\"]', 1, 1.00, '份',"
+                        + " VALUES (?, ?, ?, 'itest meal', NULL, ?, '[]', '[]', '[]', ?,"
+                        + " ?, '[]', '[]', '测试数据，用例后清理', '[\"测试食材\"]', 1, 1.00, '份',"
                         + " 100.00, 10.00, 5.00, 10.00, 'itest', 0, ?, 'REVIEWED', ?,"
                         + " ?, ?, 'v-itest', NULL, 'NONE', NULL, NOW(), NOW())",
-                sourceType, owner, mealTimeJson, allergenJson, reviewStatus,
-                ITEST_MEAL_SOURCE, sourceId);
+                sourceType, owner, name, mealTimeJson, cuisineJson, foodTypeJson, allergenJson,
+                reviewStatus, ITEST_MEAL_SOURCE, sourceId);
         return jdbc.queryForObject(
                 "SELECT id FROM meal_item WHERE source_name = ? AND source_id = ?",
                 Long.class, ITEST_MEAL_SOURCE, sourceId);
@@ -655,5 +663,69 @@ class MysqlReviewedReadersIntegrationTest {
 
     private boolean containsAsciiLetter(String value) {
         return value != null && value.matches(".*[A-Za-z].*");
+    }
+
+    // ---------- 合并语句族与 facet 筛选（餐食标签加固规格） ----------
+
+    @Test
+    void 合并语句族经Reader路径覆盖facet筛选与分页一致性() {
+        long cantoneseVeg = insertMeal("facet-a", "APPROVED", "PUBLIC", null,
+                "[\"三餐\"]", "[]", "[\"粤菜\"]", "[\"素食\"]", "itest 素食粤菜");
+        long sichuanVeg = insertMeal("facet-b", "APPROVED", "PUBLIC", null,
+                "[\"午餐\"]", "[]", "[\"川菜\"]", "[\"素食\"]", "itest 素食川菜");
+        long cantoneseBbq = insertMeal("facet-c", "APPROVED", "PUBLIC", null,
+                "[\"晚餐\"]", "[]", "[\"粤菜\"]", "[\"烧烤\"]", "itest 烧烤粤菜");
+        try {
+            // 不带 foodType：名称搜索圈定自造行（foodTypeJson 空即不过滤，各过滤参数空串归 null）
+            List<ReviewedMeal> all = mealReader.browse(0, 50, null, false, "itest meal", Map.of());
+            assertTrue(all.stream().map(ReviewedMeal::id).collect(Collectors.toSet())
+                    .containsAll(List.of(cantoneseVeg, sichuanVeg, cantoneseBbq)),
+                    "不带 foodType 的合并浏览语句必须返回全部自造行");
+
+            // foodType=素食：同维度跨菜系 OR（审核语料含既有素食行，断言用包含式）
+            List<ReviewedMeal> vegetarian = mealReader.browse(0, 50, null, false, null,
+                    Map.of("foodType", "素食"));
+            Set<Long> vegetarianIds = vegetarian.stream().map(ReviewedMeal::id).collect(Collectors.toSet());
+            assertTrue(vegetarianIds.containsAll(List.of(cantoneseVeg, sichuanVeg)),
+                    "同维度 foodType 筛选必须命中两道自造素食行");
+            assertFalse(vegetarianIds.contains(cantoneseBbq), "烧烤行不得命中素食筛选");
+            assertEquals(mealReader.countPublic(null, false, null, Map.of("foodType", "素食")),
+                    mealReader.browse(0, Integer.MAX_VALUE, null, false, null, Map.of("foodType", "素食")).size(),
+                    "分页计数必须与行数一致");
+
+            // cuisine+foodType 组合：跨维度 AND（粤菜 AND 素食）
+            List<ReviewedMeal> combined = mealReader.browse(0, 50, null, false, null,
+                    Map.of("cuisine", "粤菜", "foodType", "素食"));
+            assertTrue(combined.stream().map(ReviewedMeal::id).anyMatch(id -> id == cantoneseVeg));
+            assertFalse(combined.stream().map(ReviewedMeal::id).anyMatch(id -> id == sichuanVeg),
+                    "川菜行不得命中粤菜+素食组合筛选");
+
+            // 餐次兼容表达式：晚餐筛选命中三餐标注行（名称搜索圈定自造行避免分页漂移）
+            assertTrue(mealReader.browse(0, 50, null, false, "itest meal", Map.of("mealTime", "晚餐"))
+                    .stream().map(ReviewedMeal::id).anyMatch(id -> id == cantoneseVeg),
+                    "三餐标注行必须被晚餐筛选命中");
+            assertTrue(mealReader.browse(0, 50, null, false, "素食粤菜", Map.of())
+                    .stream().map(ReviewedMeal::id).allMatch(id -> id == cantoneseVeg));
+
+            // Structured 检索（search 语句）：foodType 过滤与三餐兼容
+            List<ReviewedMeal> recalled = mealReader.recallStructured(
+                    Map.of("foodType", List.of("素食"), "mealTime", List.of("早餐")), 50);
+            assertTrue(recalled.stream().map(ReviewedMeal::id).anyMatch(id -> id == cantoneseVeg),
+                    "三餐行必须被早餐筛选命中");
+            assertFalse(recalled.stream().map(ReviewedMeal::id).anyMatch(id -> id == cantoneseBbq),
+                    "foodType 硬过滤必须排除非素食行");
+        } finally {
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ? AND source_id IN (?, ?, ?)",
+                    ITEST_MEAL_SOURCE, "facet-a", "facet-b", "facet-c");
+        }
+    }
+
+    @Test
+    void 旧WithFoodType方法族已删除且合并语句恒定声明foodType参数() {
+        // 加固规格：删除所有成对的 WithFoodType 变体，检索/浏览/计数各保留一条参数完整的语句
+        for (java.lang.reflect.Method method : com.diet.mapper.MealMapper.class.getMethods()) {
+            assertFalse(method.getName().endsWith("WithFoodType"),
+                    "不得残留 WithFoodType 方法族: " + method.getName());
+        }
     }
 }

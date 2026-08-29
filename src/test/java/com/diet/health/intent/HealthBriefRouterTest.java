@@ -42,6 +42,20 @@ class HealthBriefRouterTest {
     }
 
     @Test
+    void 仅含餐食类型的简报被判为餐食侧内容() {
+        // 加固规格：“我想吃素”这类仅填 foodTypes 的简报必须算餐食侧内容，
+        // 路由判定消费 cuisines/foodTypes 列表字段，不再经由旧单值兼容访问器
+        HealthSessionState state = new HealthSessionState("s", 1L, HealthPhase.RESPOND, HealthDomain.MEAL,
+                HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(), PlanBrief.empty(),
+                new MealPlanBrief(null, List.of(), null, List.of(), List.of("素食"), List.of(), null, List.of()),
+                false, false, 0, Map.of("MEAL", BriefLifecycle.OPEN.name()), null);
+
+        BriefRoutingDecision decision = router.decide(state, "再来点清淡的");
+        assertTrue(decision.briefActive());
+        assertEquals(BriefSide.MEAL, decision.activeSide());
+    }
+
+    @Test
     void 活跃简报中的偏好补充进入简报处理器且命中字段解析优先级() {
         HealthSessionState state = mealBriefSession();
 

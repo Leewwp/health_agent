@@ -131,8 +131,10 @@ public class HealthBriefRouter {
     private boolean briefContentFor(HealthSessionState state, BriefSide sessionSide) {
         MealPlanBrief meal = state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief();
         PlanBrief training = state.planBrief() == null ? PlanBrief.empty() : state.planBrief();
+        // 加固规格：餐食侧内容判定消费列表字段 cuisines/foodTypes，不再经由旧单值兼容访问器——
+        // “我想吃素”这类仅含餐食类型的简报必须被判为餐食侧内容
         boolean mealContent = meal.weekStart() != null || !meal.mealTimes().isEmpty()
-                || !isBlank(meal.healthGoal()) || !isBlank(meal.cuisine())
+                || !isBlank(meal.healthGoal()) || !meal.cuisines().isEmpty() || !meal.foodTypes().isEmpty()
                 || !meal.tastePreferences().isEmpty() || !isBlank(meal.convenience())
                 || !meal.unsupportedPreferences().isEmpty();
         boolean trainingContent = !isBlank(training.trainingGoal()) || !training.bodyParts().isEmpty()

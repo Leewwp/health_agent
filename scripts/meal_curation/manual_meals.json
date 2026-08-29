@@ -1,0 +1,179 @@
+{
+  "description": "人工补充餐食策展输入（与公开输入池并列）：ETL 的显式输入，禁止从发布 seed 回读。字段完整可重建 INSERT；重跑 ETL 不得静默丢行。",
+  "meals": [
+    {
+      "note": "历史人工补充高热量主菜（38 号票计划激活死锁修复），完整可重建 INSERT 的策展输入；facet 按 data/meal/facets.json 的规范稳定来源键规则得出演示分类（facetSource=STABLE_KEY_DEMO），不是人工考证的地域事实。",
+      "name": "啤酒慢炖牛肉",
+      "name_en": "Beef Slow Oven Cooked in Beer",
+      "aliases": [
+        "啤酒炖牛肉"
+      ],
+      "meal_time": [
+        "午餐",
+        "晚餐"
+      ],
+      "mood": [],
+      "scene": [],
+      "health_goal": [
+        "高蛋白"
+      ],
+      "cuisine": [
+        "云南菜"
+      ],
+      "food_type": [
+        "快餐"
+      ],
+      "taste": [
+        "咸鲜"
+      ],
+      "convenience": [
+        "慢享"
+      ],
+      "description": "Make and share this Beef Slow Oven Cooked in Beer recipe from Food.com.",
+      "ingredients": [
+        "beef stew meat",
+        "plain flour",
+        "butter",
+        "olive oil",
+        "tomato paste",
+        "bay leaves",
+        "mustard powder",
+        "brown sugar",
+        "lager beer",
+        "parsley"
+      ],
+      "serving_count": 4,
+      "serving_size": "1.00",
+      "serving_unit": "份",
+      "calories_kcal": "1117.70",
+      "protein_g": "70.20",
+      "fat_g": "77.90",
+      "carbohydrate_g": "24.30",
+      "nutrition_basis": "foodcom_source_value",
+      "nutrition_estimated": true,
+      "allergens": [
+        "麸质"
+      ],
+      "allergen_status": "REVIEWED",
+      "source_name": "foodcom-recipes-and-reviews-v2",
+      "source_id": "96740",
+      "source_version": "v2"
+    },
+    {
+      "note": "历史人工补充高热量主菜（38 号票计划激活死锁修复），完整可重建 INSERT 的策展输入；facet 按 data/meal/facets.json 的规范稳定来源键规则得出演示分类（facetSource=STABLE_KEY_DEMO），不是人工考证的地域事实。",
+      "name": "匈牙利红椒鸡",
+      "name_en": "True Hungarian Chicken Paprikas",
+      "aliases": [
+        "匈牙利鸡"
+      ],
+      "meal_time": [
+        "午餐",
+        "晚餐"
+      ],
+      "mood": [],
+      "scene": [],
+      "health_goal": [
+        "高蛋白"
+      ],
+      "cuisine": [
+        "粤菜"
+      ],
+      "food_type": [
+        "小吃"
+      ],
+      "taste": [
+        "奶香"
+      ],
+      "convenience": [
+        "慢享"
+      ],
+      "description": "Make and share this True Hungarian Chicken Paprikas recipe from Food.com.",
+      "ingredients": [
+        "frying chicken",
+        "butter",
+        "onions",
+        "garlic cloves",
+        "Hungarian paprika",
+        "chicken broth",
+        "salt",
+        "pepper",
+        "flour",
+        "sour cream",
+        "heavy cream"
+      ],
+      "serving_count": 8,
+      "serving_size": "1.00",
+      "serving_unit": "份",
+      "calories_kcal": "1118.70",
+      "protein_g": "67.50",
+      "fat_g": "89.30",
+      "carbohydrate_g": "9.00",
+      "nutrition_basis": "foodcom_source_value",
+      "nutrition_estimated": true,
+      "allergens": [
+        "牛奶",
+        "麸质"
+      ],
+      "allergen_status": "REVIEWED",
+      "source_name": "foodcom-recipes-and-reviews-v2",
+      "source_id": "198328",
+      "source_version": "v2"
+    },
+    {
+      "note": "历史人工补充高热量主菜（38 号票计划激活死锁修复），完整可重建 INSERT 的策展输入；facet 按 data/meal/facets.json 的规范稳定来源键规则得出演示分类（facetSource=STABLE_KEY_DEMO），不是人工考证的地域事实。",
+      "name": "柠檬鸡配米饭",
+      "name_en": "Lemon Chicken over Rice",
+      "aliases": [
+        "柠檬鸡饭"
+      ],
+      "meal_time": [
+        "午餐",
+        "晚餐"
+      ],
+      "mood": [],
+      "scene": [],
+      "health_goal": [
+        "高蛋白"
+      ],
+      "cuisine": [
+        "日料"
+      ],
+      "food_type": [
+        "小吃"
+      ],
+      "taste": [
+        "咸鲜"
+      ],
+      "convenience": [
+        "快速"
+      ],
+      "description": "Make and share this Lemon Chicken over Rice recipe from Food.com.",
+      "ingredients": [
+        "chicken breasts",
+        "flour",
+        "salt",
+        "pepper",
+        "lemon pepper",
+        "butter",
+        "chicken broth",
+        "lemon juice"
+      ],
+      "serving_count": 4,
+      "serving_size": "1.00",
+      "serving_unit": "份",
+      "calories_kcal": "1117.20",
+      "protein_g": "100.30",
+      "fat_g": "65.90",
+      "carbohydrate_g": "24.90",
+      "nutrition_basis": "foodcom_source_value",
+      "nutrition_estimated": true,
+      "allergens": [
+        "麸质"
+      ],
+      "allergen_status": "REVIEWED",
+      "source_name": "foodcom-recipes-and-reviews-v2",
+      "source_id": "307525",
+      "source_version": "v2"
+    }
+  ]
+}

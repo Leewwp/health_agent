@@ -65,7 +65,7 @@ public class SemanticChallengeEvaluationRunner implements ApplicationRunner {
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("runAt", LocalDateTime.now().toString());
         report.put("challengeSetVersion", root.path("challengeSetVersion").asText());
-        report.put("corpusVersion", "current-corpus-v1");
+        report.put("corpusVersion", "current-corpus-v2");
         report.put("queryCount", root.path("queries").size());
         if (!"COMPLETE".equalsIgnoreCase(root.path("annotationStatus").asText())) {
             report.put("status", "NOT_RUN");

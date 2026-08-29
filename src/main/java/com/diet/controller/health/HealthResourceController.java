@@ -60,7 +60,7 @@ public class HealthResourceController {
     private static Map<String, String> accepted(Map<String, String> params, String ignored) {
         Map<String, String> accepted = new LinkedHashMap<>();
         params.forEach((key, value) -> {
-            if ("mealTime".equals(key) || "cuisine".equals(key) || "taste".equals(key)
+            if ("mealTime".equals(key) || "cuisine".equals(key) || "foodType".equals(key) || "taste".equals(key)
                     || "healthGoal".equals(key) || "bodyPart".equals(key) || "equipment".equals(key)
                     || "difficulty".equals(key) || "movementPattern".equals(key)) {
                 accepted.put(key, value);

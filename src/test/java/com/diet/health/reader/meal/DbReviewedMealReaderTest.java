@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,7 +49,7 @@ class DbReviewedMealReaderTest {
         MealItemRow pending = row(2L, "PENDING");
         MealItemRow rejected = row(3L, "REJECTED");
         when(mealMapper.search(eq(SourceMode.PUBLIC), eq(null), anyString(), anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyString(), eq(50)))
+                anyString(), anyString(), anyString(), anyString(), anyString(), eq(50)))
                 .thenReturn(List.of(approved, pending, rejected));
 
         List<ReviewedMeal> result = reader.recallStructured(
@@ -61,7 +62,7 @@ class DbReviewedMealReaderTest {
     @Test
     void 结构化召回空槽位转换为空JSON数组() {
         when(mealMapper.search(eq(SourceMode.PUBLIC), eq(null), eq("[]"), eq("[]"), eq("[]"),
-                eq("[]"), eq("[]"), eq("[]"), eq("[]"), eq(50)))
+                eq("[]"), eq("[]"), eq("[]"), eq("[]"), eq("[]"), eq(50)))
                 .thenReturn(List.of());
         assertTrue(reader.recallStructured(null, 50).isEmpty());
     }
@@ -88,34 +89,39 @@ class DbReviewedMealReaderTest {
     }
 
     @Test
-    void 分页与总数选择对应SQL() {
-        when(mealMapper.browsePublicMeals(20, 10)).thenReturn(List.of(row(5L, "APPROVED")));
-        when(mealMapper.countPublicMeals()).thenReturn(295);
+    void 分页与总数走同一合并语句() {
+        // 加固规格：浏览/计数各保留一条参数完整的语句，无过滤参数即全量
+        when(mealMapper.browsePublicMealsFiltered(isNull(), eq(false), isNull(),
+                isNull(), isNull(), isNull(), isNull(), isNull(), eq(20), eq(10)))
+                .thenReturn(List.of(row(5L, "APPROVED")));
+        when(mealMapper.countPublicMealsFiltered(isNull(), eq(false), isNull(),
+                isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(295);
         assertEquals(1, reader.browse(20, 10).size());
         assertEquals(295, reader.countPublic());
-        verify(mealMapper).browsePublicMeals(20, 10);
-        verify(mealMapper).countPublicMeals();
+        verify(mealMapper).browsePublicMealsFiltered(null, false, null, null, null, null, null, null, 20, 10);
+        verify(mealMapper).countPublicMealsFiltered(null, false, null, null, null, null, null, null);
     }
 
     @Test
     void 名称搜索透传query并选择过滤SQL() {
         // #105：名称搜索走 filtered SQL，query 原样透传（trim，空串归 null），中英文同口径。
         when(mealMapper.browsePublicMealsFiltered(eq(7L), eq(false), eq("鸡"),
-                eq(null), eq(null), eq(null), eq(null), eq(10), eq(20))).thenReturn(List.of(row(3L, "APPROVED")));
-        when(mealMapper.countPublicMealsFiltered(7L, false, "鸡", null, null, null, null)).thenReturn(89);
+                eq(null), eq(null), eq(null), eq(null), eq(null), eq(10), eq(20)))
+                .thenReturn(List.of(row(3L, "APPROVED")));
+        when(mealMapper.countPublicMealsFiltered(7L, false, "鸡", null, null, null, null, null)).thenReturn(89);
 
         assertEquals(1, reader.browse(10, 20, 7L, false, " 鸡 ", Map.of()).size());
         assertEquals(89, reader.countPublic(7L, false, " 鸡 ", Map.of()));
-        verify(mealMapper).browsePublicMealsFiltered(7L, false, "鸡", null, null, null, null, 10, 20);
-        verify(mealMapper).countPublicMealsFiltered(7L, false, "鸡", null, null, null, null);
+        verify(mealMapper).browsePublicMealsFiltered(7L, false, "鸡", null, null, null, null, null, 10, 20);
+        verify(mealMapper).countPublicMealsFiltered(7L, false, "鸡", null, null, null, null, null);
     }
 
     @Test
     void 空白名称搜索归一为null并保持过滤SQL选择() {
         reader.browse(0, 20, 7L, true, "   ", Map.of());
         reader.countPublic(7L, true, "", Map.of());
-        verify(mealMapper).browsePublicMealsFiltered(7L, true, null, null, null, null, null, 0, 20);
-        verify(mealMapper).countPublicMealsFiltered(7L, true, null, null, null, null, null);
+        verify(mealMapper).browsePublicMealsFiltered(7L, true, null, null, null, null, null, null, 0, 20);
+        verify(mealMapper).countPublicMealsFiltered(7L, true, null, null, null, null, null, null);
     }
 
     @Test
@@ -155,7 +161,9 @@ class DbReviewedMealReaderTest {
 
     @Test
     void 返回集合不可变() {
-        when(mealMapper.browsePublicMeals(0, 10)).thenReturn(List.of(row(1L, "APPROVED")));
+        when(mealMapper.browsePublicMealsFiltered(isNull(), eq(false), isNull(),
+                isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(10)))
+                .thenReturn(List.of(row(1L, "APPROVED")));
         List<ReviewedMeal> meals = reader.browse(0, 10);
         assertThrows(UnsupportedOperationException.class,
                 () -> meals.add(reader.toReviewedMeal(row(2L, "APPROVED"))),

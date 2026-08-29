@@ -61,7 +61,8 @@ class MealCuisineIntentParserTest {
 
     @Test
     void 支持中文标点和和或以及分隔() {
-        assertEquals(List.of("川菜", "家常"), parser.parse("菜系川菜和家常").supported());
+        assertEquals(List.of("川菜"), parser.parse("菜系川菜和家常").supported());
+        assertEquals(List.of("家常"), parser.parse("菜系川菜和家常").unsupported());
         assertEquals(List.of("川菜", "粤菜"), parser.parse("川菜或粤菜菜系").supported());
     }
 
@@ -69,7 +70,7 @@ class MealCuisineIntentParserTest {
     void 可选菜系列表来自归一器别名表且不含中餐() {
         List<String> cuisines = parser.supportedCuisines();
         assertTrue(cuisines.contains("川菜"));
-        assertTrue(cuisines.contains("家常"));
+        assertFalse(cuisines.contains("家常"), "家常属于餐食类型，不是菜系");
         assertFalse(cuisines.contains("中餐"), "中餐是非库标签，不得加入受支持菜系别名表");
     }
 }

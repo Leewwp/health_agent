@@ -153,6 +153,7 @@ public class MealModule {
         List<String> queryMealTime = healthSlots == null ? List.of() : healthSlots.getOrDefault("mealTime", List.of());
         List<PlanMealCandidate> candidates = resourceProvider.planMealCandidates().stream()
                 .filter(candidate -> !exclude.contains(candidate.resourceId()))
+                .filter(candidate -> matchesSeedMealTime(candidate, healthSlots))
                 .toList();
         List<Scored> scored = candidates.stream()
                 .map(candidate -> new Scored(candidate, mealTimeScore(candidate, queryMealTime)))
@@ -178,7 +179,9 @@ public class MealModule {
             // 审核资源的显式筛选条件必须有对应标签并命中，避免向量召回绕过硬约束。
             if (!item.tags().containsKey(entry.getKey())) return false;
             List<String> tags = item.tags().getOrDefault(entry.getKey(), List.of());
-            if (tags.isEmpty() || values.stream().noneMatch(tags::contains)) return false;
+            boolean allDayMeal = tags.contains("三餐");
+            if (tags.isEmpty() || values.stream().noneMatch(value -> tags.contains(value)
+                    || (allDayMeal && List.of("早餐", "午餐", "晚餐").contains(value)))) return false;
         }
         return true;
     }
@@ -199,7 +202,8 @@ public class MealModule {
         if (queryMealTime.isEmpty() || mealTimes.isEmpty()) {
             return 1;
         }
-        long hits = mealTimes.stream().filter(queryMealTime::contains).count();
+        long hits = mealTimes.stream().filter(tag -> queryMealTime.contains(tag)
+                || ("三餐".equals(tag) && queryMealTime.stream().anyMatch(List.of("早餐", "午餐", "晚餐")::contains))).count();
         return (double) hits / mealTimes.size();
     }
 
@@ -207,6 +211,11 @@ public class MealModule {
     private HealthResource toSeedResource(PlanMealCandidate candidate) {
         Map<String, List<String>> tags = new LinkedHashMap<>();
         tags.put("mealTime", candidate.mealTimeTags());
+        tags.put("cuisine", candidate.cuisineTags());
+        tags.put("foodType", candidate.foodTypeTags());
+        tags.put("taste", candidate.tasteTags());
+        tags.put("convenience", candidate.convenienceTags());
+        tags.put("healthGoal", candidate.nutritionPreferenceTags());
         return new HealthResource(
                 "MEAL",
                 candidate.resourceId(),
@@ -217,6 +226,16 @@ public class MealModule {
                 false,
                 tags
         );
+    }
+
+    private boolean matchesSeedMealTime(PlanMealCandidate candidate, Map<String, List<String>> slots) {
+        if (slots == null || slots.isEmpty()) return true;
+        List<String> values = slots.getOrDefault("mealTime", List.of());
+        if (values.isEmpty()) return true;
+        List<String> tags = candidate.mealTimeTags();
+        boolean allDay = tags.contains("三餐");
+        return values.stream().anyMatch(value -> tags.contains(value)
+                || (allDay && List.of("早餐", "午餐", "晚餐").contains(value)));
     }
 
     /** fixture 路径 Trace：明确记录 FIXTURE 模式与无向量 collection，不调用 Embedding/VectorStore。 */
@@ -233,7 +252,7 @@ public class MealModule {
         return traceDetail;
     }
 
-    /** 旧链路使用的 7 维槽位（SlotBundle）→ 标签 Map。 */
+    /** 旧链路使用的餐食槽位（SlotBundle）→ 标签 Map。 */
     public Map<String, List<String>> slotsToTags(SlotBundle slots) {
         if (slots == null) {
             return Map.of();
@@ -244,6 +263,7 @@ public class MealModule {
         tags.put("scene", slots.scene());
         tags.put("healthGoal", slots.healthGoal());
         tags.put("cuisine", slots.cuisine());
+        tags.put("foodType", slots.foodType());
         tags.put("taste", slots.taste());
         tags.put("convenience", slots.convenience());
         return tags;

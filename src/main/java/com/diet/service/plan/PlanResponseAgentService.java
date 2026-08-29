@@ -208,6 +208,7 @@ public class PlanResponseAgentService {
                         option.matchedSlots().scene(),
                         option.matchedSlots().healthGoal(),
                         option.matchedSlots().cuisine(),
+                        option.matchedSlots().foodType(),
                         option.matchedSlots().taste(),
                         option.matchedSlots().convenience(),
                         option.matchScore()

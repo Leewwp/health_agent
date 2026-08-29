@@ -378,7 +378,7 @@ class MysqlReviewedDbPlanMealIntegrationTest {
                 USER);
         String snapshot = String.valueOf(version.get("resource_snapshot_json"));
         assertTrue(snapshot.contains("REVIEWED_DB"), "快照必须标识 Provider 模式 REVIEWED_DB");
-        assertTrue(snapshot.contains("reviewed-2026-08-10-v1"), "快照必须标识审核子集资源版本");
+        assertTrue(snapshot.contains("reviewed-2026-08-29-v1"), "快照必须标识审核子集资源版本");
         assertTrue(snapshot.contains("公共餐食库"), "餐食来源名必须为公共餐食库");
         assertTrue(snapshot.contains("sourceType"), "快照必须含来源类型字段");
         assertFalse(snapshot.contains("M1") || snapshot.contains("9001") || snapshot.contains("R1"),

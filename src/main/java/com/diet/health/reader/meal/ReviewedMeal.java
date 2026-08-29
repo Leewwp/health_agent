@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * 审核公共餐食不可变读取模型（#68）：浏览、领域召回与索引/评估快照共用同一行映射口径。
  * <p>
- * tags 为 7 维槽位标签（mealTime/mood/scene/healthGoal/cuisine/taste/convenience）；
+ * tags 为餐食槽位标签（mealTime/mood/scene/healthGoal/cuisine/foodType/taste/convenience）；
  * allergens 为过敏原标签；来源/审核/媒体字段原样携带，由调用场景决定透出与否。
  */
 public record ReviewedMeal(

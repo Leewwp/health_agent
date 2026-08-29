@@ -12,8 +12,8 @@
 - v2 -> v3 已补生成关闭落点、未知菜系确定性提取、fixture 标签、generationNotes 字段形状、判定优先级和按日回退例。
 - v3 -> v3.1 已补生成写入耐久幂等/失败恢复、`isUnrelated` 前的可选偏好解析、营养标签来源、会话并发合并、版本详情 API、确认指纹、ALTERNATIVE/ADJUST 逃生口和完整回退算法。
 - v3.1 -> v3.2 已补 `tastePreferences` 到口味/营养标签的逐值映射与跨字段 AND、`persistAndRespond` 整体保存并发保护、候选 1/2 预检断言翻转清单、确认指纹 canonical 序列化、“开始推荐”确认短语、fixture 标签新增措辞及 BOTH 无前缀共享周表达回归例。
-- 基线 commit `097be31`；测试基线 749。票据仍为 `ready-for-agent`，GitHub 票据待最终批准后发布。
-- 2026-08-29 实施完成：五张票据转 resolved。执行记录 `mvn test` 817/0 失败/45 跳过、`mvn test -Ditest.mysql=true` 817/0 失败/4 跳过、前端 node 测试 40/40；浏览器验收（REVIEWED_DB，桌面 1440×900 + 移动 390×844）13 项全通过，证据见 `docs/frontend-browser-acceptance.md` 2026-08-29 小节。验收中发现并修复计划页七日网格 1440 宽度横向溢出。GitHub 票据仍待用户批准后发布。
+- 基线 commit `097be31`；修复前测试基线 749。2026-08-29 完成餐食标签修复规格：菜系/餐食类型均为数组，多选同维度 OR、跨维度 AND；旧规格已由 `../health-agent-meal-facet-repair/spec.md` 取代。
+- 2026-08-29 复验：`mvn test` 817 项 0 失败/错误（45 跳过），`mvn test -Ditest.mysql=true` 817 项 0 失败/错误（4 跳过），前端 40/40，ETL 295 条可重跑，真实浏览器 `http://localhost:8092` 通过。五张子票保留历史 resolved 记录，当前总票据转 `ready-for-human`。
 
 ## Decisions so far
 
@@ -21,7 +21,7 @@
 - 逃生口分为普通推荐 `RECOMMEND`、替代推荐 `ALTERNATIVE`、切域/作息 `DOMAIN_OR_ROUTINE`；其余自由文本在活跃简报中进入简报处理器。
 - 生命周期写入 `_meta.briefLifecycle`，MEAL/EXERCISE 各自 OPEN/PAUSED/GENERATED；生成入口通过 `health_plan_write_request` 的 `GENERATE_<scope>` 记录实现耐久幂等（同一用户 requestId 全局唯一，跨 session/scope 冲突），回写通过数据库行锁合并。
 - 综合侧归属：NONE -> 餐食；焦点侧跟随未完成侧；BOTH 无前缀必须澄清；显式“餐食：/训练：”可跨侧修改。
-- 餐食简报固定字段为 `cuisine`、`tastePreferences`、`convenience`、`unsupportedPreferences`；确定性菜系解析先于 unrelated 门槛，模型未知 rawSlots 不得越权产生未支持值。
+- 餐食简报固定字段为 `cuisines`、`foodTypes`、`tastePreferences`、`convenience`、`unsupportedPreferences`；确定性菜系解析先于 unrelated 门槛，模型未知 rawSlots 不得越权产生未支持值。
 - 候选字段为 `cuisineTags/tasteTags/nutritionPreferenceTags/convenienceTags`；审核库从 cuisine/taste/health_goal/convenience 投影，fixture M1-M9 使用固定标签表。过滤同字段 OR、跨字段 AND；偏好池为空或无法形成完整组合时整天回退，但保留餐次/唯一性/热量/多样性约束。
 - generationNotes 固定为 `{unsupportedPreferences: string[], fallbacks: [{date, mealTimes, unmetPreferences}]}`，写入 metadata 和版本快照，并由计划详情与版本详情 API、计划页展示；旧计划返回空对象。
 - 推荐确认使用稳定指纹 `_meta.recommendationConfirmationKey`；槽位、领域、资源版本、替代推荐或新会话变化使确认失效。

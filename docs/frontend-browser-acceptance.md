@@ -1,5 +1,13 @@
 # 前端浏览器验收记录（37 号：35 前端模块与用户页面）
 
+## 2026-08-29 餐食标签修复复验
+
+- 实例：后端 `http://localhost:8082`，Nginx 前端 `http://localhost:8092/#/meals`，构建标识为 `4d389ba + working tree (2026-08-29)`（Java 21，Flyway v24）。
+- 数据库与筛选：真实浏览器加载餐食库显示 295 条；`GET /api/v1/health/meals?mealTime=晚餐&foodType=轻食` 返回 `APPROVED` 记录，响应同时含 `tags.cuisine` 与 `tags.foodType`；早餐查询命中带 `三餐` 标签的记录。
+- 简报边界：匿名新会话依次发送“下周安排早餐、午餐和晚餐，想减脂”“我喜欢中餐、川菜”，响应为 `cuisines=[川菜,中餐]`、`unsupportedPreferences=[cuisine:中餐]`、`foodTypes=[]`，并继续列出餐食类型/口味/烹饪时长可补充项。
+- 前端状态：餐食页展示餐食类型筛选和 `foodType` 标签；首次后端未就绪时显示失败重试，服务就绪后点击重试恢复 295 条列表。桌面视口 1694×880，`document.documentElement.scrollWidth = clientWidth = 1694`；移动视口 390×844，`scrollWidth = clientWidth = 390`。
+- 自动化门禁：前端 Node 测试 41/41；后端 `mvn test` 850 项 0 失败/错误（49 个环境门控跳过）；`mvn test -Ditest.mysql=true` 850 项 0 失败/错误（4 个独立环境门控跳过）。
+
 - 验收日期：2026-08-11
 - 验收环境：本地 fixture 后端（`--diet.agent.mode=fixture`，独立测试库 `diet_db_f37`，端口 8092）+ Nginx 同源反代（端口 8090，`deploy/nginx.conf`，静态托管 `frontend/`）+ 真实 Chromium（ego-browser）
 - 验收方式：真实浏览器 DOM 断言（功能状态、toast、按钮态、DB 落库核对），桌面 1280×800 与移动端 390×844 两种视口
@@ -247,3 +255,10 @@
 - 桌面 `1440×900`：聊天页与计划页 `documentElement.scrollWidth = body.scrollWidth = clientWidth = 1440`，无横向溢出；验收中发现并修复计划页七日网格在 1440 宽度下撑破文档宽度的横向溢出（`.mp-wide-board` 原 `min-width:1220px` 两侧栏下超出视口，新增 ≤1560px 断点使其随容器收缩），修复后七列全部可见。
 - 移动端 `390×844`：聊天页（简报卡、chip、按钮）与计划页（生成说明两分区、状态按钮）`scrollWidth = clientWidth = 390`，无横向溢出，按钮文字无重叠，chip 可点击。
 - 截图证据：`.local-run/acceptance/`（桌面聊天简报完成卡、桌面计划页生成说明、移动端聊天 chip、移动端计划页生成说明；`.local-run/` 为 gitignored 运行产物目录）。
+
+## 餐食标签与计划卡片收敛验收（2026-08-29）
+
+- 验收环境：Spring Boot `8083` + 同源 Nginx `8093`，真实 Chromium（ego-browser）；桌面 `1694×880`，移动端 `390×844`。
+- 餐食库筛选显示统一字段“用餐时间 / 菜系 / 餐食类型 / 口味 / 健康目标”；通过 `mealTime=晚餐&foodType=轻食` 的真实请求返回 18 条，包含“ 三餐 ”标签的餐食也能命中晚餐筛选。
+- 计划页七日列宽保持不变；卡片移除右侧空列、收窄内边距并提高最小行高，长餐名/动作名支持两行显示，详情仍可打开查看完整内容。桌面与移动端均未发现文档横向溢出。
+- V21 将 `cuisine` 与 `food_type` 分离并迁移混合旧标签；V22 为缺失标签的演示审核数据按稳定 ID 补齐规范菜系/餐食类型，保证库筛选与 Agent 推荐共享同一词汇。

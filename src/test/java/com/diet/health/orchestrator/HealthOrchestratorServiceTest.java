@@ -186,7 +186,7 @@ class HealthOrchestratorServiceTest {
         assertEquals(HealthResponseType.ANSWER, response.responseType());
         assertEquals(List.of("晚餐"), slots.getValue().get("mealTime"));
         assertEquals(List.of("没胃口"), slots.getValue().get("mood"));
-        assertEquals(List.of("素食"), slots.getValue().get("cuisine"));
+        assertEquals(List.of("素食"), slots.getValue().get("foodType"));
         assertEquals(List.of("酸甜"), slots.getValue().get("taste"));
         assertEquals(List.of("快速"), slots.getValue().get("convenience"));
     }
@@ -226,7 +226,7 @@ class HealthOrchestratorServiceTest {
                 new HealthChatRequest(null, "req-preflight-labels", "今晚胃口不好，想吃素，想吃便利店能买的酸甜口味速食", Map.of()));
 
         assertTrue(response.speechText().contains("今天的心情：没胃口"));
-        assertTrue(response.speechText().contains("菜系或食材：素食"));
+        assertTrue(response.speechText().contains("餐食类型：素食"));
         assertTrue(response.speechText().contains("口味：酸甜"));
         assertTrue(response.speechText().contains("能接受的耗时和购买方式：快速"));
         assertFalse(response.speechText().contains("mealTime"));

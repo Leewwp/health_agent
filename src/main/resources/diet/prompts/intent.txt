@@ -32,13 +32,14 @@
   "scene": ["工作", "校园"],
   "healthGoal": ["减脂", "清淡"],
   "cuisine": ["川菜", "粤菜"],
+  "foodType": ["素食", "轻食"],
   "taste": ["辣", "清淡"],
   "convenience": ["快速", "慢享"]
 }
 
 【槽位规则】
-- slots 只包含 mealTime、mood、scene、healthGoal、cuisine、taste、convenience。
-- mealTime、mood、scene、healthGoal、cuisine、taste、convenience 必须从 slotOptions 对应字段的候选值中选择。
+- slots 只包含 mealTime、mood、scene、healthGoal、cuisine、foodType、taste、convenience。
+- mealTime、mood、scene、healthGoal、cuisine、foodType、taste、convenience 必须从 slotOptions 对应字段的候选值中选择。
 - 用户说法可以做语义归一，例如"午饭/中饭"可映射到 slotOptions.mealTime 中的"午餐"，"减重/减肥/瘦身"可映射到 slotOptions.healthGoal 中的"减脂"。
 - 如果 slotOptions 中没有合适候选值，对应字段输出 null，不要创造新标签。
 - 抽不到的字段填 null。

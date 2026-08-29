@@ -19,7 +19,7 @@ public class HealthSlotDictionary {
     /** 健身槽位种子版本，调整取值时必须同步提升版本并更新 Prompt。 */
     public static final String FITNESS_SLOT_VERSION = "2026-08-20-v2";
 
-    public static final List<String> MEAL_SLOTS = List.of("mealTime", "mood", "scene", "healthGoal", "cuisine", "taste", "convenience");
+    public static final List<String> MEAL_SLOTS = List.of("mealTime", "mood", "scene", "healthGoal", "cuisine", "foodType", "taste", "convenience");
     public static final List<String> FITNESS_SLOTS = List.of("bodyParts", "equipment", "trainingGoal", "difficulty");
     public static final List<String> ROUTINE_SLOTS = List.of("wakeTime", "bedtime", "sleepDuration");
 

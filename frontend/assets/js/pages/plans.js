@@ -114,8 +114,18 @@ function renderGenerationNotes(plan) {
         ? `<p class="mp-notes-line"><strong>未支持偏好（暂不按它筛选）：</strong>${escapeHtml(unsupported.join("、"))}</p>`
         : "";
     const fallbackSection = fallbacks.length
-        ? `<p class="mp-notes-line"><strong>按日回退：</strong>${fallbacks.map((day) =>
-            `${escapeHtml(day.date)}（${escapeHtml((day.mealTimes || []).join("、"))}）未满足：${escapeHtml((day.unmetPreferences || []).join("、"))}`).join("；")}</p>`
+        ? (() => {
+            const groups = new Map();
+            fallbacks.forEach((day) => {
+                const key = (day.unmetPreferences || []).join("、") || "偏好条件";
+                const group = groups.get(key) || { dates: [], meals: new Set() };
+                group.dates.push(day.date);
+                (day.mealTimes || []).forEach((meal) => group.meals.add(meal));
+                groups.set(key, group);
+            });
+            return `<p class="mp-notes-line"><strong>按日回退：</strong>${[...groups.entries()].map(([reason, group]) =>
+                `${group.dates.length > 1 ? `${escapeHtml(group.dates[0])} 等${group.dates.length}天` : escapeHtml(group.dates[0])}（${escapeHtml([...group.meals].join("、"))}）未满足：${escapeHtml(reason)}`).join("；")}</p>`;
+        })()
         : "";
     return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}</div>`;
 }
@@ -163,7 +173,14 @@ function renderDirtyBar() {
 
 function renderValidation(plan) {
     if (!plan.validationHits?.length && !plan.profileStale) return "";
-    return `<div class="mp-validation">${plan.profileStale ? `<span class="badge warn">健康档案已更新，计划仍按生成快照</span>` : ""}${(plan.validationHits || []).map((hit) => `<span class="chip ${hit.severity === "BLOCK_PLAN" ? "warn" : "selected"}">${escapeHtml(hit.ruleCode)} · ${escapeHtml(hit.decision)}</span>`).join("")}</div>`;
+    const grouped = new Map();
+    (plan.validationHits || []).forEach((hit) => {
+        const key = hit.ruleCode || hit.decision || "VALIDATION";
+        const current = grouped.get(key) || { ...hit, count: 0 };
+        current.count += 1;
+        grouped.set(key, current);
+    });
+    return `<div class="mp-validation">${plan.profileStale ? `<span class="badge warn">健康档案已更新，计划仍按生成快照</span>` : ""}${[...grouped.values()].map((hit) => `<span class="chip ${hit.severity === "BLOCK_PLAN" ? "warn" : "selected"}">${escapeHtml(hit.ruleCode || "校验提示")} · ${escapeHtml(hit.decision || "需关注")}${hit.count > 1 ? `（${hit.count}天）` : ""}</span>`).join("")}</div>`;
 }
 
 function renderDay(plan, day, index) {
@@ -256,7 +273,7 @@ function renderPicker() {
     const picker = state.picker;
     const type = picker.type;
     const fields = type === "MEAL"
-        ? [["mealTime", "餐次", ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"]], ["cuisine", "菜系", ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"]], ["healthGoal", "目标", ["低油", "均衡", "控碳水", "清淡", "高蛋白"]]]
+        ? [["mealTime", "餐次", ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"]], ["cuisine", "菜系", ["粤菜", "川菜", "湘菜", "江浙菜", "东北菜", "鲁菜", "闽南菜", "云南菜", "新疆菜", "西餐", "日料", "韩餐", "东南亚菜"]], ["foodType", "餐食类型", ["素食", "海鲜", "家常", "轻食", "粉面", "粥汤", "快餐", "甜品", "火锅", "小吃", "烧烤"]], ["taste", "口味", ["清淡", "咸鲜", "奶香", "甜", "辣", "酸甜", "麻辣", "番茄味"]], ["healthGoal", "目标", ["减脂", "增肌", "维持健康", "均衡"]]]
         : [["bodyPart", "部位", ["全身", "胸", "背", "肩", "手臂", "腿", "核心", "臀", "颈部"]], ["equipment", "器材", ["徒手", "哑铃", "杠铃", "壶铃", "弹力带", "器械"]], ["difficulty", "难度", ["入门", "进阶", "挑战"]], ["movementPattern", "模式", ["推", "拉", "蹲", "髋", "踝", "核心", "有氧"]]];
     const pages = Math.max(1, Math.ceil((picker.total || 0) / PICKER_PAGE_SIZE));
     return `<div class="mp-overlay" data-picker-overlay><section class="mp-modal" role="dialog" aria-modal="true" aria-label="选择审核资源"><header><div><span class="mp-eyebrow">${picker.mode === "replace" ? "替换资源" : "新增项目"}</span><h2>选择${RESOURCE_TYPE_LABELS[type]}</h2></div><button class="mp-close" data-plan-action="close-picker" aria-label="关闭资源选择">×</button></header><div class="mp-modal-tabs">${["MEAL", "EXERCISE"].map((kind) => `<button class="${kind === type ? "active" : ""}" data-plan-action="picker-type" data-type="${kind}">${RESOURCE_TYPE_LABELS[kind]}</button>`).join("")}</div><form class="mp-search" data-picker-search><input name="q" value="${escapeHtml(picker.query)}" placeholder="搜索名称" autocomplete="off"><button class="mp-btn ghost small" type="submit">搜索</button><button class="mp-fav-toggle ${picker.favoriteOnly ? "active" : ""}" type="button" data-plan-action="picker-favorites" aria-pressed="${picker.favoriteOnly}">♡ 仅看收藏</button></form><div class="mp-structured-filters">${fields.map(([key, label, values]) => `<label>${label}<select data-plan-action="picker-filter" data-filter-key="${key}"><option value="">全部</option>${values.map((value) => `<option value="${escapeHtml(value)}" ${picker.filters[key] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>`).join("")}</div>${picker.loading ? `<div class="mp-empty">资源加载中...</div>` : picker.error ? `<div class="mp-empty">${escapeHtml(picker.error)}</div>` : picker.items.length ? `<div class="mp-resource-list">${picker.items.map(renderPickerItem).join("")}</div>` : `<div class="mp-empty">没有符合条件的审核资源。</div>`}<footer><span>第 ${picker.page} / ${pages} 页 · 共 ${picker.total || 0} 条</span><div class="mp-actions"><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page - 1}" ${picker.page <= 1 ? "disabled" : ""}>上一页</button><button class="mp-btn ghost small" data-plan-action="picker-page" data-page="${picker.page + 1}" ${picker.page >= pages ? "disabled" : ""}>下一页</button></div></footer></section>${pickerDetailMarkup()}</div>`;

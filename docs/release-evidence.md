@@ -40,7 +40,7 @@
 |---|---|
 | Mifflin-St Jeor 能量区间 | `EnergyCalculatorTest` |
 | 周计划不变量（版本/激活/归档） | `WeeklyPlanServiceTest`（20 个）+ `PlanValidationServiceTest` + `WeeklyPlanComposerServiceTest` |
-| 事务化 + 行锁 + ENABLED 唯一约束 | 真实 MySQL 集成验证：`src/test/java/com/diet/integration/MysqlTransactionIntegrationTest.java`（18 个用例，`-Ditest.mysql=true` 门控）：V1-V20 迁移、范围化生成与启用失败无半成品、并发启用唯一成功、激活后档案版本/能量区间与快照一致、档案版本号连续唯一、MySQL 不可用快速失败 |
+| 事务化 + 行锁 + ENABLED 唯一约束 | 真实 MySQL 集成验证：`src/test/java/com/diet/integration/MysqlTransactionIntegrationTest.java`（18 个用例，`-Ditest.mysql=true` 门控）：V1-V24 迁移、范围化生成与启用失败无半成品、并发启用唯一成功、激活后档案版本/能量区间与快照一致、档案版本号连续唯一、MySQL 不可用快速失败 |
 | 三阶段风险 Guard | `HealthRiskRuleServiceTest`、`RiskRuleCatalogTest`、`PlanValidationServiceTest` |
 | 类型化反馈闭环 | `FeedbackServiceTest`、`health/feedback` 测试；浏览器收藏/喜欢/采纳反馈落库 |
 
@@ -139,6 +139,18 @@
 | 范围 | 证据 |
 |---|---|
 | 已验证核心 | 动作与正式餐食显式槽位执行同字段 OR、跨字段 AND；追加值经目录验证并跨轮持久化；训练 Guard 覆盖全部指定日期；独立餐食/训练启用计划可提供当天软上下文；详情抽屉忽略过期异步响应。 |
-| 自动化门槛 | `mvn test` 729 项 0 failures（725 通过、4 环境门控跳过）；`mvn test -Ditest.mysql=true` 725 通过、4 个独立门控跳过，40 个真实 MySQL 场景全部执行；`node --test frontend/tests/*.test.mjs` 31/31。 |
+| 自动化门槛 | 历史基线（2026-08-28）：`mvn test` 729 项、`node --test frontend/tests/*.test.mjs` 31/31；当前 2026-08-29 基线见下方餐食标签加固验收，勿用本行数字代表当前工作树。 |
 | 浏览器审计 | ego-browser task space 8，`http://localhost:8092` / 后端 `8082`：严格无候选追加后保留原槽位，动作详情返回步骤/肌群/器材/难度/来源，档案保存 v3→v4 并出现“回到聊天”；餐食 295 条、动作 1324 条正式浏览可用。桌面依次完成训练 3 项、餐食 21 项、综合 24 项的简报确认、生成、草稿确认和启用，最终仅综合 24 项保持启用；训练候选源表复核为胸/哑铃/进阶/增肌。`390×844` 下已启用综合计划无横向溢出（页面宽与 `scrollWidth` 均为 390），导航、状态、操作和七日切换未重叠。生成来源提示已复现并修正为“规则降级 / 餐食规则组合 / 综合规则合并”。 |
-| 负向与未完成项 | 浏览页和计划选择器仍为单选，餐食简报仍未保存“中餐和西餐”；“减脂+全身+哑铃+进阶”五日示例因无严格候选正确拒绝，此前“五日成功”记录不作为当前证据。训练 `bodyParts` 当前包含辅助肌群，“练胸”可能召回主部位为背、胸仅为辅助肌群的动作，需先明确产品口径再改召回合同。五日严格候选复验、移动端完整交互、浏览/计划选择器多选和餐食简报多值偏好仍见 `docs/mvp-phases.md` 第二轮优先收口；#102 已补齐详情异步竞态契约测试及 picker 详情/反馈修复。GitHub #101 已关闭，但本地历史审计票仍以 `claimed` 保留未完成项记录，不代表 #102 的实现状态。 |
+| 负向与未完成项 | 本行保留 2026-08-28 审计时的历史观察；浏览/计划多选与餐食简报多值偏好已在 2026-08-29 加固中收口，当前证据见下方。训练候选口径与云端发布仍属独立范围。 |
+
+## 餐食标签数据与回归网加固验收（2026-08-29）
+
+| 条目 | 证据 |
+|---|---|
+| 构建标识 | 基于提交 `4d389ba` 的工作树（2026-08-29）；Flyway V1–V24，语料 `current-corpus-v2` / `reviewed-2026-08-29-v1`。 |
+| ETL 与种子契约 | `ReviewedResourceSeedValidatorTest` 20/20：295 行均有非空、词表内、非碎片 cuisine/food_type；三条人工输入、facetSource、canonical/manual 哈希与 manifest 绑定；字符串入参序列化回归已覆盖。 |
+| 全新库与旧库收敛 | `MysqlMealFacetFreshSchemaIntegrationTest` 3/3（MySQL 门控）：全新库 V1–V24 导种 295/295；旧库 V24 修复非法/空 facet 后与 fresh 按复合 source key 逐行投影一致；无身份行守卫与失败报告通过。 |
+| 合并查询与兼容链路 | `MysqlReviewedReadersIntegrationTest` 18 个 MySQL 场景及 `MysqlLegacyDietChainIntegrationTest` 2 个场景执行；检索/浏览/计数统一 foodType 参数，旧 `/api/v1/diet/**` 无 foodType 请求写入合法 `[]`。 |
+| 计划/路由与前端 | 餐食类型未支持值、否定/替换/去重、foodType-only 路由和摘要行为测试通过；前端 `node --test frontend/tests/*.test.mjs` 41/41。 |
+| 浏览器验收 | `docs/frontend-browser-acceptance.md` 的 2026-08-29 记录：桌面 1694×880、移动 390×844，两个视口均 `scrollWidth = clientWidth`，筛选和摘要交互均可观察。 |
+| 自动化门槛 | `mvn test` 850 项（801 通过、49 环境门控跳过）；`mvn test -Ditest.mysql=true` 850 项（846 通过、4 个 Qdrant/实时模型门控跳过），0 failures/errors；`git diff --check` 通过。 |

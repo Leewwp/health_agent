@@ -147,6 +147,8 @@ public class VectorIndexingRunner implements ApplicationRunner {
         Map<String, List<String>> payload = new HashMap<>();
         payload.put("meal_time", meal.tags().getOrDefault("mealTime", List.of()));
         payload.put("cuisine", meal.tags().getOrDefault("cuisine", List.of()));
+        // 加固规格：foodType 硬过滤契约要求向量 payload 携带 food_type，随 facet 语料版本重建索引
+        payload.put("food_type", meal.tags().getOrDefault("foodType", List.of()));
         payload.put("allergens", meal.allergens());
         payload.put("review_status", List.of(meal.reviewStatus()));
         payload.put("source_type", List.of(meal.sourceType()));

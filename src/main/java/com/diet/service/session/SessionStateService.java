@@ -116,6 +116,7 @@ public class SessionStateService {
                     readStringList(root, "scene"),
                     readStringList(root, "healthGoal"),
                     readStringList(root, "cuisine"),
+                    readStringList(root, "foodType"),
                     readStringList(root, "taste"),
                     readStringList(root, "convenience")
             );
@@ -156,6 +157,7 @@ public class SessionStateService {
         root.set("scene", objectMapper.valueToTree(state.slots().scene()));
         root.set("healthGoal", objectMapper.valueToTree(state.slots().healthGoal()));
         root.set("cuisine", objectMapper.valueToTree(state.slots().cuisine()));
+        root.set("foodType", objectMapper.valueToTree(state.slots().foodType()));
         root.set("taste", objectMapper.valueToTree(state.slots().taste()));
         root.set("convenience", objectMapper.valueToTree(state.slots().convenience()));
         ObjectNode meta = objectMapper.createObjectNode();

@@ -27,11 +27,12 @@ public class JsonService {
     }
 
     public List<String> fromJsonArray(String json) {
-        if (json == null || json.isBlank()) {
+        if (json == null || json.isBlank() || "null".equalsIgnoreCase(json.trim())) {
             return List.of();
         }
         try {
-            return objectMapper.readValue(json, STRING_LIST);
+            List<String> values = objectMapper.readValue(json, STRING_LIST);
+            return values == null ? List.of() : values;
         } catch (Exception e) {
             throw new DietException("JSON 解析失败", e);
         }

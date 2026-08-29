@@ -24,6 +24,7 @@ public class MealResponse {
     private List<String> scene;
     private List<String> healthGoal;
     private List<String> cuisine;
+    private List<String> foodType;
     private List<String> taste;
     private List<String> convenience;
     private double matchScore;
@@ -39,6 +40,7 @@ public class MealResponse {
                 slots.scene(),
                 slots.healthGoal(),
                 slots.cuisine(),
+                slots.foodType(),
                 slots.taste(),
                 slots.convenience(),
                 item.matchScore()

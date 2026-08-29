@@ -73,7 +73,7 @@ class MealPlanBriefServiceTest {
     @Test
     void 中餐和川菜采用受支持的川菜并记录中餐() {
         MealPlanBriefService.UpdateResult mixed = service.update(MealPlanBrief.empty(), "我喜欢中餐、川菜");
-        assertEquals("川菜", mixed.brief().cuisine(), "空字段恰有一个受支持值时采用它");
+        assertEquals(List.of("川菜", "中餐"), mixed.brief().cuisines(), "受支持值先于未支持值保留");
         assertEquals(List.of("cuisine:中餐"), mixed.brief().unsupportedPreferences(), "其余未支持值登记");
     }
 
@@ -95,22 +95,20 @@ class MealPlanBriefServiceTest {
     }
 
     @Test
-    void 菜系已有值且无换成语义时保留并提示只能选一个() {
+    void 菜系已有值且无换成语义时追加并支持显式替换() {
         MealPlanBrief existing = MealPlanBrief.empty().withOptional("川菜", null, null, null);
         MealPlanBriefService.UpdateResult overwrite = service.update(existing, "粤菜");
-        assertEquals("川菜", overwrite.brief().cuisine(), "已有单选字段没有换成语义时不得静默覆盖");
-        assertTrue(overwrite.guidance().contains("换成"), overwrite.guidance());
+        assertEquals(List.of("川菜", "粤菜"), overwrite.brief().cuisines(), "多选菜系追加新值");
 
         MealPlanBriefService.UpdateResult replaced = service.update(existing, "换成粤菜");
-        assertEquals("粤菜", replaced.brief().cuisine(), "“换成”语义允许覆盖单选字段");
+        assertEquals(List.of("粤菜"), replaced.brief().cuisines(), "“换成”语义允许覆盖菜系集合");
     }
 
     @Test
     void 多个受支持菜系不猜测并要求重选() {
         MealPlanBriefService.UpdateResult conflict = service.update(MealPlanBrief.empty(), "菜系：粤菜、川菜");
-        assertTrue(conflict.guidance().contains("一次只能选择一个菜系"), conflict.guidance());
-        assertTrue(conflict.guidance().contains("粤菜"));
-        assertTrue(conflict.guidance().contains("川菜"));
+        // 受支持值输出顺序跟随用户表达顺序（加固规格：不随词表/别名表顺序漂移）
+        assertEquals(List.of("粤菜", "川菜"), conflict.brief().cuisines());
     }
 
     @Test
@@ -163,14 +161,84 @@ class MealPlanBriefServiceTest {
     void 可补充项只列未填项() {
         MealPlanBrief empty = MealPlanBrief.empty();
         List<com.diet.health.model.SupplementableItem> items = service.supplementable(empty);
-        assertEquals(3, items.size());
+        assertEquals(4, items.size());
         assertTrue(items.stream().allMatch(item -> !item.filled()));
-        assertTrue(items.stream().anyMatch(item -> "cuisine".equals(item.key())));
+        assertTrue(items.stream().anyMatch(item -> "cuisines".equals(item.key())));
+        assertTrue(items.stream().anyMatch(item -> "foodTypes".equals(item.key())));
         assertTrue(items.stream().anyMatch(item -> "tastePreferences".equals(item.key())));
         assertTrue(items.stream().anyMatch(item -> "convenience".equals(item.key())));
 
-        MealPlanBrief filled = empty.withOptional("川菜", List.of("清淡"), "快速", null);
+        MealPlanBrief filled = empty.withOptional(List.of("川菜"), List.of("素食"),
+                List.of("清淡"), "快速", null);
         List<com.diet.health.model.SupplementableItem> remaining = service.supplementable(filled);
         assertTrue(remaining.isEmpty(), "已填项不重复出现");
+    }
+
+    // ---- 餐食类型未支持通道矩阵（餐食标签加固规格 / ADR-0017）----
+
+    @Test
+    void 显式类型形态登记词表外原值且不参与筛选语义() {
+        MealPlanBriefService.UpdateResult result = service.update(MealPlanBrief.empty(),
+                "下周三餐，减脂，餐食类型：生酮");
+
+        assertTrue(result.brief().foodTypes().contains("生酮"), "词表外类型保留在 foodTypes");
+        assertTrue(result.brief().unsupportedPreferences().contains("foodType:生酮"),
+                "未支持类型按 foodType:<value> 稳定键登记");
+    }
+
+    @Test
+    void 想吃混合表达只把受支持类型写入支持列表并登记未支持类型() {
+        MealPlanBriefService.UpdateResult result = service.update(MealPlanBrief.empty(),
+                "下周想吃素和生酮");
+
+        assertTrue(result.brief().foodTypes().contains("素食"));
+        assertTrue(result.brief().foodTypes().contains("生酮"));
+        assertTrue(result.brief().unsupportedPreferences().contains("foodType:生酮"));
+        assertFalse(result.brief().unsupportedPreferences().contains("foodType:素食"));
+    }
+
+    @Test
+    void 否定类型不写入正向列表() {
+        MealPlanBriefService.UpdateResult result = service.update(MealPlanBrief.empty(),
+                "下周三餐减脂，不想吃生酮");
+
+        assertTrue(result.brief().foodTypes().isEmpty());
+        assertTrue(result.brief().unsupportedPreferences().isEmpty());
+    }
+
+    @Test
+    void 类型替换重建集合且保留其他字段() {
+        MealPlanBrief base = service.update(MealPlanBrief.empty(),
+                "下周三餐，减脂，想吃轻食").brief();
+        assertTrue(base.foodTypes().contains("轻食"));
+
+        MealPlanBriefService.UpdateResult replaced = service.update(base, "餐食类型换成生酮");
+        assertTrue(replaced.brief().foodTypes().contains("生酮"));
+        assertFalse(replaced.brief().foodTypes().contains("轻食"), "替换语义清除旧类型");
+        assertEquals(base.weekStart(), replaced.brief().weekStart(), "替换类型保留目标周");
+        assertEquals(base.mealTimes(), replaced.brief().mealTimes(), "替换类型保留餐次");
+        assertEquals(base.healthGoal(), replaced.brief().healthGoal(), "替换类型保留目标");
+    }
+
+    @Test
+    void 未支持类型仍提示可补充餐食类型() {
+        MealPlanBrief brief = service.update(MealPlanBrief.empty(), "餐食类型：生酮").brief();
+        List<com.diet.health.model.SupplementableItem> items = service.supplementable(brief);
+        assertTrue(items.stream().anyMatch(item -> "foodTypes".equals(item.key())),
+                "仅含未支持类型时仍应提供受支持类型的可补充项");
+    }
+
+    @Test
+    void 类型摘要与重启恢复保持数组和未支持集合完整() {
+        MealPlanBrief brief = service.update(MealPlanBrief.empty(), "下周想吃素和生酮").brief();
+        String summary = service.summary(brief);
+        assertTrue(summary.contains("餐食类型：素食、生酮"), summary);
+        assertTrue(summary.contains("暂不支持：foodType:生酮"), summary);
+
+        MealPlanBrief restored = new MealPlanBrief(brief.weekStart(), brief.mealTimes(), brief.healthGoal(),
+                brief.cuisines(), brief.foodTypes(), brief.tastePreferences(), brief.convenience(),
+                brief.unsupportedPreferences());
+        assertEquals(brief.foodTypes(), restored.foodTypes());
+        assertEquals(brief.unsupportedPreferences(), restored.unsupportedPreferences());
     }
 }

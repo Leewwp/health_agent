@@ -4,12 +4,15 @@
  */
 import { createBrowsePage } from "./browse.js";
 import { listMeals } from "../api.js";
+// 菜系/餐食类型词表来自 data/meal/facets.json 的生成物（词表唯一事实源，漂移由守卫测试阻挡）
+import { CUISINE_OPTIONS, FOOD_TYPE_OPTIONS } from "../data/mealFacets.js";
 
 const FILTER_FIELDS = [
     { key: "mealTime", label: "用餐时间", options: ["三餐", "下午茶", "加餐", "午餐", "早午餐", "早餐", "晚餐"] },
-    { key: "cuisine", label: "菜系", options: ["东南亚菜", "海鲜", "甜品", "粥汤", "素食", "西餐"] },
-    { key: "taste", label: "口味", options: ["咸鲜", "奶香", "甜", "辣", "酸甜"] },
-    { key: "healthGoal", label: "健康目标", options: ["低油", "均衡", "控碳水", "清淡", "高蛋白"] }
+    { key: "cuisine", label: "菜系", options: CUISINE_OPTIONS },
+    { key: "foodType", label: "餐食类型", options: FOOD_TYPE_OPTIONS },
+    { key: "taste", label: "口味", options: ["清淡", "咸鲜", "奶香", "甜", "辣", "酸甜", "麻辣", "番茄味"] },
+    { key: "healthGoal", label: "健康目标", options: ["减脂", "增肌", "维持健康", "均衡"] }
 ];
 
 export const render = createBrowsePage({

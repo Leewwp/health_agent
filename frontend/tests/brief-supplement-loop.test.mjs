@@ -61,14 +61,42 @@ test("点击chip把属性名参考输入填入输入框并聚焦", () => {
     assert.deepEqual(filled, ["菜系：", "focus"], "点击 chip 后填入“属性名：”并聚焦");
 });
 
-test("聊天页餐食简报摘要渲染新增偏好与未支持项字段", async () => {
-    const source = await (await import("node:fs/promises"))
-        .readFile(new URL("../assets/js/pages/chat.js", import.meta.url), "utf8");
-    assert.match(source, /brief\.cuisine/, "摘要包含菜系字段");
-    assert.match(source, /brief\.tastePreferences/, "摘要包含口味字段");
-    assert.match(source, /brief\.convenience/, "摘要包含便利性字段");
-    assert.match(source, /brief\.unsupportedPreferences/, "摘要包含未支持项");
-    assert.match(source, /supplementable: response\.supplementable/, "消息状态携带可补充项");
+// 摘要渲染行为化测试：从 chat.js 提取真实的 summarizeMealPlanBrief 函数体，
+// 在受控作用域内求值并断言渲染输出（加固规格：禁止源码正则充当字段支持证明）。
+async function loadSummarizeMealPlanBrief() {
+    const { readFile } = await import("node:fs/promises");
+    const source = await readFile(new URL("../assets/js/pages/chat.js", import.meta.url), "utf8");
+    const start = source.indexOf("function summarizeMealPlanBrief(brief)");
+    const end = source.indexOf("\nfunction ", start + 10);
+    const body = source.slice(start, end);
+    return new Function(`${body}; return summarizeMealPlanBrief;`)();
+}
+
+test("聊天页餐食简报摘要渲染多菜系多类型与未支持项", async () => {
+    const summarize = await loadSummarizeMealPlanBrief();
+    const summary = summarize({
+        weekStart: "2026-08-31",
+        mealTimes: ["早餐", "晚餐"],
+        healthGoal: "减脂",
+        cuisines: ["粤菜", "川菜"],
+        foodTypes: ["素食", "轻食"],
+        tastePreferences: ["清淡"],
+        convenience: "快速",
+        unsupportedPreferences: ["cuisine:中餐", "foodType:生酮"]
+    });
+    assert.ok(summary.includes("菜系 粤菜、川菜"), `摘要渲染多个菜系: ${summary}`);
+    assert.ok(summary.includes("餐食类型 素食、轻食"), `摘要渲染多个类型: ${summary}`);
+    assert.ok(summary.includes("暂不支持 cuisine:中餐、foodType:生酮"), `摘要渲染未支持项: ${summary}`);
+    assert.ok(summary.includes("口味 清淡"), `摘要渲染口味: ${summary}`);
+    assert.ok(summary.includes("烹饪 快速"), `摘要渲染便利性: ${summary}`);
+});
+
+test("聊天页餐食简报摘要对空简报与旧单值菜系的行为", async () => {
+    const summarize = await loadSummarizeMealPlanBrief();
+    assert.equal(summarize(null), "", "空简报渲染为空摘要");
+    assert.equal(summarize({}), "", "全空字段渲染为空摘要（空态）");
+    const legacy = summarize({ weekStart: "2026-08-31", mealTimes: ["早餐"], cuisine: "粤菜" });
+    assert.ok(legacy.includes("菜系 粤菜"), `旧单值 cuisine 兼容回退渲染: ${legacy}`);
 });
 
 test("确认短语与后端规范短语一致为开始推荐", async () => {
