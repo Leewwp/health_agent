@@ -1,7 +1,7 @@
 # 统一简报续轮判定、侧归属与生命周期
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: none
 Priority: P0
 
@@ -27,3 +27,7 @@ Priority: P0
 - v3.2 并发收紧：编排器 `persistAndRespond` 的整体保存路径必须改为合并写，或在写入前保留数据库最新 `_meta.briefLifecycle`、`_meta.recommendationConfirmationKey` 及并发简报字段；必须有测试证明旧聊天快照不能把 `GENERATED` 打回 `OPEN/PAUSED`。
 
 ## Comments
+
+- 2026-08-29 resolved：新增共享结构化判定 `health/intent/HealthBriefRouter`（输出 `BriefRoutingDecision{briefActive, activeSide, escape, reason, escapeDomain}`，固定裁决顺序：切域/作息 > 替代 > 推荐逃生口 > 生命周期 > 侧归属 > 字段解析）；模型前续轮（`HealthIntentRevisionService.continueBeforeAgent`）、模型后修正（`revise`）、编排器简报门槛（`HealthOrchestratorService.handleTurn`）三处复用同一实现。推荐请求词收敛为 `HealthBriefRouter.RECOMMEND_ESCAPE_WORDS` 唯一清单。
+- 生命周期：`_meta.briefLifecycle`（MEAL/EXERCISE 独立 OPEN/PAUSED/GENERATED）+ `_meta.recommendationConfirmationKey` 随会话 JSON 持久化（`HealthSessionService`）；生成入口成功后 `markBriefGenerated` 独立事务回写对应 scope，COMPOSITE 才同时关闭两侧；显式计划词重开、生成后“谢谢”不重捕获（编排器社交短句分支）。`saveMerged(original, intended)` 行锁合并写保护并发 GENERATED/新简报字段/确认指纹（并发测试 `HealthSessionServiceTest.旧快照合并保存不能把GENERATED打回OPEN或PAUSED` 等）。
+- 生成幂等：`health_plan_write_request` 新增 `GENERATE_MEAL/GENERATE_EXERCISE/GENERATE_COMPOSITE` 操作，`GenerationIdempotencyService.replay` 命中恢复原响应并补偿回写；跨 session/scope 幂等冲突；回写失败 5xx、重试补偿成功（`MealPlanGenerationIdempotencyTest` 4 例）。测试：`HealthBriefRouterTest` 14 例、`HealthBriefLifecycleOrchestratorTest` 11 例、Controller 层 `HealthChatPreflightControllerTest`。

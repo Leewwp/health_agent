@@ -248,6 +248,7 @@ function appendChatResponse(response) {
         confirmedSlots: response.confirmedSlots || [],
         optionalSlots: response.optionalSlots || [],
         recommendationConfirmed: Boolean(response.recommendationConfirmed),
+        supplementable: response.supplementable || [],
         planBriefSummary: summarizePlanBrief(response.planBrief),
         mealPlanBriefSummary: summarizeMealPlanBrief(response.mealPlanBrief),
         planScope: response.domain === "MEAL" ? "MEAL" : response.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE"
@@ -264,8 +265,15 @@ function summarizePlanBrief(brief) {
 }
 
 function summarizeMealPlanBrief(brief) {
-    if (!brief || (!brief.weekStart && !brief.mealTimes?.length)) return "";
-    return `餐食目标周 ${brief.weekStart || "未定"} · ${brief.mealTimes?.join("、") || "餐次未定"}${brief.healthGoal ? ` · ${brief.healthGoal}` : ""}`;
+    // 摘要直接渲染结构化简报字段（含可选偏好与未支持项），不依赖解析 speechText
+    if (!brief || (!brief.weekStart && !brief.mealTimes?.length && !brief.cuisine && !brief.tastePreferences?.length && !brief.convenience && !brief.unsupportedPreferences?.length)) return "";
+    const parts = [`餐食目标周 ${brief.weekStart || "未定"}`, brief.mealTimes?.join("、") || "餐次未定"];
+    if (brief.healthGoal) parts.push(brief.healthGoal);
+    if (brief.cuisine) parts.push(`菜系 ${brief.cuisine}`);
+    if (brief.tastePreferences?.length) parts.push(`口味 ${brief.tastePreferences.join("、")}`);
+    if (brief.convenience) parts.push(`烹饪 ${brief.convenience}`);
+    if (brief.unsupportedPreferences?.length) parts.push(`暂不支持 ${brief.unsupportedPreferences.join("、")}`);
+    return parts.join(" · ");
 }
 
 function resetChat() {
@@ -311,7 +319,8 @@ function handleClick(event) {
         }
     } else if (target.dataset.action === "recommendation-preflight") {
         if (target.dataset.preflightAction === "CONFIRM_RECOMMENDATION") {
-            const message = "可以推荐了";
+            // 与后端确认短语清单的规范短语保持一致（“开始推荐”）
+            const message = "开始推荐";
             state.messages.push({ role: "user", text: message });
             void requestController.submit({ message });
         } else {
@@ -319,6 +328,12 @@ function handleClick(event) {
             if (input) {
                 input.focus();
             }
+        }
+    } else if (target.dataset.action === "supplement-chip") {
+        const input = document.querySelector("#chatForm textarea[name=message]");
+        if (input) {
+            input.value = `${target.dataset.supplementLabel}：`;
+            input.focus();
         }
     } else if (target.dataset.action === "alternative") {
         submitAlternative(target);

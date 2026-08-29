@@ -16,55 +16,58 @@ import java.util.Optional;
  * <p>
  * ADR-0016 显式任务路由：新会话（无活动健康上下文）中，没有明确任务词的模糊短句
  * 不得进入任何领域推荐，统一降级为 OTHER + CHAT 领域澄清。
+ * 简报补充回路（规格 v3.2）：计划简报续轮与逃生口统一经共享结构化判定
+ * {@link HealthBriefRouter} 裁决，本类不持有第二套路由关键词口径。
  */
 @Service
 public class HealthIntentRevisionService {
 
     private final HealthInputNormalizer normalizer;
+    private final HealthBriefRouter briefRouter;
 
     /** 明确任务词与槽位别名的统一判定，与意图兜底规则共享同一语义。 */
     private final HealthTaskEvidence taskEvidence = new HealthTaskEvidence();
 
-    public HealthIntentRevisionService(HealthInputNormalizer normalizer) {
+    public HealthIntentRevisionService(HealthInputNormalizer normalizer, HealthBriefRouter briefRouter) {
         this.normalizer = normalizer;
+        this.briefRouter = briefRouter;
     }
 
     /**
-     * 在模型调用前处理状态机续轮。澄清短答和训练简报字段只解析当前缺失信息，
-     * 不重新识别领域；用户明确切换领域时返回空，由完整意图链处理。
+     * 在模型调用前处理状态机续轮。活跃简报中的自由文本（无逃生口命中）直接继承当前
+     * PLAN 上下文；明确逃生口（推荐/替代/切域作息）返回空，由完整意图链处理；
+     * 推荐澄清短答继承保持原有语义。
      */
     public Optional<HealthIntentResult> continueBeforeAgent(String userInput, HealthSessionState state) {
         if (state == null || state.domain() == null || state.task() == null) {
             return Optional.empty();
         }
         String text = userInput == null ? "" : userInput.trim();
-        HealthDomain explicit = explicitDomain(text);
-        // 作息事实提问与明显非健康闲聊永远不是综合简报续答，显式切出后交完整意图链处理。
-        boolean routineOrOtherSwitch = (explicit == HealthDomain.ROUTINE || explicit == HealthDomain.OTHER)
-                && explicit != state.domain();
-        boolean compositePlanReply = !routineOrOtherSwitch
-                && state.domain() == HealthDomain.COMPOSITE
-                && state.task() == HealthTask.PLAN && isCompositeBriefReply(text);
-        if (explicit != null && explicit != state.domain() && !compositePlanReply) {
+        BriefRoutingDecision decision = briefRouter.decide(state, text);
+        if (decision.escape() != BriefEscape.NONE) {
+            // 逃生口：交完整意图链（推荐请求/替代推荐/明确切域或作息提问）
             return Optional.empty();
         }
-        boolean planContinuation = isPlanDomain(state.domain()) && state.task() == HealthTask.PLAN;
-        if (planContinuation && looksLikeRecommendationRequest(text)) {
-            return Optional.empty();
+        if (decision.briefActive()) {
+            // 活跃简报：自由文本进入对应简报处理器，不再依赖续轮关键词清单
+            Map<String, List<String>> slots = normalizer.normalize(state.domain(), text, Map.of()).slots();
+            return Optional.of(HealthIntentResult.parsed(
+                    state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
         }
         boolean clarifyContinuation = state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain());
-        if (!planContinuation && !clarifyContinuation) {
-            return Optional.empty();
+        if (clarifyContinuation) {
+            Map<String, List<String>> slots = normalizer.normalize(state.domain(), text, Map.of()).slots();
+            return Optional.of(HealthIntentResult.parsed(
+                    state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
         }
-        Map<String, List<String>> slots = normalizer.normalize(state.domain(), text, Map.of()).slots();
-        return Optional.of(HealthIntentResult.parsed(
-                state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
+        return Optional.empty();
     }
 
     public Revision revise(String userInput, HealthSessionState state, HealthIntentResult raw) {
         String text = userInput == null ? "" : userInput.trim();
         boolean genericRecommendation = containsAny(text, "帮我推荐一下", "帮我推荐", "推荐一下")
-                && explicitDomain(text) == null;
+                && briefRouter.domainEvidence(text) != HealthDomain.MEAL
+                && briefRouter.domainEvidence(text) != HealthDomain.EXERCISE;
         if (raw.domain() == HealthDomain.COMPOSITE) {
             if (genericRecommendation) {
                 HealthIntentResult clarify = new HealthIntentResult(
@@ -84,23 +87,20 @@ public class HealthIntentRevisionService {
         HealthDomain explicitDomain = explicitDomain(text);
         boolean plan = HealthPlanIntentMatcher.matches(text);
         boolean adjust = containsAny(text, "换一批", "换换", "再来一批", "再换", "调整一下");
+        // 活跃简报的续轮由共享结构化判定裁决；判定给出的逃生口不强制 PLAN 续轮
+        BriefRoutingDecision routing = briefRouter.decide(state, text);
+        boolean briefCaptures = routing.briefActive() && routing.escape() == BriefEscape.NONE
+                && state.task() == HealthTask.PLAN && isPlanDomain(state.domain());
         HealthDomain domain = raw.domain();
         HealthTask task = raw.task();
-        boolean planContinuation = state.task() == HealthTask.PLAN
-                && isPlanDomain(state.domain())
-                && (state.phase() == HealthPhase.CLARIFY || isPlanContinuation(text)
-                || HealthPlanIntentMatcher.matches(text))
-                && !looksLikeRecommendationRequest(text)
-                // 显式切到非计划领域（如作息事实提问）不是计划续轮，不得把任务强制为 PLAN。
-                && (explicitDomain == null || explicitDomain == state.domain() || isPlanDomain(explicitDomain));
         if (explicitDomain != null) {
             domain = explicitDomain;
             task = domain == HealthDomain.OTHER ? HealthTask.CHAT
-                    : (plan || planContinuation) ? HealthTask.PLAN
+                    : (plan || briefCaptures) ? HealthTask.PLAN
                     : adjust ? HealthTask.ADJUST
                     : HealthTask.RECOMMEND;
-        } else if (planContinuation) {
-            // 计划简报字段更新/纠正继承当前 PLAN 领域，不能被普通意图兜底改写。
+        } else if (briefCaptures) {
+            // 简报字段更新/纠正继承当前 PLAN 领域，不能被普通意图兜底改写
             domain = state.domain();
             task = HealthTask.PLAN;
         } else if (adjust && isRecommendDomain(state.domain())) {
@@ -179,19 +179,8 @@ public class HealthIntentRevisionService {
         if (HealthPlanIntentMatcher.matchesComposite(text)) {
             return HealthDomain.COMPOSITE;
         }
-        if (containsAny(text, "咖啡", "咖啡因", "睡眠", "作息", "睡多久", "几点睡", "几点起", "午睡", "午休",
-                "生物钟", "训练时段")
-                || (containsAny(text, "训练", "运动", "锻炼") && containsAny(text, "什么时候", "几点", "时段", "时间"))) {
-            return HealthDomain.ROUTINE;
-        }
-        if (containsAny(text, "吃什么", "想吃", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "餐食", "饮食")) {
-            return HealthDomain.MEAL;
-        }
-        // 只有明确任务词才判为训练域；单独出现难度/器材/部位别名属于模糊短句，交给意图链澄清。
-        if (containsAny(text, "健身", "训练", "动作", "俯卧撑", "深蹲", "练")) {
-            return HealthDomain.EXERCISE;
-        }
-        return null;
+        // 剩余的领域证据统一来自共享判定的证据词表，避免两份口径漂移
+        return briefRouter.domainEvidence(text);
     }
 
     private boolean isRecommendDomain(HealthDomain domain) {
@@ -202,30 +191,8 @@ public class HealthIntentRevisionService {
         return !text.isBlank() && text.length() <= 12;
     }
 
-    private boolean isPlanContinuation(String text) {
-        return containsAny(text, "按这个生成", "改成", "换成", "改为", "调整为",
-                "目标周", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
-                "徒手", "哑铃", "杠铃", "弹力带", "入门", "进阶", "挑战", "增肌", "减脂", "耐力", "力量",
-                "确认餐食", "确认饮食", "早餐", "午餐", "晚餐", "下周", "本周", "这周");
-    }
-
     private boolean isPlanDomain(HealthDomain domain) {
         return domain == HealthDomain.EXERCISE || domain == HealthDomain.MEAL || domain == HealthDomain.COMPOSITE;
-    }
-
-    private boolean isCompositeBriefReply(String text) {
-        if (containsAny(text, "推荐", "吃什么", "浏览", "换一批")) return false;
-        return containsAny(text, "训练", "健身", "练", "胸", "背", "腿", "核心", "徒手", "哑铃", "杠铃",
-                "入门", "进阶", "挑战", "早餐", "午餐", "晚餐", "下周", "本周", "这周", "确认", "目标周",
-                "一三五", "二四六", "时间", "点", ":", "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康");
-    }
-
-    private boolean looksLikeRecommendationRequest(String text) {
-        if (text == null || text.isBlank()) {
-            return false;
-        }
-        return containsAny(text, "推荐", "吃什么", "先帮我看看", "看看今晚", "浏览")
-                && !containsAny(text, "计划", "安排");
     }
 
     private boolean containsAny(String text, String... keywords) {

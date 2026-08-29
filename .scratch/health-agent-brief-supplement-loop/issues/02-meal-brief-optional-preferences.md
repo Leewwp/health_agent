@@ -1,7 +1,7 @@
 # 餐食简报可选偏好字段、未支持偏好与词汇
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 Priority: P0
 
@@ -21,3 +21,7 @@ Priority: P0
 - 测试覆盖受支持/未支持/范围外/否定四态、原始失败句在 unrelated 门槛前登记“中餐”和“快速”、模型未知 rawSlots 不越权、单选冲突、摘要/枚举、JSON 往返及重启保留。
 
 ## Comments
+
+- 2026-08-29 resolved：`MealPlanBrief` 固定为 `{weekStart, mealTimes, healthGoal, cuisine, tastePreferences, convenience, unsupportedPreferences}`（列表恒为数组、未填单值 null、未支持键 `field:value` 去重）；旧 3 参构造与会话 JSON 兼容读取，往返不丢数据（`HealthSessionServiceTest`）。
+- 确定性受限菜系解析器 `MealCuisineIntentParser`（不依赖模型、不参与路由）：显式标签“菜系：X/菜系是 X/X 菜系”+ 封闭超类词表（中餐/中式）+ 受支持别名命中即形态内；先剥否定范围，按中文标点与“和/或/以及”拆分；“中餐、川菜”采用川菜并登记 cuisine:中餐。归一器补充便利性别名“烹饪时间短/做饭时间有限/快手菜/没时间做饭→快速”，“中餐”未加入别名表；`healthGoal` 白名单（减脂/增肌/维持健康/均衡）永不被口味值覆盖；单选冲突对齐难度单选（已有值无“换成”保留并提示）。
+- 测试：`MealCuisineIntentParserTest` 7 例（受支持/未支持/范围外/否定四态）、`MealPlanBriefServiceTest` 16 例（原始失败句在 unrelated 之前登记、单选冲突、摘要/枚举、未支持保留）。

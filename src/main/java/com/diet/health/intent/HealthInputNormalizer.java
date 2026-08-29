@@ -244,10 +244,32 @@ public class HealthInputNormalizer {
                 "酸甜口味=酸甜", "酸甜口=酸甜", "酸甜=酸甜", "甜口=甜", "甜=甜", "咸鲜=咸鲜", "鲜香=鲜香", "酱香=酱香",
                 "蒜香=蒜香", "番茄味=番茄味", "咖喱味=咖喱味", "奶香=奶香", "油香=油香", "烟火气=烟火气"));
         aliases.put("convenience", List.of("尽快能吃上=快速", "尽快吃上=快速", "马上能吃=快速", "赶时间=快速", "快速=快速",
-                "快点=快速", "快的=快速", "便利店=快速", "速食=快速", "外带=外带方便", "外卖带走=外带方便", "外带方便=外带方便",
+                "快点=快速", "快的=快速", "便利店=快速", "速食=快速", "烹饪时间短=快速", "做饭时间有限=快速",
+                "快手菜=快速", "没时间做饭=快速",
+                "外带=外带方便", "外卖带走=外带方便", "外带方便=外带方便",
                 "慢享=慢享", "堂食舒服=堂食舒服", "少排队=少排队", "少餐具=少餐具", "一人食=一人食", "多人共享=多人共享",
                 "适合备餐=适合备餐", "适合边走边吃=适合边走边吃"));
         return Collections.unmodifiableMap(aliases);
+    }
+
+    /** 槽位别名键值表（键=口语别名，值=规范值），供确定性受限解析器共享同一事实来源；保持原表顺序。 */
+    public Map<String, String> slotAliases(String slot) {
+        return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(aliasesFor(slot)));
+    }
+
+    /** 槽位规范值集合（别名表值的去重列表），供指引与解析器列出可选值。 */
+    public List<String> canonicalValues(String slot) {
+        return aliasesFor(slot).values().stream().distinct().toList();
+    }
+
+    /** 单值规范查询：命中别名键或规范值返回规范值，否则 null（与 rawSlots 归一同口径）。 */
+    public String canonicalValueOf(String slot, String raw) {
+        String canonical = canonicalValue(slot, raw);
+        // canonicalValue 对未知值原样返回，这里对别名表外的值返回 null，保证“未支持”判定口径唯一
+        if (canonical == null) {
+            return null;
+        }
+        return aliasesFor(slot).containsValue(canonical) ? canonical : null;
     }
 
     public record NormalizationResult(Map<String, List<String>> slots, boolean requiresClarification,

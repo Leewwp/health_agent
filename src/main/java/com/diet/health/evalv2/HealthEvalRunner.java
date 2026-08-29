@@ -8,6 +8,7 @@ import com.diet.health.evalv2.InMemoryEvalMappers.InMemoryAgentTraceMapper;
 import com.diet.health.evalv2.InMemoryEvalMappers.InMemorySessionMapper;
 import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
+import com.diet.health.intent.HealthBriefRouter;
 import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.agent.invoker.FixtureAgentInvoker;
 import com.diet.health.clarify.HealthClarifyAgentService;
@@ -230,7 +231,7 @@ public class HealthEvalRunner implements ApplicationRunner {
         HealthInputNormalizer inputNormalizer = new HealthInputNormalizer();
         HealthOrchestratorService orchestrator = new HealthOrchestratorService(
                 sessionService, messageService, intentAgentService,
-                new HealthIntentRevisionService(inputNormalizer), inputNormalizer,
+                new HealthIntentRevisionService(inputNormalizer, new HealthBriefRouter()), inputNormalizer,
                 clarifyRuleService, clarifyAgentService,
                 riskRuleService, mealModule, exerciseModule, routineModule, resourceProvider,
                 recommendResponseService, traceService, objectMapper, false);

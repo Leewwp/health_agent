@@ -40,6 +40,9 @@ public interface WeeklyPlanMapper {
 
     int insertVersion(WeeklyPlanVersionRow row);
 
+    /** 按 planId + versionNo 读取不可变版本行（版本详情 API）。 */
+    WeeklyPlanVersionRow findVersion(@Param("planId") Long planId, @Param("versionNo") Long versionNo);
+
     List<WeeklyPlanItemRow> findItems(@Param("planId") Long planId, @Param("versionNo") Long versionNo);
 
     WeeklyPlanItemRow findItemById(@Param("itemId") Long itemId);

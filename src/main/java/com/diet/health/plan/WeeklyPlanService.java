@@ -166,6 +166,17 @@ public class WeeklyPlanService {
                 generationSource, generationMetadata, explanation);
     }
 
+    /** 带生成写幂等的训练入口：GENERATE_EXERCISE 记录与计划/版本同一事务提交。 */
+    @Transactional
+    public PlanView persistGeneratedDraft(Long userId, DraftPlanRequest request, List<PlanItemDraft> items,
+                                          String generationSource, Map<String, Object> generationMetadata,
+                                          String explanation, String generateRequestId, String generateOperation,
+                                          String generateTraceId) {
+        return persistScopedGeneratedDraft(userId, request, PlanScope.EXERCISE, items,
+                generationSource, generationMetadata, explanation, generateRequestId, generateOperation,
+                generateTraceId);
+    }
+
     /** 范围生成的唯一事务写入口；调用者在事务外完成对应子计划生成。 */
     @Transactional
     public PlanView persistScopedGeneratedDraft(Long userId, DraftPlanRequest request, PlanScope scope,
@@ -829,8 +840,122 @@ public class WeeklyPlanService {
                 explanation,
                 generationSource == null ? plan.getGenerationSource() : generationSource,
                 plan.getUpdatedAt(),
-                scopeGuard.parse(plan.getPlanScope())
+                scopeGuard.parse(plan.getPlanScope()),
+                parsePlanGenerationNotes(plan)
         );
+    }
+
+    /** 计划详情的 generationNotes：从生成 metadata 透传；旧计划缺 metadata 时返回非 null 空对象。 */
+    private GenerationNotes parsePlanGenerationNotes(WeeklyPlanRow plan) {
+        if (plan.getGenerationMetadataJson() == null || plan.getGenerationMetadataJson().isBlank()) {
+            return GenerationNotes.empty();
+        }
+        try {
+            Map<String, Object> metadata = objectMapper.readValue(plan.getGenerationMetadataJson(),
+                    new TypeReference<Map<String, Object>>() { });
+            return GenerationNotes.fromMetadata(metadata);
+        } catch (JsonProcessingException ignored) {
+            return GenerationNotes.empty();
+        }
+    }
+
+    /** 版本快照的 generationNotes：resource_snapshot_json.generation.generationNotes。 */
+    private GenerationNotes parseVersionGenerationNotes(WeeklyPlanVersionRow version) {
+        if (version == null || version.getResourceSnapshotJson() == null
+                || version.getResourceSnapshotJson().isBlank()) {
+            return GenerationNotes.empty();
+        }
+        try {
+            Map<String, Object> snapshot = objectMapper.readValue(version.getResourceSnapshotJson(),
+                    new TypeReference<Map<String, Object>>() { });
+            if (!(snapshot.get("generation") instanceof Map)) {
+                return GenerationNotes.empty();
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> generation = (Map<String, Object>) snapshot.get("generation");
+            return GenerationNotes.fromMetadata(generation);
+        } catch (JsonProcessingException ignored) {
+            return GenerationNotes.empty();
+        }
+    }
+
+    /** 版本详情：按版本号返回同形状 PlanView（规格 v3.2 新增 GET /plans/{planId}/versions/{versionNo}）。 */
+    public PlanView getPlanVersion(Long userId, Long planId, Long versionNo) {
+        WeeklyPlanRow plan = requirePlan(userId, planId);
+        WeeklyPlanVersionRow version = planMapper.findVersion(planId, versionNo);
+        if (version == null) {
+            throw new HealthApiException(HealthApiException.CODE_NOT_FOUND, "计划版本不存在");
+        }
+        List<PlanItemView> items = planMapper.findItems(planId, versionNo).stream()
+                .map(row -> new PlanItemView(
+                        row.getId(), row.getResourceType(), row.getResourceId(), row.getName(),
+                        row.getLocalDate(), row.getStartTime(), row.getEndTime(), row.getNote(),
+                        parseParams(row.getPlanParamsJson())))
+                .toList();
+        return new PlanView(
+                plan.getId(),
+                plan.getName(),
+                parseStatus(plan),
+                plan.getWeekStart(),
+                plan.getTimezone(),
+                version.getProfileVersionNo(),
+                plan.getCalorieLow(),
+                plan.getCalorieHigh(),
+                version.getRulesVersion(),
+                parseValidationLevel(plan),
+                parseHits(version.getValidationJson()),
+                plan.getNote(),
+                versionNo,
+                items,
+                profileStale(userId, plan),
+                null,
+                plan.getGenerationSource(),
+                plan.getUpdatedAt(),
+                scopeGuard.parse(plan.getPlanScope()),
+                parseVersionGenerationNotes(version)
+        );
+    }
+
+    /**
+     * 范围生成的幂等写入：GENERATE_<scope> 写请求记录与计划/版本快照同一事务提交
+     * （requestId 对同一用户全局唯一）。响应快照包含 planId、scope、sessionId 与 generationNotes。
+     */
+    @Transactional
+    public PlanView persistScopedGeneratedDraft(Long userId, DraftPlanRequest request, PlanScope scope,
+                                                List<PlanItemDraft> items, String generationSource,
+                                                Map<String, Object> generationMetadata, String explanation,
+                                                String generateRequestId, String generateOperation,
+                                                String generateTraceId) {
+        PlanView view = persistScopedGeneratedDraft(userId, request, scope, items, generationSource,
+                generationMetadata, explanation);
+        if (generateRequestId == null || writeRequestMapper == null) {
+            return view;
+        }
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("sessionId", request.sessionId());
+        envelope.put("planScope", scope.name());
+        envelope.put("planId", view.id());
+        envelope.put("traceId", generateTraceId);
+        envelope.put("plan", view);
+        PlanWriteRequestRow row = new PlanWriteRequestRow();
+        row.setUserId(userId);
+        row.setRequestId(generateRequestId);
+        row.setPlanId(view.id());
+        row.setOperation(generateOperation);
+        row.setResponseJson(toJson(envelope));
+        row.setCreatedAt(LocalDateTime.now());
+        try {
+            writeRequestMapper.insert(row);
+        } catch (RuntimeException error) {
+            // 同一 requestId 的并发写入：本事务回滚重复计划；调用方重试命中记录后按幂等恢复
+            PlanWriteRequestRow previous = writeRequestMapper.find(userId, generateRequestId);
+            if (previous == null || !generateOperation.equals(previous.getOperation())) {
+                throw new HealthApiException(HealthApiException.CODE_PLAN_IDEMPOTENCY_CONFLICT,
+                        "requestId 已用于其他生成请求");
+            }
+            throw error;
+        }
+        return view;
     }
 
     /** 当前档案版本是否新于计划生成依据（规格 8.2：不静默重算，只标记较旧）。 */

@@ -62,6 +62,14 @@
         WHERE id = #{id} AND user_id = #{userId}
         FOR UPDATE
     </select>
+    <!-- 版本详情：按 planId + versionNo 读取不可变版本行 -->
+    <select id="findVersion" resultType="com.diet.model.WeeklyPlanVersionRow">
+        SELECT *
+        FROM weekly_plan_version
+        WHERE plan_id = #{planId}
+          AND version_no = #{versionNo}
+    </select>
+
 
     <select id="findActiveByUser" resultMap="WeeklyPlanRowMap">
         SELECT <include refid="PlanColumns"/>

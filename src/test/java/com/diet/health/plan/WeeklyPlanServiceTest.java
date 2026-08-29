@@ -247,6 +247,67 @@ class WeeklyPlanServiceTest {
         verify(mapper, never()).insertPlan(any());
     }
 
+    @Test
+    void generationNotes从生成metadata透传到计划详情() {
+        HealthResource resource = provider.planReadyExercises().get(0);
+        PlanItemDraft exercise = exercise(resource, MONDAY, LocalTime.of(19, 0), LocalTime.of(20, 0));
+        Map<String, Object> notes = new java.util.LinkedHashMap<>();
+        notes.put("unsupportedPreferences", List.of("cuisine:中餐"));
+        notes.put("fallbacks", List.of(java.util.Map.of(
+                "date", MONDAY.toString(),
+                "mealTimes", List.of("早餐"),
+                "unmetPreferences", List.of("cuisine:川菜"))));
+        Map<String, Object> metadata = Map.of(GenerationNotes.METADATA_KEY, notes);
+
+        PlanView view = service.persistScopedGeneratedDraft(USER,
+                new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null, PlanScope.EXERCISE),
+                PlanScope.EXERCISE, List.of(exercise), "FALLBACK", metadata, "规则生成");
+
+        org.junit.jupiter.api.Assertions.assertNotNull(view.generationNotes());
+        assertEquals(List.of("cuisine:中餐"), view.generationNotes().unsupportedPreferences());
+        assertEquals(1, view.generationNotes().fallbacks().size());
+        assertEquals(MONDAY.toString(), view.generationNotes().fallbacks().get(0).date());
+        assertEquals(List.of("cuisine:川菜"), view.generationNotes().fallbacks().get(0).unmetPreferences());
+    }
+
+    @Test
+    void 旧计划缺metadata时generationNotes返回非null空对象() {
+        HealthResource resource = provider.planReadyExercises().get(0);
+        PlanItemDraft exercise = exercise(resource, MONDAY, LocalTime.of(19, 0), LocalTime.of(20, 0));
+        PlanView view = service.persistScopedGeneratedDraft(USER,
+                new DraftPlanRequest("sess", MONDAY, "Asia/Shanghai", null, PlanScope.EXERCISE),
+                PlanScope.EXERCISE, List.of(exercise), "FALLBACK", null, "规则生成");
+        assertEquals(GenerationNotes.empty(), view.generationNotes());
+        org.junit.jupiter.api.Assertions.assertNotNull(view.generationNotes());
+    }
+
+    @Test
+    void 版本详情返回对应版本PlanView且generationNotes来自版本快照() {
+        WeeklyPlanRow plan = plan(42L, "DRAFT");
+        when(mapper.findPlanById(42L, USER)).thenReturn(plan);
+        com.diet.model.WeeklyPlanVersionRow version = new com.diet.model.WeeklyPlanVersionRow();
+        version.setPlanId(42L);
+        version.setVersionNo(2L);
+        version.setProfileVersionNo(1L);
+        version.setRulesVersion(PlanValidationService.RULES_VERSION);
+        version.setValidationJson("[]");
+        version.setResourceSnapshotJson("{\"generation\":{\"generationNotes\":{"
+                + "\"unsupportedPreferences\":[\"cuisine:中餐\"],"
+                + "\"fallbacks\":[{\"date\":\"" + MONDAY + "\",\"mealTimes\":[\"早餐\"],"
+                + "\"unmetPreferences\":[\"cuisine:川菜\"]}]}}}");
+        when(mapper.findVersion(42L, 2L)).thenReturn(version);
+        when(mapper.findVersion(42L, 9L)).thenReturn(null);
+
+        PlanView view = service.getPlanVersion(USER, 42L, 2L);
+        assertEquals(2L, view.currentVersion());
+        assertEquals(List.of("cuisine:中餐"), view.generationNotes().unsupportedPreferences());
+        assertEquals(List.of("cuisine:川菜"), view.generationNotes().fallbacks().get(0).unmetPreferences());
+
+        HealthApiException missing = assertThrows(HealthApiException.class,
+                () -> service.getPlanVersion(USER, 42L, 9L));
+        assertEquals(HealthApiException.CODE_NOT_FOUND, missing.code());
+    }
+
     private PlanItemDraft exercise(HealthResource resource, LocalDate date, LocalTime start, LocalTime end) {
         String bodyPart = resource.tags().getOrDefault("primaryBodyPart", List.of("全身")).get(0);
         return new PlanItemDraft("EXERCISE", resource.resourceId(), resource.name(), date, start, end, null,

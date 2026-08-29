@@ -353,6 +353,11 @@ class HealthPlanRiskGuardControllerTest {
         }
 
         @Override
+        public synchronized WeeklyPlanVersionRow findVersion(Long planId, Long versionNo) {
+            return null;
+        }
+
+        @Override
         public synchronized List<WeeklyPlanItemRow> findItems(Long planId, Long versionNo) {
             return items.stream()
                     .filter(row -> row.getPlanId().equals(planId) && row.getVersionNo().equals(versionNo))

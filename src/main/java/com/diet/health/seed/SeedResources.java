@@ -44,17 +44,24 @@ public final class SeedResources {
      * 餐食候选种子（57 号票，ID M1-M9）：覆盖早/午/晚三餐并含每份热量，
      * 供周计划组合在离线演示与测试下使用；与审核餐食（数据库主键）互斥，
      * 数量小、固定、可离线复现。sortKey 为种子列表序（1-9）。
+     * <p>
+     * 简报补充回路（规格 v3.2）：M1-M9 的 cuisine/taste/convenience 与
+     * nutritionPreferenceTags 是本轮新增的确定性标签基准（并非当前旧种子已有标签），
+     * 值域取自归一器规范值，供偏好过滤的离线确定性测试：
+     * M1 粥汤/清淡/快速/[]、M2 轻食/清淡/快速/[低油]、M3 粉面/咸鲜/快速/[]、
+     * M4 家常/清淡/慢享/[高蛋白]、M5 家常/清淡/慢享/[高蛋白]、M6 西餐/番茄味/慢享/[]、
+     * M7 轻食/清淡/快速/[低油,高蛋白]、M8 家常/清淡/快速/[低油,高蛋白]、M9 粥汤/清淡/快速/[低油]。
      */
     public static final List<PlanMealCandidate> MEAL_CANDIDATES = List.of(
-            meal(1, "M1", "燕麦牛奶粥", 320, List.of("早餐")),
-            meal(2, "M2", "全麦鸡蛋三明治", 450, List.of("早餐")),
-            meal(3, "M3", "牛肉青菜面", 650, List.of("早餐", "午餐")),
-            meal(4, "M4", "鸡胸肉糙米饭", 750, List.of("午餐")),
-            meal(5, "M5", "清蒸鲈鱼套餐", 600, List.of("午餐", "晚餐")),
-            meal(6, "M6", "番茄牛肉意面", 900, List.of("午餐")),
-            meal(7, "M7", "鸡胸蔬菜沙拉", 450, List.of("晚餐")),
-            meal(8, "M8", "白灼虾仁西兰花", 550, List.of("晚餐")),
-            meal(9, "M9", "南瓜小米粥配凉菜", 350, List.of("晚餐"))
+            meal(1, "M1", "燕麦牛奶粥", 320, List.of("早餐"), "粥汤", "清淡", List.of(), "快速"),
+            meal(2, "M2", "全麦鸡蛋三明治", 450, List.of("早餐"), "轻食", "清淡", List.of("低油"), "快速"),
+            meal(3, "M3", "牛肉青菜面", 650, List.of("早餐", "午餐"), "粉面", "咸鲜", List.of(), "快速"),
+            meal(4, "M4", "鸡胸肉糙米饭", 750, List.of("午餐"), "家常", "清淡", List.of("高蛋白"), "慢享"),
+            meal(5, "M5", "清蒸鲈鱼套餐", 600, List.of("午餐", "晚餐"), "家常", "清淡", List.of("高蛋白"), "慢享"),
+            meal(6, "M6", "番茄牛肉意面", 900, List.of("午餐"), "西餐", "番茄味", List.of(), "慢享"),
+            meal(7, "M7", "鸡胸蔬菜沙拉", 450, List.of("晚餐"), "轻食", "清淡", List.of("低油", "高蛋白"), "快速"),
+            meal(8, "M8", "白灼虾仁西兰花", 550, List.of("晚餐"), "家常", "清淡", List.of("低油", "高蛋白"), "快速"),
+            meal(9, "M9", "南瓜小米粥配凉菜", 350, List.of("晚餐"), "粥汤", "清淡", List.of("低油"), "快速")
     );
 
     private SeedResources() {
@@ -81,7 +88,12 @@ public final class SeedResources {
         );
     }
 
-    private static PlanMealCandidate meal(long sortKey, String id, String name, int caloriesKcal, List<String> mealTimeTags) {
-        return new PlanMealCandidate("MEAL", id, name, mealTimeTags, caloriesKcal, sortKey);
+    private static PlanMealCandidate meal(long sortKey, String id, String name, int caloriesKcal, List<String> mealTimeTags,
+                                          String cuisine, String taste, List<String> nutritionPreferences, String convenience) {
+        return new PlanMealCandidate("MEAL", id, name, mealTimeTags, caloriesKcal, sortKey,
+                cuisine == null ? List.of() : List.of(cuisine),
+                taste == null ? List.of() : List.of(taste),
+                nutritionPreferences == null ? List.of() : nutritionPreferences,
+                convenience == null ? List.of() : List.of(convenience));
     }
 }

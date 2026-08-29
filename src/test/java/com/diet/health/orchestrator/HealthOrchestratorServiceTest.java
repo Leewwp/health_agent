@@ -9,6 +9,7 @@ import com.diet.health.clarify.HealthClarifyRuleService;
 import com.diet.health.feedback.PreferenceService;
 import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
+import com.diet.health.intent.HealthBriefRouter;
 import com.diet.health.intent.HealthIntentRevisionService;
 import com.diet.health.intent.HealthSlotDictionary;
 import com.diet.health.profile.HealthProfileService;
@@ -147,7 +148,7 @@ class HealthOrchestratorServiceTest {
         ));
 
         orchestrator = new HealthOrchestratorService(
-                sessionService, messageService, intent, new HealthIntentRevisionService(normalizer), normalizer,
+                sessionService, messageService, intent, new HealthIntentRevisionService(normalizer, new HealthBriefRouter()), normalizer,
                 new HealthClarifyRuleService(), clarify,
                 new HealthRiskRuleService(), mealModule, new ExerciseModule(new SeedResourceProvider(), preferenceService),
                 new RoutineModule(new SeedResourceProvider()), new SeedResourceProvider(),
@@ -205,7 +206,7 @@ class HealthOrchestratorServiceTest {
                         new PromptLoader(), new HealthSlotDictionary(TestSupport.slotOptionService()),
                         new IntentRuleService(new HealthInputNormalizer()), new HealthInputNormalizer(),
                         "qwen-turbo", "v1", 1000),
-                new HealthIntentRevisionService(new HealthInputNormalizer()), new HealthInputNormalizer(),
+                new HealthIntentRevisionService(new HealthInputNormalizer(), new HealthBriefRouter()), new HealthInputNormalizer(),
                 new HealthClarifyRuleService(),
                 new HealthClarifyAgentService(
                         new AgentContractModule(new FixtureAgentInvoker(), new LlmJsonService(objectMapper),
@@ -497,7 +498,9 @@ class HealthOrchestratorServiceTest {
         assertTrue(response.displayBlocks().isEmpty(), "PLAN 引导回复不携带资源卡");
         assertFalse(response.speechText().contains("即将上线"), "不得宣称周计划尚未上线");
         assertFalse(response.speechText().contains("我的计划"), "不再引导进入旧的计划页面生成入口");
-        assertTrue(response.speechText().contains("当前对话"), "应在当前对话继续计划流程");
+        assertTrue(response.speechText().contains("可以说"), "计划兜底通知应为可行动指引，给出可执行的示例说法");
+        assertTrue(response.speechText().contains("确认条件"), "计划兜底通知应说明后续会先确认条件");
+        assertFalse(response.speechText().contains("需求简报"), "不得使用内部术语");
         assertEquals(1, insertedTraces.size(), "单轮 PLAN 聊天只产生一条 Trace，无任何计划写入");
         org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
                 orchestrator.healthChat(1L, new HealthChatRequest(null, "plan-no-write-" + System.nanoTime(),
@@ -686,12 +689,25 @@ class HealthOrchestratorServiceTest {
         assertTrue(trainingRevision.planBrief().trainingDays().contains(java.time.DayOfWeek.TUESDAY));
         assertEquals(List.of("早餐", "午餐"), trainingRevision.mealPlanBrief().mealTimes(), "训练侧修改不得改写餐食简报");
 
-        // 目标周表达在训练阶段写入训练简报，不得静默写入已完整的餐食侧。
+        // v3.2 综合 BOTH 回归例：两侧均完整时无前缀表达“目标周/改成下周”必须要求“餐食：/训练：”前缀，
+        // 返回侧归属澄清，不得沿用旧实现直接写入训练侧。
         HealthChatResponse weekRevision = chatInSession(sessionId, "目标周 2026-09-07");
-        org.junit.jupiter.api.Assertions.assertTrue(weekRevision.speechText().contains("2026-09-07"), weekRevision.toString());
-        assertEquals("GENERATE_PLAN", weekRevision.actions().get(0).type());
-        assertEquals(java.time.LocalDate.of(2026, 9, 7), weekRevision.planBrief().weekStart());
-        assertEquals(List.of("早餐", "午餐"), weekRevision.mealPlanBrief().mealTimes());
+        assertEquals(HealthResponseType.CLARIFY, weekRevision.responseType(), weekRevision.toString());
+        assertEquals("COMPOSITE", weekRevision.domain().name());
+        assertEquals(List.of("side"), weekRevision.missingSlots(), "无前缀共享周表达必须要求侧前缀");
+        assertTrue(weekRevision.speechText().contains("餐食"), weekRevision.toString());
+        assertTrue(weekRevision.speechText().contains("训练"), weekRevision.toString());
+        assertEquals(java.time.LocalDate.of(2026, 8, 24), weekRevision.planBrief().weekStart(),
+                "无前缀表达不得猜测写入训练侧简报");
+        assertEquals(List.of("早餐", "午餐"), weekRevision.mealPlanBrief().mealTimes(),
+                "无前缀表达不得改写已完整的餐食侧");
+
+        // 显式“餐食：/训练：”前缀允许跨侧修改，周表达带前缀后写入对应侧。
+        HealthChatResponse prefixedWeek = chatInSession(sessionId, "训练：目标周 2026-09-07");
+        assertEquals("GENERATE_PLAN", prefixedWeek.actions().get(0).type(), prefixedWeek.toString());
+        assertEquals(java.time.LocalDate.of(2026, 9, 7), prefixedWeek.planBrief().weekStart(), prefixedWeek.toString());
+        assertEquals(List.of("早餐", "午餐"), prefixedWeek.mealPlanBrief().mealTimes(),
+                "显式前缀跨侧修改不得改写餐食简报");
     }
 
     @Test

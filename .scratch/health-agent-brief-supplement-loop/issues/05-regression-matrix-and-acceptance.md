@@ -1,7 +1,7 @@
 # 回归矩阵与真实浏览器验收
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01, 02, 03, 04
 Priority: P1
 
@@ -28,3 +28,8 @@ Priority: P1
 - 证据回写本目录 map.md 与各票 Comments，票据转 resolved / ready-for-human。
 
 ## Comments
+
+- 2026-08-29 resolved：回归矩阵全部落地——路由判定断言 reason/escape/activeSide/briefActive（`HealthBriefRouterTest`）；原始失败句与交叉输入优先级；综合 NONE/焦点侧/BOTH 澄清/显式前缀跨侧修改/BOTH 无前缀“改成下周”澄清；生命周期 MEAL-only/EXERCISE-only/COMPOSITE 关闭、生成后“谢谢”、显式计划词重开；生成幂等（同 requestId 一份草稿、跨 session/scope 冲突、回写失败 5xx、重试补偿）；会话并发（旧快照不覆盖 GENERATED、并发补充不丢字段）；候选标签两模式映射、同字段 OR/跨字段 AND；整天回退边界例与纯热量回退；generationNotes 五处可见 + 旧计划空对象；预检 1/2/3 候选 + 确认直出 + ADJUST/作息直出 + 零候选追加条件流。
+- 既有回归全绿：新会话模糊短句 OTHER+CHAT、五快捷入口、跨域隔离、澄清短答继承、严格训练候选、零候选不放宽、只生成所选餐次、热量归一化、旧 `/api/v1/diet/**` 未改动。
+- 执行记录：`mvn -DskipTests compile` 通过；`mvn test` 817 跑 / 0 失败 / 45 环境门控跳过；`mvn test -Ditest.mysql=true` 817 跑 / 0 失败 / 4 独立门控跳过（Qdrant/在线模型）；`node --test frontend/tests/*.test.mjs` 40/40 通过（基线 749 → 817，新增 68 例）。
+- 真实浏览器验收：`http://localhost:8092`（REVIEWED_DB + 本机 MySQL），桌面 1440×900 与移动 390×844，13 项检查全通过（简报完成/口味/中餐/烹饪时长/摘要/开始生成/生成后谢谢/预检/开始推荐/计划页 generationNotes/双视口无横向溢出/chip 可点击/按钮无重叠），证据与截图见 `docs/frontend-browser-acceptance.md` 2026-08-29 小节与 `.local-run/acceptance/`。票据转 resolved / ready-for-human。
