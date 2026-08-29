@@ -1,7 +1,7 @@
 # 生成侧偏好消费、可见回退与 generationNotes 契约
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 Priority: P1
 
@@ -21,3 +21,7 @@ Priority: P1
 - 测试覆盖：两种 Provider 模式的标签填充（fixture 按确定性标签表断言，含营养标签）、同字段 OR/跨字段 AND、过滤命中候选 ID、整天回退边界例（偏好 {家常+快速} 下某日早餐池为空 -> 该日整天回退但仍保留所选餐次、其余日照常、说明带日期）、偏好交集失败回退、纯热量回退不记偏好未满足、回退日多样性不放宽、generationNotes 在 metadata/版本快照/计划详情/版本详情/计划页均可见、无偏好回归不变、综合计划偏好端到端。
 
 ## Comments
+
+- 2026-08-29 resolved：`PlanMealCandidate` 扩展 `cuisineTags/tasteTags/nutritionPreferenceTags/convenienceTags`（均列表）；审核库 Provider 从 `meal_item.cuisine/taste/health_goal/convenience` 投影，nutritionPreferenceTags 排除减脂/增肌/维持健康/均衡（`DbReviewedResourceProviderTest` 覆盖）；fixture M1-M9 按规格新增确定性标签基准（`SeedResources`，含 M7/M8 [低油,高蛋白] 等）。
+- 过滤合同：`MealPreferenceFilter` 同字段 OR / 跨字段 AND，tastePreferences 逐值映射（清淡→tasteTags，低油/高蛋白→nutritionPreferenceTags，边界例 {清淡,高蛋白} 同时命中两字段）；未支持偏好不过滤不记未满足。`MealPlanPicker.pickForDayWithPreferences` 先分桶再过滤，偏好池空或无法成组时整天回退（保留餐次/唯一性/热量/跨日多样性，不做单餐半回退），纯热量回退不记偏好未满足（`MealPlanPreferenceFilterTest` 10 例）。
+- generationNotes：`GenerationNotes{unsupportedPreferences, fallbacks[{date, mealTimes, unmetPreferences}]}` 写入生成 metadata → 版本快照 `resource_snapshot_json.generation.generationNotes` → `PlanView.generationNotes` → 计划详情 API → 新增 `GET /api/v1/health/plans/{planId}/versions/{versionNo}` → 计划页头部两分区（未支持偏好“暂不按它筛选”/按日回退带日期与未满足键）；旧计划缺 metadata 返回非 null 空对象（`WeeklyPlanServiceTest` 3 例）。无偏好时挑选行为与现状一致。

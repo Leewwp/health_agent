@@ -85,6 +85,14 @@ public class HealthPlanController {
         return planService.getPlan(userId, planId);
     }
 
+    /** 版本详情（规格 v3.2）：返回对应版本的 PlanView（含 generationNotes），旧 metadata 缺失时为空对象。 */
+    @GetMapping("/{planId}/versions/{versionNo}")
+    public PlanView getVersion(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
+                               @PathVariable Long planId,
+                               @PathVariable Long versionNo) {
+        return planService.getPlanVersion(userId, planId, versionNo);
+    }
+
     @PostMapping("/{planId}/confirm")
     public PlanView confirm(@RequestAttribute(DietConstants.USER_ID_ATTRIBUTE) Long userId,
                             @PathVariable Long planId, @RequestBody PlanWriteRequest request) {

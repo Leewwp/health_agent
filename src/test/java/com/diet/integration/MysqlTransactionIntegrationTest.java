@@ -752,6 +752,10 @@ class MysqlTransactionIntegrationTest {
             return delegate.findPlanById(id, userId);
         }
 
+        @Override public WeeklyPlanVersionRow findVersion(Long planId, Long versionNo) {
+            return delegate.findVersion(planId, versionNo);
+        }
+
         @Override public WeeklyPlanRow findPlanByIdForUpdate(Long id, Long userId) {
             return delegate.findPlanByIdForUpdate(id, userId);
         }

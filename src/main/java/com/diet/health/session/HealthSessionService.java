@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -25,6 +27,7 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,8 +35,12 @@ import java.time.LocalTime;
 
 /**
  * 健康会话状态读写服务，复用 diet_sessions 表。
- * slots 列存健康槽位 Map + _meta（domain/task/riskFlags），phase 列存健康阶段名，
- * last_recommendations 列存类型化资源引用 JSON。与旧饮食会话互不读写对方的业务字段。
+ * slots 列存健康槽位 Map + _meta（domain/task/riskFlags/briefLifecycle/recommendationConfirmationKey），
+ * phase 列存健康阶段名，last_recommendations 列存类型化资源引用 JSON。与旧饮食会话互不读写对方的业务字段。
+ * <p>
+ * 简报补充回路（规格 v3.2）：所有简报和生命周期更新通过事务性行锁读取最新 JSON、
+ * 合并目标字段后写回；生成关闭走独立事务（REQUIRES_NEW），旧聊天快照不得把
+ * GENERATED 覆盖回 OPEN/PAUSED，也不得覆盖并发写入的新简报字段与确认指纹。
  */
 @Service
 public class HealthSessionService {
@@ -111,6 +118,122 @@ public class HealthSessionService {
         }
     }
 
+    /**
+     * 行锁合并保存（规格 v3.2 并发合同）：先以 FOR UPDATE 读取最新会话 JSON，
+     * 仅覆盖本轮实际触碰的方面（相位/意图/槽位/资源/简报/确认状态），
+     * 未触碰的方面保留数据库最新值，防止旧快照覆盖并发写入。
+     * 生命周期合并由 {@link #mergeLifecycle} 提供 GENERATED 保护。
+     */
+    @Transactional
+    public void saveMerged(HealthSessionState original, HealthSessionState intended) {
+        SessionRow latestRow = sessionMapper.findByIdForUpdate(intended.sessionId(), intended.userId());
+        if (latestRow == null) {
+            save(intended);
+            return;
+        }
+        HealthSessionState latest = fromRow(latestRow);
+        HealthSessionState merged = mergeForWrite(original, latest, intended);
+        if (sessionMapper.update(toRow(merged)) == 0) {
+            insert(merged);
+        }
+    }
+
+    /**
+     * 生成成功后的生命周期回写（独立事务）：对应范围置为 GENERATED；
+     * MEAL/EXERCISE 单范围生成只更新对应侧，COMPOSITE 同时关闭两侧。
+     * 幂等：重复回写结果一致；已 GENERATED 保持不变。
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markBriefGenerated(Long userId, String sessionId, List<String> scopes) {
+        SessionRow row = sessionMapper.findByIdForUpdate(sessionId, userId);
+        if (row == null) {
+            // 会话已不存在（如用户重置）：无可回写对象，保持幂等
+            return;
+        }
+        HealthSessionState latest = fromRow(row);
+        Map<String, String> lifecycle = new LinkedHashMap<>(latest.briefLifecycle());
+        for (String scope : scopes) {
+            lifecycle.put(scope, BriefLifecycle.GENERATED.name());
+        }
+        HealthSessionState updated = latest.withBriefLifecycle(lifecycle);
+        if (sessionMapper.update(toRow(updated)) == 0) {
+            insert(updated);
+        }
+    }
+
+    /** 合并写：逐方面比较"轮开始快照"与"本轮意图"，触碰的方面采用本轮值，否则保留最新值。 */
+    private HealthSessionState mergeForWrite(HealthSessionState original, HealthSessionState latest,
+                                             HealthSessionState intended) {
+        HealthPhase phase = changed(intended.phase(), original.phase()) ? intended.phase() : latest.phase();
+        HealthDomain domain = changed(intended.domain(), original.domain()) ? intended.domain() : latest.domain();
+        HealthTask task = changed(intended.task(), original.task()) ? intended.task() : latest.task();
+        List<String> riskFlags = changed(intended.riskFlags(), original.riskFlags())
+                ? intended.riskFlags() : latest.riskFlags();
+        Map<String, List<String>> slots = changed(intended.slots(), original.slots())
+                ? intended.slots() : latest.slots();
+        List<SessionResourceRef> resources = changed(intended.lastResources(), original.lastResources())
+                ? intended.lastResources() : latest.lastResources();
+        List<PreferenceSignal> signals = changed(intended.preferenceSignals(), original.preferenceSignals())
+                ? intended.preferenceSignals() : latest.preferenceSignals();
+        PlanBrief planBrief = changed(intended.planBrief(), original.planBrief())
+                ? intended.planBrief() : latest.planBrief();
+        MealPlanBrief mealBrief = changed(intended.mealPlanBrief(), original.mealPlanBrief())
+                ? intended.mealPlanBrief() : latest.mealPlanBrief();
+        // 推荐确认布尔随本轮决策落库（本轮语义），不参与触碰检测；
+        // 确认指纹仍按触碰检测保护，防止旧快照覆盖并发写入的新指纹
+        boolean pending = intended.recommendationPreflightPending();
+        boolean confirmed = intended.recommendationConfirmed();
+        long version = intended.recommendationConfirmationVersion();
+        Map<String, String> lifecycle = mergeLifecycle(original.briefLifecycle(), latest.briefLifecycle(),
+                intended.briefLifecycle());
+        String confirmationKey = changed(intended.recommendationConfirmationKey(), original.recommendationConfirmationKey())
+                ? intended.recommendationConfirmationKey() : latest.recommendationConfirmationKey();
+        return new HealthSessionState(intended.sessionId(), intended.userId(), phase, domain, task, riskFlags,
+                slots, resources, signals, planBrief, mealBrief, pending, confirmed, version, lifecycle,
+                confirmationKey);
+    }
+
+    /**
+     * 生命周期合并（并发合同）：
+     * 最新为 GENERATED 时仅当本轮快照本身已是 GENERATED（显式计划词重开轮）才允许转移，
+     * 否则保持 GENERATED，防止旧聊天快照把 GENERATED 覆盖回 OPEN/PAUSED；
+     * 其余情况本轮显式转移（值变化）优先，未触碰保留最新值。
+     */
+    private Map<String, String> mergeLifecycle(Map<String, String> original, Map<String, String> latest,
+                                               Map<String, String> intended) {
+        Map<String, String> merged = new LinkedHashMap<>();
+        for (String side : List.of(BriefLifecycleSide.MEAL, BriefLifecycleSide.EXERCISE)) {
+            String o = original.get(side);
+            String l = latest.get(side);
+            String i = intended.get(side);
+            boolean latestGenerated = BriefLifecycle.GENERATED.name().equals(l);
+            boolean intendedGenerated = BriefLifecycle.GENERATED.name().equals(i);
+            if (latestGenerated && !intendedGenerated) {
+                // 本轮快照已是 GENERATED（显式重开轮）才允许转移；否则保护并发生成的 GENERATED
+                if (BriefLifecycle.GENERATED.name().equals(o) && i != null) {
+                    merged.put(side, i);
+                } else {
+                    merged.put(side, BriefLifecycle.GENERATED.name());
+                }
+            } else if (i != null && !i.equals(o)) {
+                merged.put(side, i);
+            } else if (l != null) {
+                merged.put(side, l);
+            }
+        }
+        return Map.copyOf(merged);
+    }
+
+    /** 生命周期侧键常量（避免处处硬编码字符串）。 */
+    private static final class BriefLifecycleSide {
+        private static final String MEAL = "MEAL";
+        private static final String EXERCISE = "EXERCISE";
+    }
+
+    private boolean changed(Object next, Object previous) {
+        return !Objects.equals(next, previous);
+    }
+
     private void insert(HealthSessionState state) {
         sessionMapper.insert(toRow(state));
     }
@@ -136,6 +259,10 @@ public class HealthSessionService {
         meta.put("recommendationPreflightPending", state.recommendationPreflightPending());
         meta.put("recommendationConfirmed", state.recommendationConfirmed());
         meta.put("recommendationConfirmationVersion", state.recommendationConfirmationVersion());
+        ObjectNode lifecycle = objectMapper.createObjectNode();
+        state.briefLifecycle().forEach(lifecycle::put);
+        meta.set("briefLifecycle", lifecycle);
+        meta.put("recommendationConfirmationKey", state.recommendationConfirmationKey());
         root.set("_meta", meta);
         root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
         root.set("mealPlanBrief", mealPlanBriefNode(state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief()));
@@ -173,6 +300,11 @@ public class HealthSessionService {
         if (brief.weekStart() != null) node.put("weekStart", brief.weekStart().toString());
         node.set("mealTimes", objectMapper.valueToTree(brief.mealTimes()));
         node.put("healthGoal", brief.healthGoal());
+        // 可选偏好与未支持集合（v3.2）：列表恒为数组，未填单值为 null
+        node.put("cuisine", brief.cuisine());
+        node.set("tastePreferences", objectMapper.valueToTree(brief.tastePreferences()));
+        node.put("convenience", brief.convenience());
+        node.set("unsupportedPreferences", objectMapper.valueToTree(brief.unsupportedPreferences()));
         return node;
     }
 
@@ -193,12 +325,15 @@ public class HealthSessionService {
                     slots.put(entry.getKey(), values);
                 }
             }
+            HealthDomain domain = parseEnum(meta.path("domain").asText(null), HealthDomain.class);
+            HealthTask task = parseEnum(meta.path("task").asText(null), HealthTask.class);
+            Map<String, String> lifecycle = readLifecycle(meta.path("briefLifecycle"), domain, task);
             return new HealthSessionState(
                     row.getId(),
                     row.getUserId(),
                     parsePhase(row.getPhase()),
-                    parseEnum(meta.path("domain").asText(null), HealthDomain.class),
-                    parseEnum(meta.path("task").asText(null), HealthTask.class),
+                    domain,
+                    task,
                     readStringList(meta.path("riskFlags")),
                     slots,
                     readResourceRefs(row.getLastRecommendations()),
@@ -207,11 +342,34 @@ public class HealthSessionService {
                     mealPlanBrief,
                     meta.path("recommendationPreflightPending").asBoolean(false),
                     meta.path("recommendationConfirmed").asBoolean(false),
-                    meta.path("recommendationConfirmationVersion").asLong(0)
+                    meta.path("recommendationConfirmationVersion").asLong(0),
+                    lifecycle,
+                    meta.path("recommendationConfirmationKey").asText(null)
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);
         }
+    }
+
+    /** 读取生命周期；旧会话 JSON 缺字段时按“task 为 PLAN 且领域匹配”推导 OPEN，否则无状态。 */
+    private Map<String, String> readLifecycle(JsonNode node, HealthDomain domain, HealthTask task) {
+        Map<String, String> lifecycle = new LinkedHashMap<>();
+        if (node != null && node.isObject()) {
+            node.properties().forEach(entry -> {
+                if (!entry.getValue().asText().isBlank()) {
+                    lifecycle.put(entry.getKey(), entry.getValue().asText());
+                }
+            });
+        }
+        if (task == HealthTask.PLAN && domain != null) {
+            if (!lifecycle.containsKey("MEAL") && (domain == HealthDomain.MEAL || domain == HealthDomain.COMPOSITE)) {
+                lifecycle.put("MEAL", BriefLifecycle.OPEN.name());
+            }
+            if (!lifecycle.containsKey("EXERCISE") && (domain == HealthDomain.EXERCISE || domain == HealthDomain.COMPOSITE)) {
+                lifecycle.put("EXERCISE", BriefLifecycle.OPEN.name());
+            }
+        }
+        return Map.copyOf(lifecycle);
     }
 
     private PlanBrief readPlanBrief(JsonNode node) {
@@ -259,7 +417,12 @@ public class HealthSessionService {
             List<String> mealTimes = readStringList(node.path("mealTimes"));
             String goal = textOrNull(node, "healthGoal");
             // 旧会话 JSON 可能仍带 confirmed/confirmationVersion/confirmedAt，读取时忽略（无确认语义）。
-            return new MealPlanBrief(weekStart, mealTimes, goal);
+            // 新字段按空值兼容读取，保证 JSON 往返后数据不丢失。
+            String cuisine = textOrNull(node, "cuisine");
+            List<String> tastePreferences = readStringList(node.path("tastePreferences"));
+            String convenience = textOrNull(node, "convenience");
+            List<String> unsupported = readStringList(node.path("unsupportedPreferences"));
+            return new MealPlanBrief(weekStart, mealTimes, goal, cuisine, tastePreferences, convenience, unsupported);
         } catch (Exception ignored) {
             return MealPlanBrief.empty();
         }

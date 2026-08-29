@@ -12,6 +12,7 @@ import com.diet.health.plan.PlanView;
 import com.diet.health.plan.GenerateTrainingPlanRequest;
 import com.diet.health.plan.PlanBrief;
 import com.diet.health.plan.TrainingPlanGenerationResponse;
+import com.diet.health.plan.GenerationIdempotencyService;
 import com.diet.health.plan.TrainingPlanGenerationService;
 import com.diet.health.plan.TrainingTimeWindow;
 import com.diet.health.plan.WeeklyPlanComposerService;
@@ -117,6 +118,8 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     private TrainingPlanGenerationService trainingPlanGenerationService;
     @Autowired
     private MealPlanGenerationService mealPlanGenerationService;
+    @Autowired
+    private com.diet.mapper.PlanWriteRequestMapper planWriteRequestMapper;
 
     private JdbcTemplate jdbc;
 
@@ -197,8 +200,9 @@ class MysqlReviewedDbPlanMealIntegrationTest {
     private TrainingPlanGenerationService generationService(AgentInvoker invoker) {
         AgentContractModule contract = new AgentContractModule(invoker, new LlmJsonService(objectMapper), traceService);
         return new TrainingPlanGenerationService(sessionService, realProfileService, riskRuleService,
-                resourceProvider, validationService, composer, weeklyPlanService, contract, new PromptLoader(),
-                traceService, objectMapper, "mysql-integration-model", 1000);
+                resourceProvider, validationService, composer, weeklyPlanService,
+                new GenerationIdempotencyService(planWriteRequestMapper, sessionService, objectMapper),
+                contract, new PromptLoader(), traceService, objectMapper, "mysql-integration-model", 1000);
     }
 
     // ---------- #86 真实 MySQL：生成事务、并发幂等与慢模型事务边界 ----------

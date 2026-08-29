@@ -34,9 +34,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** 受约束训练计划的唯一高层生成入口。模型调用在事务外，最终写入由 WeeklyPlanService 开启短事务。 */
+/** 受约束训练计划的唯一高层生成入口。模型调用在事务外，最终写入由 WeeklyPlanService 开启短事务；成功后关闭会话训练侧简报。 */
 @Service
 public class TrainingPlanGenerationService {
+
+    /** 生成写入幂等操作（requestId 对同一用户全局唯一）。 */
+    public static final String OPERATION = "GENERATE_EXERCISE";
 
     public static final String PROMPT_VERSION = "2026-08-19-training-plan-v1";
     public static final String CONTRACT_VERSION = "training-plan-v1";
@@ -51,6 +54,7 @@ public class TrainingPlanGenerationService {
     private final PlanValidationService validationService;
     private final WeeklyPlanComposerService composer;
     private final WeeklyPlanService weeklyPlanService;
+    private final GenerationIdempotencyService idempotencyService;
     private final AgentContractModule contractModule;
     private final PromptLoader promptLoader;
     private final AgentTraceService traceService;
@@ -68,6 +72,7 @@ public class TrainingPlanGenerationService {
             PlanValidationService validationService,
             WeeklyPlanComposerService composer,
             WeeklyPlanService weeklyPlanService,
+            GenerationIdempotencyService idempotencyService,
             AgentContractModule contractModule,
             PromptLoader promptLoader,
             AgentTraceService traceService,
@@ -82,6 +87,7 @@ public class TrainingPlanGenerationService {
         this.validationService = validationService;
         this.composer = composer;
         this.weeklyPlanService = weeklyPlanService;
+        this.idempotencyService = idempotencyService;
         this.contractModule = contractModule;
         this.promptLoader = promptLoader;
         this.traceService = traceService;
@@ -100,6 +106,13 @@ public class TrainingPlanGenerationService {
         }
         String requestId = normalizeRequestId(request == null ? null : request.requestId());
         HealthSessionState initialSession = sessionService.loadOrCreate(request == null ? null : request.sessionId(), userId);
+        // 生成写幂等优先：命中记录时恢复既有响应并补偿生命周期回写，不重新生成计划
+        GenerationIdempotencyService.ReplayedGeneration replay =
+                idempotencyService.replay(userId, requestId, OPERATION, initialSession.sessionId());
+        if (replay != null) {
+            return new TrainingPlanGenerationResponse(replay.planId(), replay.traceId(),
+                    replay.plan().generationSource(), "SUCCESS", "训练计划草稿已生成", replay.plan());
+        }
         RequestTraceRow previous = traceService.findByRequestId(userId, initialSession.sessionId(), requestId);
         if (ChatIdempotencySupport.hasSnapshot(previous)) {
             return ChatIdempotencySupport.restore(objectMapper, previous.getResponseJson(), TrainingPlanGenerationResponse.class);
@@ -183,12 +196,16 @@ public class TrainingPlanGenerationService {
                                 PlanScope.EXERCISE),
                         allItems, source, generationMetadata(brief, candidates, trainingItems,
                                 source, modelName, actualModel, fallbackReason),
-                        deterministicExplanation(source, trainingItems, candidates));
+                        deterministicExplanation(source, trainingItems, candidates),
+                        requestId, OPERATION, traceId);
                 traceService.recordEvent("PLAN_PERSISTED", "PERSIST", Map.of("planId", plan.id()),
                         Map.of("status", plan.status(), "generationSource", source));
                 TrainingPlanGenerationResponse response = new TrainingPlanGenerationResponse(plan.id(), traceId, source,
                         "SUCCESS", "训练计划草稿已生成", plan);
                 scope.setResponse(response);
+                // 计划已提交：关闭会话训练侧简报；回写失败 → 5xx，重试经 GENERATE_EXERCISE 写记录补偿
+                sessionService.markBriefGenerated(userId, session.sessionId(),
+                        GenerationIdempotencyService.scopesFor(OPERATION));
                 return response;
             } catch (RuntimeException error) {
                 traceService.recordError("PLAN_GENERATION_FAILED", "PLAN", Map.of("requestId", requestId), error);

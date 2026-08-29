@@ -45,6 +45,108 @@ class HealthSessionServiceTest {
     private final SessionMapper mapper = mock(SessionMapper.class);
     private final HealthSessionService service = new HealthSessionService(mapper, new ObjectMapper());
 
+    @org.junit.jupiter.api.Test
+    void 新旧会话JSON往返保留生命周期确认指纹与未支持偏好() {
+        when(mapper.findById("sess-roundtrip", 1L)).thenReturn(null);
+        when(mapper.update(any())).thenAnswer(invocation -> {
+            // 模拟数据库：update 覆盖同 id 行
+            SessionRow row = invocation.getArgument(0);
+            stored = row;
+            return 1;
+        });
+        service.save(HealthSessionState.fresh("sess-roundtrip", 1L));
+        Map<String, String> lifecycle = Map.of("MEAL", "OPEN", "EXERCISE", "PAUSED");
+        com.diet.health.plan.MealPlanBrief brief = new com.diet.health.plan.MealPlanBrief(
+                java.time.LocalDate.of(2026, 8, 31), List.of("早餐"), "减脂", "中餐",
+                List.of("清淡", "高蛋白"), "快速", List.of("cuisine:中餐"));
+        HealthSessionState intended = new HealthSessionState("sess-roundtrip", 1L,
+                com.diet.health.enums.HealthPhase.RESPOND, com.diet.health.enums.HealthDomain.MEAL,
+                com.diet.health.enums.HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(),
+                com.diet.health.plan.PlanBrief.empty(), brief, true, false, 1, lifecycle, "fingerprint-abc");
+        service.save(intended);
+
+        when(mapper.findById("sess-roundtrip", 1L)).thenReturn(stored);
+        HealthSessionState reloaded = service.loadOrCreate("sess-roundtrip", 1L);
+        assertEquals(lifecycle, reloaded.briefLifecycle());
+        assertEquals("fingerprint-abc", reloaded.recommendationConfirmationKey());
+        assertEquals("中餐", reloaded.mealPlanBrief().cuisine());
+        assertEquals(List.of("清淡", "高蛋白"), reloaded.mealPlanBrief().tastePreferences());
+        assertEquals("快速", reloaded.mealPlanBrief().convenience());
+        assertEquals(List.of("cuisine:中餐"), reloaded.mealPlanBrief().unsupportedPreferences(),
+                "未支持偏好在会话重启后保留");
+    }
+
+    @org.junit.jupiter.api.Test
+    void 旧快照合并保存不能把GENERATED打回OPEN或PAUSED() {
+        // 轮开始快照：MEAL OPEN、简报 V1
+        when(mapper.findById("sess-gen", 1L)).thenReturn(null);
+        when(mapper.update(any())).thenAnswer(invocation -> {
+            stored = invocation.getArgument(0);
+            return 1;
+        });
+        service.save(HealthSessionState.fresh("sess-gen", 1L));
+        HealthSessionState original = new HealthSessionState("sess-gen", 1L,
+                com.diet.health.enums.HealthPhase.RESPOND, com.diet.health.enums.HealthDomain.MEAL,
+                com.diet.health.enums.HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(),
+                com.diet.health.plan.PlanBrief.empty(), briefV1(), false, false, 0,
+                Map.of("MEAL", "OPEN"), null);
+        service.save(original);
+
+        // 并发生成关闭：MEAL → GENERATED
+        when(mapper.findByIdForUpdate("sess-gen", 1L)).thenAnswer(invocation -> stored);
+        service.markBriefGenerated(1L, "sess-gen", List.of("MEAL"));
+
+        // 旧聊天快照（original，生命周期 OPEN、简报 V1）此时才落库：本轮补充了新简报字段 V2
+        HealthSessionState intended = original
+                .withMealPlanBrief(briefV1().withOptional(null, List.of("清淡"), null, null));
+        service.saveMerged(original, intended);
+
+        when(mapper.findById("sess-gen", 1L)).thenReturn(stored);
+        HealthSessionState reloaded = service.loadOrCreate("sess-gen", 1L);
+        assertEquals("GENERATED", reloaded.briefLifecycle().get("MEAL"),
+                "旧聊天快照不能把 GENERATED 覆盖回 OPEN/PAUSED");
+        assertEquals(List.of("清淡"), reloaded.mealPlanBrief().tastePreferences(),
+                "聊天补充与生成关闭并发时不得丢失简报字段");
+    }
+
+    @org.junit.jupiter.api.Test
+    void 合并保存保留未触碰方面的数据库最新值() {
+        when(mapper.findById("sess-merge", 1L)).thenReturn(null);
+        when(mapper.update(any())).thenAnswer(invocation -> {
+            stored = invocation.getArgument(0);
+            return 1;
+        });
+        HealthSessionState original = new HealthSessionState("sess-merge", 1L,
+                com.diet.health.enums.HealthPhase.RESPOND, com.diet.health.enums.HealthDomain.MEAL,
+                com.diet.health.enums.HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(),
+                com.diet.health.plan.PlanBrief.empty(), briefV1(), false, false, 0,
+                Map.of("MEAL", "OPEN"), null);
+        service.save(original);
+
+        // 并发方写入：简报 V2 + 新确认指纹
+        HealthSessionState concurrent = original.withMealPlanBrief(briefV1().withOptional("川菜", null, null, null))
+                .withRecommendationConfirmationKey("concurrent-key");
+        service.save(concurrent);
+
+        // 旧快照轮：只更新槽位，未触碰简报与指纹
+        HealthSessionState intended = original.withSlots(Map.of("mealTime", List.of("早餐")));
+        when(mapper.findByIdForUpdate("sess-merge", 1L)).thenAnswer(invocation -> stored);
+        service.saveMerged(original, intended);
+
+        when(mapper.findById("sess-merge", 1L)).thenReturn(stored);
+        HealthSessionState reloaded = service.loadOrCreate("sess-merge", 1L);
+        assertEquals("川菜", reloaded.mealPlanBrief().cuisine(), "未触碰简报不得被旧快照覆盖");
+        assertEquals("concurrent-key", reloaded.recommendationConfirmationKey(), "未触碰指纹保留最新值");
+        assertEquals(List.of("早餐"), reloaded.slots().get("mealTime"), "本轮触碰的槽位照常写入");
+    }
+
+    private com.diet.health.plan.MealPlanBrief briefV1() {
+        return new com.diet.health.plan.MealPlanBrief(
+                java.time.LocalDate.of(2026, 8, 31), List.of("早餐", "午餐"), "减脂");
+    }
+
+    private SessionRow stored;
+
     @Test
     void 新会话先insert再update() {
         when(mapper.findById(any(), any())).thenReturn(null);

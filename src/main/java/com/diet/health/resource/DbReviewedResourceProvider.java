@@ -204,7 +204,9 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
     }
 
     /** 餐食行 → 计划餐食候选：resourceId 为数据库主键，sortKey 为主键序；热量缺失保留 null 由挑选器降级。
-     *  餐次标签解析失败按空标签（全时段）降级，不因单行脏数据中断整个计划生成。 */
+     *  餐次标签解析失败按空标签（全时段）降级，不因单行脏数据中断整个计划生成。
+     *  受控偏好标签从 cuisine/taste/health_goal/convenience 既有数据列投影；nutritionPreferenceTags
+     *  取 health_goal 中除“减脂、增肌、维持健康、均衡”以外的规范值（简报补充回路规格 v3.2）。 */
     private PlanMealCandidate toMealCandidate(MealItemRow row) {
         List<String> mealTimeTags = List.of();
         try {
@@ -212,14 +214,37 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         } catch (DietException ignored) {
             // 畸形餐次 JSON 按空标签（全时段可用）降级，与热量缺失降级精神一致
         }
+        List<String> nutritionPreferences = new ArrayList<>();
+        for (String goal : safeTags(row.getHealthGoal())) {
+            if (!HEALTH_GOAL_PLAN_EXCLUSIONS.contains(goal)) {
+                nutritionPreferences.add(goal);
+            }
+        }
         return new PlanMealCandidate(
                 "MEAL",
                 String.valueOf(row.getId()),
                 row.getName(),
                 mealTimeTags,
                 row.getCaloriesKcal() == null ? null : row.getCaloriesKcal().intValue(),
-                row.getId()
+                row.getId(),
+                safeTags(row.getCuisine()),
+                safeTags(row.getTaste()),
+                nutritionPreferences,
+                safeTags(row.getConvenience())
         );
+    }
+
+    /** 计划简报的 healthGoal 白名单值不进入营养偏好标签（它们是热量目标，不是营养偏好）。 */
+    private static final List<String> HEALTH_GOAL_PLAN_EXCLUSIONS =
+            List.of("减脂", "增肌", "维持健康", "均衡");
+
+    /** 安全读取 JSON 标签数组：畸形 JSON 按空标签降级，不中断候选构建。 */
+    private List<String> safeTags(String json) {
+        try {
+            return jsonService.fromJsonArray(json);
+        } catch (DietException ignored) {
+            return List.of();
+        }
     }
 
     /** 事实行 → 结构化事实：factId 为冻结 ref_id，category 为 topic，sourceDetail 为适用范围。 */

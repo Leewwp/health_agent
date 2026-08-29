@@ -13,6 +13,7 @@
 - v3 -> v3.1 已补生成写入耐久幂等/失败恢复、`isUnrelated` 前的可选偏好解析、营养标签来源、会话并发合并、版本详情 API、确认指纹、ALTERNATIVE/ADJUST 逃生口和完整回退算法。
 - v3.1 -> v3.2 已补 `tastePreferences` 到口味/营养标签的逐值映射与跨字段 AND、`persistAndRespond` 整体保存并发保护、候选 1/2 预检断言翻转清单、确认指纹 canonical 序列化、“开始推荐”确认短语、fixture 标签新增措辞及 BOTH 无前缀共享周表达回归例。
 - 基线 commit `097be31`；测试基线 749。票据仍为 `ready-for-agent`，GitHub 票据待最终批准后发布。
+- 2026-08-29 实施完成：五张票据转 resolved。执行记录 `mvn test` 817/0 失败/45 跳过、`mvn test -Ditest.mysql=true` 817/0 失败/4 跳过、前端 node 测试 40/40；浏览器验收（REVIEWED_DB，桌面 1440×900 + 移动 390×844）13 项全通过，证据见 `docs/frontend-browser-acceptance.md` 2026-08-29 小节。验收中发现并修复计划页七日网格 1440 宽度横向溢出。GitHub 票据仍待用户批准后发布。
 
 ## Decisions so far
 
@@ -28,6 +29,14 @@
 - 被替代的路由类关键词副本删除；字段识别词保留但不得参与领域/任务路由。
 - `tastePreferences` 每个值必须按规范类别唯一映射到 `tasteTags` 或 `nutritionPreferenceTags`；字段之间 AND，同字段内 OR。
 - 预检确认指纹与确认短语固定为前后端同一合同；候选 1/2 直出断言按预期翻转清单更新。
+
+## Completion Notes
+
+- 共享判定：`HealthBriefRouter` + `BriefRoutingDecision/BriefSide/BriefEscape`；会话新增 `_meta.briefLifecycle`、`_meta.recommendationConfirmationKey`；`HealthSessionService.saveMerged` 行锁合并写 + `markBriefGenerated` 生成关闭。
+- 生成幂等：`GenerationIdempotencyService` + `health_plan_write_request` 的 `GENERATE_<scope>` 操作（同事务写入）；`WeeklyPlanService.persistScopedGeneratedDraft` 扩展幂等参数；新增版本详情 API `GET /api/v1/health/plans/{planId}/versions/{versionNo}`。
+- 偏好消费：`MealPreferenceFilter` + `MealPlanPicker.pickForDayWithPreferences` + `WeeklyPlanComposerService.composeMealsWithPreferences` → `GenerationNotes`（metadata/版本快照/PlanView/详情 API/版本详情 API/计划页六处可见）。
+- 简报字段：`MealPlanBrief` 七字段稳定形状 + `MealCuisineIntentParser` 确定性菜系解析；`HealthChatResponse.supplementable` 可补充项契约。
+- 前端：plan-actions chip 渲染、chat.js 结构化摘要与“开始推荐”确认短语、plans.js 生成说明两分区、`app.css` 生成说明样式与 1440 溢出修复。
 
 ## Child Tickets
 

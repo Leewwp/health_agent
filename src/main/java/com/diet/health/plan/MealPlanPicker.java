@@ -36,6 +36,17 @@ public class MealPlanPicker {
     public record MealPick(String resourceId, String name, int caloriesKcal, String mealTime) {
     }
 
+    /**
+     * 带偏好过滤的挑选结果：fallback 表示该日发生了“绕过偏好的整天回退”，
+     * unmetPreferences 为该日未满足的受支持偏好“字段:值”键；无偏好过滤时恒为 (picks, false, [])。
+     */
+    public record PreferencePickResult(List<MealPick> picks, boolean fallback, List<String> unmetPreferences) {
+        public PreferencePickResult {
+            picks = picks == null ? List.of() : List.copyOf(picks);
+            unmetPreferences = unmetPreferences == null ? List.of() : List.copyOf(unmetPreferences);
+        }
+    }
+
     /** 兼容旧调用：默认生成三餐。 */
     public List<MealPick> pickForDay(int budgetLow, int budgetHigh) {
         return pickForDay(budgetLow, budgetHigh, List.of("早餐", "午餐", "晚餐"), Map.of());
@@ -66,6 +77,54 @@ public class MealPlanPicker {
         List<MealPick> picks = new ArrayList<>();
         for (int i = 0; i < best.size(); i++) picks.add(toPick(best.get(i), slots.get(i)));
         return picks;
+    }
+
+    /**
+     * 带偏好过滤的一天挑选（简报补充回路规格 v3.2）：
+     * 先按所选餐次分桶再应用偏好过滤；某日任一餐次的偏好池为空、或偏好约束下无法形成
+     * 完整的所选餐次组合时，该日整天绕过偏好回退到全量候选池（仍保留餐次、唯一性、热量
+     * 和跨日多样性约束，不做单餐半回退），并记录该日未满足的受支持偏好；其余日期正常偏好过滤。
+     * 纯热量回退（全量池内的 fallbackPick）不额外记录偏好未满足。
+     * 过滤器为空时行为与 {@link #pickForDay} 完全一致（无偏好生成不变）。
+     */
+    public PreferencePickResult pickForDayWithPreferences(int budgetLow, int budgetHigh,
+                                                          List<String> requestedMealTimes,
+                                                          Map<String, Integer> usage,
+                                                          MealPreferenceFilter filter) {
+        if (filter == null || filter.isEmpty()) {
+            return new PreferencePickResult(pickForDay(budgetLow, budgetHigh, requestedMealTimes, usage),
+                    false, List.of());
+        }
+        List<String> slots = canonicalSlots(requestedMealTimes);
+        if (slots.isEmpty()) return new PreferencePickResult(List.of(), false, List.of());
+        List<PlanMealCandidate> pool = resourceProvider.planMealCandidates().stream()
+                .filter(candidate -> candidate.caloriesKcal() != null)
+                .sorted(Comparator.comparingLong(PlanMealCandidate::sortKey))
+                .toList();
+        if (pool.isEmpty()) {
+            return new PreferencePickResult(List.of(), false, List.of());
+        }
+        int low = Math.min(budgetLow, budgetHigh);
+        int high = Math.max(budgetLow, budgetHigh);
+        int mid = (low + high) / 2;
+
+        // 先分桶，再做偏好过滤
+        List<List<PlanMealCandidate>> pools = slots.stream()
+                .map(slot -> candidates(pool.stream().filter(filter::matches).toList(), slot))
+                .toList();
+        List<PlanMealCandidate> best = new ArrayList<>();
+        if (!pools.stream().anyMatch(List::isEmpty)) {
+            int[] bestDistance = {Integer.MAX_VALUE};
+            search(pools, slots, 0, new ArrayList<>(), new HashSet<>(), low, high, mid, usage, best, bestDistance);
+        }
+        if (!best.isEmpty()) {
+            List<MealPick> picks = new ArrayList<>();
+            for (int i = 0; i < best.size(); i++) picks.add(toPick(best.get(i), slots.get(i)));
+            return new PreferencePickResult(picks, false, List.of());
+        }
+        // 整天回退：绕过偏好、保留餐次/唯一性/热量/多样性约束的全量池
+        List<MealPick> fallbackPicks = fallbackPick(pool, slots, mid, usage);
+        return new PreferencePickResult(fallbackPicks, true, filter.requiredKeys());
     }
 
     /** 餐次候选：标签含指定餐次，或未打餐次标签（视为全时段可用）。 */

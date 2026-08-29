@@ -136,6 +136,30 @@ class DbReviewedResourceProviderTest {
     }
 
     @Test
+    void 计划餐食候选携带受控偏好标签且营养标签排除热量目标() {
+        MealItemRow row = mealRows(1).get(0);
+        row.setCuisine("[\"川菜\",\"家常\"]");
+        row.setTaste("[\"清淡\"]");
+        row.setHealthGoal("[\"高蛋白\",\"增肌\",\"维持健康\"]");
+        row.setConvenience("[\"快速\"]");
+        when(mealMapper.findApprovedPublicMeals()).thenReturn(List.of(row));
+
+        PlanMealCandidate candidate = provider.planMealCandidates().get(0);
+        assertEquals(List.of("川菜", "家常"), candidate.cuisineTags(), "cuisine 列投影到 cuisineTags");
+        assertEquals(List.of("清淡"), candidate.tasteTags(), "taste 列投影到 tasteTags");
+        assertEquals(List.of("高蛋白"), candidate.nutritionPreferenceTags(),
+                "health_goal 中排除减脂/增肌/维持健康/均衡后的规范值进入 nutritionPreferenceTags");
+        assertEquals(List.of("快速"), candidate.convenienceTags(), "convenience 列投影到 convenienceTags");
+
+        // 畸形偏好 JSON 按空标签降级，不中断计划候选构建
+        row.setTaste("[not-json");
+        row.setConvenience(null);
+        PlanMealCandidate degraded = provider.planMealCandidates().get(0);
+        assertTrue(degraded.tasteTags().isEmpty());
+        assertTrue(degraded.convenienceTags().isEmpty());
+    }
+
+    @Test
     void 畸形餐次JSON按空标签全时段降级不抛异常() {
         MealItemRow row = mealRows(1).get(0);
         row.setMealTime("[not-json");

@@ -2,6 +2,7 @@
 export const HEALTH_SLOT_LABELS = Object.freeze({
     domain: "推荐类型",
     mealTime: "用餐时间",
+    mealTimes: "餐次",
     mood: "今天的心情",
     scene: "用餐场景",
     healthGoal: "健康目标",

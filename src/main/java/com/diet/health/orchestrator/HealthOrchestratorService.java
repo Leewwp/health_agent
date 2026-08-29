@@ -12,6 +12,10 @@ import com.diet.health.enums.HealthResponseType;
 import com.diet.health.enums.HealthRiskLevel;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.enums.PlanScope;
+import com.diet.health.intent.BriefEscape;
+import com.diet.health.intent.BriefRoutingDecision;
+import com.diet.health.intent.BriefSide;
+import com.diet.health.intent.HealthBriefRouter;
 import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentResult;
@@ -22,6 +26,7 @@ import com.diet.health.model.HealthChatRequest;
 import com.diet.health.model.HealthChatResponse;
 import com.diet.health.model.HealthDisplayBlock;
 import com.diet.health.model.HealthAction;
+import com.diet.health.model.SupplementableItem;
 import com.diet.health.module.ExerciseModule;
 import com.diet.health.module.HealthResource;
 import com.diet.health.module.MealModule;
@@ -34,9 +39,11 @@ import com.diet.health.plan.MealPlanBriefService;
 import com.diet.health.plan.BriefInterpretationStatus;
 import com.diet.health.plan.EnabledPlanContextService;
 import com.diet.health.profile.HealthProfileService;
+import com.diet.health.recommend.ConfirmationFingerprints;
 import com.diet.health.recommend.HealthRecommendResponseService;
 import com.diet.health.resource.HealthResourceProvider;
 import com.diet.health.risk.HealthRiskRuleService;
+import com.diet.health.session.BriefLifecycle;
 import com.diet.health.session.HealthSessionService;
 import com.diet.health.session.HealthSessionState;
 import com.diet.health.session.SessionResourceRef;
@@ -60,6 +67,13 @@ import java.time.Duration;
  * <p>
  * 意图（IntentAgent，契约模块）→ Java 风险确认 → 澄清规则 → 领域模块检索 → 响应 Agent 解释候选 → 持久化 + Trace。
  * Agent 失败一律立即确定性降级，不自动重试。
+ * <p>
+ * 简报补充回路（规格 v3.2）：
+ * 计划简报续轮由共享结构化判定 {@link HealthBriefRouter} 统一裁决（风险 &gt; 切域/作息 &gt;
+ * 替代推荐 &gt; 普通推荐 &gt; 生命周期 &gt; 侧归属 &gt; 字段解析）；活跃简报中除逃生口外的
+ * 自由文本全部进入对应简报处理器；推荐前预检按“候选非空且任务非 ADJUST 且 escape 非
+ * ALTERNATIVE 且确认指纹未命中”触发；会话保存改为行锁合并写，保护并发 GENERATED
+ * 生命周期、并发简报字段与确认指纹。
  */
 @Service
 public class HealthOrchestratorService {
@@ -92,6 +106,9 @@ public class HealthOrchestratorService {
     private final EnabledPlanContextService enabledPlanContextService;
     private final boolean intentFastPathEnabled;
     private final boolean recommendationPreflightEnabled;
+
+    /** 简报续轮共享结构化判定（三处调用点复用同一实现）。 */
+    private final HealthBriefRouter briefRouter = new HealthBriefRouter();
 
     @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
     private long requestTimeoutMs = 5000L;
@@ -267,6 +284,12 @@ public class HealthOrchestratorService {
         messageService.appendMessage(sessionId, "user", userInput, null, traceId);
         agentTraceService.recordEvent("USER_MESSAGE_RECORDED", "SESSION", userInput, Map.of("sessionId", sessionId));
 
+        // 共享结构化判定：三处调用点（模型前续轮、模型后修正、本简报门槛）复用同一实现
+        BriefRoutingDecision routing = briefRouter.decide(state, userInput);
+        agentTraceService.recordEvent("BRIEF_ROUTING_DECIDED", "ROUTE", Map.of("input", userInput),
+                Map.of("briefActive", routing.briefActive(), "activeSide", routing.activeSide().name(),
+                        "escape", routing.escape().name(), "reason", routing.reason()));
+
         HealthChatRequest.AlternativeRequest alternative = request.alternative();
         HealthSessionState requestState = state;
         HealthIntentAgentService.Recognition recognition;
@@ -325,7 +348,7 @@ public class HealthOrchestratorService {
         if (risk.blocked()) {
             HealthChatResponse blocked = HealthChatResponse.blocked(sessionId, traceId, intent.domain(), intent.task(),
                     risk.matchedFlags(), risk.copy() == null ? HealthRiskRuleService.BLOCK_PLAN_COPY : risk.copy());
-            return persistAndRespond(state, intent, state.slots(), blocked, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, state.slots(), blocked, traceId, deadlineNanos, Map.of(), null);
         }
         // ADVISORY 等级不阻止单次推荐，但在最终回复中透出固定提示文案
         String advisoryCopy = risk.level() == HealthRiskLevel.ADVISORY ? risk.copy() : null;
@@ -346,18 +369,18 @@ public class HealthOrchestratorService {
                         risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
             }
             if (state.domain() == HealthDomain.COMPOSITE) {
-                return handleCompositePlanBrief(userId, state, planIntent, mergedSlots, sessionId, traceId, userInput,
-                        risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                return handleCompositePlanBrief(userId, state, planIntent, routing, mergedSlots, sessionId, traceId,
+                        userInput, risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
             }
         }
 
         HealthChatResponse appendResponse = appendToCurrentPlanResponse(userId, intent, sessionId, traceId,
                 risk.matchedFlags(), advisoryCopy, userInput);
         if (appendResponse != null) {
-            return persistAndRespond(state, intent, mergedSlots, appendResponse, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, appendResponse, traceId, deadlineNanos, Map.of(), null);
         }
 
-        // “可以推荐了”等确认语义复用同一推荐通道；只在当前会话已有待确认摘要时生效。
+        // “开始推荐”等确认语义复用同一推荐通道；只在当前会话已有待确认摘要时生效。
         if (alternative == null && state.recommendationPreflightPending()
                 && isRecommendationConfirmation(userInput)
                 && state.domain() != null
@@ -372,47 +395,93 @@ public class HealthOrchestratorService {
         if (revision.clarifyDomain()) {
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.OTHER,
                     HealthTask.CHAT, risk.matchedFlags(), "你想看餐食推荐、健身动作，还是查询作息建议？", List.of("domain"));
-            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos, Map.of(), null);
+        }
+
+        // 社交短句：未关闭会话只返回确认并保留简报；已生成态返回已生成确认，不重新捕获简报。
+        if (briefRouter.isSocialPhrase(userInput)) {
+            if (routing.briefActive() && routing.escape() == BriefEscape.NONE) {
+                return persistAndRespond(state, intent, mergedSlots,
+                        socialAckResponse(sessionId, traceId, state, risk.matchedFlags(), advisoryCopy),
+                        traceId, deadlineNanos, Map.of(), null);
+            }
+            if (hasGeneratedScope(state)) {
+                return persistAndRespond(state, intent, mergedSlots,
+                        HealthChatResponse.answer(sessionId, traceId, state.domain() == null ? HealthDomain.OTHER
+                                        : state.domain(), HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
+                                withAdvisory("不客气！计划已生成完成。如需调整可以说“再调整餐食计划”，或随时问我其他问题。", advisoryCopy), List.of()),
+                        traceId, deadlineNanos, Map.of(), null);
+            }
         }
 
         if (intent.domain() == HealthDomain.OTHER || intent.task() == HealthTask.CHAT) {
             HealthChatResponse chat = HealthChatResponse.answer(sessionId, traceId, HealthDomain.OTHER,
                     HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
                     "我可以帮你处理饮食、健身和作息相关的问题。这个问题不在当前健康助手的能力范围内。", List.of());
-            return persistAndRespond(state, intent, mergedSlots, chat, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, chat, traceId, deadlineNanos, Map.of(), null);
         }
 
+        // 活跃简报门槛：无逃生口命中的自由文本一律进入对应简报处理器（含 GENERATED/PAUSED 的显式计划词重开）。
+        // COMPOSITE 会话始终进入综合处理器（侧归属只决定写入目标，不改变领域）。
+        if (routing.briefActive() && routing.escape() == BriefEscape.NONE) {
+            boolean compositeSession = state.domain() == HealthDomain.COMPOSITE;
+            switch (routing.activeSide()) {
+                case MEAL -> {
+                    if (compositeSession) {
+                        return handleCompositePlanBrief(userId, state, intent, routing, mergedSlots, sessionId,
+                                traceId, userInput, risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                    }
+                    return handleMealPlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
+                            risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                }
+                case EXERCISE -> {
+                    if (compositeSession) {
+                        return handleCompositePlanBrief(userId, state, intent, routing, mergedSlots, sessionId,
+                                traceId, userInput, risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                    }
+                    return handlePlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
+                            risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                }
+                case BOTH -> {
+                    // 两侧都完整时无前缀不猜测归属，要求“餐食：/训练：”前缀（BOTH 侧回归例）。
+                    return sideClarification(userId, state, intent, mergedSlots, sessionId, traceId,
+                            risk.matchedFlags(), advisoryCopy, deadlineNanos);
+                }
+                default -> {
+                    // NONE：无活跃侧，继续既有意图链
+                }
+            }
+        }
+
+        // 显式计划词入口：仅在没有活跃简报捕获时到达（新计划请求）。
         if (intent.task() == HealthTask.PLAN && intent.domain() == HealthDomain.EXERCISE
-                && (HealthPlanIntentMatcher.matchesExercise(userInput)
-                || isPlanBriefContinuation(state, HealthDomain.EXERCISE, userInput))) {
+                && HealthPlanIntentMatcher.matchesExercise(userInput)) {
             return handlePlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
                     risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
         }
 
         if (intent.task() == HealthTask.PLAN && intent.domain() == HealthDomain.MEAL
-                && (HealthPlanIntentMatcher.matchesMeal(userInput)
-                || isPlanBriefContinuation(state, HealthDomain.MEAL, userInput))) {
+                && HealthPlanIntentMatcher.matchesMeal(userInput)) {
             return handleMealPlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
                     risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
         }
 
         if (intent.task() == HealthTask.PLAN && intent.domain() == HealthDomain.COMPOSITE
-                && (HealthPlanIntentMatcher.matchesComposite(userInput)
-                || isPlanBriefContinuation(state, HealthDomain.COMPOSITE, userInput))) {
-            return handleCompositePlanBrief(userId, state, intent, mergedSlots, sessionId, traceId, userInput,
-                    risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
+                && HealthPlanIntentMatcher.matchesComposite(userInput)) {
+            return handleCompositePlanBrief(userId, state, intent, routing, mergedSlots, sessionId, traceId,
+                    userInput, risk.matchedFlags(), advisoryCopy, request.requestId(), deadlineNanos);
         }
 
         if (intent.domain() == HealthDomain.COMPOSITE || intent.task() == HealthTask.PLAN || intent.task() == HealthTask.BROWSE) {
             String copy = switch (intent.domain()) {
                 case COMPOSITE -> "我可以分别帮你安排饮食、训练和作息，也可以先从其中一个方面开始，你想先看哪个？";
                 default -> intent.task() == HealthTask.PLAN
-                        ? "我会在当前对话中继续完成计划生成。请先整理需求简报，完成后即可开始生成训练、餐食或综合计划。"
+                        ? "可以说“帮我安排这周的餐食计划”或“帮我制定一份训练和餐食的综合计划”，我会先和你确认条件，再开始生成。"
                         : "餐食和动作可以在对应页面浏览，也可以直接告诉我你的需求，我来帮你筛选。";
             };
             HealthChatResponse notice = HealthChatResponse.answer(sessionId, traceId, intent.domain(), intent.task(),
                     risk.matchedFlags(), HealthPhase.RESPOND, withAdvisory(copy, advisoryCopy), List.of());
-            return persistAndRespond(state, intent, mergedSlots, notice, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, notice, traceId, deadlineNanos, Map.of(), null);
         }
 
         // ADJUST 排除（43 号票 + #69 类型化契约）：只取 MEAL/EXERCISE 类型化字符串 resourceId，
@@ -442,9 +511,66 @@ public class HealthOrchestratorService {
         Map<String, List<String>> recommendationSlots = mergeSlots(mergedSlots, activeSlots);
         agentTraceService.recordEvent("DOMAIN_SLOTS_PROJECTED", "SLOT",
                 Map.of("domain", intent.domain(), "switchedDomain", switchedDomain), activeSlots);
+        // 显式切出（作息提问/跨域推荐）时把仍处于 OPEN 的其他侧简报置为 PAUSED（暂停不等于关闭）
+        Map<String, String> pauseTransitions = pauseTransitions(state, intent.domain());
         return handleRecommend(sessionId, traceId, requestState, intent, recommendationSlots, activeSlots, excludeIds,
                 risk.matchedFlags(), advisoryCopy, currentAssignmentContext, userInput,
-                revision.clarifyUnsafe(), alternative, deadlineNanos);
+                revision.clarifyUnsafe(), alternative, routing, pauseTransitions, deadlineNanos);
+    }
+
+    /** 社交短句确认：保留简报与生命周期（OPEN），只返回一行确认。 */
+    private HealthChatResponse socialAckResponse(String sessionId, String traceId, HealthSessionState state,
+                                                 List<String> riskFlags, String advisoryCopy) {
+        HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId,
+                state.domain() == null ? HealthDomain.OTHER : state.domain(),
+                state.task() == null ? HealthTask.CHAT : state.task(),
+                riskFlags, HealthPhase.RESPOND,
+                withAdvisory("好的，当前条件已保留。可以继续补充，或直接开始生成。", advisoryCopy), List.of());
+        return response.withPlanBrief(state.planBrief(), List.of(), HealthNextAction.WAIT_USER)
+                .withMealPlanBrief(state.mealPlanBrief());
+    }
+
+    /** 是否存在任一侧已 GENERATED（生成后“谢谢”走已生成确认）。 */
+    private boolean hasGeneratedScope(HealthSessionState state) {
+        return BriefLifecycle.GENERATED.name().equals(state.briefLifecycle().get("MEAL"))
+                || BriefLifecycle.GENERATED.name().equals(state.briefLifecycle().get("EXERCISE"));
+    }
+
+    /** 综合简报两侧都完整时的侧归属澄清：要求“餐食：/训练：”前缀，不得猜测写入某一侧。 */
+    private HealthChatResponse sideClarification(Long userId, HealthSessionState state, HealthIntentResult intent,
+                                                 Map<String, List<String>> mergedSlots, String sessionId,
+                                                 String traceId, List<String> riskFlags, String advisoryCopy,
+                                                 long deadlineNanos) {
+        HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.COMPOSITE,
+                HealthTask.PLAN, riskFlags,
+                withAdvisory("餐食和训练条件都已整理完成。请说明要修改餐食还是训练，例如“餐食：清淡”或“训练：改练背”。",
+                        advisoryCopy), List.of("side"))
+                .withPlanBrief(state.planBrief(), List.of(), HealthNextAction.ASK_CLARIFY)
+                .withMealPlanBrief(state.mealPlanBrief());
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos, Map.of(), null);
+    }
+
+    /**
+     * 显式切出（作息提问/跨域推荐）时，把仍处于 OPEN 的简报侧置为 PAUSED；
+     * 同领域推荐与 OTHER/CHAT 不暂停（用户可能马上回来继续补充）。
+     */
+    private Map<String, String> pauseTransitions(HealthSessionState state, HealthDomain finalDomain) {
+        Map<String, String> transitions = new LinkedHashMap<>();
+        if (finalDomain == null || finalDomain == HealthDomain.OTHER || finalDomain == HealthDomain.COMPOSITE) {
+            return Map.of();
+        }
+        for (BriefSide side : List.of(BriefSide.MEAL, BriefSide.EXERCISE)) {
+            if (briefRouter.lifecycleOf(state, side) != BriefLifecycle.OPEN) {
+                continue;
+            }
+            boolean sameDomain = side == BriefSide.MEAL
+                    ? finalDomain == HealthDomain.MEAL
+                    : finalDomain == HealthDomain.EXERCISE;
+            if (!sameDomain) {
+                transitions.put(side.name(), BriefLifecycle.PAUSED.name());
+            }
+        }
+        return Map.copyOf(transitions);
     }
 
     /** 将聊天中的“追加到当前计划”转成显式编辑副本操作，不直接静默改写 ENABLED 计划。 */
@@ -500,9 +626,18 @@ public class HealthOrchestratorService {
         agentTraceService.recordEvent("PLAN_BRIEF_UPDATED", "PLAN", Map.of("input", userInput),
                 Map.of("brief", brief, "missingFields", update.missingFields(),
                         "status", update.status(), "evidence", update.evidence()));
+        // 进入简报处理器 → 对应侧 OPEN；同时把其他仍 OPEN 的侧置为 PAUSED（显式切换其他领域）
+        Map<String, String> lifecycle = new LinkedHashMap<>();
+        lifecycle.put("EXERCISE", BriefLifecycle.OPEN.name());
+        if (briefRouter.lifecycleOf(state, BriefSide.MEAL) == BriefLifecycle.OPEN) {
+            lifecycle.put("MEAL", BriefLifecycle.PAUSED.name());
+        }
+        List<SupplementableItem> supplementable = trainingSupplementable(brief);
+        String supplementableCopy = supplementable.isEmpty() ? "" : "还可以补充："
+                + String.join("、", supplementable.stream().map(SupplementableItem::label).toList()) + "。";
         HealthChatResponse response;
         if (!brief.isComplete()) {
-            String guidance = (update.status() == com.diet.health.plan.BriefInterpretationStatus.INVALID
+            String guidance = (update.status() == BriefInterpretationStatus.INVALID
                     && (state.planBrief() == null || state.planBrief().expectedField() == null
                     || state.planBrief().expectedField().isBlank()))
                     || update.guidance() == null || update.guidance().isBlank()
@@ -517,19 +652,21 @@ public class HealthOrchestratorService {
                     .withPlanBrief(brief, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
         } else {
-            // 简报完整即提供"开始生成/补充"，服务端在生成时重读当前简报并校验，不再有独立确认阶段。
+            // 简报完成分支统一输出“已整理 + 可补充项 + 开始/补充”，服务端在生成时重读当前简报并校验。
             String note = update.guidance() == null || update.guidance().isBlank()
                     ? "" : update.guidance();
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.EXERCISE, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
                     withAdvisory("训练偏好已整理：" + planBriefService.summary(brief) + "。"
-                            + note + "可以直接开始生成，或继续补充。", advisoryCopy), List.of())
+                            + note + supplementableCopy + "可以直接开始生成，或回复想补充的条件。", advisoryCopy), List.of())
                     .withPlanBrief(brief, List.of(
                                     new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-plan"),
                                     new HealthAction("CONTINUE_PLAN_BRIEF", "补充", requestId)),
                             HealthNextAction.GENERATE_PLAN);
         }
-        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos, brief);
+        return persistAndRespond(state, intent, mergedSlots,
+                response.withSupplementable(supplementable), traceId, deadlineNanos, lifecycle, null,
+                brief, state.mealPlanBrief());
     }
 
     /** 餐食简报闭环：不读取或改写训练简报，生成动作只指向 MEAL 范围。 */
@@ -537,28 +674,42 @@ public class HealthOrchestratorService {
                                                    Map<String, List<String>> mergedSlots, String sessionId,
                                                    String traceId, String userInput, List<String> riskFlags,
                                                    String advisoryCopy, String requestId, long deadlineNanos) {
-        com.diet.health.plan.MealPlanBriefService.UpdateResult update =
+        MealPlanBriefService.UpdateResult update =
                 mealPlanBriefService.update(state.mealPlanBrief(), userInput);
         MealPlanBrief brief = update.brief();
+        // 进入简报处理器 → 对应侧 OPEN；同时把其他仍 OPEN 的侧置为 PAUSED（显式切换其他领域）
+        Map<String, String> lifecycle = new LinkedHashMap<>();
+        lifecycle.put("MEAL", BriefLifecycle.OPEN.name());
+        if (briefRouter.lifecycleOf(state, BriefSide.EXERCISE) == BriefLifecycle.OPEN) {
+            lifecycle.put("EXERCISE", BriefLifecycle.PAUSED.name());
+        }
+        List<SupplementableItem> supplementable = mealPlanBriefService.supplementable(brief);
+        String supplementableCopy = supplementable.isEmpty() ? "" : "还可以补充："
+                + String.join("、", supplementable.stream().map(SupplementableItem::label).toList()) + "。";
+        String unsupportedNote = brief.unsupportedPreferences().isEmpty() ? ""
+                : "暂不支持的偏好：" + String.join("、", brief.unsupportedPreferences())
+                + "（当前可选菜系：" + String.join("、", mealPlanBriefService.supportedCuisines()) + "）。";
         HealthChatResponse response;
         if (!brief.isComplete()) {
+            String guidance = update.guidance() == null || update.guidance().isBlank()
+                    ? mealPlanBriefService.update(brief, "").guidance() : update.guidance();
             response = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
-                    riskFlags, update.guidance(), update.missingFields())
+                    riskFlags, withAdvisory(guidance + unsupportedNote, advisoryCopy), update.missingFields())
                     .withMealPlanBrief(brief);
         } else if (!hasHealthProfile(userId)) {
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("我已保留这份餐食偏好。健康档案还缺少生成计划必需的信息，请补齐后回到当前会话开始生成。", advisoryCopy),
+                    withAdvisory("我已保留这份餐食偏好。健康档案还缺少生成计划必需的信息，请补齐后回到当前会话开始生成。" + unsupportedNote, advisoryCopy),
                     List.of())
                     .withMealPlanBrief(brief)
                     .withPlanBrief(state.planBrief(), List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
         } else {
-            // 简报完整即提供"开始生成/补充"；生成时服务端重读当前简报并按所选餐次生成。
+            // 简报完成分支统一输出“已整理 + 可补充项 + 开始/补充”；生成时服务端重读当前简报并按所选餐次生成。
             response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
                     riskFlags, HealthPhase.RESPOND,
                     withAdvisory("餐食偏好已整理：" + mealPlanBriefService.summary(brief)
-                            + "。可以直接开始生成，或继续补充。", advisoryCopy),
+                            + "。" + unsupportedNote + supplementableCopy + "可以直接开始生成，或回复想补充的条件。", advisoryCopy),
                     List.of())
                     .withMealPlanBrief(brief)
                     .withPlanBrief(state.planBrief(), List.of(
@@ -566,37 +717,33 @@ public class HealthOrchestratorService {
                                     new HealthAction("CONTINUE_MEAL_PLAN_BRIEF", "补充", requestId)),
                             HealthNextAction.GENERATE_PLAN);
         }
-        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,
+        return persistAndRespond(state, intent, mergedSlots,
+                response.withSupplementable(supplementable), traceId, deadlineNanos, lifecycle, null,
                 state.planBrief(), brief);
     }
 
-    /** 综合简报闭环：训练和餐食分别收集/确认，最后才允许一次性生成 COMPOSITE。 */
+    /** 综合简报闭环：侧归属由共享判定的 activeSide 决定，两侧收集完成才允许一次性生成 COMPOSITE。 */
     private HealthChatResponse handleCompositePlanBrief(Long userId, HealthSessionState state,
-                                                        HealthIntentResult intent,
+                                                        HealthIntentResult intent, BriefRoutingDecision routing,
                                                         Map<String, List<String>> mergedSlots, String sessionId,
                                                         String traceId, String userInput, List<String> riskFlags,
                                                         String advisoryCopy, String requestId, long deadlineNanos) {
         PlanBrief training = state.planBrief() == null ? PlanBrief.empty() : state.planBrief();
         MealPlanBrief meal = state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief();
-        boolean recommendation = looksLikeRecommendationRequest(userInput);
-        // 目标周表达跟随仍未完成的子简报；两侧都完整时归训练侧，避免周表达无处写入。
-        boolean weekExpression = containsAny(userInput == null ? "" : userInput,
-                "下周", "本周", "这周", "目标周");
-        boolean trainingInput = looksLikeTrainingBriefInput(userInput)
-                || (meal.isComplete() && weekExpression)
-                || (meal.isComplete() && containsAny(userInput == null ? "" : userInput,
-                "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康"));
-        boolean mealInput = looksLikeMealBriefInput(userInput, meal, trainingInput)
-                || (!trainingInput && !meal.isComplete() && weekExpression);
+        BriefSide side = routing.escape() == BriefEscape.NONE
+                ? routing.activeSide()
+                : briefRouter.compositeActiveSide(state, userInput);
+        Map<String, String> lifecycle = new LinkedHashMap<>();
+        lifecycle.put("MEAL", BriefLifecycle.OPEN.name());
+        lifecycle.put("EXERCISE", BriefLifecycle.OPEN.name());
         PlanBriefService.UpdateResult trainingUpdate = null;
         MealPlanBriefService.UpdateResult mealUpdate = null;
-        if (!recommendation && trainingInput) {
+        if (side == BriefSide.EXERCISE) {
             trainingUpdate = updateTrainingBrief(training, userInput, deadlineNanos);
             if (isUsableBriefUpdate(trainingUpdate.status())) {
                 training = trainingUpdate.brief();
             }
-        }
-        if (!recommendation && mealInput) {
+        } else if (side == BriefSide.MEAL) {
             mealUpdate = mealPlanBriefService.update(meal, userInput);
             if (isUsableBriefUpdate(mealUpdate.status())) {
                 meal = mealUpdate.brief();
@@ -615,6 +762,10 @@ public class HealthOrchestratorService {
             if (isUsableBriefUpdate(inherited.status())) meal = inherited.brief();
         }
 
+        List<SupplementableItem> supplementable = new java.util.ArrayList<>();
+        supplementable.addAll(mealPlanBriefService.supplementable(meal));
+        supplementable.addAll(trainingSupplementable(training));
+
         // 默认先收集餐食，再收集训练；子简报完整即视为该侧就绪，不存在独立确认阶段。
         if (!meal.isComplete()) {
             String guidance = mealUpdate != null && mealUpdate.guidance() != null && !mealUpdate.guidance().isBlank()
@@ -624,7 +775,7 @@ public class HealthOrchestratorService {
                     HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
                     .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                    response, training, meal, traceId, deadlineNanos);
+                    response.withSupplementable(supplementable), training, meal, lifecycle, deadlineNanos);
         }
 
         if (!training.isComplete()) {
@@ -637,7 +788,7 @@ public class HealthOrchestratorService {
                     HealthDomain.COMPOSITE, HealthTask.PLAN, riskFlags, guidance, missing)
                     .withPlanBrief(training, List.of(), HealthNextAction.ASK_CLARIFY);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                    response, training, meal, traceId, deadlineNanos);
+                    response.withSupplementable(supplementable), training, meal, lifecycle, deadlineNanos);
         }
 
         if (!hasHealthProfile(userId)) {
@@ -647,18 +798,48 @@ public class HealthOrchestratorService {
                     .withPlanBrief(training, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                    response, training, meal, traceId, deadlineNanos);
+                    response.withSupplementable(supplementable), training, meal, lifecycle, deadlineNanos);
         }
+        String supplementableCopy = supplementable.isEmpty() ? "" : "还可以补充："
+                + String.join("、", supplementable.stream().map(SupplementableItem::label).toList()) + "。";
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.COMPOSITE,
                 HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
                 withAdvisory("餐食简报：" + mealPlanBriefService.summary(meal) + "。训练简报：" + planBriefService.summary(training)
-                        + "。可以直接开始生成综合计划，或继续补充。", advisoryCopy), List.of())
+                        + "。" + supplementableCopy + "可以直接开始生成综合计划，或回复想补充的条件。", advisoryCopy), List.of())
                 .withPlanBrief(training,
                         List.of(new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-composite"),
                                 new HealthAction("CONTINUE_PLAN_BRIEF", "补充", requestId)),
                         HealthNextAction.GENERATE_PLAN);
         return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
-                response, training, meal, traceId, deadlineNanos);
+                response.withSupplementable(supplementable), training, meal, lifecycle, deadlineNanos);
+    }
+
+    /** 训练简报可补充项：只列未填字段（契约 {key, label, examples, filled}）。 */
+    private List<SupplementableItem> trainingSupplementable(PlanBrief brief) {
+        PlanBrief value = brief == null ? PlanBrief.empty() : brief;
+        List<SupplementableItem> items = new java.util.ArrayList<>();
+        if (value.trainingGoal() == null || value.trainingGoal().isBlank()) {
+            items.add(new SupplementableItem("trainingGoal", "训练目标", List.of("增肌", "减脂"), false));
+        }
+        if (value.bodyParts().isEmpty()) {
+            items.add(new SupplementableItem("bodyParts", "训练部位", List.of("胸", "背"), false));
+        }
+        if (value.equipment().isEmpty()) {
+            items.add(new SupplementableItem("equipment", "器械", List.of("徒手", "哑铃"), false));
+        }
+        if (value.difficulty() == null || value.difficulty().isBlank()) {
+            items.add(new SupplementableItem("difficulty", "难度", List.of("入门", "进阶"), false));
+        }
+        if (value.weekStart() == null) {
+            items.add(new SupplementableItem("weekStart", "目标周", List.of("下周", "2026-08-24"), false));
+        }
+        if (value.trainingDays().isEmpty()) {
+            items.add(new SupplementableItem("trainingDays", "训练日", List.of("周一到周三", "一三五"), false));
+        }
+        if (value.timeWindow() == null) {
+            items.add(new SupplementableItem("timeWindow", "训练时段", List.of("19:00-20:00"), false));
+        }
+        return List.copyOf(items);
     }
 
     private boolean isUsableBriefUpdate(BriefInterpretationStatus status) {
@@ -681,39 +862,6 @@ public class HealthOrchestratorService {
         return update;
     }
 
-    private boolean looksLikeTrainingBriefInput(String input) {
-        String text = input == null ? "" : input;
-        return containsAny(text, "训练", "健身", "练", "胸", "背", "腿", "核心", "徒手", "哑铃", "杠铃",
-                "入门", "进阶", "挑战", "周一", "周二", "周三", "周四", "周五", "周六", "周日",
-                "一三五", "二四六", "时间", "点", ":") || text.contains("确认训练");
-    }
-
-    private boolean looksLikeMealBriefInput(String input, MealPlanBrief meal, boolean trainingInput) {
-        String text = input == null ? "" : input;
-        boolean mealSpecific = containsAny(text, "餐食", "饮食", "早餐", "午餐", "晚餐", "三餐", "餐次");
-        boolean sharedGoalOnly = containsAny(text, "减脂", "减重", "增肌", "均衡", "维持健康", "保持健康");
-        // 综合计划已进入训练阶段后，裸目标属于训练补充；明确餐食词才回写餐食简报。
-        return mealSpecific || (!trainingInput && (meal == null || !meal.isComplete()) && sharedGoalOnly);
-    }
-
-    private boolean hasBriefMutation(String input) {
-        return containsAny(input == null ? "" : input, "改为", "调整为", "改成", "换成", "修改", "调整", "换一");
-    }
-
-    private boolean looksLikeRecommendationRequest(String input) {
-        String text = input == null ? "" : input;
-        return containsAny(text, "推荐", "吃什么", "浏览", "换一批") && !text.contains("计划");
-    }
-
-    private boolean isPlanBriefContinuation(HealthSessionState state, HealthDomain domain, String input) {
-        if (state == null || state.task() != HealthTask.PLAN || state.domain() != domain) return false;
-        String text = input == null ? "" : input;
-        return state.phase() == HealthPhase.CLARIFY
-                || text.contains("确认") || text.contains("改成") || text.contains("改为")
-                || text.contains("调整为") || text.contains("换成") || text.contains("按这个生成")
-                || text.contains("目标周");
-    }
-
     private boolean isProfileCompletionInput(String input) {
         return input != null && containsAny(input.replaceAll("\\s+", ""),
                 "我已完成档案信息补充", "档案信息已补充", "健康档案已完成", "我已经补齐档案");
@@ -727,10 +875,10 @@ public class HealthOrchestratorService {
     private HealthChatResponse persistCompositeBrief(HealthSessionState state, HealthIntentResult intent,
                                                      Map<String, List<String>> mergedSlots, String sessionId,
                                                      String traceId, List<String> riskFlags, HealthChatResponse response,
-                                                     PlanBrief training, MealPlanBrief meal, String ignoredTraceId,
-                                                     long deadlineNanos) {
+                                                     PlanBrief training, MealPlanBrief meal,
+                                                     Map<String, String> lifecycle, long deadlineNanos) {
         return persistAndRespond(state, intent, mergedSlots, response.withMealPlanBrief(meal), traceId,
-                deadlineNanos, training, meal);
+                deadlineNanos, lifecycle, null, training, meal);
     }
 
     private boolean hasHealthProfile(Long userId) {
@@ -755,7 +903,9 @@ public class HealthOrchestratorService {
                                                List<String> excludeIds, List<String> riskFlags, String advisoryCopy,
                                                String currentAssignmentContext,
                                                String userInput, boolean clarifyUnsafe,
-                                               HealthChatRequest.AlternativeRequest alternative, long deadlineNanos) {
+                                               HealthChatRequest.AlternativeRequest alternative,
+                                               BriefRoutingDecision routing,
+                                               Map<String, String> pauseTransitions, long deadlineNanos) {
         HealthDomain domain = intent.domain();
         agentTraceService.recordEvent("ROUTE_SELECTED", "ROUTE", intent, Map.of("domain", domain, "task", intent.task()));
 
@@ -776,7 +926,7 @@ public class HealthOrchestratorService {
             String question = clarifyAgentService.wording(domain, userInput, missing, activeSlots);
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, domain, intent.task(),
                     riskFlags, question, missing);
-            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, clarify, traceId, deadlineNanos, pauseTransitions, null);
         }
 
         List<HealthResource> candidates = applyRequestExclusions(domain, userInput,
@@ -788,21 +938,33 @@ public class HealthOrchestratorService {
                         "resourceVersion", resourceProvider.resourceVersion(), "excludeIds", excludeIds),
                 Map.of("candidateCount", candidates.size(), "candidateIds", candidates.stream().map(HealthResource::resourceId).toList()));
 
-        // 候选只有 1-2 个时直接展示，避免确认后仍只得到极少结果；较大候选集先让用户确认。
-        // 作息事实问答不属于单次推荐，直接返回事实卡，不进入推荐前预览。
-        if (recommendationPreflightEnabled && domain != HealthDomain.ROUTINE && candidates.size() > 2
-                && alternative == null && !state.recommendationConfirmed()) {
+        // 推荐前预检（设计驱动，无候选数门槛）：候选非空 且 任务非 ADJUST 且 escape 非 ALTERNATIVE
+        // 且当前条件的确认指纹未命中。作息事实问答不属于单次推荐，直接返回事实卡。
+        String confirmationKey = ConfirmationFingerprints.recommendation(domain, intent.task(),
+                mergedSlots, resourceProvider.resourceVersion());
+        boolean confirmationHit = state.recommendationConfirmed()
+                && state.recommendationConfirmationKey() != null
+                && state.recommendationConfirmationKey().equals(confirmationKey);
+        boolean preflight = recommendationPreflightEnabled
+                && domain != HealthDomain.ROUTINE
+                && !candidates.isEmpty()
+                && intent.task() != HealthTask.ADJUST
+                && (routing == null || routing.escape() != BriefEscape.ALTERNATIVE)
+                && alternative == null
+                && !confirmationHit;
+        if (preflight) {
             List<String> confirmed = slotSummary(activeSlots);
             List<String> optional = clarifyRuleService.optionalRecommendationSlots(domain, activeSlots);
             String summary = confirmed.isEmpty() ? "我已理解你的基本需求" : "我已确认：" + String.join("；", confirmed);
-            HealthChatResponse preflight = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
+            HealthChatResponse preflightResponse = HealthChatResponse.answer(sessionId, traceId, domain, intent.task(),
                     riskFlags, HealthPhase.RESPOND,
                     withContext(summary + "。还可以补充：" + (optional.isEmpty() ? "无" : String.join("、", optional.stream().map(HealthSlotLabels::label).toList()))
                             + "。要现在为你推荐吗？", advisoryCopy, currentAssignmentContext), List.of())
-                    .withActions(List.of(new HealthAction("CONFIRM_RECOMMENDATION", "为我推荐", traceId),
-                            new HealthAction("CONTINUE_RECOMMENDATION", "继续补充需求", traceId)))
+                    .withActions(List.of(new HealthAction("CONFIRM_RECOMMENDATION", "开始推荐", traceId),
+                            new HealthAction("CONTINUE_RECOMMENDATION", "补充", traceId)))
                     .withRecommendationPreflight(confirmed, optional, false);
-            return persistAndRespond(state, intent, mergedSlots, preflight, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, preflightResponse, traceId, deadlineNanos,
+                    pauseTransitions, confirmationKey);
         }
 
         if (candidates.isEmpty()) {
@@ -821,7 +983,7 @@ public class HealthOrchestratorService {
             if (exhausted) {
                 empty = empty.withResultCode(CANDIDATES_EXHAUSTED);
             }
-            return persistAndRespond(state, intent, mergedSlots, empty, traceId, deadlineNanos);
+            return persistAndRespond(state, intent, mergedSlots, empty, traceId, deadlineNanos, pauseTransitions, confirmationKey);
         }
 
         List<HealthResource> topN = candidates.stream().limit(TOP_N).toList();
@@ -856,7 +1018,8 @@ public class HealthOrchestratorService {
                 .withActions(List.of(new HealthAction("GET_ALTERNATIVE", "换一批", traceId)))
                 .withRecommendationPreflight(slotSummary(activeSlots),
                         clarifyRuleService.optionalRecommendationSlots(domain, activeSlots), true);
-        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos);
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,
+                pauseTransitions, confirmationKey);
     }
 
     private HealthRecommendResponseService.RecommendOutcome deterministicOutcome(List<HealthResource> candidates) {
@@ -990,7 +1153,7 @@ public class HealthOrchestratorService {
         };
     }
 
-    /** 统一收尾：保存会话状态 → 落库助手消息 → Trace → 返回。 */
+    /** 统一收尾：行锁合并保存会话状态 → 落库助手消息 → Trace → 返回。 */
     private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
                                                  Map<String, List<String>> mergedSlots, HealthChatResponse response,
                                                  String traceId, long deadlineNanos) {
@@ -1008,7 +1171,23 @@ public class HealthOrchestratorService {
     private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
                                                  Map<String, List<String>> mergedSlots, HealthChatResponse response,
                                                  String traceId, long deadlineNanos, PlanBrief planBrief,
-                                                 com.diet.health.plan.MealPlanBrief mealPlanBrief) {
+                                                 MealPlanBrief mealPlanBrief) {
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,
+                Map.of(), null, planBrief, mealPlanBrief);
+    }
+
+    private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
+                                                 Map<String, List<String>> mergedSlots, HealthChatResponse response,
+                                                 String traceId, long deadlineNanos, Map<String, String> lifecycleTransitions,
+                                                 String confirmationKey) {
+        return persistAndRespond(state, intent, mergedSlots, response, traceId, deadlineNanos,
+                lifecycleTransitions, confirmationKey, state.planBrief(), state.mealPlanBrief());
+    }
+
+    private HealthChatResponse persistAndRespond(HealthSessionState state, HealthIntentResult intent,
+                                                 Map<String, List<String>> mergedSlots, HealthChatResponse response,
+                                                 String traceId, long deadlineNanos, Map<String, String> lifecycleTransitions,
+                                                 String confirmationKey, PlanBrief planBrief, MealPlanBrief mealPlanBrief) {
         ensureBeforePersistence(deadlineNanos);
         HealthSessionState saved = state
                 .withPhase(response.phase())
@@ -1016,7 +1195,11 @@ public class HealthOrchestratorService {
                 .withSlots(mergedSlots)
                 .withPreferenceSignals(intent.preferenceSignals())
                 .withPlanBrief(planBrief)
-                .withMealPlanBrief(mealPlanBrief);
+                .withMealPlanBrief(mealPlanBrief)
+                .withBriefLifecycle(applyLifecycle(state.briefLifecycle(), lifecycleTransitions));
+        if (confirmationKey != null) {
+            saved = saved.withRecommendationConfirmationKey(confirmationKey);
+        }
         if (response.nextAction() == HealthNextAction.CONFIRM_RECOMMENDATION) {
             saved = saved.withRecommendationState(true, false,
                     Math.max(1, state.recommendationConfirmationVersion()));
@@ -1035,10 +1218,21 @@ public class HealthOrchestratorService {
             saved = (sameTask || intent.task() == HealthTask.ADJUST)
                     ? saved.appendLastResources(refs) : saved.replaceLastResources(refs);
         }
-        sessionService.save(saved);
+        // 行锁合并保存：旧聊天快照不能覆盖并发写入的 GENERATED 生命周期、新简报字段与确认指纹。
+        sessionService.saveMerged(state, saved);
         messageService.appendMessage(state.sessionId(), "assistant", response.speechText(), null, traceId);
         agentTraceService.recordEvent("RESPONSE_READY", "RESPONSE", saved, response);
         return response;
+    }
+
+    /** 在轮开始快照的生命周期上应用本轮显式转移（OPEN/PAUSED）。 */
+    private Map<String, String> applyLifecycle(Map<String, String> current, Map<String, String> transitions) {
+        if (transitions == null || transitions.isEmpty()) {
+            return current;
+        }
+        Map<String, String> merged = new LinkedHashMap<>(current);
+        merged.putAll(transitions);
+        return Map.copyOf(merged);
     }
 
     private void ensureBeforePersistence(long deadlineNanos) {

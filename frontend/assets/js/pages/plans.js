@@ -100,6 +100,26 @@ function renderWorkspace(plan) {
     return `<div class="mp-layout variant-d ${collapsed ? "is-collapsed" : ""}">${collapsed ? renderRail() : renderSidebar()}<main class="mp-main">${renderHeader(plan)}${renderToolbar(plan)}${state.dirty ? renderDirtyBar() : ""}${renderValidation(plan)}<div class="mp-mobile-days" role="tablist" aria-label="选择日期">${buildDays(plan.weekStart).map((day, index) => `<button class="mp-day-tab ${state.mobileDay === index ? "active" : ""}" data-plan-action="mobile-day" data-day="${index}" role="tab" aria-selected="${state.mobileDay === index}"><strong>${WEEKDAY_LABELS[index]}</strong><small>${escapeHtml(formatDateLabel(day))}</small></button>`).join("")}</div><div class="mp-wide-board" aria-label="七日计划">${buildDays(plan.weekStart).map((day, index) => renderDay(plan, day, index)).join("")}</div></main></div>`;
 }
 
+/**
+ * 计划页头部说明区：渲染生成说明两分区——未支持偏好（暂不按它筛选）与按日回退（带日期与未满足键）。
+ * 数据来自后端 PlanView.generationNotes（结构化字段），不解析回复文案；无说明时不渲染。
+ */
+function renderGenerationNotes(plan) {
+    const notes = plan?.generationNotes;
+    if (!notes) return "";
+    const unsupported = Array.isArray(notes.unsupportedPreferences) ? notes.unsupportedPreferences : [];
+    const fallbacks = Array.isArray(notes.fallbacks) ? notes.fallbacks : [];
+    if (!unsupported.length && !fallbacks.length) return "";
+    const unsupportedSection = unsupported.length
+        ? `<p class="mp-notes-line"><strong>未支持偏好（暂不按它筛选）：</strong>${escapeHtml(unsupported.join("、"))}</p>`
+        : "";
+    const fallbackSection = fallbacks.length
+        ? `<p class="mp-notes-line"><strong>按日回退：</strong>${fallbacks.map((day) =>
+            `${escapeHtml(day.date)}（${escapeHtml((day.mealTimes || []).join("、"))}）未满足：${escapeHtml((day.unmetPreferences || []).join("、"))}`).join("；")}</p>`
+        : "";
+    return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}</div>`;
+}
+
 function renderSidebar() {
     return `<aside class="mp-sidebar" aria-label="计划库"><div class="mp-side-title"><span>计划库</span><div class="mp-side-actions"><button type="button" data-plan-action="collapse" title="折叠计划库" aria-label="折叠计划库">‹</button><button type="button" data-plan-action="new" title="从聊天新建草稿" aria-label="从聊天新建草稿">＋</button></div></div><div class="mp-plan-list">${state.summaries.map(renderPlanRow).join("")}</div><p class="mp-side-note">已启用计划编辑会先创建草稿副本。</p></aside>`;
 }
@@ -129,7 +149,7 @@ function renderHeader(plan) {
             ? `<div class="mp-name-editor"><input class="mp-name-input" data-plan-name value="${escapeHtml(nameEditorState(plan).draftName)}" maxlength="128" aria-label="计划名称"><div class="mp-name-actions"><button class="mp-btn primary small" type="button" data-plan-action="save-name">保存</button><button class="mp-btn ghost small" type="button" data-plan-action="cancel-name">取消</button></div></div>`
             : `<h1 id="plans-title"><button class="mp-name-display" type="button" data-plan-action="edit-name" aria-label="编辑计划名称">${escapeHtml(name)}</button></h1>`
         : `<h1 id="plans-title">${escapeHtml(name)}</h1>`;
-    return `<header class="mp-head"><div><span class="mp-eyebrow">我的计划</span>${title}<p>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(buildDays(plan.weekStart)[6])} · ${escapeHtml(scopeLabel(plan.planScope))} · <span class="mp-badge ${String(status).toLowerCase()}">${escapeHtml(statusLabel(status))}</span>${plan.generationSource ? ` · ${escapeHtml(planGenerationSourceLabel(plan.generationSource))}` : ""}</p></div><div class="mp-actions"><button class="mp-btn ghost" data-plan-action="new" title="从聊天新建草稿">新建草稿</button>${actions}</div></header>`;
+    return `<header class="mp-head"><div><span class="mp-eyebrow">我的计划</span>${title}<p>${escapeHtml(plan.weekStart)} 至 ${escapeHtml(buildDays(plan.weekStart)[6])} · ${escapeHtml(scopeLabel(plan.planScope))} · <span class="mp-badge ${String(status).toLowerCase()}">${escapeHtml(statusLabel(status))}</span>${plan.generationSource ? ` · ${escapeHtml(planGenerationSourceLabel(plan.generationSource))}` : ""}</p>${renderGenerationNotes(plan)}</div><div class="mp-actions"><button class="mp-btn ghost" data-plan-action="new" title="从聊天新建草稿">新建草稿</button>${actions}</div></header>`;
 }
 
 function renderToolbar(plan) {

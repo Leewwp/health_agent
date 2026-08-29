@@ -76,7 +76,8 @@ class TrainingPlanGenerationServiceTest {
         when(sessionService.loadOrCreate(anyString(), anyLong())).thenReturn(
                 HealthSessionState.fresh("sess-training", 1L).withPlanBrief(BRIEF));
         when(profileService.getProfile(1L)).thenReturn(PROFILE);
-        when(weeklyPlanService.persistGeneratedDraft(anyLong(), any(), any(), anyString(), any(), anyString()))
+        when(weeklyPlanService.persistGeneratedDraft(anyLong(), any(), any(), anyString(), any(), anyString(),
+                anyString(), anyString(), anyString()))
                 .thenAnswer(invocation -> {
                     persistedItems.clear();
                     persistedItems.addAll(invocation.getArgument(2));
@@ -294,7 +295,8 @@ class TrainingPlanGenerationServiceTest {
         assertTrue(error.getMessage().contains("部位"), error.getMessage());
         assertTrue(error.getMessage().contains("难度"), error.getMessage());
         org.mockito.Mockito.verify(weeklyPlanService, org.mockito.Mockito.never())
-                .persistGeneratedDraft(anyLong(), any(), any(), anyString(), any(), anyString());
+                .persistGeneratedDraft(anyLong(), any(), any(), anyString(), any(), anyString(),
+                        anyString(), anyString(), anyString());
     }
 
     @Test
@@ -378,7 +380,8 @@ class TrainingPlanGenerationServiceTest {
         AgentContractModule contract = new AgentContractModule(invoker, new LlmJsonService(objectMapper), traceService);
         return new TrainingPlanGenerationService(sessionService, profileService, new HealthRiskRuleService(),
                 new SeedResourceProvider(), new PlanValidationService(), mock(com.diet.health.plan.WeeklyPlanComposerService.class),
-                weeklyPlanService, contract, new PromptLoader(), traceService, objectMapper, "fixture-model", timeoutMs);
+                weeklyPlanService, new GenerationIdempotencyService(null, sessionService, objectMapper),
+                contract, new PromptLoader(), traceService, objectMapper, "fixture-model", timeoutMs);
     }
 
     private String schedule(String exerciseId, LocalDate date) {

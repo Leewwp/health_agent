@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** 会话续轮必须在调用模型前完成上下文继承。 */
 class HealthIntentRevisionServiceTest {
 
-    private final HealthIntentRevisionService service = new HealthIntentRevisionService(new HealthInputNormalizer());
+    private final HealthIntentRevisionService service = new HealthIntentRevisionService(new HealthInputNormalizer(), new HealthBriefRouter());
 
     @Test
     void 餐食澄清短答直接继承当前领域并抽取槽位() {
