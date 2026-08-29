@@ -252,7 +252,7 @@ class DbReviewedResourceProviderTest {
     @Test
     void provider模式与资源版本标识明确() {
         assertEquals(ResourceMode.REVIEWED_DB, provider.providerMode());
-        assertEquals("reviewed-2026-08-10-v1", provider.resourceVersion());
+        assertEquals("reviewed-2026-08-29-v1", provider.resourceVersion());
     }
 
     @Test

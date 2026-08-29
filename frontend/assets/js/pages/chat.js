@@ -266,10 +266,13 @@ function summarizePlanBrief(brief) {
 
 function summarizeMealPlanBrief(brief) {
     // 摘要直接渲染结构化简报字段（含可选偏好与未支持项），不依赖解析 speechText
-    if (!brief || (!brief.weekStart && !brief.mealTimes?.length && !brief.cuisine && !brief.tastePreferences?.length && !brief.convenience && !brief.unsupportedPreferences?.length)) return "";
+    const cuisines = brief?.cuisines?.length ? brief.cuisines : (brief?.cuisine ? [brief.cuisine] : []);
+    const foodTypes = brief?.foodTypes || [];
+    if (!brief || (!brief.weekStart && !brief.mealTimes?.length && !cuisines.length && !foodTypes.length && !brief.tastePreferences?.length && !brief.convenience && !brief.unsupportedPreferences?.length)) return "";
     const parts = [`餐食目标周 ${brief.weekStart || "未定"}`, brief.mealTimes?.join("、") || "餐次未定"];
     if (brief.healthGoal) parts.push(brief.healthGoal);
-    if (brief.cuisine) parts.push(`菜系 ${brief.cuisine}`);
+    if (cuisines.length) parts.push(`菜系 ${cuisines.join("、")}`);
+    if (foodTypes.length) parts.push(`餐食类型 ${foodTypes.join("、")}`);
     if (brief.tastePreferences?.length) parts.push(`口味 ${brief.tastePreferences.join("、")}`);
     if (brief.convenience) parts.push(`烹饪 ${brief.convenience}`);
     if (brief.unsupportedPreferences?.length) parts.push(`暂不支持 ${brief.unsupportedPreferences.join("、")}`);

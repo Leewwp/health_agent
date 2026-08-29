@@ -17,18 +17,19 @@ import java.util.regex.Pattern;
 /**
  * 餐食计划简报的独立解析、确认和字段指引服务。
  * <p>
- * 简报补充回路（规格 v3.2）：可选偏好（菜系/口味营养/便利性）解析必须先于
- * isUnrelated、looksLikeMealInput 等旧启发式执行；菜系解析委托确定性的
- * {@link MealCuisineIntentParser}（不依赖模型、不参与路由）；受支持值经归一器
- * 别名表规范，未支持值只由该解析器产生并登记 unsupportedPreferences；
- * 热量目标永不被口味值覆盖；菜系/便利性为单选，对齐既有难度单选冲突语义。
+ * 简报补充回路（规格 v3.2）+ 餐食标签加固规格：可选偏好（菜系/餐食类型/口味营养/便利性）
+ * 解析必须先于 isUnrelated、looksLikeMealInput 等旧启发式执行；菜系与餐食类型分别委托
+ * 确定性的 {@link MealCuisineIntentParser} 与 {@link MealFoodTypeIntentParser}
+ * （不依赖模型、不参与路由）；受支持值经归一器别名表规范，未支持值只由解析器产生并按
+ * "field:value" 稳定键登记 unsupportedPreferences，不参与筛选或生成；
+ * 热量目标永不被口味值覆盖；菜系/餐食类型/口味均多选，仅便利性为单选。
  */
 @Service
 public class MealPlanBriefService {
 
     private static final Pattern ISO_DATE = Pattern.compile("(20\\d{2}-\\d{2}-\\d{2})");
 
-    /** “换成/改为”等显式修改语义：单选字段仅在出现时才允许覆盖已有值。 */
+    /** “换成/改为”等显式修改语义：列表字段（菜系/类型/口味）仅在出现修改词时重建集合。 */
     private static final String[] CHANGE_WORDS = {"换成", "改为", "改成", "调整为", "修改为", "换一"};
 
     /** 健康目标白名单：healthGoal 只承载这四个规范值。 */
@@ -37,17 +38,21 @@ public class MealPlanBriefService {
     /** 归一器：别名表是受支持词汇的唯一事实来源（无 I/O，纯词表）。 */
     private final HealthInputNormalizer normalizer;
     private final MealCuisineIntentParser cuisineParser;
+    private final MealFoodTypeIntentParser foodTypeParser;
 
     /** Spring 装配入口。 */
     @org.springframework.beans.factory.annotation.Autowired
-    public MealPlanBriefService(HealthInputNormalizer normalizer, MealCuisineIntentParser cuisineParser) {
+    public MealPlanBriefService(HealthInputNormalizer normalizer, MealCuisineIntentParser cuisineParser,
+                                MealFoodTypeIntentParser foodTypeParser) {
         this.normalizer = normalizer;
         this.cuisineParser = cuisineParser;
+        this.foodTypeParser = foodTypeParser;
     }
 
     /** 测试与旧调用兼容入口：内部持有等价的纯词表归一器与解析器。 */
     public MealPlanBriefService() {
-        this(new HealthInputNormalizer(), new MealCuisineIntentParser(new HealthInputNormalizer()));
+        this(new HealthInputNormalizer(), new MealCuisineIntentParser(new HealthInputNormalizer()),
+                new MealFoodTypeIntentParser(new HealthInputNormalizer()));
     }
 
     public UpdateResult update(MealPlanBrief current, String input) {
@@ -58,13 +63,16 @@ public class MealPlanBriefService {
         //    可选偏好命中本身足以使输入进入餐食简报处理器
         MealCuisineIntentParser.CuisineParse cuisineParse = cuisineParser.parse(text);
 
-        // 2) 口味/营养偏好与便利性（经归一器别名表规范；未支持偏好不在此产生）
+        // 2) 餐食类型（显式形态 + 未支持诚实通道）、口味/营养偏好与便利性（经归一器别名表规范）
+        MealFoodTypeIntentParser.FoodTypeParse foodTypeParse = foodTypeParser.parse(text);
         List<String> tasteValues = parseTastePreferences(text);
-        String convenience = parseSingleAlias("convenience", text);
+        List<String> convenienceValues = parseAliases("convenience", text);
+        String convenience = convenienceValues.isEmpty() ? null : convenienceValues.get(0);
         String healthGoal = parseGoal(text);
 
         // 3) 旧启发式：完全没有任何字段命中时保持原有 UNRELATED/INVALID 语义
-        boolean anyOptionalHit = cuisineParse.matched() || !tasteValues.isEmpty() || convenience != null;
+        boolean anyOptionalHit = cuisineParse.matched() || foodTypeParse.matched()
+                || !tasteValues.isEmpty() || convenience != null;
         if (!anyOptionalHit && isUnrelated(text)) {
             return new UpdateResult(base, BriefInterpretationStatus.UNRELATED,
                     missing(base), "已保留当前未完成的餐食简报，先处理你刚才的新话题。", false);
@@ -77,28 +85,41 @@ public class MealPlanBriefService {
                     missing(base), guidanceWithSupplementable(firstMissing(base)), looksLikeMealInput(text));
         }
 
-        // 4) 可选偏好合并：菜系/便利性单选冲突语义对齐难度单选；口味为多值追加去重
+        // 4) 可选偏好合并：菜系/类型/口味均支持多值；“换成/改为”重建集合
         MealPlanBrief merged = base;
         List<String> unsupported = new ArrayList<>(base.unsupportedPreferences());
         String conflictNote = null;
         if (cuisineParse.matched()) {
-            CuisineApply cuisineApply = applySingleSelect("cuisine", base.cuisine(), text,
-                    cuisineParse.supported(), cuisineParse.unsupported(), true);
-            unsupported = cuisineApply.unsupported;
-            merged = merged.withOptional(cuisineApply.value, null, null, null);
-            conflictNote = cuisineApply.conflictNote;
+            List<String> parsedCuisines = mergeAppend(cuisineParse.supported(), cuisineParse.unsupported());
+            List<String> nextCuisines = hasChangeIntent(text)
+                    ? parsedCuisines
+                    : mergeAppend(base.cuisines(), parsedCuisines);
+            cuisineParse.unsupported().forEach(value -> unsupported.add("cuisine:" + value));
+            merged = merged.withOptional(nextCuisines, null, null, null, null);
+        }
+        if (foodTypeParse.matched()) {
+            List<String> parsedFoodTypes = mergeAppend(foodTypeParse.supported(), foodTypeParse.unsupported());
+            List<String> nextFoodTypes = hasChangeIntent(text)
+                    ? parsedFoodTypes : mergeAppend(base.foodTypes(), parsedFoodTypes);
+            foodTypeParse.unsupported().forEach(value -> unsupported.add("foodType:" + value));
+            merged = merged.withOptional(null, nextFoodTypes, null, null, null);
         }
         if (!tasteValues.isEmpty()) {
             boolean changeIntent = hasChangeIntent(text);
             List<String> nextTaste = changeIntent ? tasteValues
                     : mergeAppend(base.tastePreferences(), tasteValues);
-            merged = merged.withOptional(null, nextTaste, null, null);
+            merged = merged.withOptional(null, null, nextTaste, null, null);
         }
-        if (convenience != null) {
-            CuisineApply convenienceApply = applySingleSelect("convenience", base.convenience(), text,
-                    List.of(convenience), List.of(), false);
-            merged = merged.withOptional(null, null, convenienceApply.value, null);
-            conflictNote = conflictNote == null ? convenienceApply.conflictNote : conflictNote;
+        if (convenienceValues.size() > 1 && !hasChangeIntent(text)) {
+            String retained = base.convenience();
+            if (retained == null || retained.isBlank()) {
+                retained = convenience;
+                merged = merged.withOptional(null, null, null, retained, null);
+            }
+            conflictNote = "烹饪时长一次只能选择一个；当前保留“" + retained
+                    + "”，如需修改请使用“换成/改为”。可选值：" + String.join("、", convenienceValues);
+        } else if (convenience != null) {
+            merged = merged.withOptional(null, null, null, convenience, null);
         }
         if (!unsupported.equals(base.unsupportedPreferences())) {
             merged = merged.withUnsupportedPreferences(unsupported);
@@ -111,68 +132,15 @@ public class MealPlanBriefService {
                 missing(merged), guidance, true);
     }
 
-    /** 单选字段应用结果：value 最终值、unsupported 更新后的未支持集合、conflictNote 冲突提示。 */
-    private record CuisineApply(String value, List<String> unsupported, String conflictNote) {
-    }
-
-    /**
-     * 菜系/便利性单选冲突语义（对齐难度单选）：
-     * 已有值且无“换成/改为”语义 → 保留并提示只能选一个；空字段恰有一个受支持值 → 采用它、
-     * 其余未支持值登记；多个受支持值 → 不猜测，返回可选列表要求重选。
-     * cuisine 允许把形态内的未支持原值写入字段（如“中餐”）；convenience 只接受规范值。
-     */
-    private CuisineApply applySingleSelect(String field, String currentValue, String text,
-                                           List<String> supported, List<String> unsupportedRaw,
-                                           boolean allowUnsupportedValue) {
-        List<String> unsupported = new ArrayList<>();
-        String fieldKey = "cuisine".equals(field) ? "cuisine" : "convenience";
-        unsupportedRaw.forEach(value -> unsupported.add(fieldKey + ":" + value));
-        boolean changeIntent = hasChangeIntent(text);
-        String note = null;
-        String value = currentValue;
-        if (supported.size() > 1) {
-            if (currentValue == null || currentValue.isBlank()) {
-                note = "一次只能选择一个" + fieldLabel(field) + "。检测到：" + String.join("、", supported)
-                        + "，请重新说明一个，当前可选：" + optionsPreview(field) + "。";
-            } else if (!changeIntent) {
-                note = "一次只能选择一个" + fieldLabel(field) + "。已保留当前“" + currentValue
-                        + "”，如需修改请说“换成X”。";
-            } else {
-                note = "一次只能选择一个" + fieldLabel(field) + "。检测到：" + String.join("、", supported)
-                        + "，请只说明一个新值。";
-            }
-            return new CuisineApply(currentValue, unsupported, note);
-        }
-        String next = null;
-        if (supported.size() == 1) {
-            next = supported.get(0);
-        } else if (allowUnsupportedValue && unsupportedRaw.size() == 1) {
-            // 空字段仅有未支持值（如“中餐”）：原值写入字段并登记未支持集合
-            next = unsupportedRaw.get(0);
-        }
-        if (next == null) {
-            return new CuisineApply(currentValue, unsupported, note);
-        }
-        if (currentValue != null && !currentValue.isBlank() && !currentValue.equals(next) && !changeIntent) {
-            return new CuisineApply(currentValue, unsupported,
-                    "一次只能选择一个" + fieldLabel(field) + "。已保留当前“" + currentValue + "”，如需修改请说“换成" + next + "”。");
-        }
-        return new CuisineApply(next, unsupported, note);
-    }
-
-    private String fieldLabel(String field) {
-        return "cuisine".equals(field) ? "菜系" : "烹饪时长";
-    }
-
-    private String optionsPreview(String field) {
-        return "cuisine".equals(field) ? String.join("、", cuisineParser.supportedCuisines())
-                : "快速、慢享等";
+    private List<String> parseAliases(String slot, String text) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        collectAliases(slot, text, values);
+        return List.copyOf(values);
     }
 
     /** 解析口味与营养偏好：口味规范值与热量目标之外的健康目标规范值统一进 tastePreferences。 */
     private List<String> parseTastePreferences(String text) {
-        LinkedHashSet<String> values = new LinkedHashSet<>();
-        collectAliases("taste", text, values);
+        LinkedHashSet<String> values = new LinkedHashSet<>(parseAliases("taste", text));
         collectAliases("healthGoal", text, values);
         // healthGoal 白名单之外的健康目标规范值属于口味/营养偏好
         values.removeIf(GOAL_WHITELIST::contains);
@@ -191,13 +159,6 @@ public class MealPlanBriefService {
                 remaining = remaining.replace(alias.getKey(), "、");
             }
         }
-    }
-
-    /** 单值槽位：取第一个命中的规范值（别名长短优先避免子串误伤）。 */
-    private String parseSingleAlias(String slot, String text) {
-        LinkedHashSet<String> values = new LinkedHashSet<>();
-        collectAliases(slot, text, values);
-        return values.isEmpty() ? null : values.iterator().next();
     }
 
     private boolean hasChangeIntent(String text) {
@@ -231,8 +192,11 @@ public class MealPlanBriefService {
         summary.append("目标周：").append(value.weekStart() == null ? "未定" : value.weekStart());
         summary.append("；餐次：").append(value.mealTimes().isEmpty() ? "未定" : String.join("、", value.mealTimes()));
         summary.append("；目标：").append(value.healthGoal() == null ? "未定" : value.healthGoal());
-        if (value.cuisine() != null && !value.cuisine().isBlank()) {
-            summary.append("；菜系：").append(value.cuisine());
+        if (!value.cuisines().isEmpty()) {
+            summary.append("；菜系：").append(String.join("、", value.cuisines()));
+        }
+        if (!value.foodTypes().isEmpty()) {
+            summary.append("；餐食类型：").append(String.join("、", value.foodTypes()));
         }
         if (!value.tastePreferences().isEmpty()) {
             summary.append("；口味：").append(String.join("、", value.tastePreferences()));
@@ -253,9 +217,17 @@ public class MealPlanBriefService {
     public List<SupplementableItem> supplementable(MealPlanBrief brief) {
         MealPlanBrief value = brief == null ? MealPlanBrief.empty() : brief;
         List<SupplementableItem> items = new ArrayList<>();
-        if (value.cuisine() == null || value.cuisine().isBlank()) {
-            items.add(new SupplementableItem("cuisine", "菜系",
-                    List.of("川菜", "家常菜"), false));
+        boolean hasSupportedCuisine = value.cuisines().stream().anyMatch(cuisine ->
+                !value.unsupportedPreferences().contains("cuisine:" + cuisine));
+        if (!hasSupportedCuisine) {
+            items.add(new SupplementableItem("cuisines", "菜系",
+                    List.of("粤菜", "川菜"), false));
+        }
+        boolean hasSupportedFoodType = value.foodTypes().stream().anyMatch(foodType ->
+                !value.unsupportedPreferences().contains("foodType:" + foodType));
+        if (!hasSupportedFoodType) {
+            items.add(new SupplementableItem("foodTypes", "餐食类型",
+                    List.of("素食", "轻食"), false));
         }
         if (value.tastePreferences().isEmpty()) {
             items.add(new SupplementableItem("tastePreferences", "口味",
@@ -347,7 +319,7 @@ public class MealPlanBriefService {
     /** 指引 = 字段指引 + 可补充项枚举（可行动指引，不出现内部术语）。 */
     private String guidanceWithSupplementable(String field) {
         String base = guidance(field);
-        return base + "还可以补充：菜系（如川菜）、口味（如清淡、高蛋白）、烹饪时长（如烹饪时间短）。";
+        return base + "还可以补充：菜系（如粤菜、川菜）、餐食类型（如素食、轻食）、口味（如清淡、高蛋白）、烹饪时长（如烹饪时间短）；推荐时还可补充用餐场景、当下心情、过敏或忌口。";
     }
 
     public record UpdateResult(MealPlanBrief brief, BriefInterpretationStatus status,

@@ -16,6 +16,7 @@
         <result property="scene" column="scene"/>
         <result property="healthGoal" column="health_goal"/>
         <result property="cuisine" column="cuisine"/>
+        <result property="foodType" column="food_type"/>
         <result property="taste" column="taste"/>
         <result property="convenience" column="convenience"/>
         <result property="description" column="description"/>
@@ -52,6 +53,7 @@
         scene,
         health_goal,
         cuisine,
+        food_type,
         taste,
         convenience,
         review_status,
@@ -70,6 +72,7 @@
         scene,
         health_goal,
         cuisine,
+        food_type,
         taste,
         convenience,
         description,
@@ -100,11 +103,11 @@
             keyProperty="id">
         INSERT INTO meal_item (
         source_type, owner_user_id, name,
-        meal_time, mood, scene, health_goal, cuisine, taste, convenience,
+        meal_time, mood, scene, health_goal, cuisine, food_type, taste, convenience,
         created_at, updated_at
         ) VALUES (
         #{sourceType}, #{ownerUserId}, #{name},
-        #{mealTime}, #{mood}, #{scene}, #{healthGoal}, #{cuisine}, #{taste}, #{convenience},
+        #{mealTime}, #{mood}, #{scene}, #{healthGoal}, #{cuisine}, #{foodType}, #{taste}, #{convenience},
         NOW(), NOW()
         )
     </insert>
@@ -117,6 +120,7 @@
         scene = #{scene},
         health_goal = #{healthGoal},
         cuisine = #{cuisine},
+        food_type = #{foodType},
         taste = #{taste},
         convenience = #{convenience},
         updated_at = NOW()
@@ -163,6 +167,9 @@
         AND owner_user_id = #{userId}
     </select>
 
+    <!-- 加固规格：检索/浏览/计数各保留一条参数完整的语句，餐食类型参数恒定声明、空数组即不过滤；
+         删除全部成对的 WithFoodType 变体与无过滤浏览/计数方法。谓词顺序统一为
+         范围→餐次→心情→场景→目标→菜系→餐食类型→口味→便利，三餐兼容表达式统一括号写法。 -->
     <select id="search" resultMap="MealItemRowMap">
         <!-- #69 修正：召回与浏览/索引共用 BrowseMealColumns（同一行映射口径），
              否则 allergen_json 等 V3 字段为空，结构化路径的过敏原硬约束在真库上被绕过 -->
@@ -180,11 +187,14 @@
                     AND review_status = 'APPROVED'
                 </otherwise>
             </choose>
-            AND (#{mealTimeJson} = '[]' OR JSON_OVERLAPS(meal_time, #{mealTimeJson}))
+            AND (#{mealTimeJson} = '[]' OR JSON_OVERLAPS(meal_time, #{mealTimeJson})
+                 OR (JSON_OVERLAPS(#{mealTimeJson}, JSON_ARRAY('早餐','午餐','晚餐'))
+                     AND JSON_CONTAINS(meal_time, JSON_QUOTE('三餐'))))
             AND (#{moodJson} = '[]' OR JSON_OVERLAPS(mood, #{moodJson}))
             AND (#{sceneJson} = '[]' OR JSON_OVERLAPS(scene, #{sceneJson}))
             AND (#{healthGoalJson} = '[]' OR JSON_OVERLAPS(health_goal, #{healthGoalJson}))
             AND (#{cuisineJson} = '[]' OR JSON_OVERLAPS(cuisine, #{cuisineJson}))
+            AND (#{foodTypeJson} = '[]' OR JSON_OVERLAPS(food_type, #{foodTypeJson}))
             AND (#{tasteJson} = '[]' OR JSON_OVERLAPS(taste, #{tasteJson}))
             AND (#{convenienceJson} = '[]' OR JSON_OVERLAPS(convenience, #{convenienceJson}))
         </where>
@@ -192,54 +202,7 @@
         LIMIT #{limit}
     </select>
 
-    <select id="browsePublicMeals" resultMap="MealItemRowMap">
-        SELECT <include refid="BrowseMealColumns"/>
-        FROM meal_item
-        WHERE source_type = 'PUBLIC'
-        AND owner_user_id IS NULL
-        AND review_status = 'APPROVED'
-        ORDER BY id
-        LIMIT #{offset}, #{size}
-    </select>
-
-    <select id="browseFavoritePublicMeals" resultMap="MealItemRowMap">
-        SELECT <include refid="BrowseMealColumns"/>
-        FROM meal_item
-        WHERE source_type = 'PUBLIC'
-        AND owner_user_id IS NULL
-        AND review_status = 'APPROVED'
-        AND EXISTS (
-            SELECT 1 FROM health_resource_favorite f
-            WHERE f.user_id = #{userId}
-              AND f.resource_type = 'MEAL'
-              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
-        )
-        ORDER BY id
-        LIMIT #{offset}, #{size}
-    </select>
-
-    <select id="countPublicMeals" resultType="int">
-        SELECT COUNT(1)
-        FROM meal_item
-        WHERE source_type = 'PUBLIC'
-        AND owner_user_id IS NULL
-        AND review_status = 'APPROVED'
-    </select>
-
-    <select id="countFavoritePublicMeals" resultType="int">
-        SELECT COUNT(1)
-        FROM meal_item
-        WHERE source_type = 'PUBLIC'
-        AND owner_user_id IS NULL
-        AND review_status = 'APPROVED'
-        AND EXISTS (
-            SELECT 1 FROM health_resource_favorite f
-            WHERE f.user_id = #{userId}
-              AND f.resource_type = 'MEAL'
-              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
-        )
-    </select>
-
+    <!-- 浏览页：审核通过的公共餐食，按 id 升序分页；favoriteOnly=false 且各过滤参数为空时即全量浏览。 -->
     <select id="browsePublicMealsFiltered" resultMap="MealItemRowMap">
         SELECT <include refid="BrowseMealColumns"/>
         FROM meal_item
@@ -257,14 +220,16 @@
         <if test="query != null and query != ''">
           AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
         </if>
-        <if test="mealTime != null and mealTime != ''">AND JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime}))</if>
+        <if test="mealTime != null and mealTime != ''">AND (JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime})) OR (#{mealTime} IN ('早餐','午餐','晚餐') AND JSON_CONTAINS(meal_time, JSON_QUOTE('三餐'))))</if>
         <if test="cuisine != null and cuisine != ''">AND JSON_OVERLAPS(cuisine, JSON_ARRAY(#{cuisine}))</if>
+        <if test="foodType != null and foodType != ''">AND JSON_OVERLAPS(food_type, JSON_ARRAY(#{foodType}))</if>
         <if test="taste != null and taste != ''">AND JSON_OVERLAPS(taste, JSON_ARRAY(#{taste}))</if>
         <if test="healthGoal != null and healthGoal != ''">AND JSON_OVERLAPS(health_goal, JSON_ARRAY(#{healthGoal}))</if>
         ORDER BY id
         LIMIT #{offset}, #{size}
     </select>
 
+    <!-- 浏览分页计数：与 browsePublicMealsFiltered 逐谓词一致，页总数与行数永不分叉。 -->
     <select id="countPublicMealsFiltered" resultType="int">
         SELECT COUNT(1)
         FROM meal_item
@@ -276,14 +241,15 @@
               SELECT 1 FROM health_resource_favorite f
               WHERE f.user_id = #{userId}
                 AND f.resource_type = 'MEAL'
-              AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
+                AND f.resource_id = (CAST(meal_item.id AS CHAR) COLLATE utf8mb4_unicode_ci)
           )
         </if>
         <if test="query != null and query != ''">
           AND (name LIKE CONCAT('%', #{query}, '%') OR name_en LIKE CONCAT('%', #{query}, '%'))
         </if>
-        <if test="mealTime != null and mealTime != ''">AND JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime}))</if>
+        <if test="mealTime != null and mealTime != ''">AND (JSON_OVERLAPS(meal_time, JSON_ARRAY(#{mealTime})) OR (#{mealTime} IN ('早餐','午餐','晚餐') AND JSON_CONTAINS(meal_time, JSON_QUOTE('三餐'))))</if>
         <if test="cuisine != null and cuisine != ''">AND JSON_OVERLAPS(cuisine, JSON_ARRAY(#{cuisine}))</if>
+        <if test="foodType != null and foodType != ''">AND JSON_OVERLAPS(food_type, JSON_ARRAY(#{foodType}))</if>
         <if test="taste != null and taste != ''">AND JSON_OVERLAPS(taste, JSON_ARRAY(#{taste}))</if>
         <if test="healthGoal != null and healthGoal != ''">AND JSON_OVERLAPS(health_goal, JSON_ARRAY(#{healthGoal}))</if>
     </select>

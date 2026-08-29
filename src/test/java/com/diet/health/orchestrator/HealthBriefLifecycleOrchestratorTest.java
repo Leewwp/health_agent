@@ -202,6 +202,9 @@ class HealthBriefLifecycleOrchestratorTest {
         assertTrue(cuisine.mealPlanBrief().unsupportedPreferences().contains("cuisine:中餐"));
         assertTrue(cuisine.speechText().contains("川菜"), "未支持回应给出可选菜系列表");
 
+        HealthChatResponse foodType = chat(sessionId, "我想吃素");
+        assertEquals(List.of("素食"), foodType.mealPlanBrief().foodTypes());
+
         HealthChatResponse convenience = chat(sessionId, "烹饪时间短一些");
         assertEquals("快速", convenience.mealPlanBrief().convenience());
 

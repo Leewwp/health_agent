@@ -33,14 +33,16 @@ class MealPlanPreferenceFilterTest {
     void fixture候选携带规格确定性标签基准() {
         List<PlanMealCandidate> candidates = new SeedResourceProvider().planMealCandidates();
         PlanMealCandidate m7 = candidates.stream().filter(c -> c.resourceId().equals("M7")).findFirst().orElseThrow();
-        assertEquals(List.of("轻食"), m7.cuisineTags());
+        assertEquals(List.of("粤菜"), m7.cuisineTags());
+        assertEquals(List.of("轻食"), m7.foodTypeTags());
         assertEquals(List.of("清淡"), m7.tasteTags());
-        assertEquals(List.of("低油", "高蛋白"), m7.nutritionPreferenceTags());
+        assertEquals(List.of("低油", "高蛋白", "减脂"), m7.nutritionPreferenceTags());
         assertEquals(List.of("快速"), m7.convenienceTags());
 
         PlanMealCandidate m1 = candidates.stream().filter(c -> c.resourceId().equals("M1")).findFirst().orElseThrow();
-        assertEquals(List.of(), m1.nutritionPreferenceTags(), "M1 营养标签基准为空");
-        assertEquals(List.of("粥汤"), m1.cuisineTags());
+        assertEquals(List.of("维持健康"), m1.nutritionPreferenceTags(), "M1 健康目标标签基准");
+        assertEquals(List.of("粤菜"), m1.cuisineTags());
+        assertEquals(List.of("粥汤"), m1.foodTypeTags());
 
         PlanMealCandidate m6 = candidates.stream().filter(c -> c.resourceId().equals("M6")).findFirst().orElseThrow();
         assertEquals(List.of("番茄味"), m6.tasteTags());
@@ -108,14 +110,14 @@ class MealPlanPreferenceFilterTest {
                 candidateWithSlots("d1", "家常快速晚餐", 650, List.of("晚餐"), List.of("家常"), List.of(), List.of("快速"))));
         MealPlanPicker picker = new MealPlanPicker(provider);
         MealPreferenceFilter filter = filterOf(MealPlanBrief.empty()
-                .withOptional("家常", null, "快速", null));
+                .withOptional(List.of(), List.of("家常"), null, "快速", null));
 
         MealPlanPicker.PreferencePickResult result =
                 picker.pickForDayWithPreferences(1200, 1800, List.of("早餐", "午餐", "晚餐"), new HashMap<>(), filter);
         assertTrue(result.fallback(), "早餐偏好池为空必须整天回退");
         assertEquals(List.of("早餐", "午餐", "晚餐"), result.picks().stream().map(MealPlanPicker.MealPick::mealTime).toList(),
                 "回退日仍保留所选餐次，不做单餐半回退");
-        assertEquals(List.of("cuisine:家常", "convenience:快速"), result.unmetPreferences(),
+        assertEquals(List.of("foodType:家常", "convenience:快速"), result.unmetPreferences(),
                 "回退日按“字段:值”粒度记录未满足偏好");
         assertTrue(result.picks().stream().anyMatch(pick -> "b1".equals(pick.resourceId())),
                 "回退绕过偏好但保留热量约束（清淡早餐回到池中）");
@@ -177,13 +179,14 @@ class MealPlanPreferenceFilterTest {
         MealPlanPicker picker = new MealPlanPicker(new SeedResourceProvider());
         WeeklyPlanComposerService composer = new WeeklyPlanComposerService(new SeedResourceProvider(), picker, normalizer);
         // 偏好 {家常+清淡}：种子早餐池没有家常 → 每日整天回退，说明带日期与未满足键
-        MealPlanBrief brief = MealPlanBrief.empty().withOptional("家常", List.of("清淡"), null, null);
+        MealPlanBrief brief = MealPlanBrief.empty().withOptional(List.of(), List.of("家常"),
+                List.of("清淡"), null, null);
         WeeklyPlanComposerService.MealCompositionResult result = composer.composeMealsWithPreferences(
                 1500, 2200, java.time.LocalDate.of(2026, 8, 31), List.of("早餐", "午餐", "晚餐"), brief);
         GenerationNotes notes = result.generationNotes();
         assertEquals(List.of(), notes.unsupportedPreferences());
         assertFalse(notes.fallbacks().isEmpty(), "偏好池为空的日期应记录回退");
-        assertTrue(notes.fallbacks().stream().allMatch(day -> day.unmetPreferences().contains("cuisine:家常")),
+        assertTrue(notes.fallbacks().stream().allMatch(day -> day.unmetPreferences().contains("foodType:家常")),
                 notes.fallbacks().toString());
         assertEquals(java.time.LocalDate.of(2026, 8, 31).toString(), notes.fallbacks().get(0).date());
         assertEquals(List.of("早餐", "午餐", "晚餐"), notes.fallbacks().get(0).mealTimes());

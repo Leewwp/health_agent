@@ -32,7 +32,7 @@ import java.util.Optional;
 public class DbReviewedResourceProvider implements HealthResourceProvider {
 
     /** 审核子集批次版本（与 reviewed_resources.sql 生成批次同日）。 */
-    static final String RESOURCE_VERSION = "reviewed-2026-08-10-v1";
+    static final String RESOURCE_VERSION = "reviewed-2026-08-29-v1";
 
     private final ExerciseMapper exerciseMapper;
     private final MealMapper mealMapper;
@@ -186,6 +186,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
         tags.put("scene", jsonService.fromJsonArray(row.getScene()));
         tags.put("healthGoal", jsonService.fromJsonArray(row.getHealthGoal()));
         tags.put("cuisine", jsonService.fromJsonArray(row.getCuisine()));
+        tags.put("foodType", jsonService.fromJsonArray(row.getFoodType()));
         tags.put("taste", jsonService.fromJsonArray(row.getTaste()));
         tags.put("convenience", jsonService.fromJsonArray(row.getConvenience()));
         return new HealthResource(
@@ -228,6 +229,7 @@ public class DbReviewedResourceProvider implements HealthResourceProvider {
                 row.getCaloriesKcal() == null ? null : row.getCaloriesKcal().intValue(),
                 row.getId(),
                 safeTags(row.getCuisine()),
+                safeTags(row.getFoodType()),
                 safeTags(row.getTaste()),
                 nutritionPreferences,
                 safeTags(row.getConvenience())

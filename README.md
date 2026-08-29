@@ -21,7 +21,7 @@
 - **类型化反馈**：`POST /api/v1/health/feedback`（resourceType+resourceId），DISLIKE 硬过滤、LIKE/FAVORITE/ADOPT 确定性重排；旧饮食反馈经适配层补齐类型化字段；
 - **审核资源与浏览 API**：启动时幂等导入 ETL 生成的审核子集（295 条餐食、30 个 plan_ready 动作、15 条作息事实）；dev 另行幂等导入 1,324 条本地动作目录与已授权媒体，动作浏览展示完整目录，推荐和周计划仍只消费审核/计划资格动作；`GET /api/v1/health/meals`、`GET /api/v1/health/exercises` 分页浏览（size≤50、page 超上限返回 400）；
 - **餐食 RAG（M5 #52 融合；#77 扩展评测）**：线上检索经 `MealRetrievalRouter` 两段式路由（含餐次/过敏原/排除项等强约束或常规表达走结构化，无强约束的主观/长尾表达进入语义实验），`EmbeddingClient`（DashScope 默认适配器，可经 `diet.embedding.provider=minimax` 切换实验适配器，失败返回 empty）+ `MealRetriever`（结构化/混合双实现），hybrid 现在执行**结构化召回 + Qdrant 独立向量召回两条路径的候选融合**（payload 过滤审核状态/来源/过敏原/排除 ID，按 ID 回查 MySQL 二次执行全部硬约束，过期索引命中直接丢弃），融合权重可经 `diet.rag.fusion-weight` 注入（默认 0.5），Embedding/Qdrant 不可用、超时或空结果时立即退回结构化检索并标记降级原因；固定标注查询集（60 条六层：精确标签/自然语言/长尾表达/同义词/排除项/过敏原）评估 `Recall@3`/MRR/NDCG@3/Precision@3/硬约束命中率/P95 延迟/降级分布，并组织权重与嵌入文本消融（见 `docs/research/meal-rag-evaluation.md`，数字以 `data/reports/rag_evaluation.json` 为准）；
-- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V20，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段、V13 训练目标标签、V14 计划生成来源/元数据、V15 计划范围与旧测试数据清理、V16 生成来源扩容、V18 统一综合计划生命周期与写入幂等（ACTIVE 约束收敛为按用户 ENABLED 唯一）、V20 动作源保真与资格审计）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
+- **基础设施**：Java 21 构建基线、Flyway 迁移（V1 旧库基线 → V24，含 V6 计划版本依据与 ACTIVE 约束、V8 反馈归因、V9 评估标注字段、V13 训练目标标签、V14 计划生成来源/元数据、V15 计划范围与旧测试数据清理、V16 生成来源扩容、V18 统一综合计划生命周期与写入幂等（ACTIVE 约束收敛为按用户 ENABLED 唯一）、V20 动作源保真与资格审计、V21 餐食 food_type facet 拆分与槽位字典同步、V22 旧库演示数据补齐、V23 facet 归一、V24 稳定来源键 facet 纠正迁移）、dev/prod 配置、HMAC 匿名 Cookie、admin token 隔离、`/actuator/health`；
 - 旧 `/api/v1/diet/**` 接口保持兼容。
 
 ## 本地启动
@@ -188,11 +188,11 @@ name 唯一），并以稳定 URI `skill://<name>` 通过 `resources/list` 与 `
 mvn test
 ```
 
-核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、计划上下文和选择器交互回归、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束、餐食两段式检索路由、MiniMax 嵌入适配器与语料清单校验。当前 Surefire 基线为 729 个测试：`mvn test` 725 通过 + 4 个环境门控跳过；MySQL 门控 725 通过 + 4 个独立门控跳过。前端行为与交互契约测试为 31/31。
+核心自动化覆盖：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、夹具适配器、多品类意图路由、口语化计划简报与话题切换、风险拦截（目录一致性）、候选为空、幂等与 Trace 内容、领域模块、资源 Provider 双模式、浏览 API 分页边界、类型化反馈迁移与健康反馈 API、范围化周计划事务/行锁/激活不变量、训练/餐食/综合受约束生成与 fallback、计划上下文和选择器交互回归、Trace 诊断、版本生成依据，以及 MCP/Qdrant 兼容性冒烟、VectorStore 适配器、MCP 端点安全边界（token/Origin）、Trace 脱敏、MCP 四工具与 Skills Registry/Resources、hybrid 独立向量召回融合与二次硬约束、餐食两段式检索路由、MiniMax 嵌入适配器与语料清单校验。当前 Surefire 基线为 850 个测试：`mvn test` 801 通过 + 49 个环境门控跳过；MySQL 门控 846 通过 + 4 个独立门控跳过。前端行为与交互契约测试为 41/41。餐食 facet 数据契约（餐食标签加固规格）：`data/meal/facets.json` 为菜系/餐食类型规范词表唯一事实源（ETL、Java 归一器、启动兜底、提示词与前端筛选全部由它生成或读取，漂移守卫测试校验哈希与顺序）；种子中每条餐食都携带最终非空 facet——数据可推导的用数据，推导不出的按复合稳定来源键（`source_name + NUL + source_id`，十进制任意精度取模或 UTF-8 CRC32 无符号取模，Python/Java/MySQL 逐字节对齐）生成演示分类（`facetSource=STABLE_KEY_DEMO`，非人工考证的地域事实）；餐食种子语句为 `INSERT … ON DUPLICATE KEY UPDATE` 同步 facet，保证旧库启动导入后与全新库逐行收敛（全新库 V1–V24 迁移→导种→投影比对为发布阻塞测试）。
 
 ### 真实 MySQL 集成测试（事务回滚与行锁）
 
-39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V20）上验证 saveProfile/范围化生成/启用任一步写入失败时数据库无半成品、并发启用只有一份 ENABLED、激活后档案版本与能量区间与快照一致；#90–#94 另外覆盖训练/餐食/综合 requestId 幂等、失败回滚、候选 Guard、范围一致性和激活重检。需要本机 MySQL（root/123456，与 dev 配置一致）：
+39 号票剩余项已在 38 号总验收落地：独立测试库 `diet_db_itest`（自动建库 + Flyway 迁移 V1-V24）上验证 saveProfile/范围化生成/启用任一步写入失败时数据库无半成品、并发启用只有一份 ENABLED、激活后档案版本与能量区间与快照一致；#90–#94 另外覆盖训练/餐食/综合 requestId 幂等、失败回滚、候选 Guard、范围一致性和激活重检。需要本机 MySQL（root/123456，与 dev 配置一致）：
 
 ```bash
 mvn test -Ditest.mysql=true

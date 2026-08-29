@@ -236,10 +236,18 @@ public class HealthInputNormalizer {
         aliases.put("healthGoal", List.of("清淡点=清淡", "清淡一点=清淡", "清淡口味=清淡", "清淡=清淡", "减肥=减脂",
                 "减重=减脂", "瘦身=减脂", "减脂=减脂", "高蛋白=高蛋白", "养胃=养胃", "均衡=均衡", "低油=低油",
                 "低盐=低盐", "低糖=低糖", "补能=补能", "增肌=增肌", "控碳水=控碳水", "易消化=易消化", "暖胃=暖胃"));
-        aliases.put("cuisine", List.of("想吃素=素食", "吃素=素食", "纯素=素食", "素食=素食", "川菜=川菜", "粤菜=粤菜",
-                "湘菜=湘菜", "江浙菜=江浙菜", "东北菜=东北菜", "鲁菜=鲁菜", "闽南菜=闽南菜", "云南菜=云南菜",
-                "新疆菜=新疆菜", "轻食=轻食", "西餐=西餐", "日料=日料", "韩餐=韩餐", "东南亚菜=东南亚菜", "火锅=火锅",
-                "烧烤=烧烤", "海鲜=海鲜", "家常菜=家常", "家常=家常", "小吃=小吃", "粉面=粉面", "粥汤=粥汤", "快餐=快餐", "甜品=甜品"));
+        // 菜系/餐食类型词表的唯一事实源是 data/meal/facets.json（经 MealFacetVocabulary 读取）：
+        // 规范值恒等别名按词表顺序生成，杜绝归一器与种子/提示词三份手抄漂移；口语别名仍在此处维护。
+        aliases.put("cuisine", com.diet.health.seed.MealFacetVocabulary.INSTANCE
+                .values(com.diet.health.seed.MealFacetVocabulary.CUISINE).stream()
+                .map(value -> value + "=" + value)
+                .toList());
+        aliases.put("foodType", java.util.stream.Stream.concat(
+                com.diet.health.seed.MealFacetVocabulary.INSTANCE
+                        .values(com.diet.health.seed.MealFacetVocabulary.FOOD_TYPE).stream()
+                        .map(value -> value + "=" + value),
+                java.util.stream.Stream.of("想吃素=素食", "吃素=素食", "纯素=素食", "家常菜=家常"))
+                .toList());
         aliases.put("taste", List.of("微辣=微辣", "中辣=中辣", "麻辣=麻辣", "辣=辣",
                 "酸甜口味=酸甜", "酸甜口=酸甜", "酸甜=酸甜", "甜口=甜", "甜=甜", "咸鲜=咸鲜", "鲜香=鲜香", "酱香=酱香",
                 "蒜香=蒜香", "番茄味=番茄味", "咖喱味=咖喱味", "奶香=奶香", "油香=油香", "烟火气=烟火气"));

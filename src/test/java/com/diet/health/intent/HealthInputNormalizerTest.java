@@ -103,7 +103,7 @@ class HealthInputNormalizerTest {
 
         assertEquals(List.of("晚餐"), result.slots().get("mealTime"));
         assertEquals(List.of("没胃口"), result.slots().get("mood"));
-        assertEquals(List.of("素食"), result.slots().get("cuisine"));
+        assertEquals(List.of("素食"), result.slots().get("foodType"));
         assertEquals(List.of("酸甜"), result.slots().get("taste"));
         assertEquals(List.of("快速"), result.slots().get("convenience"));
     }
@@ -121,8 +121,8 @@ class HealthInputNormalizerTest {
     @Test
     void 否定想吃素不会生成素食正向槽位() {
         var result = normalizer.normalize(HealthDomain.MEAL, "不想吃素", Map.of());
-        assertFalse(result.slots().containsKey("cuisine"));
-        assertTrue(result.negatedSlots().contains("cuisine:素食"));
+        assertFalse(result.slots().containsKey("foodType"));
+        assertTrue(result.negatedSlots().contains("foodType:素食"));
     }
 
     private void assertSlot(String input, String slot, List<String> expected) {

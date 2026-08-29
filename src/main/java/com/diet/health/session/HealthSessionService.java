@@ -300,8 +300,9 @@ public class HealthSessionService {
         if (brief.weekStart() != null) node.put("weekStart", brief.weekStart().toString());
         node.set("mealTimes", objectMapper.valueToTree(brief.mealTimes()));
         node.put("healthGoal", brief.healthGoal());
-        // 可选偏好与未支持集合（v3.2）：列表恒为数组，未填单值为 null
-        node.put("cuisine", brief.cuisine());
+        // 新字段统一使用数组；旧单值 cuisine 只在读取时兼容。
+        node.set("cuisines", objectMapper.valueToTree(brief.cuisines()));
+        node.set("foodTypes", objectMapper.valueToTree(brief.foodTypes()));
         node.set("tastePreferences", objectMapper.valueToTree(brief.tastePreferences()));
         node.put("convenience", brief.convenience());
         node.set("unsupportedPreferences", objectMapper.valueToTree(brief.unsupportedPreferences()));
@@ -417,12 +418,18 @@ public class HealthSessionService {
             List<String> mealTimes = readStringList(node.path("mealTimes"));
             String goal = textOrNull(node, "healthGoal");
             // 旧会话 JSON 可能仍带 confirmed/confirmationVersion/confirmedAt，读取时忽略（无确认语义）。
-            // 新字段按空值兼容读取，保证 JSON 往返后数据不丢失。
-            String cuisine = textOrNull(node, "cuisine");
+            // 新字段按数组读取；旧字段 cuisine 字符串兼容为单元素数组。
+            List<String> cuisines = readStringList(node.path("cuisines"));
+            if (cuisines.isEmpty() && node.hasNonNull("cuisine")) {
+                String legacyCuisine = textOrNull(node, "cuisine");
+                if (legacyCuisine != null) cuisines = List.of(legacyCuisine);
+            }
+            List<String> foodTypes = readStringList(node.path("foodTypes"));
             List<String> tastePreferences = readStringList(node.path("tastePreferences"));
             String convenience = textOrNull(node, "convenience");
             List<String> unsupported = readStringList(node.path("unsupportedPreferences"));
-            return new MealPlanBrief(weekStart, mealTimes, goal, cuisine, tastePreferences, convenience, unsupported);
+            return new MealPlanBrief(weekStart, mealTimes, goal, cuisines, foodTypes,
+                    tastePreferences, convenience, unsupported);
         } catch (Exception ignored) {
             return MealPlanBrief.empty();
         }

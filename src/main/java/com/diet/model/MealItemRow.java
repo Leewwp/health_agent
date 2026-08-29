@@ -18,6 +18,7 @@ public class MealItemRow {
     private String scene;
     private String healthGoal;
     private String cuisine;
+    private String foodType;
     private String taste;
     private String convenience;
     private String description;

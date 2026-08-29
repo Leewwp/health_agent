@@ -135,7 +135,10 @@ public class MealPlanPicker {
     }
 
     private boolean mealTimeContains(PlanMealCandidate candidate, String slotName) {
-        return candidate.mealTimeTags().isEmpty() || candidate.mealTimeTags().contains(slotName);
+        return candidate.mealTimeTags().isEmpty()
+                || candidate.mealTimeTags().contains(slotName)
+                || (List.of("早餐", "午餐", "晚餐").contains(slotName)
+                    && candidate.mealTimeTags().contains("三餐"));
     }
 
     private List<MealPick> fallbackPick(List<PlanMealCandidate> pool, List<String> slots, int mid,

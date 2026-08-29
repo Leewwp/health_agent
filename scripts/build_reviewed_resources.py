@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-审核资源 ETL（33 号票）：离线候选池 + 人工审核映射 → 幂等 seed SQL + 导入报告。
+审核资源 ETL（33 号票 + 餐食标签加固规格）：离线候选池 + 人工审核映射 → 幂等 seed SQL + 导入报告。
+
+标签唯一事实源（加固规格）：每条种子餐食都写出最终、非空、词表内的菜系与餐食类型——
+数据可推导的 facet 用数据；推导不出的按规范稳定来源键轮换生成演示分类
+（facetSource=STABLE_KEY_DEMO，绝不使用自增主键或裸 source_id 直取模以外的猜测）。
+
+稳定来源键（Python/Java/MySQL 逐字节对齐，见 ADR-0017）：
+  key = trim(source_name) + "\\0" + trim(source_id)
+  纯十进制 source_id → int(source_id) 任意精度十进制取模；
+  其他值 → CRC32(key 的 UTF-8 字节) 无符号值取模；
+  模 n 的 n 为对应 facet 词表长度，词表顺序即 data/meal/facets.json 的数组顺序。
 
 输入（均为本地文件，数据来源版本见报告）：
   - 餐食候选池  data/meal/processed/healthy_recipes_1000.csv（prepare_meal_dataset.py 产物，不提交）
   - 餐食中文名映射 scripts/meal_curation/meal_name_zh.csv（人工审核，提交）
+  - 人工补充餐食 scripts/meal_curation/manual_meals.json（人工策展输入，提交；禁止从发布 seed 回读）
+  - 规范词表    data/meal/facets.json（canonical，提交；本脚本同时同步全部生成物）
   - 槽位标签映射  scripts/meal_curation/meal_tag_map.json（人工审核，提交）
   - 动作数据集  data/exercise/raw/exercises.json（gym-visual-exercises-dataset，MIT，可经
     https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/data/exercises.json 下载，不提交）
@@ -13,20 +25,28 @@
   - 作息事实      data/routine/routine_facts.csv（来源见 01 号调研，提交）
 
 输出：
-  - src/main/resources/db/seed/reviewed_resources.sql（INSERT IGNORE，可重跑幂等）
-  - data/reports/resource_etl_report.json（来源版本、输入摘要、选入/排除数量与原因）
+  - src/main/resources/db/seed/reviewed_resources.sql（餐食为 ON DUPLICATE KEY UPDATE 同步
+    cuisine/food_type——ETL 是标签唯一事实源，旧库启动导入即与 fresh 库收敛；其余仍 INSERT IGNORE）
+  - data/reports/resource_etl_report.json（来源版本、facetSource 溯源、输入摘要、选入/排除数量与原因）
+  - 生成物同步：src/main/resources/db/seed/meal_facets.json（与 canonical 逐字节一致）、
+    frontend/assets/js/data/mealFacets.js、src/main/resources/diet/prompts/clarify.txt 词表行
 
 约定（与 ReviewedResourceSeedValidatorTest 一致）：
   - 每行一条 VALUES 元组，独占一行；字符串内不出现换行；单引号按 MySQL 规则 '' 转义。
   - 媒体无再分发许可：media_url 一律 NULL，media_state=NONE，只保留署名。
-  - 全确定性：无随机、按来源 ID 排序，重跑输出逐字节一致。
+  - 全确定性：无随机、按来源 ID 排序，同输入 + 同 canonical facet 文件 + 同 manual 输入
+    重跑输出逐字节一致（报告中的生成时间字段不参与该断言）。
+
+用法：`python3 scripts/build_reviewed_resources.py --facets-only` 只同步词表生成物（不需要大输入文件）。
 """
 import argparse
 import csv
 import hashlib
 import json
 import re
+import shutil
 import sys
+import zlib
 from datetime import date
 
 MEAL_SOURCE_NAME = "foodcom-recipes-and-reviews-v2"
@@ -34,6 +54,12 @@ MEAL_SOURCE_VERSION = "v2"
 EXERCISE_SOURCE_NAME = "gym-visual-exercises-dataset"
 EXERCISE_SOURCE_VERSION = "main-2026-08-10"
 GYM_VISUAL_CREDIT = "© Gym visual — https://gymvisual.com/"
+
+CANONICAL_FACETS = "data/meal/facets.json"
+CLASSPATH_FACETS = "src/main/resources/db/seed/meal_facets.json"
+FRONTEND_FACETS = "frontend/assets/js/data/mealFacets.js"
+CLARIFY_PROMPT = "src/main/resources/diet/prompts/clarify.txt"
+MANUAL_MEALS = "scripts/meal_curation/manual_meals.json"
 
 # 过敏原关键词扫描（英文原料/菜名/描述，仅做机器扫描，状态标记 REVIEWED 表示已完成扫描）
 ALLERGEN_KEYWORDS = [
@@ -58,6 +84,13 @@ def mysql_escape(value: str) -> str:
 
 
 def json_array(values, ensure_ascii=False) -> str:
+    """序列化为 JSON 数组。
+
+    加固规格修复的序列化缺陷：字符串入参必须包裹为单元素数组。
+    历史缺陷是 list("粤菜") 被按字符展开成 ["粤","菜"] 单字碎片，这里从根上挡住。
+    """
+    if isinstance(values, str):
+        values = [values]
     return json.dumps(list(values), ensure_ascii=ensure_ascii)
 
 
@@ -110,7 +143,38 @@ def parse_servings(raw):
         return None
 
 
-def build_meal_rows(meal_csv, curation, tag_map, report):
+def facet_stable_index(source_name, source_id, size):
+    """规范稳定来源键取模索引（与 Java MealFacetVocabulary / MySQL V24 逐字节对齐）。
+
+    纯十进制 source_id 用任意精度十进制取模；其他值用 UTF-8 CRC32 无符号值取模。
+    """
+    name = (source_name or "").strip()
+    sid = (source_id or "").strip()
+    if re.fullmatch(r"[0-9]+", sid or ""):
+        return int(sid) % size
+    key = (name + "\0" + sid).encode("utf-8")
+    return (zlib.crc32(key) & 0xFFFFFFFF) % size
+
+
+def facet_demo_label(source_name, source_id, vocabulary):
+    return vocabulary[facet_stable_index(source_name, source_id, len(vocabulary))]
+
+
+def resolve_facets(source_name, source_id, cuisine, food_type, facets, report_rows):
+    """facet 唯一事实源规则：数据可推导用数据；为空的维度按稳定来源键生成演示分类。"""
+    resolved = {}
+    for dim, values, vocabulary in (("cuisine", cuisine, facets["cuisines"]),
+                                    ("food_type", food_type, facets["foodTypes"])):
+        legal = sorted(set(value for value in values if value in vocabulary))
+        if legal:
+            resolved[dim] = legal, "DATA"
+        else:
+            resolved[dim] = [facet_demo_label(source_name, source_id, vocabulary)], "STABLE_KEY_DEMO"
+            report_rows.setdefault(dim, []).append(source_id)
+    return resolved
+
+
+def build_meal_rows(meal_csv, curation, tag_map, facets, report):
     curated_ids = {row["source_recipe_id"]: row for row in curation}
     rows = []
     report["meals"]["read"] = len(meal_csv)
@@ -165,7 +229,15 @@ def build_meal_rows(meal_csv, curation, tag_map, report):
             meal_time = ["三餐"]
         meal_time = sorted(set(meal_time))
 
-        cuisine = sorted(set(category_cuisine.get(category, [])))
+        raw_facets = sorted(set(category_cuisine.get(category, [])))
+        food_type = sorted(value for value in raw_facets if value in facets["foodTypes"])
+        cuisine = sorted(value for value in raw_facets if value in facets["cuisines"])
+        unknown = [value for value in raw_facets
+                   if value not in facets["foodTypes"] and value not in facets["cuisines"]]
+        if unknown:
+            excluded.append({"reason": "facet_out_of_vocabulary", "count": 1,
+                             "recipe_id": raw["source_recipe_id"], "values": unknown})
+            continue
         health_goal = sorted(set(g for kw in keywords for g in kw_health.get(kw, [])))
         taste = sorted(set(g for kw in keywords for g in kw_taste.get(kw, [])))
         convenience = sorted(set(g for kw in keywords for g in kw_convenience.get(kw, [])))
@@ -173,6 +245,10 @@ def build_meal_rows(meal_csv, curation, tag_map, report):
         allergens, allergen_status = scan_allergens(raw)
         description = clean_text(raw.get("description_en", ""))[:2000]
         aliases = json.loads(curated_ids[raw["source_recipe_id"]]["aliases"]) or []
+
+        facets_resolved = resolve_facets(MEAL_SOURCE_NAME, raw["source_recipe_id"],
+                                         cuisine, food_type, facets, report["meals"]["facetDemoRows"])
+        provenance = {dim: source for dim, (_, source) in facets_resolved.items()}
 
         rows.append({
             "name": name_zh,
@@ -182,7 +258,8 @@ def build_meal_rows(meal_csv, curation, tag_map, report):
             "mood": "[]",
             "scene": "[]",
             "health_goal": json_array(health_goal),
-            "cuisine": json_array(cuisine),
+            "cuisine": json_array(facets_resolved["cuisine"][0]),
+            "food_type": json_array(facets_resolved["food_type"][0]),
             "taste": json_array(taste),
             "convenience": json_array(convenience),
             "description": description,
@@ -205,9 +282,68 @@ def build_meal_rows(meal_csv, curation, tag_map, report):
             "media_url": "NULL",
             "media_status": "NONE",
             "media_credit": "NULL",
+            "facet_source": provenance,
         })
     rows.sort(key=lambda r: r["source_id"])
     report["meals"]["included"] = len(rows)
+    return rows
+
+
+def load_manual_meals(facets, report):
+    """读取人工补充餐食策展输入（scripts/meal_curation/manual_meals.json）。
+
+    加固规格：ETL 禁止读取自己发布的 seed；三条历史人工补充主菜是显式策展输入，
+    文件 hash 进入报告与 manifest。facet 必须与规范稳定来源键规则一致，漂移即失败。
+    """
+    doc = load_json(MANUAL_MEALS)
+    rows = []
+    for meal in doc["meals"]:
+        source_id = str(meal["source_id"])
+        for dim, key, vocabulary in (("cuisine", "cuisine", facets["cuisines"]),
+                                     ("food_type", "food_type", facets["foodTypes"])):
+            expected = [facet_demo_label(meal["source_name"], source_id, vocabulary)]
+            if list(meal[key]) != expected:
+                raise SystemExit(
+                    f"人工补充餐食 {source_id} 的 {key}={meal[key]} 与规范稳定键规则 {expected} 不一致；"
+                    "请人工核对后更新 manual_meals.json，禁止静默漂移")
+        report["meals"]["facetDemoRows"].setdefault("cuisine", []).append(source_id)
+        report["meals"]["facetDemoRows"].setdefault("food_type", []).append(source_id)
+        rows.append({
+            "name": meal["name"],
+            "name_en": meal["name_en"],
+            "aliases": json_array(meal["aliases"]),
+            "meal_time": json_array(meal["meal_time"]),
+            "mood": json_array(meal["mood"]),
+            "scene": json_array(meal["scene"]),
+            "health_goal": json_array(meal["health_goal"]),
+            "cuisine": json_array(meal["cuisine"]),
+            "food_type": json_array(meal["food_type"]),
+            "taste": json_array(meal["taste"]),
+            "convenience": json_array(meal["convenience"]),
+            "description": meal["description"],
+            "ingredients_json": json_array(meal["ingredients"]),
+            "serving_count": int(meal["serving_count"]),
+            "serving_size": meal["serving_size"],
+            "serving_unit": meal["serving_unit"],
+            "calories_kcal": meal["calories_kcal"],
+            "protein_g": meal["protein_g"],
+            "fat_g": meal["fat_g"],
+            "carbohydrate_g": meal["carbohydrate_g"],
+            "nutrition_basis": meal["nutrition_basis"],
+            "nutrition_estimated": "1" if meal["nutrition_estimated"] else "0",
+            "allergen_json": json_array(meal["allergens"]),
+            "allergen_status": meal["allergen_status"],
+            "review_status": "APPROVED",
+            "source_name": meal["source_name"],
+            "source_id": source_id,
+            "source_version": meal["source_version"],
+            "media_url": "NULL",
+            "media_status": "NONE",
+            "media_credit": "NULL",
+            "facet_source": {"cuisine": "STABLE_KEY_DEMO", "food_type": "STABLE_KEY_DEMO"},
+        })
+    report["meals"]["manual_input"] = {"path": MANUAL_MEALS, "count": len(rows),
+                                       "sha256": sha256(MANUAL_MEALS)}
     return rows
 
 
@@ -274,7 +410,7 @@ def build_fact_rows(facts_csv, report):
 
 MEAL_COLUMNS = [
     "source_type", "owner_user_id", "name", "name_en", "aliases", "meal_time", "mood",
-    "scene", "health_goal", "cuisine", "taste", "convenience", "description",
+    "scene", "health_goal", "cuisine", "food_type", "taste", "convenience", "description",
     "ingredients_json", "serving_count", "serving_size", "serving_unit",
     "calories_kcal", "protein_g", "fat_g", "carbohydrate_g", "nutrition_basis",
     "nutrition_estimated", "allergen_json", "allergen_status", "review_status",
@@ -306,19 +442,27 @@ def sql_value(value):
     return str(value)
 
 
-def render_insert(table, columns, rows, fixed_prefix=None):
+def render_insert(table, columns, rows, fixed_prefix=None, duplicate_key_update=None):
     """按 columns 顺序渲染 VALUES；created_at/updated_at 由脚本补 NOW()。
 
     fixed_prefix：meal_item 的 source_type/owner_user_id 固定值（PUBLIC/NULL）。
     row 字典的键顺序任意，渲染时按 columns 取列，保证与表头一致。
+    duplicate_key_update：非 None 时语句为 INSERT … AS new ON DUPLICATE KEY UPDATE（标签同步），
+    最后一个元组不再带分号，分号落在 ODKU 尾行；否则保持 INSERT IGNORE 幂等。
     """
     prefix = list(fixed_prefix or ())
     body_cols = [c for c in columns if c not in ("created_at", "updated_at")]
-    lines = [f"INSERT IGNORE INTO `{table}` ({', '.join(columns)}) VALUES"]
+    verb = "INSERT INTO" if duplicate_key_update else "INSERT IGNORE INTO"
+    lines = [f"{verb} `{table}` ({', '.join(columns)}) VALUES"]
     for i, row in enumerate(rows):
         values = prefix + [row[c] for c in body_cols[len(prefix):]] + ["NOW()", "NOW()"]
-        suffix = ");" if i == len(rows) - 1 else "),"
+        if duplicate_key_update and i == len(rows) - 1:
+            suffix = ")"
+        else:
+            suffix = ");" if i == len(rows) - 1 else "),"
         lines.append("(" + ", ".join(sql_value(v) for v in values) + suffix)
+    if duplicate_key_update:
+        lines.append(f"AS new ON DUPLICATE KEY UPDATE {duplicate_key_update};")
     return lines
 
 
@@ -331,17 +475,56 @@ def sha256(path):
     return h.hexdigest()
 
 
+def sync_facet_artifacts(facets):
+    """词表单一化：canonical 文件派生全部生成物（classpath 副本、前端模块、提示词行）。
+
+    漂移守卫测试比较文件哈希、顺序与所有生成物，任何一处手改都会失败。
+    """
+    shutil.copyfile(CANONICAL_FACETS, CLASSPATH_FACETS)
+
+    frontend_lines = [
+        "// 由 scripts/build_reviewed_resources.py 从 data/meal/facets.json 自动生成，请勿手改。",
+        f"// 词表版本：{facets['version']}；顺序即稳定来源键轮换顺序（ADR-0017）。",
+        f"export const MEAL_FACET_VERSION = \"{facets['version']}\";",
+        "export const CUISINE_OPTIONS = " + json.dumps(facets["cuisines"], ensure_ascii=False) + ";",
+        "export const FOOD_TYPE_OPTIONS = " + json.dumps(facets["foodTypes"], ensure_ascii=False) + ";",
+        ""]
+    with open(FRONTEND_FACETS, "w", encoding="utf-8") as f:
+        f.write("\n".join(frontend_lines))
+
+    text = open(CLARIFY_PROMPT, encoding="utf-8").read()
+    cuisine_line = "- cuisine：菜系偏好（" + "/".join(facets["cuisines"]) + "）"
+    food_type_line = "- foodType：餐食类型（" + "/".join(facets["foodTypes"]) + "）"
+    text, n1 = re.subn(r"- cuisine：菜系偏好（[^）]*）", cuisine_line.replace("\\", "\\\\"), text)
+    text, n2 = re.subn(r"- foodType：餐食类型（[^）]*）", food_type_line.replace("\\", "\\\\"), text)
+    if n1 != 1 or n2 != 1:
+        raise SystemExit(f"提示词词表行锚点缺失（cuisine={n1}, foodType={n2}），请检查 {CLARIFY_PROMPT}")
+    with open(CLARIFY_PROMPT, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 def main():
     parser = argparse.ArgumentParser(description="审核资源 ETL：生成幂等 seed SQL 与导入报告")
     parser.add_argument("--meal-csv", default="data/meal/processed/healthy_recipes_1000.csv")
     parser.add_argument("--exercise-json", default="data/exercise/raw/exercises.json")
     parser.add_argument("--out-sql", default="src/main/resources/db/seed/reviewed_resources.sql")
     parser.add_argument("--out-report", default="data/reports/resource_etl_report.json")
+    parser.add_argument("--facets-only", action="store_true",
+                        help="只同步规范词表生成物，不重新生成 seed SQL")
     args = parser.parse_args()
+
+    facets = load_json(CANONICAL_FACETS)
+    sync_facet_artifacts(facets)
+    if args.facets_only:
+        print(f"词表生成物已同步（canonical sha256={sha256(CANONICAL_FACETS)}）")
+        return 0
 
     report = {
         "etl": "scripts/build_reviewed_resources.py",
         "generated_at": date.today().isoformat(),
+        "facets": {"path": CANONICAL_FACETS, "version": facets["version"],
+                   "cuisineCount": len(facets["cuisines"]), "foodTypeCount": len(facets["foodTypes"]),
+                   "sha256": sha256(CANONICAL_FACETS)},
         "sources": {
             "meals": {
                 "name": MEAL_SOURCE_NAME,
@@ -355,7 +538,8 @@ def main():
                           "download": "https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@main/data/exercises.json"},
             },
         },
-        "meals": {"read": 0, "curated": 0, "curated_found_in_pool": 0, "included": 0, "excluded": []},
+        "meals": {"read": 0, "curated": 0, "curated_found_in_pool": 0, "included": 0, "excluded": [],
+                  "facetDemoRows": {"cuisine": [], "food_type": []}},
         "exercises": {"read": 0, "curated": 0, "included": 0, "excluded": []},
         "facts": {"read": 0, "included": 0},
     }
@@ -364,8 +548,34 @@ def main():
         load_csv(args.meal_csv),
         load_csv("scripts/meal_curation/meal_name_zh.csv"),
         load_json("scripts/meal_curation/meal_tag_map.json"),
+        facets,
         report,
     )
+    # 三条历史人工补充高热量主菜是显式策展输入（manual_meals.json），禁止从发布 seed 回读。
+    meal_rows.extend(load_manual_meals(facets, report))
+    meal_rows.sort(key=lambda r: r["source_id"])
+    report["meals"]["included"] = len(meal_rows)
+    if len(meal_rows) != 295:
+        raise SystemExit(f"审核餐食基线必须为 295 条，当前输入只能生成 {len(meal_rows)} 条；请补齐人工补充数据后再运行 ETL")
+
+    # facetSource 溯源聚合：DATA=数据可推导；STABLE_KEY_DEMO=稳定来源键演示分类（不得冒充人工考证事实）
+    provenance = {"cuisine": {"DATA": 0, "STABLE_KEY_DEMO": 0},
+                  "food_type": {"DATA": 0, "STABLE_KEY_DEMO": 0}}
+    for row in meal_rows:
+        for dim, source in row["facet_source"].items():
+            provenance[dim][source] += 1
+    report["meals"]["facetSource"] = provenance
+
+    # 词表内 + 非空 + 非碎片：数据级不变量，生成即校验（挡住序列化缺陷复发）
+    for row in meal_rows:
+        for dim, vocabulary in (("cuisine", facets["cuisines"]), ("food_type", facets["foodTypes"])):
+            values = json.loads(row[dim])
+            if not values:
+                raise SystemExit(f"餐食 {row['source_id']} 的 {dim} 为空：标签唯一事实源契约被破坏")
+            illegal = [v for v in values if v not in vocabulary or len(v) < 2]
+            if illegal:
+                raise SystemExit(f"餐食 {row['source_id']} 的 {dim} 含非法值 {illegal}：不在词表或单字碎片")
+
     exercise_rows = build_exercise_rows(
         load_json(args.exercise_json),
         load_csv("data/exercise/curated/exercise_plan_ready.csv"),
@@ -374,15 +584,18 @@ def main():
     fact_rows = build_fact_rows(load_csv("data/routine/routine_facts.csv"), report)
 
     sql_lines = [
-        "-- 审核资源种子（33 号票，由 scripts/build_reviewed_resources.py 自动生成，请勿手改）",
-        "-- 输入摘要、来源版本与选入/排除原因见 data/reports/resource_etl_report.json",
-        "-- 幂等：INSERT IGNORE 依赖 uk_meal_source / uk_exercise_source / uk_routine_fact_ref 唯一键",
+        "-- 审核资源种子（33 号票 + 餐食标签加固规格，由 scripts/build_reviewed_resources.py 自动生成，请勿手改）",
+        "-- 输入摘要、facetSource 溯源、来源版本与选入/排除原因见 data/reports/resource_etl_report.json",
+        "-- 幂等：餐食语句为 INSERT … ON DUPLICATE KEY UPDATE（同步 cuisine/food_type，ETL 是标签唯一事实源，",
+        "--      旧库启动导入即与 fresh 库收敛）；动作/作息仍为 INSERT IGNORE，依赖",
+        "--      uk_exercise_source / uk_routine_fact_ref 唯一键。",
         "-- 媒体说明：无再分发许可，media_url 一律 NULL（稳定无图状态），仅保留署名。",
         "",
-        "-- 1) 餐食（人工审核中文名 + 槽位标签，营养为 Food.com 原始估算值）",
+        "-- 1) 餐食（人工审核中文名 + 最终 facet 标签，营养为 Food.com 原始估算值）",
     ]
     sql_lines += render_insert("meal_item", MEAL_COLUMNS, meal_rows,
-                               fixed_prefix=("PUBLIC", "NULL"))
+                               fixed_prefix=("PUBLIC", "NULL"),
+                               duplicate_key_update="cuisine = new.cuisine, food_type = new.food_type")
     sql_lines.append("")
     sql_lines.append("-- 2) 动作（gym-visual-exercises-dataset MIT 数据 + 人工审核 plan_ready 元数据）")
     sql_lines += render_insert("exercise_item", EXERCISE_COLUMNS, exercise_rows)
@@ -397,8 +610,10 @@ def main():
 
     print(f"餐食 {report['meals']['included']} 条 / 动作 {report['exercises']['included']} 条 / "
           f"事实 {report['facts']['included']} 条")
+    print(f"facetSource：cuisine {provenance['cuisine']}，food_type {provenance['food_type']}")
     print(f"SQL -> {args.out_sql}")
     print(f"报告 -> {args.out_report}")
+    return 0
 
 
 if __name__ == "__main__":

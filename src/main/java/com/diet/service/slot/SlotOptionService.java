@@ -13,7 +13,7 @@ import java.util.Set;
 @Service
 public class SlotOptionService {
     public static final List<String> SLOT_NAMES = List.of(
-            "mealTime", "mood", "scene", "healthGoal", "cuisine", "taste", "convenience"
+            "mealTime", "mood", "scene", "healthGoal", "cuisine", "foodType", "taste", "convenience"
     );
 
     private final SlotOptionMapper slotOptionMapper;
@@ -37,6 +37,7 @@ public class SlotOptionService {
         validateSlot("scene", slots.scene(), options);
         validateSlot("healthGoal", slots.healthGoal(), options);
         validateSlot("cuisine", slots.cuisine(), options);
+        validateSlot("foodType", slots.foodType(), options);
         validateSlot("taste", slots.taste(), options);
         validateSlot("convenience", slots.convenience(), options);
     }

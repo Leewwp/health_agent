@@ -77,6 +77,34 @@ class HealthSessionServiceTest {
     }
 
     @org.junit.jupiter.api.Test
+    void 餐食类型数组与未支持集合重启恢复完整() {
+        // 加固规格：foodType 简报（含词表外原值）必须跨重启完整恢复数组和 unsupported 集合
+        when(mapper.findById("sess-ft-recovery", 1L)).thenReturn(null);
+        when(mapper.update(any())).thenAnswer(invocation -> {
+            stored = invocation.getArgument(0);
+            return 1;
+        });
+        service.save(HealthSessionState.fresh("sess-ft-recovery", 1L));
+        com.diet.health.plan.MealPlanBrief brief = new com.diet.health.plan.MealPlanBrief(
+                java.time.LocalDate.of(2026, 8, 31), List.of("早餐"), "减脂",
+                List.of("粤菜"), List.of("素食", "生酮"), List.of(), "快速",
+                List.of("foodType:生酮", "cuisine:中餐"));
+        HealthSessionState intended = new HealthSessionState("sess-ft-recovery", 1L,
+                com.diet.health.enums.HealthPhase.RESPOND, com.diet.health.enums.HealthDomain.MEAL,
+                com.diet.health.enums.HealthTask.PLAN, List.of(), Map.of(), List.of(), List.of(),
+                com.diet.health.plan.PlanBrief.empty(), brief, false, false, 0, Map.of(), null);
+        service.save(intended);
+
+        when(mapper.findById("sess-ft-recovery", 1L)).thenReturn(stored);
+        HealthSessionState reloaded = service.loadOrCreate("sess-ft-recovery", 1L);
+        assertEquals(List.of("粤菜"), reloaded.mealPlanBrief().cuisines());
+        assertEquals(List.of("素食", "生酮"), reloaded.mealPlanBrief().foodTypes(),
+                "餐食类型数组（含词表外原值）必须在重启后完整恢复");
+        assertEquals(List.of("foodType:生酮", "cuisine:中餐"), reloaded.mealPlanBrief().unsupportedPreferences(),
+                "未支持集合（多 field 前缀）必须在重启后完整恢复");
+    }
+
+    @org.junit.jupiter.api.Test
     void 旧快照合并保存不能把GENERATED打回OPEN或PAUSED() {
         // 轮开始快照：MEAL OPEN、简报 V1
         when(mapper.findById("sess-gen", 1L)).thenReturn(null);

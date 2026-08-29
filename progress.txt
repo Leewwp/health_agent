@@ -1,0 +1,12 @@
+## [2026-08-29] - Task meal-facet-hardening: 餐食标签数据与回归网加固
+### What was done:
+- 完成 V21–V24 餐食 facet 迁移、canonical 词表、ETL/人工策展输入、295 行 seed 非空词表校验与 current-corpus-v2 manifest。
+- 合并餐食检索/浏览/计数 SQL，补齐 foodType 透传、旧 `/api/v1/diet/**` 兼容与餐食类型未支持解析通道；启动导种对已有非法非空 facet 先失败，避免 ODKU 静默覆盖。
+- 补充 fresh-schema/legacy 投影收敛、真实 MySQL 查询与旧链路回归、取消传播和前端摘要行为证据；同步 AGENTS/README/验收文档。
+### Testing:
+- `mvn test`: 850 项，801 通过、49 个环境门控跳过，0 failures/errors。
+- `mvn test -Ditest.mysql=true`: 850 项，846 通过、4 个 Qdrant/实时模型门控跳过，0 failures/errors；fresh-schema 3/3、seed validator 20/20。
+- `node --test frontend/tests/*.test.mjs`: 41/41；`mvn -DskipTests compile`、`git diff --check` 通过。
+- ETL 重跑验证 seed SQL SHA-256 字节级一致；浏览器验收记录桌面 1694×880 与移动 390×844 无横向溢出。
+### Notes:
+- 当前工作树基于提交 `4d389ba`，生成语料版本为 `current-corpus-v2` / `reviewed-2026-08-29-v1`；真实 Qdrant/模型仍按独立环境门控跳过。

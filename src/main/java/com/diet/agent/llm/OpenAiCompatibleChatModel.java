@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * OpenAI 兼容聊天端点适配（兼容-mode/v1/chat/completions）。
@@ -47,6 +46,10 @@ public class OpenAiCompatibleChatModel implements Model {
     private final Duration timeout;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+
+    /** 可观测取消信号：下游截止时间触发 doOnCancel 的次数（测试断言与运维观测用）。 */
+    private final java.util.concurrent.atomic.AtomicInteger cancelledRequests =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     public OpenAiCompatibleChatModel(String apiKey, String baseUrl, String modelName, long timeoutMs) {
         this.apiKey = apiKey;
@@ -74,33 +77,27 @@ public class OpenAiCompatibleChatModel implements Model {
                     .header("Authorization", "Bearer " + apiKey)
                     .POST(HttpRequest.BodyPublishers.ofString(body, java.nio.charset.StandardCharsets.UTF_8))
                     .build();
-            CompletableFuture<HttpResponse<String>> future = httpClient.sendAsync(
-                    request, HttpResponse.BodyHandlers.ofString());
-            AtomicBoolean cancelled = new AtomicBoolean();
-            return Mono.<ChatResponse>create(sink -> {
-                sink.onCancel(() -> {
-                    cancelled.set(true);
-                    future.cancel(true);
-                });
-                future.whenComplete((response, error) -> {
-                    if (cancelled.get()) {
-                        return;
-                    }
-                    if (error != null) {
-                        sink.error(error);
-                        return;
-                    }
-                    try {
-                        if (response.statusCode() / 100 != 2) {
-                            throw new IllegalStateException("OpenAI 兼容端点返回 " + response.statusCode() + ": "
-                                    + truncate(response.body()));
-                        }
-                        sink.success(parseResponse(response.body()));
-                    } catch (Exception parseError) {
-                        sink.error(new IllegalStateException("OpenAI 兼容响应解析失败", parseError));
-                    }
-                });
-            })
+            return Mono.defer(() -> {
+                        CompletableFuture<HttpResponse<String>> future = httpClient.sendAsync(
+                                request, HttpResponse.BodyHandlers.ofString());
+                        return Mono.fromFuture(future)
+                                .map(response -> {
+                                    try {
+                                        if (response.statusCode() / 100 != 2) {
+                                            throw new IllegalStateException("OpenAI 兼容端点返回 " + response.statusCode() + ": "
+                                                    + truncate(response.body()));
+                                        }
+                                        return parseResponse(response.body());
+                                    } catch (Exception parseError) {
+                                        throw new IllegalStateException("OpenAI 兼容响应解析失败", parseError);
+                                    }
+                                })
+                                .doOnCancel(() -> {
+                                    boolean cancelled = future.cancel(true);
+                                    cancelledRequests.incrementAndGet();
+                                    log.info("OpenAI 兼容模型请求被下游取消（future.cancel={}）", cancelled);
+                                });
+                    })
                     .doOnError(error -> log.warn("OpenAI 兼容模型调用失败（{}）: {}", modelName, error.getMessage()))
                     .flux();
         } catch (Exception e) {
@@ -112,6 +109,11 @@ public class OpenAiCompatibleChatModel implements Model {
     @Override
     public String getModelName() {
         return modelName;
+    }
+
+    /** 已被下游截止时间取消的请求数（可观测取消信号，证明外层超时真实中止了 HTTP future）。 */
+    public int cancelledRequests() {
+        return cancelledRequests.get();
     }
 
     /** 构建 OpenAI messages 请求体（角色 + 文本内容；生成参数可选透传）。 */

@@ -16,7 +16,7 @@ public interface ReviewedMealReader {
      * 结构化条件召回：7 维槽位 JSON_OVERLAPS 召回后过滤 APPROVED + PUBLIC，排序与 SQL 口径一致。
      * 返回的集合由实现决定顺序（旧链路 updated_at DESC），调用方只做领域级过滤与重排。
      *
-     * @param slots 7 维健康槽位（可为空，空维度视为不约束）
+     * @param slots 餐食健康槽位（可为空，空维度视为不约束）
      * @param limit SQL 召回上限
      */
     List<ReviewedMeal> recallStructured(Map<String, List<String>> slots, int limit);

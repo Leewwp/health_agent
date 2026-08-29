@@ -53,15 +53,15 @@ public final class SeedResources {
      * M7 轻食/清淡/快速/[低油,高蛋白]、M8 家常/清淡/快速/[低油,高蛋白]、M9 粥汤/清淡/快速/[低油]。
      */
     public static final List<PlanMealCandidate> MEAL_CANDIDATES = List.of(
-            meal(1, "M1", "燕麦牛奶粥", 320, List.of("早餐"), "粥汤", "清淡", List.of(), "快速"),
-            meal(2, "M2", "全麦鸡蛋三明治", 450, List.of("早餐"), "轻食", "清淡", List.of("低油"), "快速"),
-            meal(3, "M3", "牛肉青菜面", 650, List.of("早餐", "午餐"), "粉面", "咸鲜", List.of(), "快速"),
-            meal(4, "M4", "鸡胸肉糙米饭", 750, List.of("午餐"), "家常", "清淡", List.of("高蛋白"), "慢享"),
-            meal(5, "M5", "清蒸鲈鱼套餐", 600, List.of("午餐", "晚餐"), "家常", "清淡", List.of("高蛋白"), "慢享"),
-            meal(6, "M6", "番茄牛肉意面", 900, List.of("午餐"), "西餐", "番茄味", List.of(), "慢享"),
-            meal(7, "M7", "鸡胸蔬菜沙拉", 450, List.of("晚餐"), "轻食", "清淡", List.of("低油", "高蛋白"), "快速"),
-            meal(8, "M8", "白灼虾仁西兰花", 550, List.of("晚餐"), "家常", "清淡", List.of("低油", "高蛋白"), "快速"),
-            meal(9, "M9", "南瓜小米粥配凉菜", 350, List.of("晚餐"), "粥汤", "清淡", List.of("低油"), "快速")
+            meal(1, "M1", "燕麦牛奶粥", 320, List.of("早餐"), "粤菜", "粥汤", "清淡", List.of("维持健康"), "快速"),
+            meal(2, "M2", "全麦鸡蛋三明治", 450, List.of("早餐"), "西餐", "轻食", "清淡", List.of("低油", "减脂"), "快速"),
+            meal(3, "M3", "牛肉青菜面", 650, List.of("早餐", "午餐"), "川菜", "粉面", "咸鲜", List.of("增肌"), "快速"),
+            meal(4, "M4", "鸡胸肉糙米饭", 750, List.of("午餐"), "粤菜", "家常", "清淡", List.of("高蛋白", "增肌"), "慢享"),
+            meal(5, "M5", "清蒸鲈鱼套餐", 600, List.of("午餐", "晚餐"), "粤菜", "家常", "清淡", List.of("高蛋白", "维持健康"), "慢享"),
+            meal(6, "M6", "番茄牛肉意面", 900, List.of("午餐"), "西餐", "家常", "番茄味", List.of("均衡"), "慢享"),
+            meal(7, "M7", "鸡胸蔬菜沙拉", 450, List.of("晚餐"), "粤菜", "轻食", "清淡", List.of("低油", "高蛋白", "减脂"), "快速"),
+            meal(8, "M8", "白灼虾仁西兰花", 550, List.of("晚餐"), "粤菜", "海鲜", "清淡", List.of("低油", "高蛋白", "减脂"), "快速"),
+            meal(9, "M9", "南瓜小米粥配凉菜", 350, List.of("晚餐"), "粤菜", "粥汤", "清淡", List.of("低油", "维持健康"), "快速")
     );
 
     private SeedResources() {
@@ -89,9 +89,10 @@ public final class SeedResources {
     }
 
     private static PlanMealCandidate meal(long sortKey, String id, String name, int caloriesKcal, List<String> mealTimeTags,
-                                          String cuisine, String taste, List<String> nutritionPreferences, String convenience) {
+                                          String cuisine, String foodType, String taste, List<String> nutritionPreferences, String convenience) {
         return new PlanMealCandidate("MEAL", id, name, mealTimeTags, caloriesKcal, sortKey,
                 cuisine == null ? List.of() : List.of(cuisine),
+                foodType == null ? List.of() : List.of(foodType),
                 taste == null ? List.of() : List.of(taste),
                 nutritionPreferences == null ? List.of() : nutritionPreferences,
                 convenience == null ? List.of() : List.of(convenience));

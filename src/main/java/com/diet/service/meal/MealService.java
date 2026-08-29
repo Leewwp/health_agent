@@ -81,7 +81,8 @@ public class MealService {
      * 由 MealSearchService#search 调用；MySQL JSON_OVERLAPS 召回后 Java 侧 overlap 打分。
      */
     public List<MealItem> search(SourceMode sourceMode, Long userId, SlotBundle slots) {
-        // MyBatis 执行 JSON_OVERLAPS 检索，7 维槽位各传 JSON 数组，最多拉 SEARCH_LIMIT=50 条
+        // MyBatis 执行 JSON_OVERLAPS 检索，餐食标签各传 JSON 数组，最多拉 SEARCH_LIMIT=50 条；
+        // 合并后的唯一检索语句：foodTypeJson 恒定声明，旧链路无类型槽位时传空数组即不过滤
         List<MealItemRow> rows = mealMapper.search(
                 sourceMode,                                      // PERSONAL 或 PUBLIC，决定查哪张数据
                 userId,                                          // PERSONAL 时过滤 owner_user_id
@@ -90,6 +91,7 @@ public class MealService {
                 jsonService.toJsonArray(slots.scene()),          // 场景标签 JSON 数组
                 jsonService.toJsonArray(slots.healthGoal()),     // 健康目标 JSON 数组
                 jsonService.toJsonArray(slots.cuisine()),        // 菜系 JSON 数组
+                jsonService.toJsonArray(slots.foodType()),       // 餐食类型 JSON 数组
                 jsonService.toJsonArray(slots.taste()),          // 口味 JSON 数组
                 jsonService.toJsonArray(slots.convenience()),    // 便捷性 JSON 数组
                 SEARCH_LIMIT                                     // DB 层最多返回 50 行
@@ -121,6 +123,7 @@ public class MealService {
         row.setScene(jsonService.toJsonArray(slots.scene()));
         row.setHealthGoal(jsonService.toJsonArray(slots.healthGoal()));
         row.setCuisine(jsonService.toJsonArray(slots.cuisine()));
+        row.setFoodType(jsonService.toJsonArray(slots.foodType()));
         row.setTaste(jsonService.toJsonArray(slots.taste()));
         row.setConvenience(jsonService.toJsonArray(slots.convenience()));
         return row;
@@ -136,6 +139,7 @@ public class MealService {
                 jsonService.fromJsonArray(row.getScene()),
                 jsonService.fromJsonArray(row.getHealthGoal()),
                 jsonService.fromJsonArray(row.getCuisine()),
+                jsonService.fromJsonArray(row.getFoodType()),
                 jsonService.fromJsonArray(row.getTaste()),
                 jsonService.fromJsonArray(row.getConvenience())
         );

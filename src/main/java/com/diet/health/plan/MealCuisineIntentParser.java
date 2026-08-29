@@ -77,11 +77,10 @@ public class MealCuisineIntentParser {
         }
         Matcher suffix = LABEL_SUFFIX.matcher(stripped);
         while (suffix.find()) {
-            String value = suffix.group(1);
-            if (isPlausibleValue(value)) {
-                matched = true;
-                candidates.add(value);
-            }
+            matched = true;
+            splitValues(suffix.group(1)).stream()
+                    .filter(this::isPlausibleValue)
+                    .forEach(candidates::add);
         }
         for (String superclass : SUPERCLASS_WORDS) {
             if (stripped.contains(superclass)) {
@@ -99,13 +98,28 @@ public class MealCuisineIntentParser {
         List<Map.Entry<String, String>> ordered = aliases.entrySet().stream()
                 .sorted((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()))
                 .toList();
+        // 按文本出现位置从早到晚消费别名（同位重叠时长别名优先）：
+        // 受支持值的输出顺序跟随用户表达顺序，不随词表/别名表顺序漂移
         String remaining = stripped;
-        for (Map.Entry<String, String> alias : ordered) {
-            if (remaining.contains(alias.getKey())) {
-                matched = true;
-                supported.add(alias.getValue());
-                remaining = remaining.replace(alias.getKey(), "，");
+        while (true) {
+            String bestKey = null;
+            String bestValue = null;
+            int bestIndex = Integer.MAX_VALUE;
+            for (Map.Entry<String, String> alias : ordered) {
+                int index = remaining.indexOf(alias.getKey());
+                if (index >= 0 && index < bestIndex) {
+                    bestIndex = index;
+                    bestKey = alias.getKey();
+                    bestValue = alias.getValue();
+                }
             }
+            if (bestKey == null) {
+                break;
+            }
+            matched = true;
+            supported.add(bestValue);
+            remaining = remaining.substring(0, bestIndex) + "，"
+                    + remaining.substring(bestIndex + bestKey.length());
         }
         if (!matched) {
             return CuisineParse.notMatched();

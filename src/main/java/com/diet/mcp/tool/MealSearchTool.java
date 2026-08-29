@@ -36,7 +36,7 @@ public class MealSearchTool implements McpToolSpec {
     public McpServerFeatures.SyncToolSpecification specification() {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("slots", Map.of("type", "object",
-                "description", "健康槽位：mealTime/mood/scene/healthGoal/cuisine/taste/convenience/allergen 等，值为字符串数组"));
+                "description", "健康槽位：mealTime/mood/scene/healthGoal/cuisine/foodType/taste/convenience/allergen 等，值为字符串数组"));
         properties.put("text", Map.of("type", "string",
                 "description", "嵌入语义文本（如'增肌晚餐'），为空时用槽位值拼接兜底"));
         properties.put("excludeIds", Map.of("type", "array", "items", Map.of("type", "integer"),

@@ -78,7 +78,7 @@ class FixtureAgentInvokerTest {
         assertTrue(text.contains("\"domain\":\"MEAL\""));
         assertTrue(text.contains("\"mealTime\":[\"晚餐\"]"));
         assertTrue(text.contains("\"mood\":[\"没胃口\"]"));
-        assertTrue(text.contains("\"cuisine\":[\"素食\"]"));
+        assertTrue(text.contains("\"foodType\":[\"素食\"]"));
         assertTrue(text.contains("\"taste\":[\"酸甜\"]"));
         assertTrue(text.contains("\"convenience\":[\"快速\"]"));
     }

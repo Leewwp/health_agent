@@ -33,17 +33,12 @@ public class DbReviewedMealReader implements ReviewedMealReader {
     @Override
     public List<ReviewedMeal> recallStructured(Map<String, List<String>> slots, int limit) {
         SlotBundle bundle = SlotBundle.fromHealthSlots(slots);
-        List<MealItemRow> rows = mealMapper.search(
-                SourceMode.PUBLIC, null,
-                jsonService.toJsonArray(bundle.mealTime()),
-                jsonService.toJsonArray(bundle.mood()),
-                jsonService.toJsonArray(bundle.scene()),
-                jsonService.toJsonArray(bundle.healthGoal()),
-                jsonService.toJsonArray(bundle.cuisine()),
-                jsonService.toJsonArray(bundle.taste()),
-                jsonService.toJsonArray(bundle.convenience()),
-                limit
-        );
+        // 合并后的唯一检索语句：foodTypeJson 恒定声明，空数组即不过滤（加固规格，无 WithFoodType 变体）
+        List<MealItemRow> rows = mealMapper.search(SourceMode.PUBLIC, null,
+                jsonService.toJsonArray(bundle.mealTime()), jsonService.toJsonArray(bundle.mood()),
+                jsonService.toJsonArray(bundle.scene()), jsonService.toJsonArray(bundle.healthGoal()),
+                jsonService.toJsonArray(bundle.cuisine()), jsonService.toJsonArray(bundle.foodType()),
+                jsonService.toJsonArray(bundle.taste()), jsonService.toJsonArray(bundle.convenience()), limit);
         return rows.stream()
                 .filter(row -> "APPROVED".equals(row.getReviewStatus()))
                 .map(this::toReviewedMeal)
@@ -71,43 +66,39 @@ public class DbReviewedMealReader implements ReviewedMealReader {
 
     @Override
     public List<ReviewedMeal> browse(int offset, int size) {
-        return mealMapper.browsePublicMeals(offset, size).stream()
-                .map(this::toReviewedMeal)
-                .toList();
+        // 合并后的唯一浏览语句：无过滤参数即全量（加固规格，删除无过滤四方法）
+        return browse(offset, size, null, false);
     }
 
     @Override
     public List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly) {
-        if (!favoriteOnly) return browse(offset, size);
-        if (userId == null) return List.of();
-        return mealMapper.browseFavoritePublicMeals(userId, offset, size).stream()
-                .map(this::toReviewedMeal)
-                .toList();
+        return browse(offset, size, userId, favoriteOnly, null, Map.of());
     }
 
     @Override
     public int countPublic() {
-        return mealMapper.countPublicMeals();
+        return countPublic(null, false, null, Map.of());
     }
 
     @Override
     public int countPublic(Long userId, boolean favoriteOnly) {
-        return !favoriteOnly ? countPublic() : userId == null ? 0 : mealMapper.countFavoritePublicMeals(userId);
+        return countPublic(userId, favoriteOnly, null, Map.of());
     }
 
     @Override
     public List<ReviewedMeal> browse(int offset, int size, Long userId, boolean favoriteOnly,
                                      String query, Map<String, String> filters) {
         return mealMapper.browsePublicMealsFiltered(userId, favoriteOnly, blankToNull(query),
-                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "taste"),
-                filter(filters, "healthGoal"), offset, size).stream().map(this::toReviewedMeal).toList();
+                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "foodType"),
+                filter(filters, "taste"), filter(filters, "healthGoal"), offset, size)
+                .stream().map(this::toReviewedMeal).toList();
     }
 
     @Override
     public int countPublic(Long userId, boolean favoriteOnly, String query, Map<String, String> filters) {
         return mealMapper.countPublicMealsFiltered(userId, favoriteOnly, blankToNull(query),
-                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "taste"),
-                filter(filters, "healthGoal"));
+                filter(filters, "mealTime"), filter(filters, "cuisine"), filter(filters, "foodType"),
+                filter(filters, "taste"), filter(filters, "healthGoal"));
     }
 
     private static String filter(Map<String, String> filters, String key) {
@@ -134,6 +125,7 @@ public class DbReviewedMealReader implements ReviewedMealReader {
         tags.put("scene", jsonService.fromJsonArray(row.getScene()));
         tags.put("healthGoal", jsonService.fromJsonArray(row.getHealthGoal()));
         tags.put("cuisine", jsonService.fromJsonArray(row.getCuisine()));
+        tags.put("foodType", jsonService.fromJsonArray(row.getFoodType()));
         tags.put("taste", jsonService.fromJsonArray(row.getTaste()));
         tags.put("convenience", jsonService.fromJsonArray(row.getConvenience()));
         return new ReviewedMeal(

@@ -69,7 +69,7 @@ public class HealthClarifyRuleService {
     /** 未确认但可继续补充的槽位。 */
     public List<String> optionalRecommendationSlots(HealthDomain domain, Map<String, List<String>> slots) {
         List<String> all = switch (domain) {
-            case MEAL -> List.of("mood", "healthGoal", "cuisine", "taste", "scene", "convenience");
+            case MEAL -> List.of("mood", "healthGoal", "cuisine", "foodType", "taste", "scene", "convenience");
             case EXERCISE -> List.of("equipment", "difficulty");
             default -> List.of();
         };
@@ -77,7 +77,7 @@ public class HealthClarifyRuleService {
     }
 
     private boolean noStrongFoodPreference(Map<String, List<String>> slots) {
-        return isEmpty(slots.get("cuisine")) && isEmpty(slots.get("taste"))
+        return isEmpty(slots.get("cuisine")) && isEmpty(slots.get("foodType")) && isEmpty(slots.get("taste"))
                 && isEmpty(slots.get("scene")) && isEmpty(slots.get("convenience"));
     }
 
