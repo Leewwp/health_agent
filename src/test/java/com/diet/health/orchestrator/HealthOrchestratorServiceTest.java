@@ -259,6 +259,64 @@ class HealthOrchestratorServiceTest {
     }
 
     @Test
+    void 同域换主题新推荐请求替换历史偏好() {
+        when(mealModule.recommendMeals(any(), any(), anyString()))
+                .thenReturn(List.of(new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库",
+                        null, false, Map.of())));
+        String sessionId = "sess_topic_reset";
+
+        HealthChatResponse first = chatInSession(sessionId, "午餐想吃清淡的");
+        assertEquals(HealthResponseType.ANSWER, first.responseType());
+        HealthSessionState afterFirst = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals(List.of("午餐"), afterFirst.slots().get("mealTime"));
+        assertEquals(List.of("清淡"), afterFirst.slots().get("healthGoal"));
+
+        // 已出结果的稳定状态（RESPOND）下提出餐次式新主题：历史非餐次偏好被替换
+        HealthChatResponse second = chatInSession(sessionId, "晚餐");
+        assertEquals(HealthResponseType.CLARIFY, second.responseType());
+        assertEquals(List.of("healthGoal"), second.missingSlots(),
+                "旧清淡偏好已被替换，否则 mealTime+healthGoal 齐全会直接出结果");
+        HealthSessionState afterSecond = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals(List.of("晚餐"), afterSecond.slots().get("mealTime"));
+        assertFalse(afterSecond.slots().containsKey("healthGoal"), "换主题后旧健康目标必须被替换");
+    }
+
+    @Test
+    void 澄清链短答仍继承历史偏好不受换主题策略影响() {
+        when(mealModule.recommendMeals(any(), any(), anyString()))
+                .thenReturn(List.of(new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库",
+                        null, false, Map.of())));
+        String sessionId = "sess_clarify_inherit";
+
+        HealthChatResponse first = chatInSession(sessionId, "午餐");
+        assertEquals(HealthResponseType.CLARIFY, first.responseType());
+        assertEquals(List.of("healthGoal"), first.missingSlots());
+
+        HealthChatResponse second = chatInSession(sessionId, "清淡点");
+        assertEquals(HealthResponseType.ANSWER, second.responseType());
+        HealthSessionState saved = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals(List.of("午餐"), saved.slots().get("mealTime"));
+        assertEquals(List.of("清淡"), saved.slots().get("healthGoal"), "澄清链内短答必须继承历史偏好");
+    }
+
+    @Test
+    void 同域换成餐次逐槽位替换并保留其他条件() {
+        when(mealModule.recommendMeals(any(), any(), anyString()))
+                .thenReturn(List.of(new HealthResource("MEAL", "5", "清蒸鲈鱼", "PUBLIC", "公共餐食库",
+                        null, false, Map.of())));
+        String sessionId = "sess_change_meal";
+
+        HealthChatResponse first = chatInSession(sessionId, "午餐想吃清淡的");
+        assertEquals(HealthResponseType.ANSWER, first.responseType());
+
+        HealthChatResponse second = chatInSession(sessionId, "换成晚餐");
+        assertEquals(HealthResponseType.ANSWER, second.responseType(), "换成是显式逐槽位修改，条件齐备直接出结果");
+        HealthSessionState saved = sessionService.loadOrCreate(sessionId, 1L);
+        assertEquals(List.of("晚餐"), saved.slots().get("mealTime"));
+        assertEquals(List.of("清淡"), saved.slots().get("healthGoal"), "换成只替换目标槽位并保留其他条件");
+    }
+
+    @Test
     void 餐食检索透传用户原话与槽位() {
         org.mockito.ArgumentCaptor<Map<String, List<String>>> slots =
                 org.mockito.ArgumentCaptor.forClass(Map.class);

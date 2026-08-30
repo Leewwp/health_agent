@@ -14,14 +14,14 @@ public class SlotMergeService {
 
     /**
      * 合并历史槽位与本轮槽位。
-     * 由 Orchestrator/IntentRevise 调用，7 维字段各自独立合并。
+     * 由 Orchestrator/IntentRevise 调用，各餐食槽位维度独立合并。
      */
     public SlotBundle merge(SlotBundle history, SlotBundle current) {
         // history 为 null 时用空 SlotBundle
         SlotBundle safeHistory = history == null ? SlotBundle.empty() : history;
         // current 为 null 时用空 SlotBundle
         SlotBundle safeCurrent = current == null ? SlotBundle.empty() : current;
-        // 7 维槽位逐字段合并后构造新 SlotBundle
+        // 餐食槽位逐字段合并后构造新 SlotBundle
         return new SlotBundle(
                 choose(safeHistory.mealTime(), safeCurrent.mealTime()),
                 choose(safeHistory.mood(), safeCurrent.mood()),

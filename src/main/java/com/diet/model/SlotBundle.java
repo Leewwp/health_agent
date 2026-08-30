@@ -32,7 +32,7 @@ public class SlotBundle {
         this.convenience = normalize(convenience);
     }
 
-    /** 兼容旧七维餐食槽位构造。 */
+    /** 兼容旧版餐食槽位构造（foodType 缺失时按空处理）。 */
     public SlotBundle(List<String> mealTime, List<String> mood, List<String> scene, List<String> healthGoal,
                       List<String> cuisine, List<String> taste, List<String> convenience) {
         this(mealTime, mood, scene, healthGoal, cuisine, List.of(), taste, convenience);
@@ -42,7 +42,7 @@ public class SlotBundle {
         return new SlotBundle(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
     }
 
-    /** 健康链七维餐食槽位 Map → 旧饮食链槽位对象。 */
+    /** 健康链餐食槽位 Map → 旧饮食链槽位对象。 */
     public static SlotBundle fromHealthSlots(Map<String, List<String>> healthSlots) {
         Map<String, List<String>> safe = healthSlots == null ? Map.of() : healthSlots;
         return new SlotBundle(

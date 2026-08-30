@@ -105,12 +105,13 @@ test("确认短语与后端规范短语一致为开始推荐", async () => {
     assert.match(source, /const message = "开始推荐"/, "前端开始推荐发送同名确认短语");
 });
 
-test("计划页头部渲染generationNotes两分区（未支持偏好/按日回退）", async () => {
+test("计划页头部渲染generationNotes三分区（未支持偏好/按日回退/候选不足）", async () => {
     const { renderGenerationNotesForTest } = await import("./plans-test-hooks.mjs");
     const html = renderGenerationNotesForTest({
         generationNotes: {
             unsupportedPreferences: ["cuisine:中餐"],
-            fallbacks: [{ date: "2026-08-31", mealTimes: ["早餐", "午餐"], unmetPreferences: ["cuisine:川菜"] }]
+            fallbacks: [{ date: "2026-08-31", mealTimes: ["早餐", "午餐"], unmetPreferences: ["cuisine:川菜"] }],
+            candidateScarcity: ["符合全部条件的候选动作只有 1 个，已按指定训练日复用候选。"]
         }
     });
     assert.match(html, /未支持偏好/, "分区一：未支持偏好");
@@ -118,8 +119,10 @@ test("计划页头部渲染generationNotes两分区（未支持偏好/按日回�
     assert.match(html, /按日回退/, "分区二：按日回退");
     assert.match(html, /2026-08-31/, "回退项带日期");
     assert.match(html, /cuisine:川菜/, "回退项带未满足偏好键");
+    assert.match(html, /候选不足/, "分区三：候选不足");
+    assert.match(html, /候选动作只有 1 个/, "候选不足说明用户可见");
 
     // 无说明时不渲染
     assert.equal(renderGenerationNotesForTest({}), "");
-    assert.equal(renderGenerationNotesForTest({ generationNotes: { unsupportedPreferences: [], fallbacks: [] } }), "");
+    assert.equal(renderGenerationNotesForTest({ generationNotes: { unsupportedPreferences: [], fallbacks: [], candidateScarcity: [] } }), "");
 });

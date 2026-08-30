@@ -345,6 +345,11 @@ class TrainingPlanGenerationServiceTest {
                 "唯一候选允许覆盖全部指定训练日");
         assertTrue(persistedExplanation.contains("候选不足") || persistedExplanation.contains("复用"),
                 "唯一候选复用必须说明候选不足：" + persistedExplanation);
+        // 候选稀缺说明必须进入结构化生成说明（列表/详情/版本/计划页单一来源，用户可见）
+        GenerationNotes notes = GenerationNotes.fromMetadata(persistedMetadata);
+        assertEquals(1, notes.candidateScarcity().size(), "唯一候选复用时 generationNotes 必须携带候选不足说明");
+        assertTrue(notes.candidateScarcity().get(0).contains("候选动作只有 1 个"),
+                "候选不足文案与 explanation 共用同一句：" + notes.candidateScarcity());
     }
 
     @Test

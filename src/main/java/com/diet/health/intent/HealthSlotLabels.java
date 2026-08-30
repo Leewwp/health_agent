@@ -17,9 +17,11 @@ public final class HealthSlotLabels {
             Map.entry("convenience", "能接受的耗时和购买方式"),
             Map.entry("bodyPart", "训练部位"),
             Map.entry("bodyParts", "训练部位"),
-            Map.entry("equipment", "器材"),
+            Map.entry("equipment", "器械"),
             Map.entry("trainingGoal", "训练目标"),
             Map.entry("difficulty", "难度"),
+            Map.entry("trainingDays", "训练日"),
+            Map.entry("timeWindow", "训练时段"),
             Map.entry("wakeTime", "起床时间"),
             Map.entry("bedtime", "入睡时间"),
             Map.entry("sleepDuration", "睡眠时长")

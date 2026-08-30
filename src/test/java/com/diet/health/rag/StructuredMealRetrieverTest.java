@@ -73,16 +73,40 @@ class StructuredMealRetrieverTest {
     }
 
     @Test
-    void 数据库召回只使用餐次硬条件其余偏好留给重排() {
+    void 完整八槽位传给数据库召回且严格过滤仍由领域层执行() {
         when(reviewedMealReader.recallStructured(anyMap(), anyInt())).thenReturn(List.of());
         retriever.retrieve(new MealRetrievalQuery(
                 Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("高蛋白"),
-                        "taste", List.of("清淡"), "cuisine", List.of("粤菜")),
+                        "taste", List.of("清淡"), "cuisine", List.of("粤菜"), "foodType", List.of("轻食"),
+                        "convenience", List.of("快速"), "mood", List.of("开心"), "scene", List.of("家庭聚餐")),
                 List.of(), List.of(), "高蛋白清淡粤菜晚餐"), 10);
 
         ArgumentCaptor<Map<String, List<String>>> slots = ArgumentCaptor.forClass(Map.class);
         verify(reviewedMealReader).recallStructured(slots.capture(), anyInt());
-        assertEquals(Map.of("mealTime", List.of("晚餐")), slots.getValue());
+        Map<String, List<String>> passed = slots.getValue();
+        assertEquals(List.of("晚餐"), passed.get("mealTime"));
+        assertEquals(List.of("高蛋白"), passed.get("healthGoal"));
+        assertEquals(List.of("清淡"), passed.get("taste"));
+        assertEquals(List.of("粤菜"), passed.get("cuisine"));
+        assertEquals(List.of("轻食"), passed.get("foodType"));
+        assertEquals(List.of("快速"), passed.get("convenience"));
+        assertEquals(List.of("开心"), passed.get("mood"));
+        assertEquals(List.of("家庭聚餐"), passed.get("scene"));
+        assertEquals(8, passed.size(), "八个餐食槽位全部进入召回，显式槽位不得在召回入口被静默丢弃");
+    }
+
+    @Test
+    void 非餐食键不进入召回且空槽位以空列表传递() {
+        when(reviewedMealReader.recallStructured(anyMap(), anyInt())).thenReturn(List.of());
+        retriever.retrieve(new MealRetrievalQuery(
+                Map.of("mealTime", List.of("晚餐"), "allergen", List.of("花生")),
+                List.of(), List.of("花生"), "晚餐"), 10);
+
+        ArgumentCaptor<Map<String, List<String>>> slots = ArgumentCaptor.forClass(Map.class);
+        verify(reviewedMealReader).recallStructured(slots.capture(), anyInt());
+        assertEquals(8, slots.getValue().size(), "召回谓词只含八槽位固定键");
+        assertTrue(!slots.getValue().containsKey("allergen"), "过敏原是独立硬约束通道，不得进入召回键集合");
+        assertEquals(List.of(), slots.getValue().get("cuisine"), "未声明的餐食维度以空列表传递，SQL 视作不过滤");
     }
 
     @Test

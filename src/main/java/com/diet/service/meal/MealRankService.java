@@ -41,10 +41,14 @@ public class MealRankService {
         return new MealItem(item.id(), item.sourceType(), item.ownerUserId(), item.name(), item.slots(), slotScore);
     }
 
-    /** 计算餐食 slots 与查询 slots 的 7 维平均重叠比例。 */
+    /**
+     * 计算餐食 slots 与查询 slots 的八槽位平均重叠比例。
+     * foodType 是硬过滤字段（SQL 谓词 + 领域 matchesStrict + Hybrid 回查统一消费），
+     * 不参与分数（演示召回规格；分数含义不得静默改变）。
+     */
     private double slotScore(SlotBundle item, SlotBundle query) {
         SlotBundle safeQuery = query == null ? SlotBundle.empty() : query;
-        // 7 维各自算 overlap 后求和
+        // 七个打分维度各自算 overlap 后求和（foodType 硬过滤不参与打分，保持既有分数含义）
         double total = overlap(item.mealTime(), safeQuery.mealTime())
                 + overlap(item.mood(), safeQuery.mood())
                 + overlap(item.scene(), safeQuery.scene())

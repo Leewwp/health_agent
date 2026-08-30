@@ -257,6 +257,7 @@ class WeeklyPlanServiceTest {
                 "date", MONDAY.toString(),
                 "mealTimes", List.of("早餐"),
                 "unmetPreferences", List.of("cuisine:川菜"))));
+        notes.put("candidateScarcity", List.of("符合全部条件的候选动作只有 1 个，已按指定训练日复用候选。"));
         Map<String, Object> metadata = Map.of(GenerationNotes.METADATA_KEY, notes);
 
         PlanView view = service.persistScopedGeneratedDraft(USER,
@@ -268,6 +269,8 @@ class WeeklyPlanServiceTest {
         assertEquals(1, view.generationNotes().fallbacks().size());
         assertEquals(MONDAY.toString(), view.generationNotes().fallbacks().get(0).date());
         assertEquals(List.of("cuisine:川菜"), view.generationNotes().fallbacks().get(0).unmetPreferences());
+        assertEquals(List.of("符合全部条件的候选动作只有 1 个，已按指定训练日复用候选。"),
+                view.generationNotes().candidateScarcity());
     }
 
     @Test
@@ -294,7 +297,8 @@ class WeeklyPlanServiceTest {
         version.setResourceSnapshotJson("{\"generation\":{\"generationNotes\":{"
                 + "\"unsupportedPreferences\":[\"cuisine:中餐\"],"
                 + "\"fallbacks\":[{\"date\":\"" + MONDAY + "\",\"mealTimes\":[\"早餐\"],"
-                + "\"unmetPreferences\":[\"cuisine:川菜\"]}]}}}");
+                + "\"unmetPreferences\":[\"cuisine:川菜\"]}],"
+                + "\"candidateScarcity\":[\"符合全部条件的候选动作只有 1 个，已按指定训练日复用候选。\"]}}}");
         when(mapper.findVersion(42L, 2L)).thenReturn(version);
         when(mapper.findVersion(42L, 9L)).thenReturn(null);
 
@@ -302,6 +306,8 @@ class WeeklyPlanServiceTest {
         assertEquals(2L, view.currentVersion());
         assertEquals(List.of("cuisine:中餐"), view.generationNotes().unsupportedPreferences());
         assertEquals(List.of("cuisine:川菜"), view.generationNotes().fallbacks().get(0).unmetPreferences());
+        assertEquals(List.of("符合全部条件的候选动作只有 1 个，已按指定训练日复用候选。"),
+                view.generationNotes().candidateScarcity(), "版本详情必须与当前计划快照一致");
 
         HealthApiException missing = assertThrows(HealthApiException.class,
                 () -> service.getPlanVersion(USER, 42L, 9L));

@@ -337,6 +337,55 @@ class HybridMealRetrieverTest {
         assertEquals(1.0, result.items().get(0).mergedScore(), 1e-9, "默认 0.5：0.5*1.0 + 0.5*1.0 = 1.0");
     }
 
+    @Test
+    void 向量命中三餐资源时早餐午餐晚餐查询兼容() {
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(mealWithTags(9L, Map.of("mealTime", List.of("三餐")))));
+
+        RetrievalResult result = hybrid.retrieve(
+                new MealRetrievalQuery(Map.of("mealTime", List.of("早餐")), List.of(), List.of(), "早餐"), 10);
+
+        assertEquals(1, result.items().size(), "向量命中“三餐”资源必须兼容早餐查询（与结构化 SQL 同一兼容合同）");
+        assertEquals(9L, result.items().get(0).meal().id());
+    }
+
+    @Test
+    void 向量命中但显式槽位不满足时被丢弃() {
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(mealWithTags(9L, Map.of("mealTime", List.of("晚餐")))));
+
+        RetrievalResult result = hybrid.retrieve(
+                new MealRetrievalQuery(Map.of("mealTime", List.of("早餐"), "healthGoal", List.of("清淡")),
+                        List.of(), List.of(), "清淡早餐"), 10);
+
+        assertEquals(0, result.items().size(), "向量命中不得绕过显式餐次/健康目标硬约束");
+    }
+
+    @Test
+    void 向量命中缺foodType标签时同样被硬过滤() {
+        when(structured.retrieve(anyQuery(), eq(10)))
+                .thenReturn(new RetrievalResult(List.of(), RetrievalMode.STRUCTURED, null));
+        when(embeddingClient.embed(anyString())).thenReturn(Optional.of(new float[]{1f, 0f}));
+        vectorStore.upsert(List.of(new VectorPoint(9L, new float[]{1f, 0f}, approvedPayload())));
+        // 向量点命中但审核行无 foodType 标签：显式筛选条件必须有对应标签（matchesSlots 合同）
+        when(reviewedMealReader.findByIds(anyList()))
+                .thenReturn(List.of(mealWithTags(9L, Map.of("mealTime", List.of("早餐")))));
+
+        RetrievalResult result = hybrid.retrieve(
+                new MealRetrievalQuery(Map.of("mealTime", List.of("早餐"), "foodType", List.of("粥汤")),
+                        List.of(), List.of(), "早餐粥"), 10);
+
+        assertEquals(0, result.items().size(), "foodType 是向量回查硬过滤字段，缺标签的命中必须丢弃");
+    }
+
     private MealRetrievalQuery query(String text) {
         return new MealRetrievalQuery(Map.of("healthGoal", List.of("增肌")), List.of(), List.of(), text);
     }
@@ -377,6 +426,26 @@ class HybridMealRetrieverTest {
                 new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
                 new ReviewedMeal.Nutrition(null, null, null, null, null, false),
                 allergens, "REVIEWED", "APPROVED", null, "NONE", null,
+                "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", "PUBLIC"
+        );
+    }
+
+    /** 指定标签构建审核餐食：只覆盖传入维度，其余为空（matchesSlots 缺标签即不命中）。 */
+    private ReviewedMeal mealWithTags(long id, Map<String, List<String>> override) {
+        Map<String, List<String>> tags = new LinkedHashMap<>();
+        tags.put("mealTime", override.getOrDefault("mealTime", List.of()));
+        tags.put("mood", List.of());
+        tags.put("scene", List.of());
+        tags.put("healthGoal", List.of());
+        tags.put("cuisine", List.of());
+        tags.put("foodType", override.getOrDefault("foodType", List.of()));
+        tags.put("taste", List.of());
+        tags.put("convenience", List.of());
+        return new ReviewedMeal(
+                id, "餐" + id, null, List.of(), tags, null, List.of(),
+                new ReviewedMeal.Serving(0, BigDecimal.ONE, "份"),
+                new ReviewedMeal.Nutrition(null, null, null, null, null, false),
+                List.of(), "REVIEWED", "APPROVED", null, "NONE", null,
                 "foodcom-recipes-and-reviews-v2", "src-" + id, "v2", "PUBLIC"
         );
     }

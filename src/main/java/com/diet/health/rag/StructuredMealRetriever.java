@@ -18,10 +18,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 结构化餐食检索器：审核读取模块 7 维 JSON_OVERLAPS 召回 + 7 维重叠重排。
+ * 结构化餐食检索器：审核读取模块八槽位 JSON_OVERLAPS 召回 + 八槽位重叠重排。
  * <p>
- * 硬约束（过敏原、排除 ID）在打分前过滤；不调用任何 Agent。
- * 是 hybrid 检索的基础路径，也是 embedding 失败时的降级路径。
+ * 八个餐食槽位（mealTime/mood/scene/healthGoal/cuisine/foodType/taste/convenience）
+ * 全部透传给 Reader 参与 SQL 召回（空维度即不过滤），领域层不再丢弃显式槽位；
+ * 召回排序为 updated_at DESC + id DESC 确定性 tiebreaker（演示召回规格）。
+ * 硬约束（过敏原、排除 ID）在打分前过滤；foodType 为硬过滤字段，不参与 {@link MealRankService} 打分。
+ * 不调用任何 Agent。是 hybrid 检索的基础路径，也是 embedding 失败时的降级路径。
  * 数据读取经 {@link ReviewedMealReader}（方案 B），本层不接触 Mapper 行对象。
  */
 @Service
@@ -68,11 +71,24 @@ public class StructuredMealRetriever implements MealRetriever {
         return SlotBundle.fromHealthSlots(healthSlots);
     }
 
-    /** 餐次用于缩小候选集；其余显式槽位由 MealModule/向量回查执行严格 OR/AND 过滤。 */
+    /**
+     * 八个餐食槽位全部参与召回：显式槽位不得在召回入口被静默丢弃（演示召回规格）。
+     * 空维度以空列表传入，Reader 的 SQL 对空数组不过滤；领域仍执行
+     * {@link com.diet.health.module.MealModule#matchesStrict} 作为最终防线，Hybrid 向量回查
+     * 也复用同一套硬约束。键集合固定为八槽位，不含 allergen 等非餐食键。
+     */
     private Map<String, List<String>> hardRecallSlots(Map<String, List<String>> slots) {
-        if (slots == null || slots.getOrDefault("mealTime", List.of()).isEmpty()) {
-            return Map.of();
+        Map<String, List<String>> recall = new java.util.LinkedHashMap<>();
+        if (slots == null) {
+            return recall;
         }
-        return Map.of("mealTime", slots.get("mealTime"));
+        for (String slot : MEAL_SLOT_KEYS) {
+            recall.put(slot, slots.getOrDefault(slot, List.of()));
+        }
+        return recall;
     }
+
+    /** 八槽位固定键（与 {@link com.diet.health.intent.HealthSlotDictionary#MEAL_SLOTS} 一致）。 */
+    private static final List<String> MEAL_SLOT_KEYS =
+            List.of("mealTime", "mood", "scene", "healthGoal", "cuisine", "foodType", "taste", "convenience");
 }

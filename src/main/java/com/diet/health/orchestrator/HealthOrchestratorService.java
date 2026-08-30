@@ -20,6 +20,7 @@ import com.diet.health.intent.HealthIntentAgentService;
 import com.diet.health.intent.HealthInputNormalizer;
 import com.diet.health.intent.HealthIntentResult;
 import com.diet.health.intent.HealthIntentRevisionService;
+import com.diet.health.intent.RecommendationTopicPolicy;
 import com.diet.health.intent.HealthPlanIntentMatcher;
 import com.diet.health.intent.HealthSlotLabels;
 import com.diet.health.model.HealthChatRequest;
@@ -355,6 +356,19 @@ public class HealthOrchestratorService {
 
         Map<String, List<String>> mergedSlots = mergeSlots(state.slots(), intent.slots());
         agentTraceService.recordEvent("SLOTS_MERGED", "SLOT", Map.of("stateSlots", state.slots(), "intentSlots", intent.slots()), mergedSlots);
+
+        // 同域换主题（演示召回规格 P1）：澄清短答继续合并；显式清除/只看餐次/新推荐带餐次
+        // 替换或清除历史推荐条件，避免“清淡晚餐”→“中午吃什么”被旧偏好悄悄卡住。
+        if (RecommendationTopicPolicy.applies(state.domain(), intent.domain(), intent.task())) {
+            RecommendationTopicPolicy.Decision topic = RecommendationTopicPolicy.decide(
+                    state, intent.slots(), mergedSlots, userInput);
+            mergedSlots = topic.slots();
+            if (topic.reason() != RecommendationTopicPolicy.Reason.CLARIFY_INHERIT
+                    && topic.reason() != RecommendationTopicPolicy.Reason.PLAIN_MERGE) {
+                agentTraceService.recordEvent("SLOT_TOPIC_APPLIED", "SLOT",
+                        Map.of("reason", topic.reason().name(), "input", userInput), mergedSlots);
+            }
+        }
 
         // 健康档案页回到聊天后的确认短句不应重新走通用 CHAT/旧计划入口，直接恢复原计划简报。
         if (isProfileCompletionInput(userInput) && state.task() == HealthTask.PLAN && state.domain() != null) {
