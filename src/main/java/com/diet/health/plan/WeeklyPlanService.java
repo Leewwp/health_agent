@@ -27,8 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -197,16 +195,17 @@ public class WeeklyPlanService {
         }
         scopeGuard.requireCompatible(scope, items);
         HealthSessionState session = sessionService.loadOrCreate(request.sessionId(), userId);
-        // 生成写入前服务端重读会话简报：只要求当前完整且目标周一致，不依赖历史确认字段或确认版本。
+        // 生成写入前服务端重读会话简报：只要求当前完整且已有锚点一致（ADR-0018：
+        // 简报缺锚点时以生成边界派生的内部锚点为准，不要求用户提供目标周）。
         boolean briefReady = switch (scope) {
             case EXERCISE -> session.planBrief() != null && session.planBrief().isComplete()
-                    && weekStart.equals(session.planBrief().weekStart());
+                    && (session.planBrief().weekStart() == null || weekStart.equals(session.planBrief().weekStart()));
             case MEAL -> session.mealPlanBrief() != null && session.mealPlanBrief().isComplete()
-                    && weekStart.equals(session.mealPlanBrief().weekStart());
+                    && (session.mealPlanBrief().weekStart() == null || weekStart.equals(session.mealPlanBrief().weekStart()));
             case COMPOSITE -> session.planBrief() != null && session.planBrief().isComplete()
                     && session.mealPlanBrief() != null && session.mealPlanBrief().isComplete()
-                    && weekStart.equals(session.planBrief().weekStart())
-                    && weekStart.equals(session.mealPlanBrief().weekStart());
+                    && (session.planBrief().weekStart() == null || weekStart.equals(session.planBrief().weekStart()))
+                    && (session.mealPlanBrief().weekStart() == null || weekStart.equals(session.mealPlanBrief().weekStart()));
         };
         if (!briefReady) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "计划简报不完整或已变化，请回到聊天整理简报后重新生成");
@@ -1187,15 +1186,16 @@ public class WeeklyPlanService {
         if (params == null) {
             return;
         }
-        Set<String> allowed = Set.of("mealTime", "caloriesKcal", "bodyPart", "durationMinutes", "sets", "reps");
+        Set<String> allowed = Set.of("mealTime", "caloriesKcal", "bodyPart", "durationMinutes", "sets", "reps",
+                MealTrainingScheduleAdapter.MEAL_TIME_SOURCE_PARAM);
         for (String key : params.keySet()) {
             if (!allowed.contains(key)) {
                 throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "不允许的计划参数：" + key);
             }
             Object value = params.get(key);
-            if ("mealTime".equals(key)) {
+            if ("mealTime".equals(key) || MealTrainingScheduleAdapter.MEAL_TIME_SOURCE_PARAM.equals(key)) {
                 if (!(value instanceof String) || ((String) value).isBlank()) {
-                    throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "餐次参数格式不正确");
+                    throw new HealthApiException(HealthApiException.CODE_BAD_REQUEST, "计划参数格式不正确：" + key);
                 }
             } else if ("bodyPart".equals(key)) {
                 if (!(value instanceof String) || ((String) value).isBlank()) {
@@ -1280,14 +1280,4 @@ public class WeeklyPlanService {
         }
     }
 
-    /** 本地下周一（缺省周起始；当天是周一时取下周）。 */
-    private LocalDate nextMonday(String timezone) {
-        ZoneId zone;
-        try {
-            zone = ZoneId.of(timezone);
-        } catch (Exception ignored) {
-            zone = ZoneId.of(DEFAULT_TIMEZONE);
-        }
-        return LocalDate.now(zone).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
     }
-}

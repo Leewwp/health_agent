@@ -70,8 +70,10 @@ public class MealPlanGenerationService {
         if (session.mealPlanBrief() == null || !session.mealPlanBrief().isComplete()) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT, "请先在当前会话整理完整的餐食计划简报，再开始生成");
         }
-        LocalDate weekStart = session.mealPlanBrief().weekStart();
         MealPlanBrief brief = session.mealPlanBrief();
+        // ADR-0018：已有锚点优先保持，缺失时按生成边界“当天所在周的周一”统一派生。
+        LocalDate weekStart = brief.weekStart() != null
+                ? brief.weekStart() : WeekAnchorProvider.currentMonday(profile.timezone());
         // 真正消费简报可选偏好：先分桶偏好过滤，某日偏好池不足时整天回退并记录生成说明
         WeeklyPlanComposerService.MealCompositionResult composition =
                 composer.composeMealsWithPreferences(profile.calorieLow(), profile.calorieHigh(), weekStart,

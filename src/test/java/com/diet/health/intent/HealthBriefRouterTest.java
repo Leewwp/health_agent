@@ -183,16 +183,24 @@ class HealthBriefRouterTest {
                 "重点练胸");
         assertEquals(BriefSide.EXERCISE, exerciseFocus.activeSide());
 
-        // BOTH：两侧都完整且无前缀 → 不猜测，要求侧前缀
+        // ADR-0018：日期/周表达不进入简报、不要求侧前缀——“改成下周”属于纯日期说明，
+        // 不再要求“餐食：/训练：”前缀；两侧完整且无前缀的字段修改才需要侧前缀。
         PlanBrief completeTraining = new PlanBrief("增肌", List.of("胸"), List.of("徒手"), "入门",
                 LocalDate.of(2026, 8, 31), List.of(java.time.DayOfWeek.MONDAY),
                 new com.diet.health.plan.TrainingTimeWindow(java.time.LocalTime.of(19, 0), java.time.LocalTime.of(20, 0)),
                 Map.of(), null, 0, null);
         BriefRoutingDecision both = router.decide(compositeSession(completeMeal, completeTraining), "改成下周");
-        assertTrue(both.briefActive());
-        assertEquals(BriefSide.BOTH, both.activeSide());
-        assertEquals("COMPOSITE_BOTH_NEED_SIDE_PREFIX", both.reason());
-        assertEquals(BriefEscape.NONE, both.escape());
+        assertFalse(both.briefActive());
+        assertEquals(BriefEscape.DATE_ONLY_EXPLANATION, both.escape());
+        assertEquals("DATE_ONLY_EXPLANATION", both.reason());
+
+        // 无前缀但有可解析字段修改时仍捕获对应侧（问题 4 修复的结构化条件）
+        BriefRoutingDecision modify = router.decide(compositeSession(completeMeal, completeTraining),
+                "训练时间改为下午五到六点");
+        assertTrue(modify.briefActive());
+        assertEquals(BriefSide.EXERCISE, modify.activeSide());
+        assertEquals("PLAN_FIELD_MODIFICATION", modify.reason());
+        assertEquals(BriefEscape.NONE, modify.escape());
     }
 
     @Test

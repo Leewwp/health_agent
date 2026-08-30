@@ -7,16 +7,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 生成说明（简报补充回路规格 v3.2 固定合同 + 演示召回规格 P1 扩展）：
+ * 生成说明（简报补充回路规格 v3.2 固定合同 + 演示召回规格 P1 扩展 + ADR-0018 餐训适配扩展）：
  * {unsupportedPreferences: string[], fallbacks: [{date, mealTimes, unmetPreferences}],
- *  candidateScarcity: string[]}。
+ *  candidateScarcity: string[], mealAdaptations: [{date, mealTime, originalStart, originalEnd,
+ *  finalStart, finalEnd, direction}]}。
  * 所有数组非 null；日期为计划时区 ISO 日期（YYYY-MM-DD）。
  * 同时存在于生成 metadata、resource_snapshot_json.generation.generationNotes、
  * PlanView.generationNotes、计划详情 API、版本详情 API 与计划页头部说明；
  * 旧计划缺 metadata 时返回非 null 空对象。
  */
 public record GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks,
-                              List<String> candidateScarcity) {
+                              List<String> candidateScarcity, List<MealAdaptationView> mealAdaptations) {
 
     /** 按日回退记录：日期 + 所选餐次 + 未满足偏好的“字段:值”键。 */
     public record FallbackDay(String date, List<String> mealTimes, List<String> unmetPreferences) {
@@ -26,19 +27,40 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
         }
     }
 
+    /** 餐训时间适配记录（ADR-0018）：被移动餐次、原始默认窗口、最终窗口与方向（AFTER_TRAINING/BEFORE_TRAINING）。 */
+    public record MealAdaptationView(String date, String mealTime,
+                                     String originalStart, String originalEnd,
+                                     String finalStart, String finalEnd,
+                                     String direction) {
+        public MealAdaptationView {
+            originalStart = originalStart == null ? "" : originalStart;
+            originalEnd = originalEnd == null ? "" : originalEnd;
+            finalStart = finalStart == null ? "" : finalStart;
+            finalEnd = finalEnd == null ? "" : finalEnd;
+            direction = direction == null ? "" : direction;
+        }
+    }
+
     public GenerationNotes {
         unsupportedPreferences = unsupportedPreferences == null ? List.of() : List.copyOf(unsupportedPreferences);
         fallbacks = fallbacks == null ? List.of() : List.copyOf(fallbacks);
         candidateScarcity = candidateScarcity == null ? List.of() : List.copyOf(candidateScarcity);
+        mealAdaptations = mealAdaptations == null ? List.of() : List.copyOf(mealAdaptations);
     }
 
-    /** 兼容既有两参构造：候选稀缺说明缺省为空。 */
+    /** 兼容既有两参构造：候选稀缺说明与餐训适配记录缺省为空。 */
     public GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks) {
-        this(unsupportedPreferences, fallbacks, List.of());
+        this(unsupportedPreferences, fallbacks, List.of(), List.of());
+    }
+
+    /** 兼容既有三参构造：餐训适配记录缺省为空。 */
+    public GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks,
+                           List<String> candidateScarcity) {
+        this(unsupportedPreferences, fallbacks, candidateScarcity, List.of());
     }
 
     public static GenerationNotes empty() {
-        return new GenerationNotes(List.of(), List.of(), List.of());
+        return new GenerationNotes(List.of(), List.of(), List.of(), List.of());
     }
 
     /** metadata 键名（resource_snapshot_json.generation.generationNotes 同名）。 */
@@ -58,7 +80,34 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
         }
         notes.put("fallbacks", days);
         notes.put("candidateScarcity", candidateScarcity);
+        List<Map<String, Object>> adaptations = new ArrayList<>();
+        for (MealAdaptationView view : mealAdaptations) {
+            Map<String, Object> entry = new java.util.LinkedHashMap<>();
+            entry.put("date", view.date());
+            entry.put("mealTime", view.mealTime());
+            entry.put("originalStart", view.originalStart());
+            entry.put("originalEnd", view.originalEnd());
+            entry.put("finalStart", view.finalStart());
+            entry.put("finalEnd", view.finalEnd());
+            entry.put("direction", view.direction());
+            adaptations.add(entry);
+        }
+        notes.put("mealAdaptations", adaptations);
         return notes;
+    }
+
+    /** 综合生成入口：在既有说明基础上合并餐训适配记录（ADR-0018，写入 metadata 与版本快照）。 */
+    public Map<String, Object> toMetadataWithAdditionalMealAdaptations(
+            List<MealTrainingScheduleAdapter.AdaptationNote> notes) {
+        Map<String, Object> metadata = toMetadata();
+        List<Map<String, Object>> adaptations = new ArrayList<>();
+        if (notes != null) {
+            for (MealTrainingScheduleAdapter.AdaptationNote note : notes) {
+                adaptations.add(note.toMetadata());
+            }
+        }
+        metadata.put("mealAdaptations", adaptations);
+        return metadata;
     }
 
     /** 从生成 metadata 解析；缺失或损坏时返回非 null 空对象（旧计划兼容）。 */
@@ -93,7 +142,28 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
                             stringList(day.get("mealTimes")), stringList(day.get("unmetPreferences"))));
                 }
             }
-            return new GenerationNotes(unsupportedList, fallbacks, scarcityList);
+            List<MealAdaptationView> adaptations = new ArrayList<>();
+            if (converted.get("mealAdaptations") instanceof List<?> entries) {
+                for (Object item : entries) {
+                    if (!(item instanceof Map)) {
+                        continue;
+                    }
+                    Map<String, Object> entry = mapper.convertValue(item,
+                            new TypeReference<Map<String, Object>>() { });
+                    Object date = entry.get("date");
+                    if (date == null) {
+                        continue;
+                    }
+                    adaptations.add(new MealAdaptationView(String.valueOf(date),
+                            String.valueOf(entry.getOrDefault("mealTime", "")),
+                            String.valueOf(entry.getOrDefault("originalStart", "")),
+                            String.valueOf(entry.getOrDefault("originalEnd", "")),
+                            String.valueOf(entry.getOrDefault("finalStart", "")),
+                            String.valueOf(entry.getOrDefault("finalEnd", "")),
+                            String.valueOf(entry.getOrDefault("direction", ""))));
+                }
+            }
+            return new GenerationNotes(unsupportedList, fallbacks, scarcityList, adaptations);
         } catch (Exception ignored) {
             return empty();
         }

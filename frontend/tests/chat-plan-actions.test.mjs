@@ -20,7 +20,7 @@ test("餐食简报完整时只提供开始生成和补充，不出现确认动�
     const html = renderPlanActions({
         task: "PLAN",
         domain: "MEAL",
-        mealPlanBriefSummary: "餐食目标周 2026-08-24",
+        mealPlanBriefSummary: "餐次：早餐、午餐",
         actions: [
             { type: "GENERATE_PLAN", label: "开始生成", requestId: "r-1" },
             { type: "CONTINUE_MEAL_PLAN_BRIEF", label: "补充", requestId: "r-1" }

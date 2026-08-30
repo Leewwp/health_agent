@@ -13,7 +13,7 @@ test("可补充项渲染为可点chip且只列未填项", () => {
     const html = renderPlanActions({
         task: "PLAN",
         domain: "MEAL",
-        mealPlanBriefSummary: "餐食目标周 2026-08-24",
+        mealPlanBriefSummary: "餐次：午餐",
         actions: [
             { type: "GENERATE_PLAN", label: "开始生成", requestId: "r-1" },
             { type: "CONTINUE_MEAL_PLAN_BRIEF", label: "补充", requestId: "r-1" }
@@ -89,6 +89,18 @@ test("聊天页餐食简报摘要渲染多菜系多类型与未支持项", async
     assert.ok(summary.includes("暂不支持 cuisine:中餐、foodType:生酮"), `摘要渲染未支持项: ${summary}`);
     assert.ok(summary.includes("口味 清淡"), `摘要渲染口味: ${summary}`);
     assert.ok(summary.includes("烹饪 快速"), `摘要渲染便利性: ${summary}`);
+    assert.ok(!summary.includes("目标周") && !summary.includes("2026-08-31"),
+        `ADR-0018：聊天摘要隐藏内部周锚点: ${summary}`);
+});
+
+test("聊天页餐食简报摘要不展示内部周锚点日期", async () => {
+    const summarize = await loadSummarizeMealPlanBrief();
+    const summary = summarize({ weekStart: "2026-08-31", mealTimes: ["早餐"], healthGoal: "减脂" });
+    assert.ok(summary.includes("早餐"), `简报内容正常渲染: ${summary}`);
+    assert.ok(!summary.includes("2026-08-31"), `内部周锚点不得出现在聊天摘要: ${summary}`);
+    assert.ok(!summary.includes("目标周"), `不得出现目标周文案: ${summary}`);
+    assert.ok(!summary.includes("未定") || summary.includes("餐次 早餐") || summary.includes("早餐"),
+        `摘要不因缺周锚点渲染虚假缺项: ${summary}`);
 });
 
 test("聊天页餐食简报摘要对空简报与旧单值菜系的行为", async () => {
@@ -122,7 +134,26 @@ test("计划页头部渲染generationNotes三分区（未支持偏好/按日回�
     assert.match(html, /候选不足/, "分区三：候选不足");
     assert.match(html, /候选动作只有 1 个/, "候选不足说明用户可见");
 
+    // 分区四：餐训时间适配（ADR-0018，被移动餐次与方向用户可见）
+    const adaptedHtml = renderGenerationNotesForTest({
+        generationNotes: {
+            mealAdaptations: [{
+                date: "2026-08-31",
+                mealTime: "晚餐",
+                originalStart: "18:00",
+                originalEnd: "19:00",
+                finalStart: "19:00",
+                finalEnd: "20:00",
+                direction: "AFTER_TRAINING"
+            }]
+        }
+    });
+    assert.match(adaptedHtml, /餐时适配/, "分区四：餐时适配");
+    assert.match(adaptedHtml, /晚餐 18:00-19:00/, "显示被移动餐次与原始窗口");
+    assert.match(adaptedHtml, /19:00-20:00/, "显示最终窗口");
+    assert.match(adaptedHtml, /训练后/, "显示适配方向（训练后）");
+
     // 无说明时不渲染
     assert.equal(renderGenerationNotesForTest({}), "");
-    assert.equal(renderGenerationNotesForTest({ generationNotes: { unsupportedPreferences: [], fallbacks: [], candidateScarcity: [] } }), "");
+    assert.equal(renderGenerationNotesForTest({ generationNotes: { unsupportedPreferences: [], fallbacks: [], candidateScarcity: [], mealAdaptations: [] } }), "");
 });

@@ -64,7 +64,30 @@ public class HealthIntentRevisionService {
     }
 
     public Revision revise(String userInput, HealthSessionState state, HealthIntentResult raw) {
+        return revise(userInput, state, raw, false);
+    }
+
+    /**
+     * 意图修正；arbitrationAuthoritative 为 true 时（ADR-0018 歧义仲裁），规则已把
+     * 裁决权交给受约束仲裁 Agent，模糊短句兜底不再把仲裁结果覆盖回 OTHER + CHAT。
+     */
+    public Revision revise(String userInput, HealthSessionState state, HealthIntentResult raw,
+                           boolean arbitrationAuthoritative) {
         String text = userInput == null ? "" : userInput.trim();
+        if (arbitrationAuthoritative) {
+            // ADR-0018：受约束仲裁结果已通过领域/任务枚举、置信度与确定性快路径复核，
+            // 规则只做槽位归一化，不再覆盖仲裁的领域与任务（模糊短句兜底也不覆盖）。
+            HealthDomain arbDomain = raw.domain() == null ? HealthDomain.OTHER : raw.domain();
+            HealthTask arbTask = raw.task() == null ? HealthTask.CHAT : raw.task();
+            HealthInputNormalizer.NormalizationResult normalized =
+                    normalizer.normalize(arbDomain, text, raw.slots());
+            HealthIntentResult revised = new HealthIntentResult(arbDomain, arbTask, raw.riskFlags(),
+                    normalized.slots(), raw.preferenceSignals(), raw.confidence(), raw.degraded(),
+                    raw.fallbackReason());
+            boolean clarifyUnsafe = normalized.requiresClarification()
+                    && normalized.negatedSlots().isEmpty() && isRecommendDomain(arbDomain);
+            return new Revision(revised, false, clarifyUnsafe);
+        }
         boolean genericRecommendation = containsAny(text, "帮我推荐一下", "帮我推荐", "推荐一下")
                 && briefRouter.domainEvidence(text) != HealthDomain.MEAL
                 && briefRouter.domainEvidence(text) != HealthDomain.EXERCISE;
@@ -91,18 +114,27 @@ public class HealthIntentRevisionService {
         BriefRoutingDecision routing = briefRouter.decide(state, text);
         boolean briefCaptures = routing.briefActive() && routing.escape() == BriefEscape.NONE
                 && state.task() == HealthTask.PLAN && isPlanDomain(state.domain());
+        // ADR-0018：孤立修改表达（无活动简报）按明确任务词进入对应域的 PLAN 创建侧，
+        // 不因缺少上下文退化为作息或普通推荐；训练域修改表达（如“把训练安排到晚上七点”）
+        // 进入 EXERCISE + PLAN；餐食域槽位替换（如“换成晚餐”）保持推荐语义。
+        boolean modificationPlanIntent = briefRouter.hasModificationExpression(text)
+                && ((briefRouter.domainEvidence(text) == HealthDomain.EXERCISE)
+                || (plan && !HealthPlanIntentMatcher.matchesComposite(text)));
         HealthDomain domain = raw.domain();
         HealthTask task = raw.task();
-        if (explicitDomain != null) {
-            domain = explicitDomain;
-            task = domain == HealthDomain.OTHER ? HealthTask.CHAT
-                    : (plan || briefCaptures) ? HealthTask.PLAN
-                    : adjust ? HealthTask.ADJUST
-                    : HealthTask.RECOMMEND;
-        } else if (briefCaptures) {
+        // ADR-0018 问题 4 修复：共享判定已把“修改表达 + 字段可解析”捕获为计划上下文时，
+        // 不能被 explicitDomain 的作息启发式（“训练 + 时间”）覆盖回 ROUTINE；
+        // 因此计划捕获优先于领域证据分支。
+        if (briefCaptures) {
             // 简报字段更新/纠正继承当前 PLAN 领域，不能被普通意图兜底改写
             domain = state.domain();
             task = HealthTask.PLAN;
+        } else if (explicitDomain != null) {
+            domain = explicitDomain;
+            task = domain == HealthDomain.OTHER ? HealthTask.CHAT
+                    : (plan || briefCaptures || modificationPlanIntent) ? HealthTask.PLAN
+                    : adjust ? HealthTask.ADJUST
+                    : HealthTask.RECOMMEND;
         } else if (adjust && isRecommendDomain(state.domain())) {
             domain = state.domain();
             task = HealthTask.ADJUST;
@@ -126,8 +158,10 @@ public class HealthIntentRevisionService {
         }
 
         // 新会话没有明确任务词时，不得根据槽位别名或模型猜测进入领域推荐；统一领域澄清。
+        // 仲裁路径（arbitrationAuthoritative）的结果已受枚举/置信度/会话状态复核，不重复降级。
         boolean noActiveHealthContext = state.domain() == null || state.domain() == HealthDomain.OTHER;
-        boolean ambiguousShortPhrase = noActiveHealthContext
+        boolean ambiguousShortPhrase = !arbitrationAuthoritative
+                && noActiveHealthContext
                 && task == HealthTask.RECOMMEND
                 && domain != HealthDomain.OTHER
                 && !taskEvidence.hasTaskEvidence(text, domain);

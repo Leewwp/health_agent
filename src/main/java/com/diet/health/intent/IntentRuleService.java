@@ -89,7 +89,9 @@ public class IntentRuleService {
                     List.of(), Map.of(), List.of(), 1.0);
         }
         // 计划简报常带训练日与时间等词，先判定 PLAN，避免被“训练时段”规则误路由为作息。
-        if (HealthPlanIntentMatcher.matches(text)) {
+        // ADR-0018：复合计划词（“训练和餐食的综合计划”等）也是确定性高置信输入，
+        // 在快路径直接进入 COMPOSITE + PLAN，不调用仲裁。
+        if (HealthPlanIntentMatcher.matches(text) || HealthPlanIntentMatcher.matchesComposite(text)) {
             HealthIntentResult plan = fallback(text, knownSlots, null);
             return HealthIntentResult.parsed(plan.domain(), plan.task(), plan.riskFlags(), plan.slots(),
                     plan.preferenceSignals(), 1.0);
@@ -97,6 +99,13 @@ public class IntentRuleService {
         // 复合诉求必须保留给一次结构化理解，不能被单品类关键词抢先路由。
         if (containsAny(text, "综合", "同时", "一起", "兼顾")) {
             return null;
+        }
+        // ADR-0018：明确作息事实/建议问题（含“活动词 + 时间词”组合）是确定性高置信输入，
+        // 优先于单领域启发式，避免“晚上几点后停止锻炼”同时命中训练证据而被拉入歧义仲裁。
+        if (isRoutineFact(text)) {
+            HealthIntentResult routine = fallback(text, knownSlots, null);
+            return HealthIntentResult.parsed(routine.domain(), routine.task(), routine.riskFlags(),
+                    routine.slots(), routine.preferenceSignals(), 1.0);
         }
         boolean activeContext = knownSlots != null && !knownSlots.isEmpty();
         // 新会话没有明确任务词时不进入快路径，交给意图链统一判定（含 OTHER + CHAT 澄清）。

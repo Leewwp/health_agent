@@ -188,9 +188,11 @@ public class HealthSessionService {
                 intended.briefLifecycle());
         String confirmationKey = changed(intended.recommendationConfirmationKey(), original.recommendationConfirmationKey())
                 ? intended.recommendationConfirmationKey() : latest.recommendationConfirmationKey();
+        // 新建/修改澄清挂起是临时语义，随本轮决策写入（无触碰检测，避免旧快照残留挂起）。
+        String pendingPlanClarify = intended.pendingPlanClarify();
         return new HealthSessionState(intended.sessionId(), intended.userId(), phase, domain, task, riskFlags,
                 slots, resources, signals, planBrief, mealBrief, pending, confirmed, version, lifecycle,
-                confirmationKey);
+                confirmationKey, pendingPlanClarify);
     }
 
     /**
@@ -263,6 +265,7 @@ public class HealthSessionService {
         state.briefLifecycle().forEach(lifecycle::put);
         meta.set("briefLifecycle", lifecycle);
         meta.put("recommendationConfirmationKey", state.recommendationConfirmationKey());
+        meta.put("pendingPlanClarify", state.pendingPlanClarify());
         root.set("_meta", meta);
         root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
         root.set("mealPlanBrief", mealPlanBriefNode(state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief()));
@@ -345,7 +348,8 @@ public class HealthSessionService {
                     meta.path("recommendationConfirmed").asBoolean(false),
                     meta.path("recommendationConfirmationVersion").asLong(0),
                     lifecycle,
-                    meta.path("recommendationConfirmationKey").asText(null)
+                    meta.path("recommendationConfirmationKey").asText(null),
+                    meta.path("pendingPlanClarify").asText(null)
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);

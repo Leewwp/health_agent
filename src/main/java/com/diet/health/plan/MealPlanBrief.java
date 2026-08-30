@@ -59,7 +59,14 @@ public record MealPlanBrief(
 
     @JsonIgnore
     public boolean isComplete() {
-        return weekStart != null && !mealTimes.isEmpty() && healthGoal != null && !healthGoal.isBlank();
+        // ADR-0018：weekStart 是生成时派生的不可见内部锚点，不是用户必填字段。
+        return !mealTimes.isEmpty() && healthGoal != null && !healthGoal.isBlank();
+    }
+
+    /** 生成边界注入内部周锚点（旧会话已有锚点优先保持，调用方按派生规则决定）。 */
+    public MealPlanBrief withWeekStart(LocalDate nextWeekStart) {
+        return new MealPlanBrief(nextWeekStart == null ? weekStart : nextWeekStart, mealTimes, healthGoal,
+                cuisines, foodTypes, tastePreferences, convenience, unsupportedPreferences);
     }
 
     public MealPlanBrief withValues(LocalDate nextWeekStart, List<String> nextMealTimes, String nextHealthGoal) {

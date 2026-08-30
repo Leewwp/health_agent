@@ -79,10 +79,21 @@ public class MealPlanBriefService {
         }
 
         LocalDate weekStart = parseWeekStart(text);
+        boolean dateMentioned = weekStart != null;
         List<String> mealTimes = parseMealTimes(text);
-        if (weekStart == null && mealTimes.isEmpty() && healthGoal == null && !anyOptionalHit) {
+        if (mealTimes.isEmpty() && healthGoal == null && !anyOptionalHit) {
+            if (dateMentioned && !looksLikeMealInput(text)) {
+                // ADR-0018：纯日期/周表达不写入简报、不改变计划语义，只返回统一说明。
+                return new UpdateResult(base, BriefInterpretationStatus.EXTRACTED,
+                        missing(base), WeekAnchorProvider.DATE_ONLY_EXPLANATION_COPY, true);
+            }
+            String invalidGuidance = guidanceWithSupplementable(firstMissing(base), base);
+            if (dateMentioned) {
+                invalidGuidance = invalidGuidance.replaceAll("[。]+$", "")
+                        + "。" + WeekAnchorProvider.DATE_ONLY_EXPLANATION_COPY;
+            }
             return new UpdateResult(base, BriefInterpretationStatus.INVALID,
-                    missing(base), guidanceWithSupplementable(firstMissing(base)), looksLikeMealInput(text));
+                    missing(base), invalidGuidance, looksLikeMealInput(text));
         }
 
         // 4) 可选偏好合并：菜系/类型/口味均支持多值；“换成/改为”重建集合
@@ -124,10 +135,10 @@ public class MealPlanBriefService {
         if (!unsupported.equals(base.unsupportedPreferences())) {
             merged = merged.withUnsupportedPreferences(unsupported);
         }
-        merged = merged.withValues(weekStart, mealTimes, healthGoal);
+        merged = merged.withValues(null, mealTimes, healthGoal);
         String guidance = conflictNote != null && !conflictNote.isBlank()
                 ? conflictNote
-                : (merged.isComplete() ? "" : guidanceWithSupplementable(firstMissing(merged)));
+                : (merged.isComplete() ? "" : guidanceWithSupplementable(firstMissing(merged), merged));
         return new UpdateResult(merged, BriefInterpretationStatus.EXTRACTED,
                 missing(merged), guidance, true);
     }
@@ -179,18 +190,16 @@ public class MealPlanBriefService {
     public List<String> missing(MealPlanBrief brief) {
         MealPlanBrief value = brief == null ? MealPlanBrief.empty() : brief;
         List<String> missing = new ArrayList<>();
-        if (value.weekStart() == null) missing.add("weekStart");
         if (value.mealTimes().isEmpty()) missing.add("mealTimes");
         if (value.healthGoal() == null || value.healthGoal().isBlank()) missing.add("healthGoal");
         return List.copyOf(missing);
     }
 
-    /** 简报摘要：包含可选偏好与未支持偏好，未填项显式“未定”。 */
+    /** 简报摘要：包含可选偏好与未支持偏好，未填项显式“未定”；不展示内部周锚点。 */
     public String summary(MealPlanBrief brief) {
         MealPlanBrief value = brief == null ? MealPlanBrief.empty() : brief;
         StringBuilder summary = new StringBuilder();
-        summary.append("目标周：").append(value.weekStart() == null ? "未定" : value.weekStart());
-        summary.append("；餐次：").append(value.mealTimes().isEmpty() ? "未定" : String.join("、", value.mealTimes()));
+        summary.append("餐次：").append(value.mealTimes().isEmpty() ? "未定" : String.join("、", value.mealTimes()));
         summary.append("；目标：").append(value.healthGoal() == null ? "未定" : value.healthGoal());
         if (!value.cuisines().isEmpty()) {
             summary.append("；菜系：").append(String.join("、", value.cuisines()));
@@ -309,17 +318,39 @@ public class MealPlanBriefService {
 
     private String guidance(String field) {
         return switch (field == null ? "" : field) {
-            case "weekStart" -> "请补充目标周，例如“下周”或“目标周 2026-08-24”。";
             case "mealTimes" -> "请补充餐次，例如“早餐、午餐和晚餐”或“每天三餐”。";
             case "healthGoal" -> "请补充餐食目标，例如减脂、增肌、维持健康或均衡饮食。";
-            default -> "请补充餐食计划信息，例如“目标周下周，安排早餐、午餐和晚餐”。";
+            default -> "请补充餐食计划信息，例如“安排早餐、午餐和晚餐”。";
         };
     }
 
-    /** 指引 = 字段指引 + 可补充项枚举（可行动指引，不出现内部术语）。 */
-    private String guidanceWithSupplementable(String field) {
+    /**
+     * 指引 = 字段指引 + 当前简报动态可补充项（ADR-0018「需求输入指引动态化」）：
+     * 已填写的受支持字段不再提示，全部可选项填满后不再出现“还可以补充”。
+     */
+    private String guidanceWithSupplementable(String field, MealPlanBrief brief) {
         String base = guidance(field);
-        return base + "还可以补充：菜系（如粤菜、川菜）、餐食类型（如素食、轻食）、口味（如清淡、高蛋白）、烹饪时长（如烹饪时间短）；推荐时还可补充用餐场景、当下心情、过敏或忌口。";
+        List<String> labels = supplementable(brief).stream().map(SupplementableItem::label).toList();
+        if (labels.isEmpty()) {
+            return base;
+        }
+        return base + "还可以补充：" + String.join("、", labels) + "。";
+    }
+
+    /**
+     * 未支持偏好说明（ADR-0018）：保留“已记录，暂不按它筛选”的诚实表达，
+     * 并继续提示受支持菜系；内部稳定键的 field: 前缀不出现在用户可见文案。
+     */
+    public String unsupportedNote(MealPlanBrief brief) {
+        MealPlanBrief value = brief == null ? MealPlanBrief.empty() : brief;
+        if (value.unsupportedPreferences().isEmpty()) {
+            return "";
+        }
+        List<String> labels = value.unsupportedPreferences().stream()
+                .map(item -> item.contains(":") ? item.substring(item.indexOf(':') + 1) : item)
+                .toList();
+        return "已记录“" + String.join("、", labels) + "”，暂不按它筛选；仍可补充受支持的菜系（"
+                + String.join("、", supportedCuisines()) + "）。";
     }
 
     public record UpdateResult(MealPlanBrief brief, BriefInterpretationStatus status,

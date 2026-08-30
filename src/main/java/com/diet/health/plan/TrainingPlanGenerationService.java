@@ -136,7 +136,7 @@ public class TrainingPlanGenerationService {
                                 "contractVersion", CONTRACT_VERSION, "applicationTimeoutMs", applicationTimeout.toMillis(),
                                 "modelTimeoutMs", modelTimeout.toMillis()));
                 HealthProfileView profile = requireProfile(userId);
-                PlanBrief brief = requireCompleteBrief(session);
+                PlanBrief brief = withDerivedWeekStart(requireCompleteBrief(session), profile);
                 HealthRiskRuleService.RiskDecision risk = riskRuleService.assessProfile(
                         profile.age(), true, profile.riskConditions());
                 if (risk.blocked()) {
@@ -220,7 +220,12 @@ public class TrainingPlanGenerationService {
     /** 综合计划使用的训练子计划生成：只返回已约束的 EXERCISE 项目，不负责持久化。 */
     public List<PlanItemDraft> generateExerciseItemsForComposite(Long userId, HealthSessionState session) {
         HealthProfileView profile = requireProfile(userId);
-        PlanBrief brief = requireCompleteBrief(session);
+        return generateExerciseItemsForComposite(userId, withDerivedWeekStart(requireCompleteBrief(session), profile));
+    }
+
+    /** 综合生成入口：调用方已在生成边界统一派生内部周锚点后传入生效简报（ADR-0018）。 */
+    public List<PlanItemDraft> generateExerciseItemsForComposite(Long userId, PlanBrief brief) {
+        HealthProfileView profile = requireProfile(userId);
         CandidateSelection selection = filterCandidates(brief);
         if (selection.resources().isEmpty()) {
             throw new HealthApiException(HealthApiException.CODE_CONFLICT,
@@ -421,6 +426,14 @@ public class TrainingPlanGenerationService {
     }
 
     private HealthProfileView requireProfile(Long userId) { return profileService.getProfile(userId); }
+
+    /** 生成边界派生内部周锚点：已有锚点优先保持，缺失时按“生成当天所在周的周一”补齐（ADR-0018）。 */
+    private PlanBrief withDerivedWeekStart(PlanBrief brief, HealthProfileView profile) {
+        if (brief.weekStart() != null) {
+            return brief;
+        }
+        return brief.withWeekStart(WeekAnchorProvider.currentMonday(profile.timezone()));
+    }
 
     private PlanBrief requireCompleteBrief(HealthSessionState session) {
         // 生成前服务端重读会话并校验当前简报完整性；不再存在确认字段或确认版本。

@@ -227,7 +227,9 @@ public class PlanValidationService {
         return hits;
     }
 
-    /** 餐食时间窗口：早/午/晚餐落在对应餐次窗口内，越界为 WARNING（规格 8.2）。 */
+    /** 餐食时间窗口：早/午/晚餐落在对应餐次窗口内，越界为 WARNING（规格 8.2）。
+     *  ADR-0018：训练优先自动适配的餐食（mealTimeSource=ADAPTED）是系统适配结果，
+     *  不触发“需要调整”的误导性窗口告警。 */
     private List<RuleHit> checkMealTimeWindow(List<PlanItemDraft> items) {
         List<RuleHit> hits = new ArrayList<>();
         for (PlanItemDraft item : items) {
@@ -236,7 +238,10 @@ public class PlanValidationService {
             }
             Object mealTime = item.planParams().get("mealTime");
             TimeWindow window = mealTime == null ? null : MEAL_WINDOWS.get(String.valueOf(mealTime));
-            if (window != null && (item.startTime().isBefore(window.start()) || item.startTime().isAfter(window.end()))) {
+            boolean adapted = MealTrainingScheduleAdapter.ADAPTED_SOURCE.equals(
+                    String.valueOf(item.planParams().get(MealTrainingScheduleAdapter.MEAL_TIME_SOURCE_PARAM)));
+            if (window != null && !adapted
+                    && (item.startTime().isBefore(window.start()) || item.startTime().isAfter(window.end()))) {
                 hits.add(hit("MEAL_TIME_OUT_OF_WINDOW", HealthRiskLevel.ADVISORY, MEAL_TIME_WINDOW_COPY,
                         "date=" + item.localDate() + ", mealTime=" + mealTime + ", start=" + item.startTime()));
             }
