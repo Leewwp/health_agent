@@ -1352,6 +1352,16 @@ SET media_url = '/assets/media/meals/10405.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '10405' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/10570.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '10570' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/10600.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '10600' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/10974.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '10974' AND review_status = 'APPROVED';
@@ -1365,6 +1375,11 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/19957.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '19957' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/20305.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '20305' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/20877.jpg', media_status = 'LICENSED',
@@ -1382,9 +1397,54 @@ SET media_url = '/assets/media/meals/24076.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '24076' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/24509.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '24509' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/28131.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '28131' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/29720.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '29720' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/32267.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '32267' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/35457.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '35457' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/37435.png', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '37435' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/37447.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '37447' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/37448.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '37448' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/37487.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '37487' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/38244.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '38244' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/39124.jpg', media_status = 'LICENSED',
@@ -1397,14 +1457,49 @@ SET media_url = '/assets/media/meals/39264.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '39264' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/47989.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '47989' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/53472.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '53472' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/53733.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '53733' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/54651.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '54651' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/57571.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '57571' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/61437.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '61437' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/62153.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '62153' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/62815.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '62815' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/62992.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '62992' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/63377.jpg', media_status = 'LICENSED',
@@ -1415,6 +1510,26 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/64124.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '64124' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/64230.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '64230' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/68451.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '68451' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/68789.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '68789' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/69920.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '69920' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/73679.jpg', media_status = 'LICENSED',
@@ -1432,9 +1547,24 @@ SET media_url = '/assets/media/meals/75232.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '75232' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/80412.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '80412' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/81114.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '81114' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/81185.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '81185' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/81842.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '81842' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/82915.jpg', media_status = 'LICENSED',
@@ -1442,9 +1572,44 @@ SET media_url = '/assets/media/meals/82915.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '82915' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/82938.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '82938' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/83737.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '83737' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/84933.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '84933' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/86463.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '86463' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/88129.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '88129' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/88346.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '88346' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/88593.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '88593' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/89922.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '89922' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/90676.jpg', media_status = 'LICENSED',
@@ -1452,9 +1617,19 @@ SET media_url = '/assets/media/meals/90676.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '90676' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/90806.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '90806' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/91784.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '91784' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/91793.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '91793' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/93115.jpg', media_status = 'LICENSED',
@@ -1462,9 +1637,29 @@ SET media_url = '/assets/media/meals/93115.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '93115' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/94402.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '94402' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/95094.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '95094' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/96740.jpg', media_status = 'LICENSED',
+    media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '96740' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/97224.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '97224' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/98491.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '98491' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/99208.jpg', media_status = 'LICENSED',
@@ -1472,9 +1667,29 @@ SET media_url = '/assets/media/meals/99208.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '99208' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/reviewed/black-bean-lasagna.jpg', media_status = 'LICENSED',
+    media_credit = 'Unsplash License — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '100332' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/102952.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '102952' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/103004.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '103004' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/103966.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '103966' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/104206.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '104206' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/104322.jpg', media_status = 'LICENSED',
@@ -1482,9 +1697,24 @@ SET media_url = '/assets/media/meals/104322.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '104322' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/104865.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '104865' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/104869.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '104869' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/110711.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '110711' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/111622.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '111622' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/112259.jpg', media_status = 'LICENSED',
@@ -1492,9 +1722,29 @@ SET media_url = '/assets/media/meals/112259.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '112259' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/117145.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '117145' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/120297.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '120297' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/120612.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '120612' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/120651.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '120651' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/121199.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '121199' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/121716.jpg', media_status = 'LICENSED',
@@ -1507,9 +1757,19 @@ SET media_url = '/assets/media/meals/123402.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '123402' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/128908.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '128908' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/129799.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '129799' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/133551.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '133551' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/135079.jpg', media_status = 'LICENSED',
@@ -1520,6 +1780,11 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/135416.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '135416' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/137209.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '137209' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/142483.jpg', media_status = 'LICENSED',
@@ -1535,6 +1800,11 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/144673.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '144673' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/145533.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '145533' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/146461.jpg', media_status = 'LICENSED',
@@ -1567,6 +1837,21 @@ SET media_url = '/assets/media/meals/154388.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '154388' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/154553.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '154553' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/156249.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '156249' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/157842.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '157842' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/159036.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '159036' AND review_status = 'APPROVED';
@@ -1577,9 +1862,69 @@ SET media_url = '/assets/media/meals/159851.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '159851' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/160828.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '160828' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/160982.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '160982' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/161333.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '161333' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/161915.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '161915' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/163841.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '163841' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/163844.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '163844' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/168135.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '168135' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/169354.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '169354' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/169699.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '169699' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/170340.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '170340' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/173317.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '173317' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/175340.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '175340' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/180207.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '180207' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/180995.jpg', media_status = 'LICENSED',
@@ -1587,14 +1932,39 @@ SET media_url = '/assets/media/meals/180995.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '180995' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/183132.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '183132' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/187115.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '187115' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/187686.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '187686' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/192177.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '192177' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/192361.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '192361' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/195417.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '195417' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/198328.jpg', media_status = 'LICENSED',
+    media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '198328' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/201477.jpg', media_status = 'LICENSED',
@@ -1607,6 +1977,16 @@ SET media_url = '/assets/media/meals/204451.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '204451' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/205695.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '205695' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/205804.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '205804' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/205871.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '205871' AND review_status = 'APPROVED';
@@ -1617,9 +1997,24 @@ SET media_url = '/assets/media/meals/206570.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '206570' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/209188.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '209188' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/210363.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '210363' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/211485.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '211485' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/213121.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '213121' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/213549.jpg', media_status = 'LICENSED',
@@ -1627,9 +2022,34 @@ SET media_url = '/assets/media/meals/213549.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '213549' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/214581.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '214581' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/214768.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '214768' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/214810.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '214810' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/221371.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '221371' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/222710.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '222710' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/224467.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '224467' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/224817.jpg', media_status = 'LICENSED',
@@ -1642,6 +2062,11 @@ SET media_url = '/assets/media/meals/226681.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '226681' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/227262.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '227262' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/229669.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '229669' AND review_status = 'APPROVED';
@@ -1650,6 +2075,51 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/229924.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '229924' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/232206.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '232206' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/235636.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '235636' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/236409.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '236409' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/238010.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '238010' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/240023.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '240023' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/240600.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '240600' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/246597.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '246597' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/262382.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '262382' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/264432.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '264432' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/268783.jpg', media_status = 'LICENSED',
@@ -1667,9 +2137,29 @@ SET media_url = '/assets/media/meals/275131.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '275131' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/277915.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '277915' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/277964.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '277964' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/278704.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '278704' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/280208.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '280208' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/280313.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '280313' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/281188.jpg', media_status = 'LICENSED',
@@ -1697,9 +2187,39 @@ SET media_url = '/assets/media/meals/287061.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '287061' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/290088.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '290088' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/290185.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '290185' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/292085.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '292085' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/294604.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '294604' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/295236.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '295236' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/295352.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '295352' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/297239.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '297239' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/301361.jpg', media_status = 'LICENSED',
@@ -1707,9 +2227,34 @@ SET media_url = '/assets/media/meals/301361.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '301361' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/302090.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '302090' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/304250.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '304250' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/304522.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '304522' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/304891.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '304891' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/307525.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '307525' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/311924.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '311924' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/313343.jpg', media_status = 'LICENSED',
@@ -1717,9 +2262,34 @@ SET media_url = '/assets/media/meals/313343.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '313343' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/314244.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '314244' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/316871.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '316871' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/317010.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '317010' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/317745.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '317745' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/318027.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '318027' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/319701.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '319701' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/320242.jpg', media_status = 'LICENSED',
@@ -1732,9 +2302,34 @@ SET media_url = '/assets/media/meals/322306.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '322306' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/327208.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '327208' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/327916.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '327916' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/328224.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '328224' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/328616.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '328616' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/329384.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '329384' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/331065.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '331065' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/332905.jpg', media_status = 'LICENSED',
@@ -1752,9 +2347,24 @@ SET media_url = '/assets/media/meals/336375.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '336375' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/346298.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '346298' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/348857.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '348857' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/349905.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '349905' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/349940.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '349940' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/350971.jpg', media_status = 'LICENSED',
@@ -1787,6 +2397,11 @@ SET media_url = '/assets/media/meals/356923.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '356923' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/357146.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '357146' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/357787.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '357787' AND review_status = 'APPROVED';
@@ -1795,6 +2410,11 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/360274.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '360274' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/361504.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '361504' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/362826.jpg', media_status = 'LICENSED',
@@ -1807,14 +2427,119 @@ SET media_url = '/assets/media/meals/364172.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '364172' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/365360.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '365360' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/368800.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '368800' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/369453.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '369453' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/370324.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '370324' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/371474.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '371474' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/374392.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '374392' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/374879.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '374879' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/376226.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '376226' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/377420.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '377420' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/382555.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '382555' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/386163.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '386163' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/391554.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '391554' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/391946.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '391946' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/393355.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '393355' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/394139.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '394139' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/398300.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '398300' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/414179.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '414179' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/415047.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '415047' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/416226.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '416226' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/417223.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '417223' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/419364.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '419364' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/419409.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '419409' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/420775.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '420775' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/425105.jpg', media_status = 'LICENSED',
@@ -1827,6 +2552,31 @@ SET media_url = '/assets/media/meals/427216.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '427216' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/428399.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '428399' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/430648.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '430648' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/439208.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '439208' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/439209.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '439209' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/441547.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '441547' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/443173.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '443173' AND review_status = 'APPROVED';
@@ -1835,6 +2585,11 @@ UPDATE meal_item
 SET media_url = '/assets/media/meals/453094.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '453094' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/453099.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '453099' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/453661.jpg', media_status = 'LICENSED',
@@ -1847,14 +2602,59 @@ SET media_url = '/assets/media/meals/457429.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '457429' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/460534.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '460534' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/460755.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '460755' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/465006.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '465006' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/466973.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '466973' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/469270.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '469270' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/472476.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '472476' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/472644.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '472644' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/473251.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '473251' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/475467.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '475467' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/477571.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '477571' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/478373.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '478373' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/478873.jpg', media_status = 'LICENSED',
@@ -1867,14 +2667,49 @@ SET media_url = '/assets/media/meals/479143.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '479143' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/481614.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '481614' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/483396.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '483396' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/489939.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '489939' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/495074.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '495074' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/499151.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '499151' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/501808.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '501808' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/505895.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '505895' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/507881.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '507881' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/509342.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '509342' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/509656.jpg', media_status = 'LICENSED',
@@ -1887,14 +2722,49 @@ SET media_url = '/assets/media/meals/509705.jpg', media_status = 'LICENSED',
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '509705' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/510709.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '510709' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/511947.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '511947' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/512242.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '512242' AND review_status = 'APPROVED';
 
 UPDATE meal_item
+SET media_url = '/assets/media/meals/516134.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '516134' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/516942.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '516942' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/517515.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '517515' AND review_status = 'APPROVED';
+
+UPDATE meal_item
 SET media_url = '/assets/media/meals/517789.jpg', media_status = 'LICENSED',
     media_credit = 'Food.com recipe image — local educational/non-commercial use', updated_at = NOW()
 WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '517789' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/520995.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '520995' AND review_status = 'APPROVED';
+
+UPDATE meal_item
+SET media_url = '/assets/media/meals/521685.jpg', media_status = 'LICENSED',
+    media_credit = 'Wikimedia Commons image — local educational/non-commercial use', updated_at = NOW()
+WHERE source_name = 'foodcom-recipes-and-reviews-v2' AND source_id = '521685' AND review_status = 'APPROVED';
 
 UPDATE meal_item
 SET media_url = '/assets/media/meals/530181.jpg', media_status = 'LICENSED',

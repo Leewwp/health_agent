@@ -11934,7 +11934,8 @@
         "local_url": "/assets/media/meals/8798.jpg",
         "sha256": "2cbf94ae6fa325f8e9032d1df2fcb68f6d2682110dca3297e53914b19dcd295d",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "9554",
@@ -11942,7 +11943,8 @@
         "local_url": "/assets/media/meals/9554.jpg",
         "sha256": "26698cf00dc033123eb7f40ff5c09490aebd813ec4401593f865958b71019b69",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "10405",
@@ -11950,23 +11952,26 @@
         "local_url": "/assets/media/meals/10405.jpg",
         "sha256": "d638a5764a06a3293edd18ba5f97f0e3f98b753766cb86492fd26a640db4b9e5",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "10570",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/41/2020-08-30_06_15_37_A_serving_of_Lean_Cuisine_Herb_Roasted_Chicken_%28Tender_White_Meat_Chicken_%26_Creamy_Herb_Sauce_with_Roasted_Potatoes_%26_Broccoli%29_in_the_Dulles_section_of_Sterling%2C_Loudoun_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/10570.jpg",
+        "sha256": "820b78819db9bc65eeeca16a621199ad04de7ca9cc3b1a161900123014fe7cf4",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "10600",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a2/Pizza_-_Chicken-feta_C_IMG_8834.JPG",
+        "local_url": "/assets/media/meals/10600.jpg",
+        "sha256": "335607d177f1f70f413459b255388f9cebea04c32ebe21ffacc862cbab41d4ae",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "10974",
@@ -11974,7 +11979,8 @@
         "local_url": "/assets/media/meals/10974.jpg",
         "sha256": "c874c19c3c7bcfe0eefbc3ed4726abb6777839c04e3ff61ba264bbeb09c104ac",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "19912",
@@ -11982,7 +11988,8 @@
         "local_url": "/assets/media/meals/19912.jpg",
         "sha256": "b11644f00a690e9b2f09b8c5ee64dfbac30ba12af61f9a424fdaa246056e7899",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "19957",
@@ -11990,15 +11997,17 @@
         "local_url": "/assets/media/meals/19957.jpg",
         "sha256": "b0d13a35b8e32860c0d848888fa8de86ee69a56981f7b1565a41882938fc97a5",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "20305",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/2021-07-18_17_11_09_Soup_made_with_coconut_milk%2C_lemon_grass%2C_ginger%2C_garlic_and_red_peppers_with_carrots%2C_mushrooms%2C_chicken%2C_red_onions_and_cilantro_in_the_Franklin_Farm_section_of_Oak_Hill%2C_Fairfax_County%2C_Virginia.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/20305.jpg",
+        "sha256": "1e366760504f25efd6c827d977a2d795f8678d595184cd62efa9218f5b586224",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "20877",
@@ -12006,7 +12015,8 @@
         "local_url": "/assets/media/meals/20877.jpg",
         "sha256": "3b567242211369de82d897e394707aa10159e8701bbac7870b6a5f40c767d0ea",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "22815",
@@ -12014,7 +12024,8 @@
         "local_url": "/assets/media/meals/22815.jpg",
         "sha256": "12574622826f6ade6052401cdbcba796c1a03607a9abc9335391d81134703284",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "24076",
@@ -12022,15 +12033,17 @@
         "local_url": "/assets/media/meals/24076.jpg",
         "sha256": "76f2e25a4beb734c1b8089e6c8e7094b6e6e4e14df6802d41a86e16f6924286a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "24509",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/06/Meaty_Lasagna_8of8_%288736299782%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/24509.jpg",
+        "sha256": "f07e1c09880fd9b53f37099e88cb6e655a12620d0a9189565b7d473b9a19a584",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "28131",
@@ -12038,71 +12051,80 @@
         "local_url": "/assets/media/meals/28131.jpg",
         "sha256": "76ddf3797d74dc26f3c3a09a0eaf7e2f7366555a658aae3bbdc86fc8909b6557",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "29720",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/30/Caribbean_shrimp_marinaded_in_orange_juice_and_chilis.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/29720.jpg",
+        "sha256": "e8db3f14a67381ba003a23d58853b2780695ec10675176635fb7564abde21e22",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "32267",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Red-snapper-moscow-2009.jpg",
+        "local_url": "/assets/media/meals/32267.jpg",
+        "sha256": "4126f206073564f29964ad452fc6f4ab4bc31310db656e307f57a67ee7c775e2",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "35457",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Lentils_And_Rice_%28140491283%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/35457.jpg",
+        "sha256": "4067f4cedc5bfb648b810dc377bc97e2131608a9b7f3dadfac778da6a5c99bae",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "37435",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2e/Orange_roughy.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/37435.png",
+        "sha256": "f3a0f91d6d308f755a19b60f1de12da896c2b295e9fec5e1b5dc9c41abcb6f19",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "37447",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/56/Herb_baked_salmon.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/37447.jpg",
+        "sha256": "6c550406a22cace9d2d033a6943276232e8eb7d55cc401c76de22f94ac73c8a6",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "37448",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/%22Marry_Me%22_Chicken_-_PizzaExpress%2C_Stanford_Cottage%2C_Worthing_2026-06-16.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/37448.jpg",
+        "sha256": "04714069144d43f0eebab9fc263884227098b84df4b6db73e6688f8ef13a8333",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "37487",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Freeze-dried_strawberry_yogurt_cubes.jpg",
+        "local_url": "/assets/media/meals/37487.jpg",
+        "sha256": "12931e6fb2bf81fc62f8360d5f05c6693edaafe5cbcde249773fed2bfdf6e07a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "38244",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Afghan_Zamarod_Palaw_%28Emerald_Pilaf%29_%D8%B2%D9%85%D8%B1%D8%AF_%D9%BE%D9%84%D9%88_with_a_side_of_Meat_in_Sour_Cherry_Sauce.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/38244.jpg",
+        "sha256": "965751d27293ae7657655f8a7c1d4ece4221d933fcb58c7e6de1b7c0bb56bb92",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "39124",
@@ -12110,7 +12132,8 @@
         "local_url": "/assets/media/meals/39124.jpg",
         "sha256": "75679441a27d9e397ff33622a1e783162650d3ebc6ddaf326c338403588bb696",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "39264",
@@ -12118,39 +12141,44 @@
         "local_url": "/assets/media/meals/39264.jpg",
         "sha256": "0768419da95fda1431be1383f46606f8c053d53a37d0c07d73a265951332008b",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "47989",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Grilled_plated_salmon_fillet_%28cropped%29.jpg",
+        "local_url": "/assets/media/meals/47989.jpg",
+        "sha256": "a5e175c7c4aece78e3653d5c18e1c677567b5bc21db4216f29c3536952564d79",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "53472",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/Chicken_fajitas_-_La_Hacienda_-_Sarah_Stierch.jpg",
+        "local_url": "/assets/media/meals/53472.jpg",
+        "sha256": "475066ea81fcf0b58b52b1879e96aabf6880d683044952d285c5aef78a0278f5",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "53733",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Tonight%27s_Dinner%2C_Pork_Chops_-_Flickr_-_ctaloi.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/53733.jpg",
+        "sha256": "e806ecbf38e78bb6cf3c007a2819958b36566ae2a9ec8606bcb2f83375df17ca",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "54651",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/57/Chicken_fettuccine_alfredo.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/54651.jpg",
+        "sha256": "8ea68a44e0bca88f5864ae1880f8f702232002fc2f0bc4f5beeee6908c37a2c0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "57571",
@@ -12158,15 +12186,17 @@
         "local_url": "/assets/media/meals/57571.jpg",
         "sha256": "398af584f7a3d5674419837825942c0a87e4dda432192e7405c9fc78f4b26ac5",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "61437",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/Fetuccine_Alfredo.jpg",
+        "local_url": "/assets/media/meals/61437.jpg",
+        "sha256": "8e58ebb73dc7df883eb262cf277976c8401fc416ba87bfda62a66179c6ffd4ce",
+        "state": "LICENSED",
+        "detail": "Wikimedia Commons 检索词: fettuccine alfredo（File:Fetuccine Alfredo.jpg）",
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "62153",
@@ -12174,23 +12204,26 @@
         "local_url": "/assets/media/meals/62153.jpg",
         "sha256": "c179fb454a6b4ac158b3ff138bc30b84c7ab55071a6b8185548ef35a5bd6f9e5",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "62815",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/42/Chicken_breasts_and_wing_quarters.jpg",
+        "local_url": "/assets/media/meals/62815.jpg",
+        "sha256": "c2729a8b4720fe1c55b86b6ce339a2e201cecb0a40668eaf99cc972f893f4cd6",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "62992",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/A_heap_of_shrimp_shells_on_a_plate_in_Tuntorp_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/62992.jpg",
+        "sha256": "3f14a315872e65703965d687ae2224fd159f32c61d0fda45ce32917e374624e7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "63377",
@@ -12198,7 +12231,8 @@
         "local_url": "/assets/media/meals/63377.jpg",
         "sha256": "1583ea1146e417cf2f5147d39c85b99e6542ff1bac2596845a5ae91ea0e46f6c",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "64124",
@@ -12206,39 +12240,44 @@
         "local_url": "/assets/media/meals/64124.jpg",
         "sha256": "d758dbecced3caebd94bce2c23885e83b0ba42070b647a9c2a8742ea17e6d675",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "64230",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f5/Steamed_chicken_with_ginger_sauce.jpg",
+        "local_url": "/assets/media/meals/64230.jpg",
+        "sha256": "1bcb925a03c63c8cce243271f5f04b9ebfbf57462eeb2104a918fd7747673198",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "68451",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/46/Sturgeon_Kebab_%282887202689%29.jpg",
+        "local_url": "/assets/media/meals/68451.jpg",
+        "sha256": "8bc761ff9e1d7cc62e5eb8a253d9736aa9ec727294f7802eeffb6c54044d3178",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "68789",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Black_Bean_Burgers_%28140363379%29.jpeg",
+        "local_url": "/assets/media/meals/68789.jpg",
+        "sha256": "d9dc8774ad319a8567dfe5a8c0343110c08103de52254c813478de8934ff13b1",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "69920",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/43/Tuna_marinated_in_soy_and_chipotle_fried_with_steamed_tenderstem_broccoli_served_with_roast_potatoes_and_red_cabbage_in_mayo.jpg",
+        "local_url": "/assets/media/meals/69920.jpg",
+        "sha256": "9b244a944db17eb48ca46beabdfa23e36c5aed383f63bca12a26a3e591b40217",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "73679",
@@ -12246,7 +12285,8 @@
         "local_url": "/assets/media/meals/73679.jpg",
         "sha256": "60411cc93c1f78b3669d26569d2495b7baf7f548f945e23db04e22e9346b693a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "74766",
@@ -12254,7 +12294,8 @@
         "local_url": "/assets/media/meals/74766.jpg",
         "sha256": "c8a26cab55589f09ce3f618417822cdcf7cf2a5640e0eaab0a6ab275b85ef73a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "75232",
@@ -12262,15 +12303,17 @@
         "local_url": "/assets/media/meals/75232.jpg",
         "sha256": "68aa0a10ed4466a9b5f95dbe9c0bb54e758f340f7a5a4d39568c99ca7712387f",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "80412",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Lemon_chicken_orzo_soup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/80412.jpg",
+        "sha256": "2110fc7c4a1fecd79e3a9c4edfdaface4d06077196a086a589b55af6a3135e9e",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "81114",
@@ -12278,23 +12321,26 @@
         "local_url": "/assets/media/meals/81114.jpg",
         "sha256": "f87049296051c2d55af6768047838dc7788262b8173ea97e9d9721ca461866e2",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "81185",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/64/Guacamole_IMGP1271.jpg",
+        "local_url": "/assets/media/meals/81185.jpg",
+        "sha256": "2c9f7b6b976ff71802b2f79f151654875b832808a516605c1653e706d2815bd7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "81842",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/Liat_Portal_for_Foodie_Disorder_-_Grilled_Salmon_with_Roasted_Potatoes_and_Asparagus.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/81842.jpg",
+        "sha256": "188070d05b0e8d2de7ac88e3d3910d28e0802117ec5c94c526e3ce7b2ca5c20b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "82915",
@@ -12302,47 +12348,53 @@
         "local_url": "/assets/media/meals/82915.jpg",
         "sha256": "7805d7354bcd090b4664c560c0233989a3e6dbbd6cc6f91835822163ba3f71eb",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "82938",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c1/Coconut_Crusted_Shrimp_on_California_Zephyr_-_June_2022_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/82938.jpg",
+        "sha256": "7ba7ddf156fc7d61acd5259fa99b99c344850478ee36009371ad856ad31e6ae7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "83737",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b3/Mixed_vegetable_curry_2.jpg",
+        "local_url": "/assets/media/meals/83737.jpg",
+        "sha256": "c0b05d1835317341e6f778603a7682c4662f24bfb40a3cf3c3f4bd8b8d6b478d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "84933",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/72/Pot_Noodle_before_water_added_%28King_size_Chicken_%26_Mushroom%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/84933.jpg",
+        "sha256": "a9cf79c71b41d685b7b0659ced2f4dec51aec22d75e105d90abc140ada9fa66b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "86463",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0c/Chicken_cheese_burger_and_Mexican_vegetarian_burger_-_Grubbs.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/86463.jpg",
+        "sha256": "f9a98f996fa114dfffc4dfae75fdd087a94266831ee06543261d1fffe7165308",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "88129",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e2/Soyrizo_Nachos_%284783224548%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/88129.jpg",
+        "sha256": "9b1cddb91fcaa5eb36442d2dc795b000732eebacf4bdf7d85170f7fcf516ab40",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "88346",
@@ -12350,23 +12402,26 @@
         "local_url": "/assets/media/meals/88346.jpg",
         "sha256": "ec2c364eaf7013617c4c61d6c0a39f6f2e237d70d97b74cb546e611179ebd767",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "88593",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2a/Yamaya_Mentaiko_Salmon_Croquette_from_Ramen_Kuroda_at_SM_City_Cebu_%282025-06-25%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/88593.jpg",
+        "sha256": "6bec8505ce12968dac5ef84b7df450196a76dd352e34518702e3455260713d4f",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "89922",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d1/Ignacio_Anaya_Inventor_of_Nachos.jpg",
+        "local_url": "/assets/media/meals/89922.jpg",
+        "sha256": "7102f51a375432586a0a1b383daffbb41b09922739c8be9cc9a5455ce946e584",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "90676",
@@ -12374,15 +12429,17 @@
         "local_url": "/assets/media/meals/90676.jpg",
         "sha256": "98edb647bfb770e82a933ad4b77373eacd1abe6b1c642ffca9caf17db1839681",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "90806",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2e/Mmm..._pretty_summer_salad_%286005733739%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/90806.jpg",
+        "sha256": "de3511400e70ac9d85184e0c5484ee58da1f8719f8f6ce0f6acff18ac8a81763",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "91784",
@@ -12390,15 +12447,17 @@
         "local_url": "/assets/media/meals/91784.jpg",
         "sha256": "734913f82b91bfe1ffd69720db411cc6ace1d89e260d49feb92d6e621c91ca3d",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "91793",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/be/French_Onion_Soup%2C_Applebee%27s.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/91793.jpg",
+        "sha256": "c73932b52f79043d37810679c6e89ec2fc56315b79ba87e4e3a945178d8d3ec8",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "93115",
@@ -12406,31 +12465,35 @@
         "local_url": "/assets/media/meals/93115.jpg",
         "sha256": "7a7c23371641ac478930f59728735a0493449b72fd9aa0be9b52e3a912bd2123",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "94402",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Fish_Fillet_Fingers.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/94402.jpg",
+        "sha256": "f920aef6268a7890ecf55b72616a775e7122dc809d314d7a89e427e6231c8911",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "95094",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f7/Chilaquiles_at_the_Grand_Cantina%2C_Windsor%2C_Ontario%2C_2025-09-01_04.jpg",
+        "local_url": "/assets/media/meals/95094.jpg",
+        "sha256": "d61ded97843da2de6a61ca9938c39e13b0cc94d38b2004385282b102d5d25d2a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "96740",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://img.sndimg.com/food/image/upload/w_555,h_416,c_fit,fl_progressive,q_95/v1/img/recipes/96/74/0/picyuSNue.jpg",
+        "local_url": "/assets/media/meals/96740.jpg",
+        "sha256": "e5ad93d9bcbf7ace9ba8818bd4214aed56a43e576ae3e763e7bfa4bf4e6d5b9f",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "97224",
@@ -12438,15 +12501,17 @@
         "local_url": "/assets/media/meals/97224.jpg",
         "sha256": "6a27d73ecf267d2b6bc2548e392bfe547551cc4957c8064d4f6ceffc3e41c407",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "98491",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Ingredienti_per_il_pesto_Genovese_%28Ingridients_for_Pesto_Genovese%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/98491.jpg",
+        "sha256": "eabe685204deba098c08dacaaeaa97e3b214a251c9124375ec43f862810a7c09",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "99208",
@@ -12454,15 +12519,17 @@
         "local_url": "/assets/media/meals/99208.jpg",
         "sha256": "e8666880c91c9d8f6b993495750465f34ab2d53bab4264febe21cba0ce955c1b",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "100332",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://images.unsplash.com/photo-1574894709920-11b28e7367e3",
+        "local_url": "/assets/media/reviewed/black-bean-lasagna.jpg",
+        "sha256": "2c819c5c1683541d92c4c439006319e9af1aca6e95a7f6251fcbb6116cdfd2d8",
+        "state": "LICENSED",
+        "detail": "本地既有样本（frontend/assets/media/reviewed/README.md 记录来源）",
+        "credit": "Unsplash License — local educational/non-commercial use"
       },
       {
         "source_id": "100900",
@@ -12470,23 +12537,26 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "102952",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6f/Liat_Portal_for_Foodie_Disorder_-_Healthy_low-fat_chicken%2C_rice%2C_broccoli%2C_and_sweet_potato_plate.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/102952.jpg",
+        "sha256": "a1b93c2ffa8c8a7697b3c65966be7e3bd7c0f2864462203970edf4bcaa063543",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "103004",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Banana_bread_slices.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/103004.jpg",
+        "sha256": "b5e8418c31d87664a53ea0cdd4c273510e34b0203289d9c2e1ce28c97f3b46d5",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "103966",
@@ -12494,15 +12564,17 @@
         "local_url": "/assets/media/meals/103966.jpg",
         "sha256": "4eb11fe29cf04855f30f5b4a4db490a312621763a32ccef1c88cbe1411498420",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "104206",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Maison_de_Maximilien_de_Robespierre_%C3%A0_Arras.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/104206.jpg",
+        "sha256": "29d69681a41679337679900ca569d45afad4ee5cac372d4a2d4dfa98582779dd",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "104322",
@@ -12510,15 +12582,17 @@
         "local_url": "/assets/media/meals/104322.jpg",
         "sha256": "ad4050b0d36f6f8ffb2dd0ae144d62e11b5066df26220243f37f36a34f722a02",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "104865",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c8/Noodle_stir_fry_with_chicken%2C_shrimp%2C_and_broccoli_%2818471621051%29.jpg",
+        "local_url": "/assets/media/meals/104865.jpg",
+        "sha256": "ec11a7a2c9aabdb2404d1820350bf26d87da64a2556d37025de1d212293999aa",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "104869",
@@ -12526,23 +12600,26 @@
         "local_url": "/assets/media/meals/104869.jpg",
         "sha256": "9edaec3664a598bd24cab16f341d2a2f8826bc16380f05de95edfb63b60c51d3",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "110711",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/94/Salad_platter.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/110711.jpg",
+        "sha256": "fa834f9780ee5d6e3d6b7a51571251b35995f9b25e6b2be2ca4a97f8b7cf140d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "111622",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Royal_Tunisian_couscous.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/111622.jpg",
+        "sha256": "7ffed1a3880994ed7765b72bf61eb4a9f06151309e888497d8a143efd2b5a0c7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "112259",
@@ -12550,15 +12627,17 @@
         "local_url": "/assets/media/meals/112259.jpg",
         "sha256": "e548f51a8898ba6396bdc9eece96ebd3c1789863bbf956979ede8ad9d042194e",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "117145",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Toothfish.jpg",
+        "local_url": "/assets/media/meals/117145.jpg",
+        "sha256": "23d62fe3b2ef29dea129f73ec0a74a92f6bfaa8adfbbb01115d6e26875cf488c",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "120297",
@@ -12566,31 +12645,35 @@
         "local_url": "/assets/media/meals/120297.jpg",
         "sha256": "3493e48de2ca73e5e426a857150b111f5546782250f8b9eaa0f96bcb6eab19be",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "120612",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Mexican_Chicken_Fajita_Roll-Up_%2837002692623%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/120612.jpg",
+        "sha256": "6a2f720c5a2f90c5f56a7b46df30d49ecfece245b2f5b0793163cc419d16b12a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "120651",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e4/Indian_Curry_Chicken.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/120651.jpg",
+        "sha256": "440c3a14e159a09a8d6350005c09262ba19912485a6a00451594e85b0528e581",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "121199",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Corn_soup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/121199.jpg",
+        "sha256": "080bf5dca14d205868512d2fa62ddd20a61b5cc5e121fc64698ecc8682258f31",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "121716",
@@ -12598,7 +12681,8 @@
         "local_url": "/assets/media/meals/121716.jpg",
         "sha256": "6d57f5689f858a9b09fa9920ade9d0acecfd38a5dcaf0936c05bac17336d1127",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "123402",
@@ -12606,15 +12690,17 @@
         "local_url": "/assets/media/meals/123402.jpg",
         "sha256": "75a51d96a845c00407027012b38e4ee1bcd6b329b1c149b4a8bab1dd8b3a0966",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "128908",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/27/Tandoori_chicken_Indian.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/128908.jpg",
+        "sha256": "4d507eb9cca6805b12349c70751d61668e2dc1ca1229891491a5534aa93b7989",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "129799",
@@ -12622,15 +12708,17 @@
         "local_url": "/assets/media/meals/129799.jpg",
         "sha256": "1a9f8760d962717d7a61c41d86f9398222657fcbb169787038ac11c907116ea9",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "133551",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Veggie_burrito_bento_%284024535942%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/133551.jpg",
+        "sha256": "a115e6cc4400e20eb8816d74d7e22c0e127d6d51778b8d795bc19896516ec824",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "135079",
@@ -12638,7 +12726,8 @@
         "local_url": "/assets/media/meals/135079.jpg",
         "sha256": "b51ac94d1da1354eb9b49cd35ab3e6f6dd2cd7d369754d520e577d0f4c6a2986",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "135416",
@@ -12646,15 +12735,17 @@
         "local_url": "/assets/media/meals/135416.jpg",
         "sha256": "28ef690dda9f7bd37200ea75535e4c87e033760dd43fe17f368cba871ab8faac",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "137209",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Cheddar_cheese_and_roast_salmon_on_a_remarkably_dense_rye_bread_-_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/137209.jpg",
+        "sha256": "dd7f1fb5b4c2aa7fa05f1fcd93ca94255e2b3cd5a31c63ef42fe7f203fd27064",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "142483",
@@ -12662,7 +12753,8 @@
         "local_url": "/assets/media/meals/142483.jpg",
         "sha256": "8671a16404dd20943fa1d56f4b83d6541bbdc66492ddc28f9fa9858d5d7de849",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "144379",
@@ -12670,7 +12762,8 @@
         "local_url": "/assets/media/meals/144379.jpg",
         "sha256": "ac7e5d3f3bb039327a1e28e1fc2da8ae79c985f3a3ec5ef7c448627b67ea71fe",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "144673",
@@ -12678,15 +12771,17 @@
         "local_url": "/assets/media/meals/144673.jpg",
         "sha256": "e2765a127c6c4db14057cf1779f5eee934bbcdb006e28b83d8a4ee632e56284a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "145533",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Rozhishchensky_cheese_factory_-_Farm_-_glazed_cottage_cheese.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/145533.jpg",
+        "sha256": "d8bc98f2401e850e61470e9f2c14fff87ee576e544f7f7bd1b409e48982dacda",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "146461",
@@ -12694,7 +12789,8 @@
         "local_url": "/assets/media/meals/146461.jpg",
         "sha256": "fefa66bc2185bcae798399dc931350426139b9ae906a1958c9f29f8e527c7be9",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "147044",
@@ -12702,7 +12798,8 @@
         "local_url": "/assets/media/meals/147044.jpg",
         "sha256": "bb17af54d89e1d65745eb72d0ef7dede5371949c0ffb07467a4d4ed17660e49f",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "149292",
@@ -12710,7 +12807,8 @@
         "local_url": "/assets/media/meals/149292.jpg",
         "sha256": "28caba8580eaeaf69d97935557917c72127032fa8de4820cd1b20fb63824af4e",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "151221",
@@ -12718,7 +12816,8 @@
         "local_url": "/assets/media/meals/151221.jpg",
         "sha256": "fb95213fc4b64b559964d121533b21b59a48a719d3d61cbbd8bb067f839ca0ef",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "151755",
@@ -12726,7 +12825,8 @@
         "local_url": "/assets/media/meals/151755.jpg",
         "sha256": "3d8c4d8452c99a599d6c1be2577c13e23774376a2f7bbbfc0409e10d71af92bc",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "154388",
@@ -12734,31 +12834,35 @@
         "local_url": "/assets/media/meals/154388.jpg",
         "sha256": "92f88c168a977bdbdd0a89bf19c58a17313b26ece9eb833bc0dc36cf4bc97bb6",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "154553",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Homemade_meatloaf_04.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/154553.jpg",
+        "sha256": "a8bcd52725d14e02231824a85c39d4ffa22618d435cef5cfcbe6485cea3bcaf3",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "156249",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Chicken_sausages%2C_spicy_with_Worcestershire_sauce%2C_peas_and_garlic%2C_and_roasted_plum_tomatoes_with_olive_oil%2C_kosher_salt%2C_and_cheddar_-_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/156249.jpg",
+        "sha256": "dcd3da66deb5871cede729dc1f896518279f94e71ed73d7f840aeb1146620c86",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "157842",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/28/Pita_pizza.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/157842.jpg",
+        "sha256": "a73cb3ad4c6021cfc58cebec5775744b1a331c00c5cef1084bf3de785945da29",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "159036",
@@ -12766,7 +12870,8 @@
         "local_url": "/assets/media/meals/159036.jpg",
         "sha256": "b1624ed666b9f5b38be7dfed72f61282cb54de5a1109086861d3eef6fc56660f",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "159851",
@@ -12774,15 +12879,17 @@
         "local_url": "/assets/media/meals/159851.jpg",
         "sha256": "79941c8991b91b900bd102da3fdc69c84fe1bbff56a55f2c544ce7fc1bcaca00",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "160828",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/df/Eggplant_Lasagna_%28Vegitarian%29_%286_of_6%29.jpg",
+        "local_url": "/assets/media/meals/160828.jpg",
+        "sha256": "1676e805489bad65c9d40f44184c4b4e427e5830fb0a0d4d211bb41c52619e5b",
+        "state": "LICENSED",
+        "detail": "Wikimedia Commons 检索词: vegetable lasagna（File:Eggplant Lasagna (Vegitarian) (6 of 6).jpg）",
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "160982",
@@ -12790,95 +12897,107 @@
         "local_url": "/assets/media/meals/160982.jpg",
         "sha256": "82b43f358d5bf7c420e596f49a12527967b87d388aa21c6706bb9ac0c9ae53fb",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "161333",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Cream_sauce.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/161333.jpg",
+        "sha256": "7e3c0e9a754c807fca5f289fea598807a59df1689ef16b30d4f38e6ccc868934",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "161915",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/da/Squash_cream_soup_%28vegan%29_%288075161485%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/161915.jpg",
+        "sha256": "de4dfcf00316e46284f99adf8d4b9afa0ab66e4b7948b2264e4d2d5a67612b1a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "163841",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Ham_and_Swiss_cheese_sandwich.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/163841.jpg",
+        "sha256": "5ec74c7dcf302c48b1de5c120980daf4970edf2287c9b920e0571d2dc380d6da",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "163844",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/fc/Ceviche_del_Per%C3%BA.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/163844.jpg",
+        "sha256": "d95f055a6a577847f23cc1c920fbb844fdb3caf3a297a52fcb1862c4d6b3bd22",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "168135",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Crispy_Chicken_Strips_-_FotoosVanRobin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/168135.jpg",
+        "sha256": "bf6b4766390dd695a85bd97506e762afd792493d6669a5912d62c8e25ed84820",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "169354",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/da/Fresh_Herbs_%28Unsplash%29.jpg",
+        "local_url": "/assets/media/meals/169354.jpg",
+        "sha256": "8776d2576c04f22fb1c8681fd1fca33a8ec118b7ec7284ac449378b9f56adbf0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "169699",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/Pesto_and_spinich_stuffed_chicken_breasts_with_mushroom_sauce.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/169699.jpg",
+        "sha256": "baea75e2bfc01e182dd014c74aecb7547d86e94bc509ff2d6c83a85b91b941db",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "170340",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/2007_12_11_-_Laurel_-_Meat_sauce_on_spaghetti.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/170340.jpg",
+        "sha256": "7b1f8b0124c40dddb3b489b662b6aa1fd486cef0530fb06a3a3f9c177cbd7e3c",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "173317",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/df/New_potatoes_rubbed_in_leaves_of_onion_crest_baked_in_yeast_and_salt._Horseradish_cream_on_the_side._%2819099647919%29.jpg",
+        "local_url": "/assets/media/meals/173317.jpg",
+        "sha256": "f7fb1c35972d2af07b1cdd2510fcc9536a44a8f4c68768f0a93f5fe45d591735",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "175340",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/44/Nutritional_Yeast_in_Bag_%2832664238868%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/175340.jpg",
+        "sha256": "d3af753237e494ad57d6ce26bf9fe667f57641fe0727294e1d8de1b62fb63ec2",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "180207",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/96/Lemon_and_saffron_roasted_chicken_on_pilaf_rice_with_sesame_yoghurt_and_peach_relish_-_Cafe_Mint_AUD24.90_main_%283697197879%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/180207.jpg",
+        "sha256": "cf3372ae7bb882d8fdaf345c5ce1f8bce57df95b287a2f28d4ad089ec1f447e1",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "180995",
@@ -12886,23 +13005,26 @@
         "local_url": "/assets/media/meals/180995.jpg",
         "sha256": "09de330270694985e853738b619dbbb3dc9664805e4a09506e3710febe197f36",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "183132",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/25/Halibut_topped_with_salmoriglio_sauce.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/183132.jpg",
+        "sha256": "f7782d12801f863b51a1b1a67a0a4cfb99162699f4413352f774364aef77d9dd",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "187115",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/64/Samosa_Usal.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/187115.jpg",
+        "sha256": "54638d02f0b9e45df8c6bcfdc0c4c54063f0d6e9bd103b2f29bc42c00e9fcdcc",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "187686",
@@ -12910,15 +13032,17 @@
         "local_url": "/assets/media/meals/187686.jpg",
         "sha256": "9ec64a73236e7d98e7a9dc1fdc105e12c1bd1063792bfb63a17893988be09972",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "192177",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Fried_chicken_Burger_in_Milan%2C_Italy.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/192177.jpg",
+        "sha256": "47b2de1e5952ede4f405c16db96079d1f8039780340c7cf1f28c5d8f9b1ea910",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "192361",
@@ -12926,7 +13050,8 @@
         "local_url": "/assets/media/meals/192361.jpg",
         "sha256": "03da18e2a84cf271a07c3faed47547b967e618e82d26549e1b4b5a65071852ae",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "192574",
@@ -12934,23 +13059,26 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "195417",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Aalu-Kachalu_with_Buttermilk_-_Home_-_Uttar_Pradesh.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/195417.jpg",
+        "sha256": "7a7b5cec362687897c83a8fea096462a76a6a62417ef2f112e9f270d136b15ba",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "198328",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://img.sndimg.com/food/image/upload/w_555,h_416,c_fit,fl_progressive,q_95/v1/img/recipes/19/83/28/01503615668.jpeg",
+        "local_url": "/assets/media/meals/198328.jpg",
+        "sha256": "4a35c3c26107e9210fb968fcb0e6395094d45e6554c2e910950813bb60d50124",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "201477",
@@ -12958,7 +13086,8 @@
         "local_url": "/assets/media/meals/201477.jpg",
         "sha256": "4570f7e9c41e15992f4131185ba75f0f99c174c0d5071a3c89d537e434f26d61",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "204451",
@@ -12966,23 +13095,26 @@
         "local_url": "/assets/media/meals/204451.jpg",
         "sha256": "2070a974d639cd90890a38b9d57b8c7c5b8ff7e18ca1d6d919371ac516868870",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "205695",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/Red_snapper_%28%3F%29_fillet_013_-_Tony%27s_Seafood%2C_Baton_Rouge.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/205695.jpg",
+        "sha256": "b086d70a906c582030afa405e65054239b30a4996332c758a2591ca90c1e86d0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "205804",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Ground_turkey_%284515834437%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/205804.jpg",
+        "sha256": "c567acd78f0d8eb82c25f4a93c1a203e22d0e1b16853c5d2e9713a1268f3cce2",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "205871",
@@ -12990,7 +13122,8 @@
         "local_url": "/assets/media/meals/205871.jpg",
         "sha256": "33cccb647cd3c170898fcf1eb0d2f37c5927dd7ae85b0a45f35c6eba087e5c65",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "206570",
@@ -12998,23 +13131,26 @@
         "local_url": "/assets/media/meals/206570.jpg",
         "sha256": "0dfafd16a8f68ce2a815b368b6d7c106c490d13044c61dafb56e6af91f2ff850",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "209188",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/33/Strawberry_Layered%2C_Streusel_Topped_Muffins_%285837664773%29.jpg",
+        "local_url": "/assets/media/meals/209188.jpg",
+        "sha256": "833aad7f667a6722f271621f3cddb09ca117f7e238b36367e6920594e5a673fd",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "210363",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/be/Pan_fried_saut%C3%A9ed_chicken_at_home.jpg",
+        "local_url": "/assets/media/meals/210363.jpg",
+        "sha256": "3028e8c682e36f54e24491ccdc4ed4b87c6c09840595bfcb8c0344093887d735",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "211485",
@@ -13022,15 +13158,17 @@
         "local_url": "/assets/media/meals/211485.jpg",
         "sha256": "0798474c075533dd9fe406652707f0f699fb403e394d69b278f90acbad5b42aa",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "213121",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/DZ3_0599_Sizzling_charcoal-grilled_salmon_and_tender_offal_served_hot_-_a_close-up_of_smoky_savory_street-style_BBQ_in_Sattahip.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/213121.jpg",
+        "sha256": "a3b81549b72c0f7fb175f73ef10d55653c8e3db9c5c23785721563686c3ae76d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "213549",
@@ -13038,39 +13176,44 @@
         "local_url": "/assets/media/meals/213549.jpg",
         "sha256": "ddc02e08a9270bea3a482124941398213a1ee58c86c764b672719b02d80c3b9b",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "214581",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/44/Original_Mac_n_Cheese_.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/214581.jpg",
+        "sha256": "3542a8f712628f2ae82a3b6fe65d1eb72d2539b90636d13f91b949852efd04dd",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "214768",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Japan_Chicken_Association_prize.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/214768.jpg",
+        "sha256": "ea9e95c8f696f93be98c6d7117fe898f0bf94910fac77804d3b14090c32634e6",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "214810",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/Preserved_lemon_in_a_clip_top_jar%2C_4_years_old.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/214810.jpg",
+        "sha256": "80f3753e5ab6bab2be7afb62d2a014c2bd9c73fc16cb598ef34a44507c2024ac",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "221371",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Pizza_Hut_-_Chicken_Crunch_Pizza_-_Howrah_2013-10-09_3231.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/221371.jpg",
+        "sha256": "2e2f87e94286e80ec7a3ff7e7f7ee7e5a636ae044200b2156997352a46453e60",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "222710",
@@ -13078,15 +13221,17 @@
         "local_url": "/assets/media/meals/222710.jpg",
         "sha256": "7cd33d7ac33054b08ae7c771c2e6abb071667961668bdb21b68a30d772d585ba",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "224467",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Agedashi_tofu%2C_fried_tofu_with_broth.jpg",
+        "local_url": "/assets/media/meals/224467.jpg",
+        "sha256": "2cb3d3ce80af9ddd26e1971103e38bad64217aa7b5183e0870599a78ef55e3aa",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "224817",
@@ -13094,7 +13239,8 @@
         "local_url": "/assets/media/meals/224817.jpg",
         "sha256": "30aad69763f4b541fa521ac291490ca571daa186d48c623cb172052d5368602b",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "226681",
@@ -13102,15 +13248,17 @@
         "local_url": "/assets/media/meals/226681.jpg",
         "sha256": "43b99284cde65bf878520d5a60df25e6945cc04b04f6d1db5d7f9c24be702c67",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "227262",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/46/Tuna_fish_sandwiches_for_the_National_School_Lunch_Program_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/227262.jpg",
+        "sha256": "ae3714e7a2a42b809ff22d7d905517af277fd4432d61f193ca4e320ee036b727",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "229669",
@@ -13118,7 +13266,8 @@
         "local_url": "/assets/media/meals/229669.jpg",
         "sha256": "9f3b07490a0d6f042e5b8c107e9c7da80f448152d142453f3b8a0efd0396f610",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "229924",
@@ -13126,79 +13275,89 @@
         "local_url": "/assets/media/meals/229924.jpg",
         "sha256": "c0aa42edb137aa807665748b121edb4c8ca5473b20c17a004a367f74c4a21c47",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "232206",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Dahl_with_spinach%2C_pea_and_potato_curry_with_whole_grain_rice_%282214436729%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/232206.jpg",
+        "sha256": "e607c39b99148447202ec4ea24431ed683ac758c51a4ec0555eb627553a92d1f",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "235636",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/Thai_style_peanut_fried_rice.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/235636.jpg",
+        "sha256": "264425427dab027a47b69cbf411bd18e80c70f89ffe1850d929b23c983c059ac",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "236409",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/8/80/FMIB_51643_Halibut%2C_Hippoglossus_hippoglossus_%28Linnaeus%29_Sp_Paul_Island%2C_Bering_Sea.jpeg",
+        "local_url": "/assets/media/meals/236409.jpg",
+        "sha256": "f9e9da18f01f1b491a86890ce9f4e03f7e48a9ba147baf87c296b1b9565d812b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "238010",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/de/Restaurant_Amigos_de_Acapulco_%28window%29%2C_Chico.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/238010.jpg",
+        "sha256": "b6df85c557dd4d181d2b1e3b60b37011df56e3dcb95769b7880a11af2e98afb9",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "240023",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Tzatziki_meze_or_appetizer%2C_also_used_as_a_sauce.jpg",
+        "local_url": "/assets/media/meals/240023.jpg",
+        "sha256": "b28a41da65ca09201a65766bfff82278ba1b5c23cec1134933b7f138173f0363",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "240600",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/27/Ratatouille.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/240600.jpg",
+        "sha256": "d6581cab17161441971f21556df91d578f1d7498b8b0f12e4b753754a29ec86b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "246597",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/-2020-01-13_Fruit_and_Yogurt_Breakfast_Parfait%2C_Trimingham.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/246597.jpg",
+        "sha256": "2cd89f65a2a3346ded34e5b4448a8dadae26690bc841e4c2a16c525ad241d168",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "262382",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/56/Oil_shale_-_from_research_to_reality_04._Enefit280_plant_-_On_the_platform%2C_view_to_the_retort.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/262382.jpg",
+        "sha256": "b554c11b7cfcc30a1300298d82858f4116f760a5ccf7166e5f58009bacb0dbea",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "264432",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/77/Unloading_subsistence_from_railcar_into_Q.M._Warehouse%2C_Dijon%2C_France%2C_1918_%2828648765635%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/264432.jpg",
+        "sha256": "0372ce49439298c357bd50a032f6a669760417f35da4f173cee0991060202198",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "268783",
@@ -13206,7 +13365,8 @@
         "local_url": "/assets/media/meals/268783.jpg",
         "sha256": "82e61a7b65fcb55b686aaf980c227665b9d0976b2ade5a7528a8d3520c7d4adb",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "270176",
@@ -13214,7 +13374,8 @@
         "local_url": "/assets/media/meals/270176.jpg",
         "sha256": "1f1e536a0f06f955ce99ce9beb41cb63c5d98a7b098ee4214b9bd46ada751502",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "275131",
@@ -13222,15 +13383,17 @@
         "local_url": "/assets/media/meals/275131.jpg",
         "sha256": "0ffe8771660307f84fa465e771476bda17c61d2b39eda22a7bedc8d19852b3ee",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "277915",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/Chicken_salad_sandwich_with_dill_pickles.jpg",
+        "local_url": "/assets/media/meals/277915.jpg",
+        "sha256": "5892bc71e515a233a19b95e426372b3c5c8d1b7b41eacf88e18ade5d9c7d4c97",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "277964",
@@ -13238,31 +13401,35 @@
         "local_url": "/assets/media/meals/277964.jpg",
         "sha256": "891a826f4ec4b14438228f0e6f2f064773d45926e3579c276664f4510a16bb79",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "278704",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7d/Mexican_souffle_with_street_corn_on_California_Zephyr_-_June_2022_-_Sarah_Stierch_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/278704.jpg",
+        "sha256": "85dd7cc718f85be99f0c7d80e91b52cf0ae6c7b44037f44acb9ccd84e53959cc",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "280208",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a6/Iranian_%28VSA_Ardestani_label%29_bell_peppers_sold_in_Moscow%2C_June_2025_03.jpg",
+        "local_url": "/assets/media/meals/280208.jpg",
+        "sha256": "6474cb3ec991a0c4350f51a8a8a1d82addffc691f6fee1265e8e5b7f5eb486d4",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "280313",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/25/Tortilla_encrusted_chicken.jpg",
+        "local_url": "/assets/media/meals/280313.jpg",
+        "sha256": "8b38797061610bb07b37a10afba69cc00f0ac516c753fd5089f7ddfbe592e0a6",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "281188",
@@ -13270,7 +13437,8 @@
         "local_url": "/assets/media/meals/281188.jpg",
         "sha256": "3c2c26c5e5e3392b2d017d1c3f63fcb379ea859d91e8eba319369b5379afa628",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "282130",
@@ -13278,7 +13446,8 @@
         "local_url": "/assets/media/meals/282130.jpg",
         "sha256": "67eb7f35e04b56ebe802c35cf6a29d341eeabb739013dcc6aff6b539cdfec8b6",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "283465",
@@ -13286,7 +13455,8 @@
         "local_url": "/assets/media/meals/283465.jpg",
         "sha256": "599638d2075ff01deb9bcbf33ee3120fa4a15575f4fd3ca1cbd901d2eedf0430",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "283704",
@@ -13294,7 +13464,8 @@
         "local_url": "/assets/media/meals/283704.jpg",
         "sha256": "942368e8aeb08f9ab6ea735fa457fbeeb458180324f4e5591bbdc37910892582",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "287061",
@@ -13302,47 +13473,53 @@
         "local_url": "/assets/media/meals/287061.jpg",
         "sha256": "f7c69e510a60c4852701ea502e37fb9769558a9e49baf6bfba783bf36a5620c6",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "290088",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Salmon_nicoise_salad_-_London%2C_UK.jpg",
+        "local_url": "/assets/media/meals/290088.jpg",
+        "sha256": "67ad996f96fd8c7545519814761b15f6a545b7c3ebfc69fdd62fca3d6eb34e1c",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "290185",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Chana_Masala_in_Paul%C3%ADnia%2C_2023-10-16.jpg",
+        "local_url": "/assets/media/meals/290185.jpg",
+        "sha256": "78827d97d8b72edce570bcb5741c873e3a16aa5d94a18a754bed485955459def",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "292085",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/Tandoori_Chicken_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/292085.jpg",
+        "sha256": "f74008dc95108b60df43d88326c279007c31b9fcc2ad3424d3db9c3366085e8d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "294604",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/Pork_tenderloin_sandwich.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/294604.jpg",
+        "sha256": "82ae86d6f5b79692f5a6ca9c53db398bf72db575f7daa9a0fcc9f8a69a82c93a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "295236",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/Beet_hummus_%2834046935963%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/295236.jpg",
+        "sha256": "c1912d310964805f4d8167934c2c7c8dbafc46c48158fd03dcf6f0aba502a1f6",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "295352",
@@ -13350,15 +13527,17 @@
         "local_url": "/assets/media/meals/295352.jpg",
         "sha256": "32aca63277b120b1f77175fa2ad773468399a12ff1b693593dd610917e51b27e",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "297239",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/Homemade_Lentil_Soup_-_Lavash_2025-02-10.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/297239.jpg",
+        "sha256": "2cb6e96bc6f01a655f0c782c8f572d752c1ab02b550ee0f844abd0daa2d46da3",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "301361",
@@ -13366,31 +13545,35 @@
         "local_url": "/assets/media/meals/301361.jpg",
         "sha256": "0bad24dc9261d204d84f0d622e57c2488831593923f005383447ecc6e78c6db3",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "302090",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/31/From_Scratch_923.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/302090.jpg",
+        "sha256": "ff7b654ab6acb98242de67b8825ba56196145b35dd2215a6fbc396c3f6dd245a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "304250",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/06/%E5%92%96%E5%93%A9%E7%82%AC%E7%8C%AA%E6%89%92%E9%A5%AD_Baked_Pork_Chop_in_Curry_Sauce_on_Fried_Rice_-_Niko_Niko_%282867056793%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/304250.jpg",
+        "sha256": "b1c83efb7fed91fa8fe7fa7d9054dcf4dfb1a1abe5902daf6614113174b40d65",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "304522",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f6/Tandoori_fish.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/304522.jpg",
+        "sha256": "19f3fae99a0d5fc1177bacc8bb2aa2f873eed69600c67d29a2dbd70f2ed94b27",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "304891",
@@ -13398,23 +13581,26 @@
         "local_url": "/assets/media/meals/304891.jpg",
         "sha256": "349bf5ceb13aea128d8160d5e7cc35b3e8ebfc2610d3df4bf5bcbc088b3ec5dc",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "307525",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2a/Lemon_rice_and_Chicken_65.jpg",
+        "local_url": "/assets/media/meals/307525.jpg",
+        "sha256": "5ee1369678f64eddb397b86e615a39e5c5f3b09e33c3c73a193d1b084fc20af9",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "311924",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b9/Stuffed_Peppers_%281337055553%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/311924.jpg",
+        "sha256": "c42cb203a655acf05e4692d57c7f6c26eb6bed84a924782d0e5dfde9c887f22d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "313343",
@@ -13422,23 +13608,26 @@
         "local_url": "/assets/media/meals/313343.jpg",
         "sha256": "2035b732c5fbc0f28944eac2d10838d121303681a868b83fab171e093b92d1f7",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "314244",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Liquid_Crystal_Phase_Transition.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/314244.jpg",
+        "sha256": "0a11a3439f233e2317668ebcac5c6efa5cdbc18131d3801ffd74e55c3d967d05",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "316871",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/3c/Chicken_makhani.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/316871.jpg",
+        "sha256": "1afaea229eb13f3e9daecd9e57732aa6fcf1e23031abc9ac7316f33ba8471b07",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "317010",
@@ -13446,31 +13635,35 @@
         "local_url": "/assets/media/meals/317010.jpg",
         "sha256": "113267676d6d525e077a8bde40c153143a435af219643ebf38ea1768bac87bbc",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "317745",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Grilled_Chicken_Tikka_Sizzler_with_Vegetables_and_Lemon_Wedge.jpg",
+        "local_url": "/assets/media/meals/317745.jpg",
+        "sha256": "df0d0ea2007f983cfc02b30a4bcd1e41e6cd93d61f4ca75f4ff88cb1cbef5428",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "318027",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/Chilli_Fish_and_Sambal_Eggplant_with_Yellow_Rice_-_Bali_Bowl_%28512111909%29.jpg",
+        "local_url": "/assets/media/meals/318027.jpg",
+        "sha256": "534997fc4e459a69639c671ccf395df6a332af39365122e2eeb5c62a5ab3c6b0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "319701",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/78/Crock_pot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/319701.jpg",
+        "sha256": "20db660f4b3395668935a5e49dfb2ce7150257b265c2eb13677bbcab1a339c7a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "320242",
@@ -13478,7 +13671,8 @@
         "local_url": "/assets/media/meals/320242.jpg",
         "sha256": "3af5ea085ab1614bf359f8e79d9bba97d4730d1510f2a08f05bf2bfb4d37adda",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "322306",
@@ -13486,15 +13680,17 @@
         "local_url": "/assets/media/meals/322306.jpg",
         "sha256": "65cf502263fe574a36611fe2f2e4862e4bf0543cf47a12014cd469373b6f979e",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "327208",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Ostrich%2C_kangaroo_or_zebra_burgers_-_geograph.org.uk_-_3997707.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/327208.jpg",
+        "sha256": "b5694cfb1f9f23878185cfed4e550f208d81c57f2ac74db556e98a57601a3b83",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "327916",
@@ -13502,39 +13698,44 @@
         "local_url": "/assets/media/meals/327916.jpg",
         "sha256": "0a142d472893bb5d92d465350d835f41bb6d2474155ff18b0d15966f07507263",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "328224",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c6/ChickenChettinad.JPG",
+        "local_url": "/assets/media/meals/328224.jpg",
+        "sha256": "7535d8aece4a8d9368ef5529b458165acd338f745d30cd4a114dcf6c802b252d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "328616",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Sweet_and_Sour_Chicken.JPG",
+        "local_url": "/assets/media/meals/328616.jpg",
+        "sha256": "85af4bafcb577bc50492b932d1b5bf728cc187b53506dbd6b02e5f4edd1a9887",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "329384",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Chiken_Marengo.jpg",
+        "local_url": "/assets/media/meals/329384.jpg",
+        "sha256": "4030e6dc9b6a6f7ed5f122cd0f1eadf6475a8605e1ace3fa1a7c3692a8cef004",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "331065",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Penne_and_turkey_meatballs_-_Jan_2022_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/331065.jpg",
+        "sha256": "773339a73996493933ac292d54ed76e9a40f0830cd426b11c8fd28c20e441639",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "332905",
@@ -13542,7 +13743,8 @@
         "local_url": "/assets/media/meals/332905.jpg",
         "sha256": "fbb23511dc132154e3556123b2a70efab0e83ba5412f7cd59374efb9ca7b0c9f",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "334984",
@@ -13550,7 +13752,8 @@
         "local_url": "/assets/media/meals/334984.jpg",
         "sha256": "ee2d593180a89c33b43deb05e771ecaf7c2c6c20edaf13cdde7eefa7d521119f",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "336375",
@@ -13558,23 +13761,26 @@
         "local_url": "/assets/media/meals/336375.jpg",
         "sha256": "fe17048b0e95d832fb7234d0f1dd37b9aaac4da348d69ae58b9688d35f1c575a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "346298",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Asparagus_soup_%28spargelsuppe%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/346298.jpg",
+        "sha256": "ae78841321c2d6fa281081f89097bdaffebc8269361b6fb570c13c382199ce89",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "348857",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c8/Monstrous_Veggie_Burger.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/348857.jpg",
+        "sha256": "fb0002d16d659845f5aa13fd2297d858c2b754c347d65afd38f103f92148a061",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "349905",
@@ -13582,15 +13788,17 @@
         "local_url": "/assets/media/meals/349905.jpg",
         "sha256": "2c7cee653cab76a03db062c8db9764c2c46f4b116ab53e414b15420fad8c1c36",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "349940",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/11/Swiss_Steak_for_Zaar_World_Tour_%285847521654%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/349940.jpg",
+        "sha256": "a9170c3530b7b420a8b4c02da559c3098b8927fe89c9ff54ab9b4e697ba437cb",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "350971",
@@ -13598,7 +13806,8 @@
         "local_url": "/assets/media/meals/350971.jpg",
         "sha256": "25927e69cdfd1f349773c7c2ba3dc6318a4a2ddfd5dd71a6cec3186f71638b88",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "351694",
@@ -13606,7 +13815,8 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "352071",
@@ -13614,7 +13824,8 @@
         "local_url": "/assets/media/meals/352071.jpg",
         "sha256": "01142549cc150abf1648f651a5d99f9fa9eb8022a46a9dba1ba076a36ecf91dd",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "352565",
@@ -13622,7 +13833,8 @@
         "local_url": "/assets/media/meals/352565.jpg",
         "sha256": "8f7aa94f026c2425e00277252c6b14217631af2e5c31fc60f9041e86e2d23894",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "353088",
@@ -13630,7 +13842,8 @@
         "local_url": "/assets/media/meals/353088.jpg",
         "sha256": "640694d3a54f23842522ea221560c4dfeed0a3fe8e3efe1711d6abbdc65e048d",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "354307",
@@ -13638,7 +13851,8 @@
         "local_url": "/assets/media/meals/354307.jpg",
         "sha256": "af014e6ca55ca838c045d335c23b5e7ef0513aacb1b3f63b80e8416fcdb02198",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "356923",
@@ -13646,15 +13860,17 @@
         "local_url": "/assets/media/meals/356923.jpg",
         "sha256": "3306981987a2e9a462fb22b6338e32ca3bb9c25a3fd7ddeba51a5b9a8d315b63",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "357146",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/37/Tropical_White_Chicken_Adobo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/357146.jpg",
+        "sha256": "4bb5a962eb7faacfd389a7d2dbbef2dfb69cc054eac23df5b1208d82ecbb3b0a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "357787",
@@ -13662,7 +13878,8 @@
         "local_url": "/assets/media/meals/357787.jpg",
         "sha256": "5aadbd13a68153d83815f038956a56de1d24cc76d197971838ba0d75ca1ae054",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "360274",
@@ -13670,15 +13887,17 @@
         "local_url": "/assets/media/meals/360274.jpg",
         "sha256": "8982b7fadcd5c5d57c75d0c6b3f8f101b86f17e15e6f9fbd89148ce16418f4e1",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "361504",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/18/Avocado_toast_at_the_girl_%26_the_fig_-_Sarah_Stierch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/361504.jpg",
+        "sha256": "df67619ccb0e0014f12196acda73581ce396c4d23e5fe2cc2fbf6ae7544be302",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "362826",
@@ -13686,7 +13905,8 @@
         "local_url": "/assets/media/meals/362826.jpg",
         "sha256": "df3880a0901201d09e31d73bd8aed7f1ad97a3d8ccfbe1b4e5db16c01f5dd507",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "364172",
@@ -13694,71 +13914,80 @@
         "local_url": "/assets/media/meals/364172.jpg",
         "sha256": "cd80646e894e9085b01fa201525276f71800b34ecc70fde21a8b61901d5d00e3",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "365360",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/67/Sauteed_Shrimp_w_Sundried_Tomatoes_%2810500414914%29.jpg",
+        "local_url": "/assets/media/meals/365360.jpg",
+        "sha256": "52815c0a363bbb7584f8e0bd9969ee14371466837e8977cfec1c275a28bf2423",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "368800",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/74/Beef_Steak_with_Turkey_Sausage_in_Black_Pepper_Sauce.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/368800.jpg",
+        "sha256": "effa510644772440b21a1509073aac2006c85af64883b9cb35c824b9f9036a77",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "369453",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Vegan_chard_and_quinoa_lasagna%2C_February_2012.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/369453.jpg",
+        "sha256": "12d47dea8b909fd5fa1f4b9d4ce0803c98819d920b97ed6f5741e2151fcdcec0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "370324",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Shrimp_and_Feta_Salad.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/370324.jpg",
+        "sha256": "7eccb4eb40bddd144f7b0cc2c65d337b02d90ad3729d0ac3102165fec7388a7d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "371474",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/XO_Steak_and_French_Fries.jpg",
+        "local_url": "/assets/media/meals/371474.jpg",
+        "sha256": "6680d4d3cb2df223bf3d809114715819bb6a74e7637515d4028a31831eba3167",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "374392",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/96/Semi-sweet_chocolate_chips.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/374392.jpg",
+        "sha256": "9cb2ab4656ab95afde0ac431f89870448049a8440fdbb7a74480c65821b8b9f9",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "374879",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/Bowl_of_dry_steel-cut_oats_with_full_spoon.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/374879.jpg",
+        "sha256": "c7f83dea7f47c698b27b6ead4b0162ead538ccaf6169d53d83b7ce781957a73a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "376226",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/24/Five_egg_white_fluffy_omlette.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/376226.jpg",
+        "sha256": "16f8c327b127ab8796a4fd8de6fe583ee815bfea38168db604f2c9b878725281",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "377420",
@@ -13766,7 +13995,8 @@
         "local_url": "/assets/media/meals/377420.jpg",
         "sha256": "09804512d134b47dd076e0f988e49125d9dc5ba6aaa38fc9b0eabfc1f720bee5",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "378174",
@@ -13774,87 +14004,98 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "382555",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b5/08_Vegan_lunch_brunch_outdoor%2C_broad_bean_salad_-_vegan_lunch_in_Stockholm%2C_Sweden.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/382555.jpg",
+        "sha256": "7d22f339e50f1e0d7ae4cf3e00d2004153258c259df7e9855da05bb6099bf015",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "386163",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f9/A_Boeing_B-52H_Stratofortress_in_flight_over_the_Persian_Gulf_%28190521-F-XN348-9173%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/386163.jpg",
+        "sha256": "e03617d8f936160816a8118853e0066e20f61c1305d65465b95b7aa50b8c096e",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "391554",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/48/Spinach_%26_artichoke_dip.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/391554.jpg",
+        "sha256": "bdfcfde7783e063731385386268cd45c50552aac92982a040c885e6068eef82a",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "391946",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/HK_%E5%8C%97%E8%A7%92_North_Point_%E9%95%B7%E5%BA%B7%E8%A1%97_Cheung_Hong_Street_%E6%98%8E%E6%98%9F%E6%B5%B7%E9%AE%AE%E9%85%92%E5%AE%B6_Star_Seafood_Restaurant_food_%E7%94%9C%E5%93%81_sweet_sugar_water_soup_night_March_2019_SSG_07.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/391946.jpg",
+        "sha256": "70351f2dca7b97c377015fe54653122bf10d57edb05e8ec4768562a651645f6c",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "393355",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/7a/Eggs_Benedict2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/393355.jpg",
+        "sha256": "e2cb73f304519e4da18e4cda595338c8d08d17b4d9632e8ce2197b6cf0a25371",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "394139",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Sloppy_Joes_Bar%2C_Havana%2C_Cuba.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/394139.jpg",
+        "sha256": "a30749e7c941db1d9a5b431be299b0d14d833e1e2b4e995f9db41fa4233637de",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "398300",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Ricotta.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/398300.jpg",
+        "sha256": "58b06e7b565c7d1e7f45e876a29c40750cd734cde3473f4551451d7c8dd2b068",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "414179",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/8/83/Sole_Meuniere_with_Shrimp.jpg",
+        "local_url": "/assets/media/meals/414179.jpg",
+        "sha256": "6bc50aac38a2d5e0524c4703ee23307f2f3e64565a4762d4ab0b8ee91c9eb214",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "415047",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/49/Autumn_salad.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/415047.jpg",
+        "sha256": "6782c525193584724ec3083cb9905e946a305f238c9a4c5bb0d3f4e62e90a221",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "416226",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Hippoglossus_hippoglossus1.jpg",
+        "local_url": "/assets/media/meals/416226.jpg",
+        "sha256": "e1f3d573f0681e690605043a77d22ddd4f1b547db77b83a0d669cc2d7542bfb7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "417223",
@@ -13862,31 +14103,35 @@
         "local_url": "/assets/media/meals/417223.jpg",
         "sha256": "dff9ef38384434b230490f7966007fc3a7d8796b64f1fa64296c4b644d95b0b8",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "419364",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/43/Unique-texture-tofu-noodle-salad-tossed-in-a-sesame-dressing-18.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/419364.jpg",
+        "sha256": "4c557c2560a60735d15a0cba89d79ba0085a16ac3db80f95d18a486d09267021",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "419409",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/13/Platichthys_flesus_V%C3%A4%C3%A4na-J%C3%B5esuu_in_Estonia.jpg",
+        "local_url": "/assets/media/meals/419409.jpg",
+        "sha256": "0727ca28a8b4ca05b01c7dc5caebb189d79f7b8b34b2088e7c3ac3d6ac715e7b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "420775",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6f/Smoked_salmon_pasta_-_Figaros%2C_Brighton_2024-04-19.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/420775.jpg",
+        "sha256": "420b5ec209cf5e3947379077119ac370f404c3f2edd5224e9052a634afe79400",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "425105",
@@ -13894,7 +14139,8 @@
         "local_url": "/assets/media/meals/425105.jpg",
         "sha256": "507466500642f2acdda6e1b6436c812dc813567db2863ea201fd0899007b301a",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "427216",
@@ -13902,23 +14148,26 @@
         "local_url": "/assets/media/meals/427216.jpg",
         "sha256": "1a5d4d758016ec014b5bce9da0e6768320c38213e9f158eccc349fd72c680235",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "428399",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/19/Chicken_Curry_with_Roti%28Indian_Bread%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/428399.jpg",
+        "sha256": "585543d95ff71cd119d62e02f51d133520d7c3d19a2a8a61307c3c3475ed3001",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "430648",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/Protein_overnight_oats.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/430648.jpg",
+        "sha256": "eaa272e1f446f8f0085398e8263da7dea875be31ffdea5a09189468796f12492",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "436303",
@@ -13926,31 +14175,35 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "439208",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/c/c4/Oven_baked_vegetables_with_Chicken_Skewers.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/439208.jpg",
+        "sha256": "4b2a9ae2db9b4e2481444dbe20cad002881f0b8e931898eff34e8d93f546e143",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "439209",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Flickr_preppybyday_4786746354--Orange_chicken.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/439209.jpg",
+        "sha256": "7d2e878413a202df849bb1b24c27b3c8232e8a94871eb958d6617510368329ba",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "441547",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Barber_Foods_Chicken_Cordon_Bleu_before_%2826145853902%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/441547.jpg",
+        "sha256": "3ed031d1c0ccd5c5035ba81befea1b8ecf3fab9f88c78fb5429b1464787e9aa9",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "443173",
@@ -13958,7 +14211,8 @@
         "local_url": "/assets/media/meals/443173.jpg",
         "sha256": "cb0d80895204e0d5a62ed59eb25caba80c048be1bbf11366df07aeab4e89bcea",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "453094",
@@ -13966,15 +14220,17 @@
         "local_url": "/assets/media/meals/453094.jpg",
         "sha256": "e5f30e43d0f79453e94a26db006375bada0ae92e30eb77b85c28afc86270ab99",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "453099",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/7/73/001_Tacos_de_carnitas%2C_carne_asada_y_al_pastor.jpg",
+        "local_url": "/assets/media/meals/453099.jpg",
+        "sha256": "afdfd4d01060c23ecacafa864ff3417d109bac968a115b352389c17fe8d04acb",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "453661",
@@ -13982,7 +14238,8 @@
         "local_url": "/assets/media/meals/453661.jpg",
         "sha256": "6cc0b99e7bc03a94f60a73b019c650c4253a14138820f69addb71ba7efc2f1af",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "457429",
@@ -13990,39 +14247,44 @@
         "local_url": "/assets/media/meals/457429.jpg",
         "sha256": "d91d4996c235b5d097ad3ebbb472e41492aa75d1ed02e7a619d5f8f9515223ec",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "460534",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Chicken_and_broccoli_in_Alfredo_sauce_-_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/460534.jpg",
+        "sha256": "d28f55c22fb58a0f0150401f138d7d1b098132145501e15632f9f05a9cf4dace",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "460755",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/6/6e/Oweston_sting_fish_for_sale_at_Tsukiji_Fishmarket%2C_Tokyo-30.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/460755.jpg",
+        "sha256": "a5730ae95edfd57070c60fadb8e9564e810a6583a432ccfc0c5f490d8484be73",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "465006",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Vegan_Garden_Corn_Chowder_with_Chives_%28cropped%29.jpg",
+        "local_url": "/assets/media/meals/465006.jpg",
+        "sha256": "e21a44fcd8de45ad8fc8222bfd0d94fd7ed99b5f0dff97e6a24b4cfaabc48fe9",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "466973",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Pinto_Beans_Seeds.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/466973.jpg",
+        "sha256": "59f6f6a9c0a98ac19c924f3965c9e8e0409d2b0960130a407ab9d0cc6f471589",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "469270",
@@ -14030,31 +14292,35 @@
         "local_url": "/assets/media/meals/469270.jpg",
         "sha256": "81334b841f288190b8c6993b28145c1bfe8ae1c9bf9b7b9e3fb67064977e88e9",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "472476",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0f/01_Chicken_Tacos_-_Acapulco_Deli_%26_Restaurant.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/472476.jpg",
+        "sha256": "8ba55644a9552b455eb33998303bce5763ebf050be9d8d8c583feb464433d391",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "472644",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Broccoli_cheese_soup_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/472644.jpg",
+        "sha256": "20ae9bcce915578fd40d56f6b1c1782770a26d9a8b3350ddb375eda7ec9fbefd",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "473251",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/24/Beef_and_vegetable_tortilla_wrap_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/473251.jpg",
+        "sha256": "c4d9410c5c6d5b1361c158dff8eed40001497b9ba3fe13a8dc7f78e97e66ba93",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "475467",
@@ -14062,23 +14328,26 @@
         "local_url": "/assets/media/meals/475467.jpg",
         "sha256": "5e12b2d564ba57b6dc65339cf3a4a4d5aa87fdf9d25b403423491680d62e9f09",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "477571",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Spinach-dip-in-a-cob-loaf-recipe-506764-1.jpg",
+        "local_url": "/assets/media/meals/477571.jpg",
+        "sha256": "47c24b97a7aac898655b0c6f7ac6c3da4c3dabdcb5edf2df379036799b3f1edc",
+        "state": "LICENSED",
+        "detail": "Wikimedia Commons 检索词: spinach dip（File:Spinach-dip-in-a-cob-loaf-recipe-506764-1.jpg）",
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "478373",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e4/Soup_%285792693415%29.jpg",
+        "local_url": "/assets/media/meals/478373.jpg",
+        "sha256": "e94b6b29a6a3be217b211fb93c72892a66cbc8a9662cd1eb5b7043980a2fbb21",
+        "state": "LICENSED",
+        "detail": "Wikimedia Commons 检索词: asparagus soup（File:Soup (5792693415).jpg）",
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "478873",
@@ -14086,7 +14355,8 @@
         "local_url": "/assets/media/meals/478873.jpg",
         "sha256": "634cb348fef9f76818dfb2f1df08738720c28b138e47f2f40487593cf481f796",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "479143",
@@ -14094,7 +14364,8 @@
         "local_url": "/assets/media/meals/479143.jpg",
         "sha256": "4b8fc7331ced1314034534b39c61fd7e9b58a175096dedc7b87e5258535e657e",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "481167",
@@ -14102,23 +14373,26 @@
         "local_url": null,
         "sha256": null,
         "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "detail": "原始数据无图片 URL 且 Wikimedia Commons 无标题匹配的位图",
+        "credit": null
       },
       {
         "source_id": "481614",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/03/Kale_Chips_%283425805140%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/481614.jpg",
+        "sha256": "570a3367d09beaccc1ceb08e296b4390595d7235caf40d5922a63fafdfe24769",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "483396",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a6/Paolo_dal_Pozzo_Toscanelli_1.jpg",
+        "local_url": "/assets/media/meals/483396.jpg",
+        "sha256": "c26efbbb5429e09b8993dbdbf04f89a3f71fd31b3d2300a50d75a41e2e1db01f",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "489939",
@@ -14126,15 +14400,17 @@
         "local_url": "/assets/media/meals/489939.jpg",
         "sha256": "3a741e12baccf1536276311f571895990cb3e0b7f627507be668ca722b453555",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "495074",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/b6/Pot_roast%2C_green_beans%2C_and_mashed_potatoes_-_Massachusetts.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/495074.jpg",
+        "sha256": "a6a5ae8c0a0cc9f38f10a1ec591ccf6c264b2302fb337e1f388dc6ad63389d5d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "499151",
@@ -14142,39 +14418,44 @@
         "local_url": "/assets/media/meals/499151.jpg",
         "sha256": "e0eae98eb7684838da8d7e29a1db6e3d456a6849d3e9a0d3120b6b87d5034cec",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "501808",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/54/Ethiopian_wat.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/501808.jpg",
+        "sha256": "4bbe6e54eeba9542fa43abf3350979083df740513d3eed0984b57746527ee96b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "505895",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Octopus_With_Chimichurri.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/505895.jpg",
+        "sha256": "6d27eda700c43ee5ec91549514d18784c194a5939cd588acf4c7d86791bf1c15",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "507881",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4b/Steamed_cheeseburger.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/507881.jpg",
+        "sha256": "129d641fdadfa05d667ee2643c5846ad5afe1e45919e2b16ba4206bbcbcacb1d",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "509342",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/39/Arroz-con-Pollo.jpg",
+        "local_url": "/assets/media/meals/509342.jpg",
+        "sha256": "297f771dc9b2be4ba91ba5b21407ea87bdc43638716727dab460bb6ddf3e0ea0",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "509656",
@@ -14182,7 +14463,8 @@
         "local_url": "/assets/media/meals/509656.jpg",
         "sha256": "4dbe3bde4ea22165ee14b7ff1ef06b992a843aec4f7049fe03189761ccb3e823",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "509705",
@@ -14190,23 +14472,26 @@
         "local_url": "/assets/media/meals/509705.jpg",
         "sha256": "f6ce19f4e64fe9af2955325f43d22c9113ea1ee9c1d2fe9ed6bd995082122b44",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "510709",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/38/Chicken_adobo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/510709.jpg",
+        "sha256": "1762d478ce63945a79754091e62d6c34d2283b64f99142f072beb3ccc265652e",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "511947",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Chicken_Paprikas.jpg",
+        "local_url": "/assets/media/meals/511947.jpg",
+        "sha256": "9ceadc1a53632645a1f9a55bb72515ed458b33ce6d9bf6c1182079912631e44e",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "512242",
@@ -14214,31 +14499,35 @@
         "local_url": "/assets/media/meals/512242.jpg",
         "sha256": "479d1b11f7d92818d6b2aab3da8008b6f1ec3d267cd5bf07177015f792e42317",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "516134",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e4/Sous_vide_cod_2018.jpg",
+        "local_url": "/assets/media/meals/516134.jpg",
+        "sha256": "f9b26e5f5357fd000788f539ca29cf8ccb66647ddb1bb0d4c1628f289150df9c",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "516942",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2e/2023-03-15_12_01_14_The_top_of_a_pan_of_vegetable_Alfredo_lasagna_at_Clayton_Hall_on_the_campus_of_the_University_of_Delaware_in_Newark%2C_New_Castle_County%2C_Delaware.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/516942.jpg",
+        "sha256": "6f49de5160d200509002f7a9325ab89174c49829eaef5f8f6ecb8d14bb84e5d7",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "517515",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d5/Sweet_potato_kale_curry_dish_%2845352725854%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/517515.jpg",
+        "sha256": "b91d16816a0c6c7acefaf6d3bb41f156bb3337133eebd3139c4ba04c82cb4b1b",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "517789",
@@ -14246,23 +14535,26 @@
         "local_url": "/assets/media/meals/517789.jpg",
         "sha256": "4e5c9d27cb3fe9e9c285948826a2bd75686da953f4551eb7b22978551a9b25cc",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "520995",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Lamb%2C_Lentils%2C_Pumpkin%2C_Mix_Veg_Curries_on_Turmeric_Rice%2C_Chilli%2C_Chutney_and_Papadum_-_Sheni%27s_Curries_%281267178418%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/520995.jpg",
+        "sha256": "3b9585dc407939e4dc481f395ddf20b6c7277b6ff14e7149ed5362b718dcd031",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "521685",
-        "source_url": null,
-        "local_url": null,
-        "sha256": null,
-        "state": "MISSING_SOURCE",
-        "detail": "原始数据无图片 URL"
+        "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d0/Smothered_pork_roast_and_gravy_in_black_pot_HRoe_2012.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+        "local_url": "/assets/media/meals/521685.jpg",
+        "sha256": "92220a9e2c407ebfda874eac8e8455453d2b0fe04c76c2422e7a4f26169714da",
+        "state": "LICENSED",
+        "detail": null,
+        "credit": "Wikimedia Commons image — local educational/non-commercial use"
       },
       {
         "source_id": "530181",
@@ -14270,7 +14562,8 @@
         "local_url": "/assets/media/meals/530181.jpg",
         "sha256": "bac1566071b7e91e0e52cdfa54bb73fba7137b1beda2c85dc47db1c3d2069bc8",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "534191",
@@ -14278,7 +14571,8 @@
         "local_url": "/assets/media/meals/534191.jpg",
         "sha256": "e794766e048d44259d4a727d67ab20afe2cdf98415e0f49fcf880538e7168840",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       },
       {
         "source_id": "535502",
@@ -14286,7 +14580,8 @@
         "local_url": "/assets/media/meals/535502.jpg",
         "sha256": "56e8146668e7f3310a58ea41e6992794ddb5308824d28df1ab43eef96e72edaa",
         "state": "LICENSED",
-        "detail": null
+        "detail": null,
+        "credit": "Food.com recipe image — local educational/non-commercial use"
       }
     ]
   }
