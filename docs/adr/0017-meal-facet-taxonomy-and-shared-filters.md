@@ -36,3 +36,14 @@ Status: accepted
 - 只有显式类型形态（`餐食类型：X`、`餐食类型是 X`、`想吃 X`、`X 类型`）允许登记词表外原值；标签前缀形态最显式，原值一律登记；弱形态（想吃/X 类型）候选先过跨槽位守卫（属于餐次/口味/便利等其他餐食槽位的表达不登记）。
 - 词表外值保留在 `foodTypes` 数组中并按稳定键 `foodType:<value>` 登记一次到 `unsupportedPreferences`；不参与筛选或生成；正向/否定（剥除否定范围）/"换成/改为"替换语义与 cuisine 完全对称；支持中文标点、和/或/以及、多值去重。
 - 模型 raw slot 中未被显式解析器认可的未知值仍被丢弃（只有受限解析器能产生未支持原值）；简报重启恢复必须完整还原 `foodTypes` 数组与未支持集合。
+
+### 决策四：结构化召回消费全部显式槽位（2026-08-30，演示召回规格）
+
+健康链结构化召回的方案 A（全槽位 SQL 硬召回 + 确定性排序），替代"召回只按餐次、领域再严格过滤"的旧行为：
+
+- `StructuredMealRetriever` 把八个餐食槽位（mealTime/mood/scene/healthGoal/cuisine/foodType/taste/convenience）全部透传给 `ReviewedMealReader.recallStructured`；空维度以空数组传递、SQL 视作不过滤；非餐食键（如 allergen）不进入召回谓词，过敏原继续走独立硬约束通道。
+- 召回排序为 `updated_at DESC, id DESC`（共享的 `mealMapper.search` 语句追加 `id DESC` 次键）：同秒更新的 seed 数据下顺序确定性，验收记录不再受执行计划影响；浏览分页（id 升序）与旧链排序口径不变，旧链仅在同 update 秒获得确定性次键。
+- `foodType` 是硬过滤字段：参与 SQL 谓词、领域 `MealModule.matchesStrict` 与 Hybrid 向量回查，但不进入 `MealRankService` 分数（分数含义不变，回归说明见其注释）。
+- Hybrid `matchesSlots` 向量回查与结构化 SQL 共享同一"三餐"兼容合同（早餐/午餐/晚餐查询命中"三餐"标签）；向量命中必须逐一满足全部显式槽位，不得绕过硬约束。
+- 方案 B（较宽确定性池 + 二次召回）被否：SQL 已完整实现八槽位谓词与三餐兼容，方案 A 直接满足候选完整性（窗口作用于过滤后集合），无需引入不可证明的池大小或二次查询；两方案的验证（结构化降级、Hybrid 有/无向量命中、过敏原/排除）均由回归套件覆盖。
+- 同一规格的对话侧决策（同域换主题替换/reset、训练候选稀缺进入 `generationNotes.candidateScarcity`、槽位标签统一为器械/训练日）见 `.scratch/health-agent-demo-flow-repair/spec.md`；不修改本 ADR 既有的词表、seed、ETL 稳定键与 provenance 合同。

@@ -101,7 +101,8 @@ function renderWorkspace(plan) {
 }
 
 /**
- * 计划页头部说明区：渲染生成说明两分区——未支持偏好（暂不按它筛选）与按日回退（带日期与未满足键）。
+ * 计划页头部说明区：渲染生成说明三分区——未支持偏好（暂不按它筛选）、按日回退（带日期与未满足键）
+ * 与候选不足（唯一候选复用等可解释降级）。
  * 数据来自后端 PlanView.generationNotes（结构化字段），不解析回复文案；无说明时不渲染。
  */
 function renderGenerationNotes(plan) {
@@ -109,7 +110,8 @@ function renderGenerationNotes(plan) {
     if (!notes) return "";
     const unsupported = Array.isArray(notes.unsupportedPreferences) ? notes.unsupportedPreferences : [];
     const fallbacks = Array.isArray(notes.fallbacks) ? notes.fallbacks : [];
-    if (!unsupported.length && !fallbacks.length) return "";
+    const scarcity = Array.isArray(notes.candidateScarcity) ? notes.candidateScarcity : [];
+    if (!unsupported.length && !fallbacks.length && !scarcity.length) return "";
     const unsupportedSection = unsupported.length
         ? `<p class="mp-notes-line"><strong>未支持偏好（暂不按它筛选）：</strong>${escapeHtml(unsupported.join("、"))}</p>`
         : "";
@@ -127,7 +129,10 @@ function renderGenerationNotes(plan) {
                 `${group.dates.length > 1 ? `${escapeHtml(group.dates[0])} 等${group.dates.length}天` : escapeHtml(group.dates[0])}（${escapeHtml([...group.meals].join("、"))}）未满足：${escapeHtml(reason)}`).join("；")}</p>`;
         })()
         : "";
-    return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}</div>`;
+    const scarcitySection = scarcity.length
+        ? `<p class="mp-notes-line"><strong>候选不足：</strong>${escapeHtml(scarcity.join("；"))}</p>`
+        : "";
+    return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}${scarcitySection}</div>`;
 }
 
 function renderSidebar() {

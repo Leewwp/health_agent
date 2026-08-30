@@ -13,8 +13,9 @@ import java.util.Optional;
 public interface ReviewedMealReader {
 
     /**
-     * 结构化条件召回：7 维槽位 JSON_OVERLAPS 召回后过滤 APPROVED + PUBLIC，排序与 SQL 口径一致。
-     * 返回的集合由实现决定顺序（旧链路 updated_at DESC），调用方只做领域级过滤与重排。
+     * 结构化条件召回：八个餐食槽位 JSON_OVERLAPS 召回后过滤 APPROVED + PUBLIC。
+     * 显式槽位全部参与召回（空维度视为不约束）；排序为 SQL 口径 updated_at DESC + id DESC
+     * 确定性 tiebreaker。返回的集合由实现决定顺序，调用方只做领域级过滤与重排。
      *
      * @param slots 餐食健康槽位（可为空，空维度视为不约束）
      * @param limit SQL 召回上限

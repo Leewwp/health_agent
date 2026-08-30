@@ -212,6 +212,94 @@ class MysqlReviewedReadersIntegrationTest {
     }
 
     @Test
+    void 餐次加清淡的结构化召回不受初始排序窗口截断() {
+        // 演示召回规格 P0：显式八槽位全部参与 SQL 召回。构造 55 行“只有晚餐、无清淡”的
+        // 行占满旧逻辑（只按餐次）的 50 条窗口，再插入 2 行“晚餐/三餐 + 清淡”且更旧的行；
+        // 修复后 SQL 直接按 餐次+清淡 过滤，不得被只按餐次的窗口截断。
+        try {
+            List<Long> dinnerOnly = new ArrayList<>();
+            for (int i = 0; i < 55; i++) {
+                dinnerOnly.add(insertMeal("window-dinner-" + i, "APPROVED", "PUBLIC", null,
+                        "[\"晚餐\"]", "[]"));
+            }
+            long light1 = insertMeal("window-light-1", "APPROVED", "PUBLIC", null, "[\"晚餐\"]", "[]");
+            long light2 = insertMeal("window-light-2", "APPROVED", "PUBLIC", null, "[\"三餐\"]", "[]");
+            jdbc.update("UPDATE meal_item SET health_goal = '[\"清淡\"]',"
+                    + " updated_at = DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE id IN (?, ?)", light1, light2);
+            jdbc.update("UPDATE meal_item SET updated_at = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id IN ("
+                    + String.join(",", dinnerOnly.stream().map(String::valueOf).toList()) + ")");
+
+            List<ReviewedMeal> result = mealReader.recallStructured(
+                    Map.of("mealTime", List.of("晚餐"), "healthGoal", List.of("清淡")), 50);
+            Set<Long> ids = result.stream().map(ReviewedMeal::id).collect(Collectors.toSet());
+
+            assertTrue(ids.contains(light1) && ids.contains(light2),
+                    "位于初始排序窗口之外的清淡餐食必须被全槽位召回包含（不被只按餐次的 50 条窗口截断）");
+            assertTrue(result.stream().allMatch(meal ->
+                            meal.tags().getOrDefault("healthGoal", List.of()).contains("清淡")),
+                    "召回结果必须全部满足显式健康目标硬约束");
+            assertTrue(result.stream().allMatch(meal -> meal.tags().getOrDefault("mealTime", List.of()).stream()
+                            .anyMatch(tag -> tag.equals("晚餐") || tag.equals("三餐"))),
+                    "召回结果必须全部满足晚餐/三餐兼容");
+        } finally {
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
+        }
+    }
+
+    @Test
+    void 结构化召回八槽位同维度OR跨维度AND且三餐兼容() {
+        try {
+            // A：三餐 兼容早餐查询 + 粤菜 OR 命中 + 轻食/清淡/快速 全命中
+            long matchAll = insertMeal("or-and-a", "APPROVED", "PUBLIC", null,
+                    "[\"三餐\"]", "[]", "[\"粤菜\"]", "[\"轻食\"]", "测试A");
+            // B：菜系不命中（湘菜 不在 粤菜/川菜 集合）
+            long wrongCuisine = insertMeal("or-and-b", "APPROVED", "PUBLIC", null,
+                    "[\"早餐\"]", "[]", "[\"湘菜\"]", "[\"轻食\"]", "测试B");
+            // C：餐食类型不命中（甜品 ≠ 轻食）
+            long wrongFoodType = insertMeal("or-and-c", "APPROVED", "PUBLIC", null,
+                    "[\"早餐\"]", "[]", "[\"川菜\"]", "[\"甜品\"]", "测试C");
+            jdbc.update("UPDATE meal_item SET taste = '[\"清淡\"]', convenience = '[\"快速\"]'"
+                    + " WHERE id IN (?, ?, ?)", matchAll, wrongCuisine, wrongFoodType);
+
+            List<Long> result = mealReader.recallStructured(Map.of(
+                    "mealTime", List.of("早餐"),
+                    "cuisine", List.of("粤菜", "川菜"),
+                    "foodType", List.of("轻食"),
+                    "taste", List.of("清淡"),
+                    "convenience", List.of("快速")), 50).stream()
+                    .map(ReviewedMeal::id).toList();
+
+            assertEquals(List.of(matchAll), result,
+                    "同维度多值 OR、跨维度 AND；“三餐”标签必须兼容早餐查询");
+        } finally {
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
+        }
+    }
+
+    @Test
+    void 结构化召回同快照次序稳定且主键为确定性次键() {
+        try {
+            long w1 = insertMeal("stable-1", "APPROVED", "PUBLIC", null, "[\"晚餐\"]", "[]");
+            long w2 = insertMeal("stable-2", "APPROVED", "PUBLIC", null, "[\"晚餐\"]", "[]");
+            long w3 = insertMeal("stable-3", "APPROVED", "PUBLIC", null, "[\"晚餐\"]", "[]");
+            // 同一更新秒内三行 updated_at 相同 → 次键 id DESC 决定顺序；且晚于 295 基线行
+            jdbc.update("UPDATE meal_item SET updated_at = DATE_ADD(NOW(), INTERVAL 2 DAY)"
+                    + " WHERE id IN (?, ?, ?)", w1, w2, w3);
+
+            List<Long> first = mealReader.recallStructured(Map.of("mealTime", List.of("晚餐")), 50).stream()
+                    .map(ReviewedMeal::id).toList();
+            List<Long> second = mealReader.recallStructured(Map.of("mealTime", List.of("晚餐")), 50).stream()
+                    .map(ReviewedMeal::id).toList();
+
+            assertEquals(first, second, "相同数据快照下两次召回顺序必须稳定（验收可复现）");
+            assertEquals(List.of(w3, w2, w1), first.subList(0, 3),
+                    "updated_at 相同的主键必须由 id DESC 次键确定，不受执行计划影响");
+        } finally {
+            jdbc.update("DELETE FROM meal_item WHERE source_name = ?", ITEST_MEAL_SOURCE);
+        }
+    }
+
+    @Test
     void 餐食读取仅返回APPROVED公共行审核与来源过滤生效() {
         try {
             long approvedPublic = insertMeal("x1", "APPROVED", "PUBLIC", null, "[\"早餐\"]", "[]");

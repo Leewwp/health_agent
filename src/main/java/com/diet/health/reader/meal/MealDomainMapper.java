@@ -10,7 +10,7 @@ import java.util.List;
  * 审核餐食 → 旧链路领域模型 MealItem 的共享映射（#68）。
  * <p>
  * 结构化与 Hybrid 检索器共用同一实现，消除两个检索器各自维护的重复映射；
- * 7 维槽位来自 {@link ReviewedMeal#tags()}，不重新解析 JSON。
+ * 八个餐食槽位来自 {@link ReviewedMeal#tags()}，不重新解析 JSON。
  */
 public final class MealDomainMapper {
 

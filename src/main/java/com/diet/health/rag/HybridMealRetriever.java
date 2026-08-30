@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 /**
  * Hybrid 餐食检索器（M5 #52）：结构化召回 + Qdrant 独立向量召回 → 确定性融合。
  * <p>
- * 两条召回路径独立执行：结构化召回（JSON_OVERLAPS + 7 维重叠重排，审核 APPROVED 公共餐食）
+ * 两条召回路径独立执行：结构化召回（JSON_OVERLAPS + 八槽位重叠重排，审核 APPROVED 公共餐食）
  * 与 Qdrant 向量召回（余弦 top-N，payload 过滤审核状态/来源/过敏原/排除 ID）。
  * 合并规则：按餐食 ID 合并去重，再以 ID 回查审核读取模块（审核 APPROVED 公共餐食）作为
  * 事实源二次执行全部硬约束——Qdrant 结果不得绕过领域规则，过期索引命中（已不存在或
@@ -164,7 +164,11 @@ public class HybridMealRetriever implements MealRetriever {
                         VectorRetrievalStatus.AVAILABLE, vectorLatencyMs));
     }
 
-    /** 向量命中回查时重做全部显式槽位硬过滤，防止语义召回绕过结构化条件。 */
+    /**
+     * 向量命中回查时重做全部显式槽位硬过滤，防止语义召回绕过结构化条件。
+     * 与 {@link com.diet.health.module.MealModule#matchesStrict} 同语义：
+     * 同维度多值 OR、跨维度 AND；“三餐”标签兼容早餐/午餐/晚餐查询值。
+     */
     private boolean matchesSlots(ReviewedMeal meal, Map<String, List<String>> slots) {
         if (slots == null || slots.isEmpty()) return true;
         for (Map.Entry<String, List<String>> entry : slots.entrySet()) {
@@ -172,10 +176,18 @@ public class HybridMealRetriever implements MealRetriever {
             if (values == null || values.isEmpty()) continue;
             if (!meal.tags().containsKey(entry.getKey())) return false;
             List<String> tags = meal.tags().getOrDefault(entry.getKey(), List.of());
-            if (tags.isEmpty() || values.stream().noneMatch(tags::contains)) return false;
+            if (tags.isEmpty()) return false;
+            boolean allDayMeal = tags.contains("三餐");
+            boolean hit = values.stream().anyMatch(value -> tags.contains(value)
+                    || (allDayMeal && ALL_DAY_MEAL_TIMES.contains(value)));
+            if (!hit) return false;
         }
         return true;
     }
+
+    /** 三餐兼容的三种餐次查询值。 */
+    private static final java.util.Set<String> ALL_DAY_MEAL_TIMES =
+            java.util.Set.of("早餐", "午餐", "晚餐");
 
     /** 独立向量召回；embedding 不可用返回 null（降级信号），Qdrant 故障抛 {@link VectorStoreException}。 */
     private List<VectorHit> vectorHits(MealRetrievalQuery query) {

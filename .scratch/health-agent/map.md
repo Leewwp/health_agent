@@ -8,6 +8,12 @@
 
 ## Notes
 
+## 2026-08-30 面试演示主流程修复规格
+
+- [`health-agent-demo-flow-repair/spec.md`](../health-agent-demo-flow-repair/spec.md)，状态 `resolved`（2026-08-30 实施完成并验收）。规格来自 `docs/review-2026-08-30-full-flow.md` 的真实运行态核验，覆盖审核餐食结构化召回窗口/P0、同域槽位替换、训练候选不足说明可见性、能量回退边界、中文标签一致性及完整回归顺序。
+- 实施结论（方案 A）：`StructuredMealRetriever` 全八槽位透传 Reader SQL；共享 `mealMapper.search` 追加 `id DESC` 次键；`HybridMealRetriever.matchesSlots` 补齐“三餐”兼容；同域换主题新增 `RecommendationTopicPolicy`（澄清短答继承、清除/只看/新推荐带餐次替换）；训练候选稀缺进入 `GenerationNotes.candidateScarcity`（计划页第三分区）；槽位标签统一为“器械/训练日”。ADR-0017 增补决策四。
+- 关键事实已收窄：当前“清淡晚餐”路径可复现为空，但不能推导所有偏好恒为 0；seed 不保证每次启动刷新全部 `updated_at`。修复必须遵守方案 B Reader 边界，并评估宽召回/Hybrid 语义契约。
+
 ## 2026-08-28 显式任务路由与计划生成约束实现收口（#103/#104-#108）
 
 - 规格见 [`health-agent-conversation-contracts/spec.md`](../health-agent-conversation-contracts/spec.md)（状态 `implemented / ready-for-human`），子票验收记录见同目录 [`issues/01..05`](../health-agent-conversation-contracts/map.md)；#107 产出独立研究文档 [`research/routine-grounded-docs-future.md`](../health-agent-conversation-contracts/research/routine-grounded-docs-future.md)，本轮不实现文档/RAG。

@@ -449,6 +449,12 @@ public class TrainingPlanGenerationService {
         metadata.put("contractVersion", CONTRACT_VERSION);
         metadata.put("guardVersion", GUARD_VERSION);
         metadata.put("fallbackReason", fallbackReason == null ? "" : fallbackReason);
+        // 候选稀缺说明进入结构化生成说明（演示召回规格 P1）：列表/详情/版本/计划页单一来源
+        List<String> scarcity = candidates.size() < brief.trainingDays().size()
+                ? List.of(scarcityMessage(candidates.size(), brief.trainingDays().size()))
+                : List.of();
+        metadata.put(GenerationNotes.METADATA_KEY,
+                new GenerationNotes(List.of(), List.of(), scarcity).toMetadata());
         return Map.copyOf(metadata);
     }
 
@@ -474,11 +480,16 @@ public class TrainingPlanGenerationService {
         int trainingDayCount = items.size();
         // 唯一/少量候选复用是明确告知的降级说明，不是静默放宽：候选不足时按指定训练日复用并提示。
         String scarcity = candidates.size() < trainingDayCount
-                ? "符合全部条件的候选动作只有 " + candidates.size() + " 个，不足以为每个训练日安排不同动作，已按指定训练日复用候选。"
+                ? scarcityMessage(candidates.size(), trainingDayCount)
                 : "";
         return "训练安排已按当前训练简报的训练日、时间窗口和动作偏好生成。"
                 + ("AGENT".equals(source) ? "本次由 Agent 从审核候选中完成动作排期。" : "模型结果未通过校验，已使用同一批候选按规则降级。")
                 + scarcity + "组数和次数由确定性规则生成。";
+    }
+
+    /** 候选不足文案：与 generationNotes.candidateScarcity 共用同一句（单一来源，不漂移）。 */
+    private String scarcityMessage(int candidateCount, int trainingDayCount) {
+        return "符合全部条件的候选动作只有 " + candidateCount + " 个，不足以为每个训练日安排不同动作，已按指定训练日复用候选。";
     }
 
     private String text(JsonNode node, String field) throws AgentFailureException {

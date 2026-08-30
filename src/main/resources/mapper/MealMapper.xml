@@ -198,7 +198,7 @@
             AND (#{tasteJson} = '[]' OR JSON_OVERLAPS(taste, #{tasteJson}))
             AND (#{convenienceJson} = '[]' OR JSON_OVERLAPS(convenience, #{convenienceJson}))
         </where>
-        ORDER BY updated_at DESC
+        ORDER BY updated_at DESC, id DESC
         LIMIT #{limit}
     </select>
 

@@ -7,14 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 生成说明（简报补充回路规格 v3.2 固定合同）：
- * {unsupportedPreferences: string[], fallbacks: [{date, mealTimes, unmetPreferences}]}。
+ * 生成说明（简报补充回路规格 v3.2 固定合同 + 演示召回规格 P1 扩展）：
+ * {unsupportedPreferences: string[], fallbacks: [{date, mealTimes, unmetPreferences}],
+ *  candidateScarcity: string[]}。
  * 所有数组非 null；日期为计划时区 ISO 日期（YYYY-MM-DD）。
  * 同时存在于生成 metadata、resource_snapshot_json.generation.generationNotes、
  * PlanView.generationNotes、计划详情 API、版本详情 API 与计划页头部说明；
  * 旧计划缺 metadata 时返回非 null 空对象。
  */
-public record GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks) {
+public record GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks,
+                              List<String> candidateScarcity) {
 
     /** 按日回退记录：日期 + 所选餐次 + 未满足偏好的“字段:值”键。 */
     public record FallbackDay(String date, List<String> mealTimes, List<String> unmetPreferences) {
@@ -27,10 +29,16 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
     public GenerationNotes {
         unsupportedPreferences = unsupportedPreferences == null ? List.of() : List.copyOf(unsupportedPreferences);
         fallbacks = fallbacks == null ? List.of() : List.copyOf(fallbacks);
+        candidateScarcity = candidateScarcity == null ? List.of() : List.copyOf(candidateScarcity);
+    }
+
+    /** 兼容既有两参构造：候选稀缺说明缺省为空。 */
+    public GenerationNotes(List<String> unsupportedPreferences, List<FallbackDay> fallbacks) {
+        this(unsupportedPreferences, fallbacks, List.of());
     }
 
     public static GenerationNotes empty() {
-        return new GenerationNotes(List.of(), List.of());
+        return new GenerationNotes(List.of(), List.of(), List.of());
     }
 
     /** metadata 键名（resource_snapshot_json.generation.generationNotes 同名）。 */
@@ -49,6 +57,7 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
             days.add(day);
         }
         notes.put("fallbacks", days);
+        notes.put("candidateScarcity", candidateScarcity);
         return notes;
     }
 
@@ -64,6 +73,9 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
                     new TypeReference<Map<String, Object>>() { });
             Object unsupported = converted.get("unsupportedPreferences");
             List<String> unsupportedList = unsupported instanceof List<?> list
+                    ? list.stream().map(String::valueOf).toList() : List.of();
+            Object scarcity = converted.get("candidateScarcity");
+            List<String> scarcityList = scarcity instanceof List<?> list
                     ? list.stream().map(String::valueOf).toList() : List.of();
             List<FallbackDay> fallbacks = new ArrayList<>();
             if (converted.get("fallbacks") instanceof List<?> days) {
@@ -81,7 +93,7 @@ public record GenerationNotes(List<String> unsupportedPreferences, List<Fallback
                             stringList(day.get("mealTimes")), stringList(day.get("unmetPreferences"))));
                 }
             }
-            return new GenerationNotes(unsupportedList, fallbacks);
+            return new GenerationNotes(unsupportedList, fallbacks, scarcityList);
         } catch (Exception ignored) {
             return empty();
         }
