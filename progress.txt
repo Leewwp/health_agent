@@ -10,3 +10,19 @@
 - ETL 重跑验证 seed SQL SHA-256 字节级一致；浏览器验收记录桌面 1694×880 与移动 390×844 无横向溢出。
 ### Notes:
 - 当前工作树基于提交 `4d389ba`，生成语料版本为 `current-corpus-v2` / `reviewed-2026-08-29-v1`；真实 Qdrant/模型仍按独立环境门控跳过。
+
+## [2026-08-30] - Task demo-flow-repair: 演示主流程修复（方案 A）
+### What was done:
+- P0 结构化召回：`StructuredMealRetriever` 全部八个餐食槽位（mealTime/mood/scene/healthGoal/cuisine/foodType/taste/convenience）透传 Reader SQL，空维度不过滤；共享 `mealMapper.search` 追加 `id DESC` 稳定次键；`HybridMealRetriever.matchesSlots` 补齐“三餐”兼容与 foodType 硬过滤；`MealRankService` 明确 foodType 为硬过滤字段不参与打分；七维→八槽位注释/接口口径统一（Reader/检索器/SlotBundle/SlotMergeService/MealRetrievalQuery）。
+- P1 同域换主题：新增 `RecommendationTopicPolicy`（澄清短答继承、显式清除/只看餐次/新推荐带餐次替换），编排器 SLOTS_MERGED 后接入并记录 `SLOT_TOPIC_APPLIED` Trace；跨域暂停/恢复与综合计划共享目标继承不受影响。
+- P1 候选稀缺可见：`GenerationNotes` 新增 `candidateScarcity`（兼容旧 metadata 反序列化），训练生成写入结构化说明，计划列表/详情/版本快照/计划页单一来源；前端 `plans.js` 生成说明第三分区“候选不足”渲染（HTML 转义 + 移动端无横向溢出）。
+- P2：`HealthSlotLabels` 与前端 `health-slot-labels.js` 标签统一为“器械/训练日/训练时段”；能量 WARNING 阻断规则确认保留（生成后/启用前可见即为既有行为）。
+- 文档：AGENTS.md 测试基线 922；ADR-0017 增补决策四；`frontend-browser-acceptance.md` 追加 2026-08-30 复验章节并标注旧 2026-08-29 清淡推荐证据过期；`docs/review-2026-08-30-full-flow.md` 作为规格原始证据入库；规格 map.md/spec.md 状态置 `resolved`。
+### Testing:
+- `mvn test`: 922 项（870 通过 + 52 环境门控跳过），0 failures/errors。
+- `mvn test -Ditest.mysql=true`: 全绿，12 个真实 MySQL integration 类执行（含新增窗口外“餐次+清淡”不截断、八槽位 AND/OR/三餐、稳定排序真库用例，MysqlReviewedReadersIntegrationTest 21/21），仅 Qdrant/live-model 独立门控跳过。
+- `node --test frontend/tests/*.test.mjs`: 42/42；真实浏览器 T1–T4 验收通过（预检→3 卡、同域换主题替换清淡、训练唯一候选“候选不足”计划页可见、移动端 390×844 无溢出），证据见 `.local-run/acceptance/review-2026-08-30-repair/`。
+- 提交 `2a24e41` 推送 main（origin）。
+### Notes:
+- 工作树基于提交 `f8b9bc5`（meal-facet-hardening）；Qdrant/真实模型仍按独立环境门控跳过。
+- 演示注意项：训练“增肌+全身+徒手+入门”组合当前零候选（诚实失败不放松），面试脚本若需增肌示例建议改“减脂”或调整约束。
