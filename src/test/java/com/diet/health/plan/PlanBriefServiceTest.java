@@ -25,8 +25,9 @@ class PlanBriefServiceTest {
     void 多轮补充合并为独立简报并正确映射周和时间窗口() {
         PlanBriefService.UpdateResult first = service.update(PlanBrief.empty(),
                 "我想减脂，重点练胸和核心，徒手，入门，目标周 2026-08-24，周一周三周五，19:00-20:00");
+        // ADR-0018：weekStart 不再是简报必填或用户输入字段，日期表达不写入简报
         assertTrue(first.brief().isComplete());
-        assertEquals(LocalDate.of(2026, 8, 24), first.brief().weekStart());
+        assertNull(first.brief().weekStart());
         assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY), first.brief().trainingDays());
         assertEquals(new TrainingTimeWindow(LocalTime.of(19, 0), LocalTime.of(20, 0)), first.brief().timeWindow());
 
@@ -81,11 +82,18 @@ class PlanBriefServiceTest {
     void 缺失字段返回确定性追问且模糊日期不会交给模型() {
         PlanBriefService.UpdateResult result = service.update(PlanBrief.empty(), "我想增肌，练背，哑铃，进阶");
         assertFalse(result.brief().isComplete());
-        assertTrue(result.missingFields().contains("weekStart"));
         assertTrue(result.missingFields().contains("trainingDays"));
         assertTrue(result.missingFields().contains("timeWindow"));
-        assertTrue(service.question(result.missingFields()).contains("目标周"));
-        assertTrue(service.update(result.brief(), "下周周一").brief().weekStart() != null);
+        assertTrue(service.question(result.missingFields()).contains("训练日"));
+        // ADR-0018：纯日期表达不写入简报、不记失败，返回统一说明（“不需要指定日期”）
+        PlanBriefService.UpdateResult dated = service.update(result.brief(), "改成 2026-09-07");
+        assertNull(dated.brief().weekStart());
+        assertEquals(BriefInterpretationStatus.EXTRACTED, dated.status());
+        assertTrue(dated.guidance().contains("不需要指定日期"));
+        // 日期 + 训练日混合输入：只写入可解析字段，日期仍不改变简报语义
+        PlanBriefService.UpdateResult mixed = service.update(result.brief(), "周一周三，改成下周开始");
+        assertEquals(List.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY), mixed.brief().trainingDays());
+        assertNull(mixed.brief().weekStart());
     }
 
     @Test

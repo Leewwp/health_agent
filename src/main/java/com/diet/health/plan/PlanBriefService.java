@@ -5,11 +5,7 @@ import com.diet.health.intent.HealthInputNormalizer;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -42,7 +38,6 @@ public class PlanBriefService {
     private static final Pattern COMPACT_DAYS = Pattern.compile("(?<![一二三四五六日天])([一二三四五六日天]{2,7})(?![一二三四五六日天])");
     private static final Pattern SEPARATED_DAYS = Pattern.compile("([一二三四五六日天](?:[、,，和及\\s]+[一二三四五六日天])+)");
     private static final Pattern EXCLUDED_EXERCISE = Pattern.compile("(?:不要做|不做|排除动作[：:]?)([\\p{IsHan}A-Za-z0-9（）()·-]{2,30})");
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final Map<String, DayOfWeek> DAY_NAMES = dayNames();
 
     private final HealthInputNormalizer normalizer;
@@ -92,7 +87,7 @@ public class PlanBriefService {
         String difficulty = difficultyConflict == null ? first(slots.get("difficulty")) : null;
         List<String> bodyParts = slots.getOrDefault("bodyParts", List.of());
         List<String> equipment = slots.getOrDefault("equipment", List.of());
-        LocalDate weekStart = parseWeekStart(text, LocalDate.now());
+        boolean dateMentioned = WeekAnchorProvider.hasDateExpression(text);
         DayParse days = parseDays(text);
         TimeParse time = parseWindow(text, base);
         Map<String, List<String>> hardConstraints = parseHardConstraints(text);
@@ -113,7 +108,6 @@ public class PlanBriefService {
         put(candidateFields, "bodyParts", bodyParts);
         put(candidateFields, "equipment", equipment);
         put(candidateFields, "difficulty", difficulty);
-        if (weekStart != null) put(candidateFields, "weekStart", weekStart.toString());
         if (!days.days().isEmpty()) put(candidateFields, "trainingDays", days.days().stream().map(this::dayLabel).toList());
         if (time.start() != null) put(candidateFields, "timeStart", time.start().toString());
         if (time.end() != null) put(candidateFields, "timeEnd", time.end().toString());
@@ -121,17 +115,26 @@ public class PlanBriefService {
 
         if (difficultyConflict != null) {
             // 多难度冲突：其他字段照常合并，难度保持原值（没有原值则留空等待重新选择）。
-            PlanBrief parsed = merge(base, goal, bodyParts, equipment, null, weekStart, days.days(), time, hardConstraints);
+            PlanBrief parsed = merge(base, goal, bodyParts, equipment, null, days.days(), time, hardConstraints);
             BriefInterpretationStatus status = time.partial() ? BriefInterpretationStatus.PARTIAL : BriefInterpretationStatus.EXTRACTED;
             String expected = time.partial() ? "timeWindowEnd" : first(missing(parsed));
             parsed = parsed.withProgress(expected, 0, time.partial() ? time.start() : null);
             return new PlanBriefInterpretation(status, parsed, candidateFields, text, difficultyConflict, true);
         }
         if (candidateFields.isEmpty()) {
-            return invalid(base, guidance(base.expectedField(), BriefInterpretationStatus.INVALID),
-                    likelyCurrentField(text, base));
+            // ADR-0018：日期/周表达不写入简报；纯日期输入返回统一说明，不记解析失败。
+            if (dateMentioned && !containsAnyPlanIntent(text)) {
+                return new PlanBriefInterpretation(BriefInterpretationStatus.EXTRACTED, base, Map.of(), text,
+                        WeekAnchorProvider.DATE_ONLY_EXPLANATION_COPY, false);
+            }
+            String guidance = guidance(base.expectedField(), BriefInterpretationStatus.INVALID);
+            if (dateMentioned) {
+                guidance = guidance.replaceAll("[。]+$", "")
+                        + "。" + WeekAnchorProvider.DATE_ONLY_EXPLANATION_COPY;
+            }
+            return invalid(base, guidance, likelyCurrentField(text, base));
         }
-        PlanBrief parsed = merge(base, goal, bodyParts, equipment, difficulty, weekStart, days.days(), time, hardConstraints);
+        PlanBrief parsed = merge(base, goal, bodyParts, equipment, difficulty, days.days(), time, hardConstraints);
         BriefInterpretationStatus status = time.partial() ? BriefInterpretationStatus.PARTIAL : BriefInterpretationStatus.EXTRACTED;
         String expected = time.partial() ? "timeWindowEnd" : first(missing(parsed));
         parsed = parsed.withProgress(expected, 0, time.partial() ? time.start() : null);
@@ -200,14 +203,13 @@ public class PlanBriefService {
 
     public List<String> missing(PlanBrief brief) {
         if (brief == null) {
-            return List.of("trainingGoal", "bodyParts", "equipment", "difficulty", "weekStart", "trainingDays", "timeWindow");
+            return List.of("trainingGoal", "bodyParts", "equipment", "difficulty", "trainingDays", "timeWindow");
         }
         List<String> missing = new ArrayList<>();
         if (isBlank(brief.trainingGoal())) missing.add("trainingGoal");
         if (brief.bodyParts().isEmpty()) missing.add("bodyParts");
         if (brief.equipment().isEmpty()) missing.add("equipment");
         if (isBlank(brief.difficulty())) missing.add("difficulty");
-        if (brief.weekStart() == null) missing.add("weekStart");
         if (brief.trainingDays().isEmpty()) missing.add("trainingDays");
         if (brief.timeWindow() == null) missing.add(brief.partialStartTime() == null ? "timeWindow" : "timeWindowEnd");
         return List.copyOf(missing);
@@ -225,17 +227,18 @@ public class PlanBriefService {
                 : brief.timeWindow().start() + "-" + brief.timeWindow().end();
         return "训练目标：" + value(brief.trainingGoal()) + "；部位：" + join(brief.bodyParts())
                 + "；器械：" + join(brief.equipment()) + "；难度：" + value(brief.difficulty())
-                + "；目标周：" + value(brief.weekStart()) + "；训练日：" + days + "；时间：" + window;
+                + "；训练日：" + days + "；时间：" + window;
     }
 
     private PlanBrief merge(PlanBrief base, String goal, List<String> bodyParts, List<String> equipment,
-                             String difficulty, LocalDate weekStart, List<DayOfWeek> days, TimeParse time,
+                             String difficulty, List<DayOfWeek> days, TimeParse time,
                              Map<String, List<String>> constraints) {
         return new PlanBrief(goal == null ? base.trainingGoal() : goal,
                 bodyParts.isEmpty() ? base.bodyParts() : bodyParts,
                 equipment.isEmpty() ? base.equipment() : equipment,
                 difficulty == null ? base.difficulty() : difficulty,
-                weekStart == null ? base.weekStart() : weekStart,
+                // ADR-0018：日期/周表达不写入简报，内部锚点保持既有值或由生成边界派生。
+                base.weekStart(),
                 days.isEmpty() ? base.trainingDays() : days,
                 time.range() == null ? (time.partial() ? null : base.timeWindow()) : time.range(),
                 mergeHardConstraints(base.hardConstraints(), constraints),
@@ -398,21 +401,6 @@ public class PlanBriefService {
         return text != null && text.trim().matches("^(?:到|至|[-—~～])\\s*.*$");
     }
 
-    private LocalDate parseWeekStart(String text, LocalDate today) {
-        Matcher matcher = ISO_DATE.matcher(text);
-        while (matcher.find()) {
-            try {
-                LocalDate date = LocalDate.parse(matcher.group(1), DATE_FORMAT);
-                if (date.getDayOfWeek() == DayOfWeek.MONDAY) return date;
-            } catch (DateTimeParseException ignored) {
-                return null;
-            }
-        }
-        if (text.contains("下周")) return today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        if (text.contains("本周") || text.contains("这周")) return today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        return null;
-    }
-
     private Map<String, List<String>> parseHardConstraints(String text) {
         Map<String, List<String>> constraints = new LinkedHashMap<>();
         List<String> excludedParts = new ArrayList<>();
@@ -460,7 +448,6 @@ public class PlanBriefService {
             case "bodyParts" -> "请说训练部位，例如胸、背、腿、核心或全身。";
             case "equipment" -> "请说可用器械，例如徒手、哑铃、弹力带或器械。";
             case "difficulty" -> "请说训练难度，例如入门、进阶或挑战。";
-            case "weekStart" -> "请给目标周的周一日期，例如 2026-08-24。";
             case "trainingDays" -> "请说训练日，例如“三天，二四六”“一三五”或“周一到周三”。";
             case "timeWindow" -> "请说完整时间段，例如“下午六点至七点”“六点半到七点一刻”或“19:00-20:00”。";
             case "timeWindowEnd" -> "已记下开始时间，请补充结束时间，例如“到六点”或“至七点”。";
@@ -494,7 +481,6 @@ public class PlanBriefService {
         appendCandidate(text, fields, "bodyParts");
         appendCandidate(text, fields, "equipment");
         appendCandidate(text, fields, "difficulty");
-        appendCandidate(text, fields, "weekStart");
         if (fields.containsKey("trainingDays")) {
             text.append(String.join("、", fields.get("trainingDays").stream().map(this::dayCandidateText).toList())).append(' ');
         }
@@ -581,6 +567,11 @@ public class PlanBriefService {
 
     private boolean containsAny(String text, String... values) {
         return text != null && java.util.Arrays.stream(values).anyMatch(text::contains);
+    }
+
+    /** 训练计划意图词：纯日期/周表达不包含它们时按“日期说明”处理，不进入字段收集。 */
+    private boolean containsAnyPlanIntent(String text) {
+        return containsAny(text, "训练", "健身", "动作", "练", "计划", "安排");
     }
 
     private record DayParse(List<DayOfWeek> days, boolean ambiguous) { }

@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -747,23 +748,19 @@ class HealthOrchestratorServiceTest {
         assertTrue(trainingRevision.planBrief().trainingDays().contains(java.time.DayOfWeek.TUESDAY));
         assertEquals(List.of("早餐", "午餐"), trainingRevision.mealPlanBrief().mealTimes(), "训练侧修改不得改写餐食简报");
 
-        // v3.2 综合 BOTH 回归例：两侧均完整时无前缀表达“目标周/改成下周”必须要求“餐食：/训练：”前缀，
-        // 返回侧归属澄清，不得沿用旧实现直接写入训练侧。
+        // ADR-0018 综合 BOTH 回归例：两侧均完整时，纯日期/周表达（如“目标周 2026-09-07”）
+        // 不再要求“餐食：/训练：”前缀，而是返回统一说明且不改变任何一侧简报。
         HealthChatResponse weekRevision = chatInSession(sessionId, "目标周 2026-09-07");
-        assertEquals(HealthResponseType.CLARIFY, weekRevision.responseType(), weekRevision.toString());
-        assertEquals("COMPOSITE", weekRevision.domain().name());
-        assertEquals(List.of("side"), weekRevision.missingSlots(), "无前缀共享周表达必须要求侧前缀");
-        assertTrue(weekRevision.speechText().contains("餐食"), weekRevision.toString());
-        assertTrue(weekRevision.speechText().contains("训练"), weekRevision.toString());
-        assertEquals(java.time.LocalDate.of(2026, 8, 24), weekRevision.planBrief().weekStart(),
-                "无前缀表达不得猜测写入训练侧简报");
+        assertEquals(HealthResponseType.ANSWER, weekRevision.responseType(), weekRevision.toString());
+        assertTrue(weekRevision.speechText().contains("不需要指定日期"), weekRevision.toString());
+        assertNull(weekRevision.planBrief().weekStart(), "日期表达不得改写训练侧内部锚点");
         assertEquals(List.of("早餐", "午餐"), weekRevision.mealPlanBrief().mealTimes(),
-                "无前缀表达不得改写已完整的餐食侧");
+                "日期表达不得改写已完整的餐食侧");
 
-        // 显式“餐食：/训练：”前缀允许跨侧修改，周表达带前缀后写入对应侧。
+        // 显式“餐食：/训练：”前缀允许跨侧修改；纯日期前缀同样只给说明，不写入内部锚点。
         HealthChatResponse prefixedWeek = chatInSession(sessionId, "训练：目标周 2026-09-07");
         assertEquals("GENERATE_PLAN", prefixedWeek.actions().get(0).type(), prefixedWeek.toString());
-        assertEquals(java.time.LocalDate.of(2026, 9, 7), prefixedWeek.planBrief().weekStart(), prefixedWeek.toString());
+        assertNull(prefixedWeek.planBrief().weekStart(), "显式前缀日期表达也不写入内部锚点");
         assertEquals(List.of("早餐", "午餐"), prefixedWeek.mealPlanBrief().mealTimes(),
                 "显式前缀跨侧修改不得改写餐食简报");
     }

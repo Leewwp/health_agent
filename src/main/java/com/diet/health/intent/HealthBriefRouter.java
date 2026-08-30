@@ -3,22 +3,32 @@ package com.diet.health.intent;
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthTask;
 import com.diet.health.plan.MealPlanBrief;
+import com.diet.health.plan.MealPlanBriefService;
 import com.diet.health.plan.PlanBrief;
+import com.diet.health.plan.PlanBriefService;
+import com.diet.health.plan.WeekAnchorProvider;
 import com.diet.health.session.BriefLifecycle;
 import com.diet.health.session.HealthSessionState;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 
 /**
- * 计划简报续轮的共享结构化判定（简报补充回路规格 v3.2，单一实现）。
+ * 计划简报续轮的共享结构化判定（简报补充回路规格 v3.2，单一实现；
+ * ADR-0018「计划上下文优先路由 / 需求输入指引动态化 / 周模板与目标周」扩展）。
  * <p>
  * 输入为会话状态与当轮文本，输出 {@link BriefRoutingDecision}；
  * 模型前续轮（HealthIntentRevisionService.continueBeforeAgent）、模型后修正（revise）
  * 与编排器简报门槛三处必须复用本实现，不建第二套路由状态机。
- * 裁决优先级为固定合同：风险（编排器前置执行）&gt; 明确领域切换/作息提问 &gt;
- * 替代/换一批 &gt; 明确普通推荐 &gt; 生命周期 &gt; 侧归属 &gt; 字段解析。
- * 本类只做路由判定；字段解析词与侧归属词不参与领域/任务路由。
+ * <p>
+ * ADR-0018 优先级：纯日期表达（只给说明，不改变简报）&gt; 计划字段修改证据（“修改表达 +
+ * 对应简报可解析”，压过“活动词 + 时间词”泛化作息启发式）&gt; 明确领域切换/作息提问 &gt;
+ * 替代/换一批 &gt; 明确普通推荐 &gt; 裸计划词“新建 vs 修改”澄清 &gt; 生命周期 &gt;
+ * 侧归属 &gt; 字段解析。计划字段修改证据是结构化状态条件（生命周期可捕获、目标侧、
+ * 修改表达、字段解析成功），不是关键词例外清单。
+ * <p>
+ * 路由器通过 Spring 注入简报服务，直接构造的测试实例与生产实例行为一致。
  */
 @Service
 public class HealthBriefRouter {
@@ -35,6 +45,11 @@ public class HealthBriefRouter {
     private static final String[] SOCIAL_WORDS = {
             "谢谢", "多谢", "感谢", "好的", "好嘞", "好哒", "明白了", "了解了", "知道了",
             "辛苦了", "嗯嗯", "ok", "OK", "Ok"
+    };
+
+    /** 计划字段修改表达（ADR-0018）：捕获为字段更新的结构化条件之一，不是例外关键词。 */
+    private static final String[] MODIFICATION_WORDS = {
+            "改为", "改成", "改到", "调整为", "调整到", "修改为", "安排到", "换成"
     };
 
     /** 作息事实证据（优先判定，避免“训练时段”被部位词抢先）。 */
@@ -72,6 +87,26 @@ public class HealthBriefRouter {
             "训练", "健身", "动作", "练"
     };
 
+    /** 裸餐食计划词（无任何字段内容，已有上下文时澄清新建/修改，不由模型猜测）。 */
+    private static final List<String> BARE_MEAL_PLAN_WORDS = List.of(
+            "餐食计划", "饮食计划", "安排餐食计划", "安排饮食计划",
+            "帮我安排餐食计划", "帮我安排饮食计划", "想安排餐食计划", "想安排饮食计划"
+    );
+
+    private final PlanBriefService planBriefService;
+    private final MealPlanBriefService mealPlanBriefService;
+
+    /** Spring 入口：与意图修订服务、编排器共享同一行为实例。 */
+    public HealthBriefRouter(PlanBriefService planBriefService, MealPlanBriefService mealPlanBriefService) {
+        this.planBriefService = planBriefService;
+        this.mealPlanBriefService = mealPlanBriefService;
+    }
+
+    /** 测试与旧调用兼容入口：等价纯词表服务实例，行为与生产一致。 */
+    public HealthBriefRouter() {
+        this(new PlanBriefService(new HealthInputNormalizer()), new MealPlanBriefService());
+    }
+
     /** 共享判定入口：返回结构化判定结果。 */
     public BriefRoutingDecision decide(HealthSessionState state, String userInput) {
         String text = userInput == null ? "" : userInput.trim();
@@ -79,15 +114,35 @@ public class HealthBriefRouter {
         if (sessionSide == BriefSide.NONE || state == null) {
             return BriefRoutingDecision.inactive("NO_ACTIVE_BRIEF");
         }
-        BriefSide targetSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
-        BriefLifecycle lifecycle = lifecycleOf(state, targetSide, sessionSide);
+        BriefSide passiveSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
+        BriefLifecycle lifecycle = lifecycleOf(state, passiveSide, sessionSide);
         boolean hasBriefContent = briefContentFor(state, sessionSide);
         if (lifecycle == null && !hasBriefContent) {
             // 会话根本没有计划简报上下文（如推荐澄清会话），不做简报捕获
             return BriefRoutingDecision.inactive("NO_ACTIVE_BRIEF");
         }
 
-        // 优先级 1：明确领域切换/作息提问（证据域与当前简报侧冲突）
+        // 优先级 0：纯日期/周表达（ADR-0018）——日期不进入简报、不改变计划语义，
+        // 也不要求侧前缀；只返回统一说明。含计划意图词（计划/安排/训练等）或任一简报侧
+        // 能解析出真实字段时按普通输入处理（计划请求仍走简报收集）。
+        if (WeekAnchorProvider.hasDateExpression(text)
+                && !containsAny(text, "计划", "安排", "训练", "健身", "动作", "练")
+                && !fieldUpdateParses(state, BriefSide.MEAL, text)
+                && !fieldUpdateParses(state, BriefSide.EXERCISE, text)) {
+            return new BriefRoutingDecision(false, passiveSide, BriefEscape.DATE_ONLY_EXPLANATION,
+                    "DATE_ONLY_EXPLANATION", null);
+        }
+
+        // 优先级 1：计划字段修改证据——活动简报上下文 + 修改表达 + 对应简报可解析出字段变化。
+        // 压过“活动词 + 时间词”的泛化作息启发式（问题 4 修复：不再被路由成 ROUTINE）。
+        BriefSide targetSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
+        if (hasModificationExpression(text)
+                && fieldUpdateParses(state, targetSide, text)) {
+            return new BriefRoutingDecision(true, targetSide, BriefEscape.NONE,
+                    "PLAN_FIELD_MODIFICATION", null);
+        }
+
+        // 优先级 2：明确领域切换/作息提问（证据域与当前简报侧冲突）
         HealthDomain evidence = domainEvidence(text);
         boolean evidenceConflicts = evidence != null && evidenceConflictsWith(evidence, sessionSide);
         if (evidenceConflicts) {
@@ -96,28 +151,35 @@ public class HealthBriefRouter {
                     "EXPLICIT_DOMAIN_OR_ROUTINE_SWITCH", evidence);
         }
 
-        // 优先级 2：替代/换一批
+        // 优先级 3：替代/换一批
         if (containsAny(text, ALTERNATIVE_ESCAPE_WORDS)) {
             BriefSide currentSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
             return new BriefRoutingDecision(true, currentSide, BriefEscape.ALTERNATIVE,
                     "ALTERNATIVE_REQUEST", null);
         }
 
-        // 优先级 3：明确普通推荐请求（不含“计划/安排”时生效）
+        // 优先级 4：明确普通推荐请求（不含“计划/安排”时生效）
         if (isRecommendationRequest(text)) {
             BriefSide currentSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
             return new BriefRoutingDecision(true, currentSide, BriefEscape.RECOMMEND,
                     "EXPLICIT_RECOMMEND_REQUEST", evidence);
         }
 
-        // 优先级 4：生命周期（GENERATED/PAUSED 不捕获；显式计划词重新打开）
+        // 优先级 5：裸计划词的“新建 vs 修改”澄清（状态策略，不调用模型猜测）。
+        // 已有餐食计划上下文（简报有内容或生命周期已开启）时，裸“餐食计划”无法区分新建与修改。
+        if (isBareMealPlanWord(text) && mealPlanContextExists(state)) {
+            return new BriefRoutingDecision(true, BriefSide.MEAL, BriefEscape.NEW_VS_MODIFY,
+                    "MEAL_NEW_VS_MODIFY_CLARIFY", null);
+        }
+
+        // 优先级 6：生命周期（GENERATED/PAUSED 不捕获；显式计划词或字段修改重新打开）
         boolean explicitPlanWord = HealthPlanIntentMatcher.matches(text);
         if ((lifecycle == BriefLifecycle.GENERATED || lifecycle == BriefLifecycle.PAUSED)
                 && !explicitPlanWord) {
             return BriefRoutingDecision.inactive("LIFECYCLE_" + lifecycle.name());
         }
 
-        // 优先级 5/6：侧归属与字段解析（字段解析由简报处理器执行，判定只给归属结论）
+        // 优先级 7：侧归属与字段解析（字段解析由简报处理器执行，判定只给归属结论）
         String reason = switch (targetSide) {
             case MEAL -> "MEAL_BRIEF_FOCUS";
             case EXERCISE -> "EXERCISE_BRIEF_FOCUS";
@@ -125,6 +187,50 @@ public class HealthBriefRouter {
             case NONE -> "NO_ACTIVE_BRIEF";
         };
         return new BriefRoutingDecision(true, targetSide, BriefEscape.NONE, reason, null);
+    }
+
+    /** 文本是否包含计划字段修改表达（改为/改成/安排到等；结构化条件，供意图链共用）。 */
+    public boolean hasModificationExpression(String text) {
+        return containsAny(text == null ? "" : text, MODIFICATION_WORDS);
+    }
+
+    /** 裸餐食计划词（无字段内容，仅计划词本身）。 */
+    public boolean isBareMealPlanWord(String text) {
+        String compact = text == null ? "" : text.trim();
+        return BARE_MEAL_PLAN_WORDS.contains(compact);
+    }
+
+    /**
+     * 指定侧简报能否把当轮文本解析为真实字段更新（EXTRACTED/PARTIAL 且简报发生变化）。
+     * 纯日期表达（日期不写入简报）与无字段变化输入不算解析成功。
+     */
+    public boolean fieldUpdateParses(HealthSessionState state, BriefSide side, String text) {
+        if (state == null || side == null || text == null || side == BriefSide.NONE) {
+            return false;
+        }
+        try {
+            return switch (side) {
+                case MEAL -> {
+                    MealPlanBrief base = state.mealPlanBrief() == null
+                            ? MealPlanBrief.empty() : state.mealPlanBrief();
+                    MealPlanBriefService.UpdateResult result = mealPlanBriefService.update(base, text);
+                    yield (result.status() == com.diet.health.plan.BriefInterpretationStatus.EXTRACTED
+                            || result.status() == com.diet.health.plan.BriefInterpretationStatus.PARTIAL)
+                            && !result.brief().equals(base);
+                }
+                case EXERCISE -> {
+                    PlanBrief base = state.planBrief() == null ? PlanBrief.empty() : state.planBrief();
+                    PlanBriefService.UpdateResult result = planBriefService.update(base, text);
+                    yield (result.status() == com.diet.health.plan.BriefInterpretationStatus.EXTRACTED
+                            || result.status() == com.diet.health.plan.BriefInterpretationStatus.PARTIAL)
+                            && !result.brief().equals(base);
+                }
+                default -> false;
+            };
+        } catch (RuntimeException ignored) {
+            // 解析抛错（如不支持的硬约束）不算字段修改证据
+            return false;
+        }
     }
 
     /** 该侧简报是否已有任何内容（含可选偏好与未支持记录）。 */
@@ -160,6 +266,17 @@ public class HealthBriefRouter {
             case COMPOSITE -> BriefSide.BOTH;
             default -> BriefSide.NONE;
         };
+    }
+
+    /** 已有餐食计划上下文：餐食简报有内容或餐食侧生命周期已开启（含 GENERATED）。 */
+    private boolean mealPlanContextExists(HealthSessionState state) {
+        if (state == null) {
+            return false;
+        }
+        if (briefContentFor(state, BriefSide.MEAL)) {
+            return true;
+        }
+        return lifecycleOf(state, BriefSide.MEAL) != null;
     }
 
     /** 证据域与当前简报侧是否冲突（冲突才构成“明确切换领域”逃生口）。 */

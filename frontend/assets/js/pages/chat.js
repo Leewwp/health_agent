@@ -265,11 +265,12 @@ function summarizePlanBrief(brief) {
 }
 
 function summarizeMealPlanBrief(brief) {
-    // 摘要直接渲染结构化简报字段（含可选偏好与未支持项），不依赖解析 speechText
+    // 摘要直接渲染结构化简报字段（含可选偏好与未支持项），不依赖解析 speechText；
+    // ADR-0018：内部周锚点（weekStart）不对用户展示，聊天摘要隐藏日期
     const cuisines = brief?.cuisines?.length ? brief.cuisines : (brief?.cuisine ? [brief.cuisine] : []);
     const foodTypes = brief?.foodTypes || [];
-    if (!brief || (!brief.weekStart && !brief.mealTimes?.length && !cuisines.length && !foodTypes.length && !brief.tastePreferences?.length && !brief.convenience && !brief.unsupportedPreferences?.length)) return "";
-    const parts = [`餐食目标周 ${brief.weekStart || "未定"}`, brief.mealTimes?.join("、") || "餐次未定"];
+    if (!brief || (!brief.mealTimes?.length && !cuisines.length && !foodTypes.length && !brief.tastePreferences?.length && !brief.convenience && !brief.unsupportedPreferences?.length)) return "";
+    const parts = [brief.mealTimes?.join("、") || "餐次未定"];
     if (brief.healthGoal) parts.push(brief.healthGoal);
     if (cuisines.length) parts.push(`菜系 ${cuisines.join("、")}`);
     if (foodTypes.length) parts.push(`餐食类型 ${foodTypes.join("、")}`);

@@ -20,6 +20,8 @@ import java.util.Set;
  * MEAL/EXERCISE，作息事实保留在历史中但不参与排除），preferenceSignals 记录明示偏好。
  * briefLifecycle 为计划简报会话按侧生命周期（OPEN/PAUSED/GENERATED），
  * recommendationConfirmationKey 为推荐前预检确认指纹（简报补充回路规格 v3.2）。
+ * pendingPlanClarify 为计划“新建 vs 修改”澄清的挂起标记（ADR-0018：裸计划词/孤立修改
+ * 表达不猜测执行，先澄清，消费后清除）。
  */
 public record HealthSessionState(
         String sessionId,
@@ -37,7 +39,8 @@ public record HealthSessionState(
         boolean recommendationConfirmed,
         long recommendationConfirmationVersion,
         Map<String, String> briefLifecycle,
-        String recommendationConfirmationKey
+        String recommendationConfirmationKey,
+        String pendingPlanClarify
 ) {
 
     /** 替代推荐和同一任务连续推荐的有界资源历史，避免会话 JSON 无限增长。 */
@@ -48,7 +51,7 @@ public record HealthSessionState(
                               List<SessionResourceRef> lastResources, List<PreferenceSignal> preferenceSignals,
                               PlanBrief planBrief) {
         this(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
-                planBrief, MealPlanBrief.empty(), false, false, 0, Map.of(), null);
+                planBrief, MealPlanBrief.empty(), false, false, 0, Map.of(), null, null);
     }
 
     /** 兼容旧 14 参构造器：新会话无生命周期与确认指纹。 */
@@ -60,7 +63,20 @@ public record HealthSessionState(
                               long recommendationConfirmationVersion) {
         this(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
                 planBrief, mealPlanBrief, recommendationPreflightPending, recommendationConfirmed,
-                recommendationConfirmationVersion, Map.of(), null);
+                recommendationConfirmationVersion, Map.of(), null, null);
+    }
+
+    /** 兼容旧 16 参构造器（含生命周期与确认指纹）。 */
+    public HealthSessionState(String sessionId, Long userId, HealthPhase phase, HealthDomain domain,
+                              HealthTask task, List<String> riskFlags, Map<String, List<String>> slots,
+                              List<SessionResourceRef> lastResources, List<PreferenceSignal> preferenceSignals,
+                              PlanBrief planBrief, MealPlanBrief mealPlanBrief,
+                              boolean recommendationPreflightPending, boolean recommendationConfirmed,
+                              long recommendationConfirmationVersion, Map<String, String> briefLifecycle,
+                              String recommendationConfirmationKey) {
+        this(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources, preferenceSignals,
+                planBrief, mealPlanBrief, recommendationPreflightPending, recommendationConfirmed,
+                recommendationConfirmationVersion, briefLifecycle, recommendationConfirmationKey, null);
     }
 
     public static HealthSessionState fresh(String sessionId, Long userId) {
@@ -98,14 +114,15 @@ public record HealthSessionState(
     public HealthSessionState withRecommendationState(boolean pending, boolean confirmed, long version) {
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
                 preferenceSignals, planBrief, mealPlanBrief, pending, confirmed, Math.max(0, version),
-                briefLifecycle, recommendationConfirmationKey);
+                briefLifecycle, recommendationConfirmationKey, pendingPlanClarify);
     }
 
     /** 写入推荐前预检确认指纹（SHA-256 canonical），槽位/领域/资源版本变化会使旧指纹失效。 */
     public HealthSessionState withRecommendationConfirmationKey(String key) {
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
                 preferenceSignals, planBrief, mealPlanBrief, recommendationPreflightPending,
-                recommendationConfirmed, recommendationConfirmationVersion, briefLifecycle, key);
+                recommendationConfirmed, recommendationConfirmationVersion, briefLifecycle, key,
+                pendingPlanClarify);
     }
 
     /** 整体替换简报生命周期 Map（键为 MEAL/EXERCISE，值为 OPEN/PAUSED/GENERATED）。 */
@@ -114,7 +131,15 @@ public record HealthSessionState(
         return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
                 preferenceSignals, planBrief, mealPlanBrief, recommendationPreflightPending,
                 recommendationConfirmed, recommendationConfirmationVersion, normalized,
-                recommendationConfirmationKey);
+                recommendationConfirmationKey, pendingPlanClarify);
+    }
+
+    /** 写入“新建 vs 修改”澄清挂起标记；null 表示无挂起（ADR-0018 状态策略，不猜测执行）。 */
+    public HealthSessionState withPendingPlanClarify(String nextPending) {
+        return new HealthSessionState(sessionId, userId, phase, domain, task, riskFlags, slots, lastResources,
+                preferenceSignals, planBrief, mealPlanBrief, recommendationPreflightPending,
+                recommendationConfirmed, recommendationConfirmationVersion, briefLifecycle,
+                recommendationConfirmationKey, nextPending);
     }
 
     private HealthSessionState copy(HealthPhase nextPhase, HealthDomain nextDomain, HealthTask nextTask,
@@ -124,7 +149,7 @@ public record HealthSessionState(
         return new HealthSessionState(sessionId, userId, nextPhase, nextDomain, nextTask, nextRiskFlags, nextSlots,
                 nextResources, nextSignals, nextPlanBrief, nextMealBrief,
                 recommendationPreflightPending, recommendationConfirmed, recommendationConfirmationVersion,
-                briefLifecycle, recommendationConfirmationKey);
+                briefLifecycle, recommendationConfirmationKey, pendingPlanClarify);
     }
 
     /** 追加本轮类型化资源引用，按 (type, id) 去重并保持顺序。 */

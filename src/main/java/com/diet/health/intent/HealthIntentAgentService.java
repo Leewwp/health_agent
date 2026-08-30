@@ -69,6 +69,11 @@ public class HealthIntentAgentService {
         return recognizeWithDiagnostics(userInput, knownSlots, recentHistory, timeout, false).result();
     }
 
+    /** 只执行规则快路径（ADR-0018：无歧义输入不调用模型）；返回 null 表示需要模型/仲裁。 */
+    public HealthIntentResult fastPathIfPresent(String userInput, Map<String, List<String>> knownSlots) {
+        return intentRuleService.fastPath(userInput, knownSlots);
+    }
+
     /** 识别并返回路径诊断；明确短语不触发模型，歧义输入最多一次调用。 */
     public Recognition recognizeWithDiagnostics(String userInput, Map<String, List<String>> knownSlots,
                                                 List<String> recentHistory) {

@@ -44,9 +44,16 @@ public record PlanBrief(
 
     @JsonIgnore
     public boolean isComplete() {
+        // ADR-0018：weekStart 是生成时派生的不可见内部锚点，不是用户必填字段。
         return hasText(trainingGoal) && !bodyParts.isEmpty() && !equipment.isEmpty()
-                && hasText(difficulty) && weekStart != null && !trainingDays.isEmpty()
+                && hasText(difficulty) && !trainingDays.isEmpty()
                 && timeWindow != null;
+    }
+
+    /** 生成边界注入内部周锚点（旧会话已有锚点优先保持，调用方按派生规则决定）。 */
+    public PlanBrief withWeekStart(LocalDate nextWeekStart) {
+        return new PlanBrief(trainingGoal, bodyParts, equipment, difficulty, nextWeekStart, trainingDays,
+                timeWindow, hardConstraints, expectedField, failedAttempts, partialStartTime);
     }
 
     public PlanBrief withProgress(String nextExpectedField, int nextFailedAttempts, LocalTime nextPartialStartTime) {

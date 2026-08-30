@@ -8,6 +8,24 @@
 
 ## Notes
 
+## 2026-08-30 周模板/餐训适配/路由修复实施完成（ADR-0018 五票据）
+
+- 规格 `.scratch/health-agent-week-template-routing-repair/spec.md`，票据 01-05 全部 `resolved`（详见该目录 `issues/`）。
+- 票据 01 动态指引：`MealPlanBriefService.guidanceWithSupplementable` 与编排器统一基于结构化简报动态计算可补充项；已填受支持字段不再提示、全填满无“还可以补充”、未支持值统一“已记录，暂不按它筛选”并继续提示受支持菜系（`unsupportedNote`）；前端继续只消费响应 `supplementable`（旧响应缺字段为空列表，无固定兜底）。
+- 票据 02 计划上下文优先路由：`HealthBriefRouter` 注入简报服务后新增结构化“修改表达 + 字段可解析”证据（`PLAN_FIELD_MODIFICATION`），压过“训练+时间”泛化作息启发式；`DATE_ONLY_EXPLANATION`/`NEW_VS_MODIFY` 两个新逃生口；意图修订 `briefCaptures` 优先于 `explicitDomain`；孤立修改表达（“把训练安排到晚上七点”）进 `EXERCISE + PLAN`；已有启用计划时澄清“修改当前计划还是新建简报”（`pendingPlanClarify` 会话字段）。
+- 票据 03 统一周锚点：`WeekAnchorProvider` 按“生成当天所在周周一”统一派生；`PlanBrief`/`MealPlanBrief.isComplete`、`missing`、`summary`、`guidance` 去掉目标周；日期表达不写入简报（三个入口 + 编排器快路径统一说明）；持久化/幂等重放/旧会话锚点保持；前端聊天摘要隐藏日期，计划页保留周一至周日网格。
+- 票据 04 餐训适配：`MealTrainingScheduleAdapter` 确定性接缝（默认窗口 → 训练后立即用餐 → 训练前倒推，05:00–24:00，`[start,end)` 相邻合法，多训练稳定避让，无解稳定失败）；综合生成接入并写入 `GenerationNotes.mealAdaptations` 第四分区、metadata、版本快照与生成说明；适配餐食带 `mealTimeSource=ADAPTED` 不触发误导窗口告警。
+- 票据 05 受限仲裁：`AmbiguityArbitrationAgentService` 单次轻量调用（NEW_PLAN/REVISE_PLAN/RECOMMEND/ROUTINE/CHAT 受限枚举 + 置信度/组合校验）；规则快路径优先（含复合计划词与作息事实词确定性路由），仲裁失败/低置信/会话冲突进入可理解澄清并保留规则槽位；Trace 记录 `ARBITRATION_*` 事件。
+- 自动化：`mvn test` 907（854 过 + 53 门控跳过）；`mvn test -Ditest.mysql=true` 907（903 过 + 4 Qdrant/真模型跳过），新增 MySQL 用例“缺锚点生成派生周一 + 幂等重放同日期”；前端 `node --test` 43/43。
+- 真实浏览器验收（IAB，http://localhost:8092）：已填菜系指引消失、未支持“中餐”说明可见、可选项填满无“还可以补充”、无目标周直接生成、计划页 8/31-9/6 网格正常；完整综合计划→“训练时间改为下午五到六点”→COMPOSITE+PLAN 时间更新餐食不变开始生成重现；真作息问句仍返回 ROUTINE 事实卡；裸“餐食计划”澄清修改/新建且“新建”重置；综合生成“餐时适配”分区（晚餐 18:00-19:00 → 18:30-19:30 训练后）；歧义输入单次澄清。
+- 既有路由/意图断言与 health-eval-v2 快照中与新合同冲突条目已更新并注明理由（详见各测试文件注释）。
+
+## 2026-08-30 周模板、训练优先调度与歧义任务仲裁决策固化（ADR-0018）
+
+- 基于四个用户问题（目标周确认追问、固定需求输入指引、餐训时间冲突硬报错、无关输入误触发作息推荐）完成代码原因审查并固化产品决策；本轮未改生产代码，仅新增 ADR-0018 与 CONTEXT.md 术语补充。
+- ADR：[`ADR-0018`](../../docs/adr/0018-week-template-training-priority-and-ambiguous-routing.md)。要点：周计划为不过期参考模板、目标周从对话移除并保留内部周一锚点（日期输入不改变简报语义）；训练时间硬约束、餐食确定性适配（默认窗口/训练后立即用餐/训练前倒推/05:00-24:00/不跨午夜/整体回滚）；计划上下文优先于作息启发式路由；确定性路由 + 单次轻量 Agent 仲裁兜底；需求输入指引按结构化简报动态化；并声明对 conversation-contracts US 18、plan-interaction-fixes 周起始一致、brief-supplement-loop 逃生口优先级的替代范围。
+- 实施建议按 P0/P1 分批（P0：动态指引、问题 4 路由修复；P1：目标周移除、餐训适配器、歧义仲裁）；用户已确认审查结论，当前等待实施 agent。
+
 ## 2026-08-30 面试演示主流程修复规格
 
 - [`health-agent-demo-flow-repair/spec.md`](../health-agent-demo-flow-repair/spec.md)，状态 `resolved`（2026-08-30 实施完成并验收）。规格来自 `docs/review-2026-08-30-full-flow.md` 的真实运行态核验，覆盖审核餐食结构化召回窗口/P0、同域槽位替换、训练候选不足说明可见性、能量回退边界、中文标签一致性及完整回归顺序。

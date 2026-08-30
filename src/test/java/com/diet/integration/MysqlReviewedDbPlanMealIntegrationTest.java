@@ -443,4 +443,32 @@ class MysqlReviewedDbPlanMealIntegrationTest {
         String status = jdbc.queryForObject("SELECT status FROM weekly_plan WHERE user_id = ?", String.class, USER);
         assertEquals("DRAFT", status, "计划保持 DRAFT 未激活");
     }
+
+    // ---------- ADR-0018：简报缺内部锚点也能生成并派生当天所在周的周一 ----------
+
+    @Test
+    void 餐食简报缺周锚点仍可生成且幂等重放复用既有计划日期() {
+        saveProfile();
+        String sessionId = "sess-anchor-less";
+        // 简报完全不含 weekStart（新合同：目标周不是必填）
+        MealPlanBrief brief = new MealPlanBrief(null, List.of("早餐", "午餐", "晚餐"), "保持健康");
+        sessionService.save(com.diet.health.session.HealthSessionState.fresh(sessionId, USER)
+                .withMealPlanBrief(brief));
+        String requestId = "mysql-anchor-less-1";
+        PlanView plan = generateMealDraft(sessionId, requestId);
+
+        LocalDate derived = com.diet.health.plan.WeekAnchorProvider.currentMonday(
+                plan.timezone() == null ? "Asia/Shanghai" : plan.timezone());
+        assertEquals(derived, plan.weekStart(), "生成边界按“当天所在周的周一”派生内部锚点");
+        assertEquals(java.time.DayOfWeek.MONDAY, derived.getDayOfWeek());
+
+        // 幂等重放：同一 requestId 返回既有计划，日期不变（不因日期流逝重新派生）
+        PlanView replayed = generateMealDraft(sessionId, requestId);
+        assertEquals(plan.id(), replayed.id());
+        assertEquals(plan.weekStart(), replayed.weekStart(), "幂等重放复用原计划日期");
+        Integer planCount = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM weekly_plan WHERE user_id = ? AND source_session_id = ?",
+                Integer.class, USER, sessionId);
+        assertEquals(1, planCount, "幂等重放不产生第二份草稿");
+    }
 }

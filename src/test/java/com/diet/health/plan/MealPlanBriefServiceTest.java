@@ -2,11 +2,11 @@ package com.diet.health.plan;
 
 import org.junit.jupiter.api.Test;
 
-import java.time.DayOfWeek;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** 餐食计划简报必须独立于训练字段；简报完整即可生成，不存在独立确认状态。 */
@@ -20,14 +20,15 @@ class MealPlanBriefServiceTest {
                 "下周安排早餐、午餐和晚餐，想减脂");
 
         assertEquals(List.of("早餐", "午餐", "晚餐"), collected.brief().mealTimes());
-        assertEquals(DayOfWeek.MONDAY, collected.brief().weekStart().getDayOfWeek());
+        // ADR-0018：weekStart 是生成边界派生的内部锚点，日期表达不写入简报
+        assertNull(collected.brief().weekStart());
         assertTrue(collected.brief().isComplete());
         assertTrue(collected.missingFields().isEmpty());
     }
 
     @Test
     void 不完整餐食简报给字段指引且普通训练输入不写入() {
-        MealPlanBriefService.UpdateResult partial = service.update(MealPlanBrief.empty(), "下周餐食计划");
+        MealPlanBriefService.UpdateResult partial = service.update(MealPlanBrief.empty(), "餐食计划");
         assertFalse(partial.brief().isComplete());
         assertTrue(partial.missingFields().contains("mealTimes"));
         assertTrue(partial.missingFields().contains("healthGoal"));
@@ -46,6 +47,7 @@ class MealPlanBriefServiceTest {
         assertFalse(partial.brief().isComplete());
         assertEquals(List.of("healthGoal"), partial.missingFields());
         assertTrue(partial.guidance().contains("餐食目标"));
+        assertNull(partial.brief().weekStart(), "日期表达不写入简报");
     }
 
     @Test
@@ -226,6 +228,48 @@ class MealPlanBriefServiceTest {
         List<com.diet.health.model.SupplementableItem> items = service.supplementable(brief);
         assertTrue(items.stream().anyMatch(item -> "foodTypes".equals(item.key())),
                 "仅含未支持类型时仍应提供受支持类型的可补充项");
+    }
+
+    @Test
+    void 已填受支持菜系不再提示菜系可补充项() {
+        MealPlanBrief brief = service.update(MealPlanBrief.empty(), "想吃粤菜").brief();
+        List<com.diet.health.model.SupplementableItem> items = service.supplementable(brief);
+        assertTrue(items.stream().noneMatch(item -> "cuisines".equals(item.key())),
+                "已填受支持菜系后指引不再列出菜系可补充项");
+        assertTrue(items.stream().anyMatch(item -> "tastePreferences".equals(item.key())),
+                "其余未填可选字段继续提示");
+    }
+
+    @Test
+    void 全部可选项填满后指引不再出现还可以补充() {
+        MealPlanBrief filled = service.update(MealPlanBrief.empty(), "想吃粤菜，素食，清淡，烹饪时间短").brief();
+        MealPlanBriefService.UpdateResult incomplete = service.update(filled, "早餐午餐想减脂");
+        // 可选项已填满：INVALID/不完整分支的动态指引不再出现“还可以补充”
+        assertFalse(incomplete.guidance().contains("还可以补充"), incomplete.guidance());
+    }
+
+    @Test
+    void 未完整INVALID与完整分支共用同一动态可补充列表() {
+        // INVALID 分支（空输入）与未完整分支都基于同一 supplementable 计算
+        MealPlanBriefService.UpdateResult invalid = service.update(MealPlanBrief.empty(), "餐食");
+        MealPlanBrief partial = service.update(MealPlanBrief.empty(), "早餐").brief();
+        List<com.diet.health.model.SupplementableItem> invalidItems =
+                service.supplementable(MealPlanBrief.empty());
+        List<com.diet.health.model.SupplementableItem> partialItems = service.supplementable(partial);
+        assertEquals(invalidItems.stream().map(com.diet.health.model.SupplementableItem::key).toList(),
+                partialItems.stream().map(com.diet.health.model.SupplementableItem::key).toList(),
+                "INVALID 与未完整分支返回同一动态列表结构");
+    }
+
+    @Test
+    void 未支持菜系保留且说明为已记录暂不按它筛选并继续提示受支持菜系() {
+        MealPlanBrief brief = service.update(MealPlanBrief.empty(), "我喜欢中餐").brief();
+        String note = service.unsupportedNote(brief);
+        assertTrue(note.contains("中餐"), note);
+        assertTrue(note.contains("已记录") && note.contains("暂不按它筛选"), note);
+        assertTrue(note.contains("粤菜") || note.contains("川菜"), "未支持值存在时继续提示受支持菜系");
+        // 未支持值不能吞掉受支持的可补充提示
+        assertTrue(service.supplementable(brief).stream().anyMatch(item -> "cuisines".equals(item.key())));
     }
 
     @Test

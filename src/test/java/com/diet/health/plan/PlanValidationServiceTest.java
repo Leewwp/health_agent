@@ -331,6 +331,29 @@ class PlanValidationServiceTest {
     }
 
     @Test
+    void 自动适配的窗口外餐食不触发误导窗口告警但编辑期窗口外仍告警() {
+        // ADR-0018：mealTimeSource=ADAPTED 的餐食是系统适配结果，不触发“需要调整”的窗口告警
+        List<PlanItemDraft> adapted = List.of(
+                new PlanItemDraft("MEAL", "m-1", "训练后晚餐", MON, LocalTime.of(23, 0), LocalTime.of(23, 30), null,
+                        Map.of("mealTime", "晚餐", "caloriesKcal", 500,
+                                MealTrainingScheduleAdapter.MEAL_TIME_SOURCE_PARAM,
+                                MealTrainingScheduleAdapter.ADAPTED_SOURCE))
+        );
+        PlanValidationService.ValidationResult result = validation.validate(profile(30, 400, 800), adapted, CATALOG);
+        assertTrue(result.hits().stream().noneMatch(hit -> "MEAL_TIME_OUT_OF_WINDOW".equals(hit.ruleCode())),
+                "成功适配结果不产生 MEAL_TIME_OUT_OF_WINDOW：" + result.hits());
+        // 编辑器/用户直接产生的窗口外餐食仍按原规则告警
+        List<PlanItemDraft> manual = List.of(
+                new PlanItemDraft("MEAL", "m-1", "手动晚晚餐", MON, LocalTime.of(23, 0), LocalTime.of(23, 30), null,
+                        Map.of("mealTime", "晚餐", "caloriesKcal", 500))
+        );
+        PlanValidationService.ValidationResult manualResult = validation.validate(profile(30, 400, 800), manual, CATALOG);
+        assertTrue(manualResult.hits().stream()
+                        .anyMatch(hit -> "MEAL_TIME_OUT_OF_WINDOW".equals(hit.ruleCode())),
+                "非适配的窗口外餐食仍按原规则告警");
+    }
+
+    @Test
     void 非planReady动作进入计划为HARD_ERROR() {
         PlanValidationService.ResourceCatalog catalog = new PlanValidationService.ResourceCatalog(
                 Set.of("9001"), Set.of("9001", "9009"), Set.of("R1"));

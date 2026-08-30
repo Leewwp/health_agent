@@ -101,8 +101,8 @@ function renderWorkspace(plan) {
 }
 
 /**
- * 计划页头部说明区：渲染生成说明三分区——未支持偏好（暂不按它筛选）、按日回退（带日期与未满足键）
- * 与候选不足（唯一候选复用等可解释降级）。
+ * 计划页头部说明区：渲染生成说明四分区——未支持偏好（暂不按它筛选）、按日回退（带日期与未满足键）、
+ * 候选不足（唯一候选复用等可解释降级）与餐训时间适配（ADR-0018：被移动餐次与方向对用户可见）。
  * 数据来自后端 PlanView.generationNotes（结构化字段），不解析回复文案；无说明时不渲染。
  */
 function renderGenerationNotes(plan) {
@@ -111,7 +111,8 @@ function renderGenerationNotes(plan) {
     const unsupported = Array.isArray(notes.unsupportedPreferences) ? notes.unsupportedPreferences : [];
     const fallbacks = Array.isArray(notes.fallbacks) ? notes.fallbacks : [];
     const scarcity = Array.isArray(notes.candidateScarcity) ? notes.candidateScarcity : [];
-    if (!unsupported.length && !fallbacks.length && !scarcity.length) return "";
+    const adaptations = Array.isArray(notes.mealAdaptations) ? notes.mealAdaptations : [];
+    if (!unsupported.length && !fallbacks.length && !scarcity.length && !adaptations.length) return "";
     const unsupportedSection = unsupported.length
         ? `<p class="mp-notes-line"><strong>未支持偏好（暂不按它筛选）：</strong>${escapeHtml(unsupported.join("、"))}</p>`
         : "";
@@ -132,7 +133,11 @@ function renderGenerationNotes(plan) {
     const scarcitySection = scarcity.length
         ? `<p class="mp-notes-line"><strong>候选不足：</strong>${escapeHtml(scarcity.join("；"))}</p>`
         : "";
-    return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}${scarcitySection}</div>`;
+    const adaptationSection = adaptations.length
+        ? `<p class="mp-notes-line"><strong>餐时适配：</strong>${adaptations.map((item) =>
+            `${escapeHtml(item.date)} ${escapeHtml(item.mealTime || "餐食")} ${escapeHtml(item.originalStart || "")}-${escapeHtml(item.originalEnd || "")} → ${escapeHtml(item.finalStart || "")}-${escapeHtml(item.finalEnd || "")}（${item.direction === "AFTER_TRAINING" ? "训练后" : item.direction === "BEFORE_TRAINING" ? "训练前" : "自动调整"}）`).join("；")}</p>`
+        : "";
+    return `<div class="mp-generation-notes" aria-label="生成说明">${unsupportedSection}${fallbackSection}${scarcitySection}${adaptationSection}</div>`;
 }
 
 function renderSidebar() {
