@@ -1,0 +1,314 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "health-agent 运行时架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "runtime-architecture.html",
+    "views": [
+      {
+        "id": "main-path",
+        "label": "主请求链路",
+        "focus": [
+          "frontend",
+          "nginx",
+          "identity",
+          "orchestrator",
+          "modules",
+          "boundary",
+          "mysql"
+        ],
+        "note": "从浏览器请求经 Nginx 同源代理与身份拦截，到 MySQL 唯一事实源"
+      },
+      {
+        "id": "plan-pipeline",
+        "label": "周计划生成",
+        "focus": [
+          "orchestrator",
+          "plangen",
+          "mysql",
+          "llm"
+        ],
+        "note": "简报澄清完成才触发生成，约束候选加确定性校验后事务激活"
+      },
+      {
+        "id": "retrieval",
+        "label": "检索与 LLM",
+        "focus": [
+          "orchestrator",
+          "modules",
+          "llm",
+          "qdrant"
+        ],
+        "note": "结构化检索为主，语义召回与 LLM 是可降级的外部依赖"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "前端 SPA",
+      "sublabel": "vanilla JS · hash 路由",
+      "tag": "frontend/",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        115,
+        60
+      ]
+    },
+    {
+      "id": "nginx",
+      "type": "cloud",
+      "label": "Nginx 同源代理",
+      "sublabel": "静态托管 + 反向代理",
+      "tag": ":80 / :8092",
+      "pos": [
+        250,
+        120
+      ],
+      "size": [
+        115,
+        60
+      ]
+    },
+    {
+      "id": "identity",
+      "type": "security",
+      "label": "身份与访问控制",
+      "sublabel": "AnonymousIdentity 拦截器",
+      "tag": "HMAC Cookie · Admin Token",
+      "pos": [
+        462,
+        120
+      ],
+      "size": [
+        135,
+        60
+      ]
+    },
+    {
+      "id": "orchestrator",
+      "type": "backend",
+      "label": "聊天编排状态机",
+      "sublabel": "Health/Diet Orchestrator · :8080",
+      "tag": "意图→澄清→RiskGuard",
+      "pos": [
+        695,
+        120
+      ],
+      "size": [
+        155,
+        68
+      ]
+    },
+    {
+      "id": "plangen",
+      "type": "backend",
+      "label": "周计划生成",
+      "sublabel": "简报→候选→校验→激活",
+      "tag": "EXERCISE/MEAL/COMPOSITE",
+      "pos": [
+        948,
+        120
+      ],
+      "size": [
+        155,
+        64
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "external",
+      "label": "LLM 服务",
+      "sublabel": "DashScope / 兼容端点",
+      "tag": "qwen-turbo 主/轻模型",
+      "pos": [
+        180,
+        40
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "modules",
+      "type": "backend",
+      "label": "领域检索模块",
+      "sublabel": "Meal/Exercise/Routine",
+      "tag": "Structured/Hybrid Router",
+      "pos": [
+        462,
+        320
+      ],
+      "size": [
+        145,
+        60
+      ]
+    },
+    {
+      "id": "boundary",
+      "type": "backend",
+      "label": "资源读取边界",
+      "sublabel": "Provider + Reviewed Reader",
+      "tag": "方案 B · ADR-0010",
+      "pos": [
+        702,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "mysql",
+      "type": "database",
+      "label": "MySQL 8 diet_db",
+      "sublabel": "Flyway V1..V23",
+      "tag": "会话/资源/计划事实源",
+      "pos": [
+        948,
+        320
+      ],
+      "size": [
+        145,
+        64
+      ]
+    },
+    {
+      "id": "qdrant",
+      "type": "database",
+      "label": "Qdrant 向量库",
+      "sublabel": "gRPC :6334 · Compose 可选",
+      "tag": "默认 InMemory 兜底",
+      "pos": [
+        180,
+        320
+      ],
+      "size": [
+        150,
+        64
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "fe-to-nginx",
+      "from": "frontend",
+      "to": "nginx",
+      "label": "fetch /api/",
+      "variant": "emphasis"
+    },
+    {
+      "id": "nginx-to-identity",
+      "from": "nginx",
+      "to": "identity",
+      "label": "/api/ /mcp",
+      "variant": "emphasis"
+    },
+    {
+      "id": "identity-to-orchestrator",
+      "from": "identity",
+      "to": "orchestrator",
+      "label": "dietUserId",
+      "variant": "emphasis"
+    },
+    {
+      "id": "orchestrator-to-plangen",
+      "from": "orchestrator",
+      "to": "plangen",
+      "label": "GENERATE_*",
+      "variant": "emphasis"
+    },
+    {
+      "id": "orchestrator-to-modules",
+      "from": "orchestrator",
+      "to": "modules",
+      "label": "检索与推荐",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "modules-to-boundary",
+      "from": "modules",
+      "to": "boundary",
+      "label": "唯一读通道",
+      "variant": "emphasis"
+    },
+    {
+      "id": "boundary-to-mysql",
+      "from": "boundary",
+      "to": "mysql",
+      "label": "MyBatis",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plangen-to-mysql",
+      "from": "plangen",
+      "to": "mysql",
+      "label": "weekly_plan* 激活",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "orchestrator-to-llm",
+      "from": "orchestrator",
+      "to": "llm",
+      "label": "qwen-turbo Agent 调用",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "modules-to-qdrant",
+      "from": "modules",
+      "to": "qdrant",
+      "label": "语义召回（可选）",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "请求与身份",
+      "items": [
+        "Nginx 同源反代 /api/ · /mcp · /actuator/health",
+        "health 链 HMAC 匿名 Cookie；legacy 链 X-User-Id",
+        "状态机：意图→槽位→澄清→检索→RiskGuard→持久化"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "周计划生成",
+      "items": [
+        "简报澄清（Plan/MealPlanBriefService）完成才触发生成",
+        "三路生成 + PlanValidationService 确定性校验",
+        "事务激活 + requestId 幂等（DRAFT→ENABLED）"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "数据与检索",
+      "items": [
+        "MySQL 唯一事实源：审核种子 295 餐食 / 1,324 动作",
+        "MealRetrievalRouter：强约束结构化，Hybrid 可降级",
+        "Qdrant 需显式启用，启动 runner 建索引"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "读取边界与模式",
+      "items": [
+        "方案 B：仅 3 个 Db* 类可依赖 Mapper",
+        "fixture 模式：浏览/RAG 503，DB runner fail-fast",
+        "prod 校验密钥并强制 agentscope 模式"
+      ]
+    }
+  ]
+}
