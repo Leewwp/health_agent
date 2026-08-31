@@ -62,10 +62,10 @@ public class IntentRuleService {
                 && (activeContext || taskEvidence.hasExerciseTaskEvidence(text))) {
             domain = HealthDomain.EXERCISE;
             task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")) {
+        } else if (taskEvidence.hasRoutineTaskEvidence(text)) {
             domain = HealthDomain.ROUTINE;
             task = HealthTask.RECOMMEND;
-        } else if (containsAny(text, "换一批", "换换", "不要", "去掉")) {
+        } else if (taskEvidence.hasAdjustOrRemovalEvidence(text)) {
             domain = knownExercise(knownSlots) ? HealthDomain.EXERCISE : HealthDomain.MEAL;
             task = HealthTask.ADJUST;
         }
@@ -145,14 +145,14 @@ public class IntentRuleService {
     }
 
     private boolean isRoutineFact(String text) {
-        return containsAny(text, "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟", "咖啡")
-                || (containsAny(text, "训练", "运动", "锻炼") && containsAny(text, "什么时候", "几点", "时段", "时间"));
+        // 共享词表唯一所有者（HealthTaskEvidence），意图规则不再持有第三份作息词副本。
+        return taskEvidence.hasRoutineTaskEvidence(text);
     }
 
-    /** 识别没有明确餐次但仍在表达餐食需求的口语。 */
+    /** 识别没有明确餐次但仍在表达餐食需求的口语（"餐食"与任务证据词表同口径，自由输入兜底）。 */
     private boolean mealSignal(String text) {
         return containsAny(text, "吃什么", "早餐", "早饭", "午餐", "午饭", "中饭", "中午", "晚餐", "晚饭", "想吃", "饿",
-                "食物", "尽快能吃上", "尽快吃上", "马上能吃", "赶时间", "快速", "便利店", "速食", "外带", "胃口", "没食欲", "素食", "吃素", "酸甜口味", "酸甜口")
+                "食物", "餐食", "尽快能吃上", "尽快吃上", "马上能吃", "赶时间", "快速", "便利店", "速食", "外带", "胃口", "没食欲", "素食", "吃素", "酸甜口味", "酸甜口")
                 || (!normalizer.normalize(HealthDomain.MEAL, text, Map.of()).slots().isEmpty()
                 && !containsAny(text, "训练", "健身", "动作", "俯卧撑", "深蹲", "练"));
     }

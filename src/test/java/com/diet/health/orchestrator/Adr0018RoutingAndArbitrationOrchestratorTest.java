@@ -257,9 +257,10 @@ class Adr0018RoutingAndArbitrationOrchestratorTest {
                 bare.speechText());
         assertNotNull(stateOf(sessionId).pendingPlanClarify(), "澄清挂起标记必须持久化");
 
-        // “新建”重置餐食简报并开始重新收集
+        // “新建”重置餐食简报并开始重新收集（2026-08-31 规格：用户可见术语收敛，
+        // “新建一份餐食简报”由“接下来开始新建一份餐食计划”取代）
         HealthChatResponse redo = chatInSession(sessionId, "新建");
-        assertTrue(redo.speechText().contains("新建一份餐食简报"), redo.toString());
+        assertTrue(redo.speechText().contains("接下来开始新建一份餐食计划"), redo.toString());
         assertNull(stateOf(sessionId).pendingPlanClarify(), "消费后清除挂起标记");
         assertTrue(stateOf(sessionId).mealPlanBrief().mealTimes().isEmpty(), "新建重置餐食简报");
 

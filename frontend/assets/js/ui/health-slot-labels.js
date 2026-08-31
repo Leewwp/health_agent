@@ -23,13 +23,17 @@ export const HEALTH_SLOT_LABELS = Object.freeze({
     sleepDuration: "睡眠时长"
 });
 
-/** 将接口字段名转换为普通用户能理解的槽位文案。 */
+/**
+ * 将接口字段名转换为普通用户能理解的槽位文案。
+ * 未知内部 key（如 taskFocus/planAction 等伪槽位）返回空字符串而不是
+ * “其他偏好”这类可误解的兜底标签（2026-08-31 严格路由规格 RC-6）。
+ */
 export function slotLabel(slot) {
     const value = String(slot || "").trim();
-    if (!value) return "其他偏好";
+    if (!value) return "";
     if (HEALTH_SLOT_LABELS[value]) return HEALTH_SLOT_LABELS[value];
     if (/^[\u4e00-\u9fff]/.test(value) && !/[A-Za-z]/.test(value)) return value;
-    return "其他偏好";
+    return "";
 }
 
 /** 将已确认摘要中的内部字段名替换为中文，保留对应的用户值。 */
@@ -41,5 +45,7 @@ export function formatSlotSummary(summary) {
     const index = value.indexOf(separator);
     const key = value.slice(0, index).trim();
     const detail = value.slice(index + separator.length).trim();
-    return detail ? `${slotLabel(key)}：${detail}` : slotLabel(key);
+    const label = slotLabel(key);
+    if (!label) return detail;
+    return detail ? `${label}：${detail}` : label;
 }

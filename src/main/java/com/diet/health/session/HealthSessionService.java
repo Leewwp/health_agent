@@ -4,6 +4,8 @@ import com.diet.exception.DietException;
 import com.diet.health.enums.HealthDomain;
 import com.diet.health.enums.HealthPhase;
 import com.diet.health.enums.HealthTask;
+import com.diet.health.intent.BriefSide;
+import com.diet.health.intent.HealthBriefRouter;
 import com.diet.health.intent.PreferenceSignal;
 import com.diet.health.plan.PlanBrief;
 import com.diet.health.plan.MealPlanBrief;
@@ -190,9 +192,11 @@ public class HealthSessionService {
                 ? intended.recommendationConfirmationKey() : latest.recommendationConfirmationKey();
         // 新建/修改澄清挂起是临时语义，随本轮决策写入（无触碰检测，避免旧快照残留挂起）。
         String pendingPlanClarify = intended.pendingPlanClarify();
+        // 澄清日期戳同样是本轮语义：澄清轮写入当天日期，非澄清轮清空（时效边界）。
+        String clarifyEpoch = intended.clarifyEpoch();
         return new HealthSessionState(intended.sessionId(), intended.userId(), phase, domain, task, riskFlags,
                 slots, resources, signals, planBrief, mealBrief, pending, confirmed, version, lifecycle,
-                confirmationKey, pendingPlanClarify);
+                confirmationKey, pendingPlanClarify, clarifyEpoch);
     }
 
     /**
@@ -266,6 +270,7 @@ public class HealthSessionService {
         meta.set("briefLifecycle", lifecycle);
         meta.put("recommendationConfirmationKey", state.recommendationConfirmationKey());
         meta.put("pendingPlanClarify", state.pendingPlanClarify());
+        meta.put("clarifyEpoch", state.clarifyEpoch());
         root.set("_meta", meta);
         root.set("planBrief", planBriefNode(state.planBrief() == null ? PlanBrief.empty() : state.planBrief()));
         root.set("mealPlanBrief", mealPlanBriefNode(state.mealPlanBrief() == null ? MealPlanBrief.empty() : state.mealPlanBrief()));
@@ -349,29 +354,30 @@ public class HealthSessionService {
                     meta.path("recommendationConfirmationVersion").asLong(0),
                     lifecycle,
                     meta.path("recommendationConfirmationKey").asText(null),
-                    meta.path("pendingPlanClarify").asText(null)
+                    meta.path("pendingPlanClarify").asText(null),
+                    meta.path("clarifyEpoch").asText(null)
             );
         } catch (Exception error) {
             throw new DietException("健康会话状态解析失败", error);
         }
     }
 
-    /** 读取生命周期；旧会话 JSON 缺字段时按“task 为 PLAN 且领域匹配”推导 OPEN，否则无状态。 */
+    /**
+     * 读取生命周期；旧会话 JSON 缺字段时按“task 为 PLAN 且领域匹配”推导 OPEN，否则无状态。
+     * 推导规则的单一实现收敛在共享路由判定（2026-08-31 规格：消除双份口径漂移），
+     * 会话回读与路由器对同一持久化值得到同一结论。
+     */
     private Map<String, String> readLifecycle(JsonNode node, HealthDomain domain, HealthTask task) {
         Map<String, String> lifecycle = new LinkedHashMap<>();
-        if (node != null && node.isObject()) {
-            node.properties().forEach(entry -> {
-                if (!entry.getValue().asText().isBlank()) {
-                    lifecycle.put(entry.getKey(), entry.getValue().asText());
-                }
-            });
-        }
-        if (task == HealthTask.PLAN && domain != null) {
-            if (!lifecycle.containsKey("MEAL") && (domain == HealthDomain.MEAL || domain == HealthDomain.COMPOSITE)) {
-                lifecycle.put("MEAL", BriefLifecycle.OPEN.name());
-            }
-            if (!lifecycle.containsKey("EXERCISE") && (domain == HealthDomain.EXERCISE || domain == HealthDomain.COMPOSITE)) {
-                lifecycle.put("EXERCISE", BriefLifecycle.OPEN.name());
+        BriefSide sessionSide = domain == HealthDomain.MEAL ? BriefSide.MEAL
+                : domain == HealthDomain.EXERCISE ? BriefSide.EXERCISE
+                : domain == HealthDomain.COMPOSITE ? BriefSide.BOTH : BriefSide.NONE;
+        for (BriefSide side : List.of(BriefSide.MEAL, BriefSide.EXERCISE)) {
+            String persisted = node != null && node.isObject() && !node.path(side.name()).asText("").isBlank()
+                    ? node.path(side.name()).asText() : null;
+            BriefLifecycle resolved = HealthBriefRouter.resolveLifecycle(persisted, task, sessionSide, side);
+            if (resolved != null) {
+                lifecycle.put(side.name(), resolved.name());
             }
         }
         return Map.copyOf(lifecycle);

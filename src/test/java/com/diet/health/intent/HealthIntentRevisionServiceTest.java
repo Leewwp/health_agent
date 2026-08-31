@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** 会话续轮必须在调用模型前完成上下文继承。 */
@@ -23,9 +24,12 @@ class HealthIntentRevisionServiceTest {
                 HealthDomain.MEAL, HealthTask.RECOMMEND, List.of(),
                 Map.of("mealTime", List.of("晚餐")), List.of(), List.of(), null);
 
-        HealthIntentResult result = service.continueBeforeAgent("按口味", state).orElseThrow();
+        // 2026-08-31 严格路由规格：澄清短答继承需解析出字段值或含任务证据，
+        // 用例输入从“按口味”（槽位名、非字段值，按新边界不再继承）改为真实字段短答。
+        HealthIntentResult result = service.continueBeforeAgent("清淡一点", state).orElseThrow();
         assertEquals(HealthDomain.MEAL, result.domain());
         assertEquals(HealthTask.RECOMMEND, result.task());
+        assertFalse(result.slots().isEmpty(), "澄清短答应抽取槽位");
     }
 
     @Test

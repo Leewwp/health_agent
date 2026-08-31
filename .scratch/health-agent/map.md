@@ -8,6 +8,16 @@
 
 ## Notes
 
+## 2026-08-31 计划引导、严格路由与日常聊天实施完成（六票据 + 二次根因复核）
+
+- 规格与票据：`.scratch/health-agent-chat-routing-and-plan-guidance/`（spec 经独立二次根因复核修订，RC-1～RC-8 全部带 file:line 证据；票据 01-06 resolved，07 聊天替换计划项目为后续迭代 needs-info）。
+- 二次复核修正了初版两处根因描述：“能陪我聊天吗”未被拦截与 isSocialPhrase 长度无关（封闭致谢词表整句匹配不含），触发点是 `continueBeforeAgent` 澄清续轮对陈旧状态零条件继承（08-29 遗留 MEAL+ADJUST 跨两天）；“周一到周三”跳推荐是“新建”消费不转 OPEN（GENERATED 残留使简报路由失效）+ revise 澄清继承确定性覆写 PLAN→RECOMMEND 的叠加，全程零模型调用。
+- 实施：澄清消费同轮原子 OPEN+空简报+(侧,PLAN)（MEAL/EXERCISE 同规，PlanClarifyConsumption 携带转移）；澄清继承保真 `task=state.task()`、继承需字段值/任务证据、`clarifyEpoch` 跨天失效；最终任务闸门 `hasExecutableTaskEvidence` 五类白名单紧贴检索前 + `FINAL_TASK_GATE` trace；`CHAT_ESCAPE` 快路径；`HealthTaskEvidence` 词表唯一所有者收编四处漂移副本 + 漂移守卫测试；`HealthChatAnswerService`+health-chat.txt CHAT 通道；澄清选项结构化动作（SELECT_TASK/MODIFY_CURRENT_PLAN/NEW_PLAN_BRIEF）；等待文案“正在生成回答”；简报/当前字段术语退场。
+- 浏览器验收额外发现并修复三个缺陷：真实仲裁低置信把预检确认“开始推荐”劫持成任务澄清（确认短语提升为模型链之前的结构化证据）；问候语（“你好”）落入仲裁失败澄清（补入聊天逃生词表）；前端可补充项空标签双顿号。
+- 隐藏缺陷顺带修复：`HealthChatResponse.withPlanBrief` 会覆盖 actions，原 MODIFY_CURRENT_PLAN 动作在 wire 上从未下发（前端死按钮根因之一）。
+- 自动化：`mvn test` 930（877 过 + 53 门控跳过）；`-Ditest.mysql=true` 930（926 过 + 4 Qdrant/真模型跳过）；前端 `node --test` 47/47。新增 `ChatRoutingAndPlanGuidanceOrchestratorTest`（14 例，含两条 P0 哨兵、种子 GENERATED 前置）、`TaskEvidenceVocabularyDriftGuardTest`（5 例）、`HealthChatAnswerServiceTest`（4 例）、前端 `chat-routing-guidance.test.mjs`（4 例）。
+- 真实浏览器验收（ego-browser，http://localhost:8092/#/chat，真实 DashScope 模型）：聊天哨兵（你好/你能帮我做什么/能陪我聊天吗 → CHAT 身份能力回答、零资源卡）；5 个快捷问题全部走通（餐食/训练/综合计划进入收集或修改-新建澄清；清淡晚餐走预检→开始推荐出 3 张餐卡；新手轻量训练澄清训练目标）；自由输入“给我推荐一份餐食/一个训练动作”均正确触发推荐澄清（不依赖快捷问题）；新建训练计划→“周一到周三”“下午六点到七点”全程 EXERCISE+PLAN 且字段入简报；修改当前计划点击创建 24 项编辑副本、启用计划不变；390px 无横向溢出。
+
 ## 2026-08-30 周模板/餐训适配/路由修复实施完成（ADR-0018 五票据）
 
 - 规格 `.scratch/health-agent-week-template-routing-repair/spec.md`，票据 01-05 全部 `resolved`（详见该目录 `issues/`）。

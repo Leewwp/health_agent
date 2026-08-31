@@ -6,6 +6,7 @@ import com.diet.health.enums.HealthTask;
 import com.diet.health.session.HealthSessionState;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +38,11 @@ public class HealthIntentRevisionService {
      * 在模型调用前处理状态机续轮。活跃简报中的自由文本（无逃生口命中）直接继承当前
      * PLAN 上下文；明确逃生口（推荐/替代/切域作息）返回空，由完整意图链处理；
      * 推荐澄清短答继承保持原有语义。
+     * <p>
+     * 2026-08-31 严格路由规格：澄清续轮继承不再零条件——仅当本轮输入解析出待澄清
+     * 字段值或命中共享任务证据时才继承（RC-3）；显式聊天/能力问句必须打断继承（P0 哨兵
+     * “能陪我聊天吗”不得因陈旧 MEAL+ADJUST 状态触发检索）；跨会话日期的陈旧澄清
+     * 状态不得继承（RC-4 时效边界）。
      */
     public Optional<HealthIntentResult> continueBeforeAgent(String userInput, HealthSessionState state) {
         if (state == null || state.domain() == null || state.task() == null) {
@@ -55,12 +61,34 @@ public class HealthIntentRevisionService {
                     state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
         }
         boolean clarifyContinuation = state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain());
-        if (clarifyContinuation) {
+        if (clarifyContinuation && clarifyContinuationJustified(state, text)) {
             Map<String, List<String>> slots = normalizer.normalize(state.domain(), text, Map.of()).slots();
             return Optional.of(HealthIntentResult.parsed(
                     state.domain(), state.task(), List.of(), slots, List.of(), 1.0));
         }
         return Optional.empty();
+    }
+
+    /**
+     * 澄清续轮继承边界（单一实现，模型前续轮与模型后修正共用）：
+     * ① 显式聊天/能力逃生表达 → 不继承（打断，进入完整意图链的 CHAT 路由）；
+     * ② 澄清日期戳跨天（陈旧澄清状态）→ 不继承；
+     * ③ 本轮解析出该领域槽位值、或命中共享任务证据（任务词/计划词/调整词）→ 允许继承。
+     * 继承保持 state.task()（见 revise 的澄清继承分支），禁止把 PLAN 覆写为 RECOMMEND。
+     */
+    private boolean clarifyContinuationJustified(HealthSessionState state, String text) {
+        if (taskEvidence.isChatEscapeExpression(text)) {
+            return false;
+        }
+        if (state.clarifyEpoch() != null && !state.clarifyEpoch().equals(LocalDate.now().toString())) {
+            return false;
+        }
+        if (!normalizer.normalize(state.domain(), text, Map.of()).slots().isEmpty()) {
+            return true;
+        }
+        return taskEvidence.hasTaskEvidence(text, state.domain())
+                || taskEvidence.hasAdjustRequestEvidence(text)
+                || HealthPlanIntentMatcher.matches(text);
     }
 
     public Revision revise(String userInput, HealthSessionState state, HealthIntentResult raw) {
@@ -109,7 +137,8 @@ public class HealthIntentRevisionService {
         }
         HealthDomain explicitDomain = explicitDomain(text);
         boolean plan = HealthPlanIntentMatcher.matches(text);
-        boolean adjust = containsAny(text, "换一批", "换换", "再来一批", "再换", "调整一下");
+        // 共享词表唯一所有者（HealthTaskEvidence）：替代/调整请求词不再持有第二份清单。
+        boolean adjust = taskEvidence.hasAdjustRequestEvidence(text);
         // 活跃简报的续轮由共享结构化判定裁决；判定给出的逃生口不强制 PLAN 续轮
         BriefRoutingDecision routing = briefRouter.decide(state, text);
         boolean briefCaptures = routing.briefActive() && routing.escape() == BriefEscape.NONE
@@ -138,11 +167,15 @@ public class HealthIntentRevisionService {
         } else if (adjust && isRecommendDomain(state.domain())) {
             domain = state.domain();
             task = HealthTask.ADJUST;
-        } else if (state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain())) {
+        } else if (state.phase() == HealthPhase.CLARIFY && isRecommendDomain(state.domain())
+                && clarifyContinuationJustified(state, text)) {
+            // 澄清继承保真（RC-2，2026-08-31 规格）：继承必须保持 state.task()——
+            // PLAN 澄清状态下的短答不得被覆写为 RECOMMEND/ADJUST（“新建计划 → 周一到周三”
+            // 跳推荐的确定性根因）。推荐式任务只在本就是 RECOMMEND/ADJUST 的会话中延续。
             HealthInputNormalizer.NormalizationResult inherited = normalizer.normalize(state.domain(), text, raw.slots());
             if (!inherited.slots().isEmpty() || isShortReply(text)) {
                 domain = state.domain();
-                task = state.task() == HealthTask.ADJUST ? HealthTask.ADJUST : HealthTask.RECOMMEND;
+                task = state.task();
             }
         }
 
