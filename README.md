@@ -11,7 +11,7 @@
 
 > **口径说明**：这里的「多 Agent」指由 Java 状态机确定性编排的多角色工作流，**不是多个自治 Agent 自主规划或调用工具**。候选召回、数值、风险和状态转换由 Java 控制，LLM 负责语义理解和受约束表达。
 
-**工程规模**：910 个自动化测试（`mvn test` 2026-08-31 实测：0 失败、53 个环境门控跳过）、12 个真实 MySQL 集成测试类（`-Ditest.mysql=true` 门控）、42 个前端行为契约测试、Flyway V1–V24 迁移、GitHub Actions CI、Docker Compose 一键部署。无 API Key 也能完整启动与演示——确定性降级本身就是 Fallback 设计的现场演示点。
+**工程规模**：910 个自动化测试（`mvn test` 2026-08-31 实测：0 失败、53 个环境门控跳过）、12 个真实 MySQL 集成测试类（`-Ditest.mysql=true` 门控）、43 个前端行为契约测试、Flyway V1–V24 迁移、GitHub Actions CI、Docker Compose 一键部署。无 API Key 也能完整启动与演示——确定性降级本身就是 Fallback 设计的现场演示点。
 
 ---
 
@@ -213,7 +213,7 @@ MiniMax embo-01 对照实验需在 `.env` 配置 `DIET_EMBEDDING_PROVIDER=minima
 ```bash
 mvn test                            # 910 个测试：0 失败、53 个环境门控跳过（2026-08-31 实测）
 mvn test -Ditest.mysql=true         # 真实 MySQL 集成：12 个测试类全绿，仅 Qdrant/live-model 独立门控跳过
-node --test frontend/tests/*.test.mjs   # 前端行为契约 42/42
+node --test frontend/tests/*.test.mjs   # 前端行为契约 43/43（2026-08-31 实测）
 ```
 
 - **单元 / 契约层**：Agent 契约（合法/非法 JSON、Schema/候选越界、超时、无 key）、意图路由、计划简报与话题切换、风险目录一致性、幂等与 Trace 内容、MCP 端点安全边界、Trace 脱敏、混合检索与两段式路由、餐食 facet 数据契约（`data/meal/facets.json` 唯一事实源 + 漂移守卫）；
