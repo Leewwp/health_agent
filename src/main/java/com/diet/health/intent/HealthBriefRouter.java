@@ -57,9 +57,6 @@ public class HealthBriefRouter {
             "睡眠", "作息", "睡多久", "几点睡", "几点起", "早起", "午睡", "午休", "生物钟",
             "咖啡", "咖啡因"
     };
-    private static final String[] ACTIVITY_WORDS = {"训练", "运动", "锻炼"};
-    private static final String[] TIME_WORDS = {"什么时候", "几点", "时段", "时间"};
-
     /** 餐食域证据（不含裸“餐/菜”字，避免“中餐/川菜”这类偏好值被误判为切域）。 */
     private static final String[] MEAL_EVIDENCE_WORDS = {
             "吃什么", "吃啥", "想吃", "饿了", "吃饭", "加餐", "中午",
@@ -95,6 +92,9 @@ public class HealthBriefRouter {
 
     private final PlanBriefService planBriefService;
     private final MealPlanBriefService mealPlanBriefService;
+
+    /** 作息组合证据（活动词×时间词）消费任务证据唯一所有者，避免第三份口径漂移。 */
+    private final HealthTaskEvidence taskEvidence = new HealthTaskEvidence();
 
     /** Spring 入口：与意图修订服务、编排器共享同一行为实例。 */
     public HealthBriefRouter(PlanBriefService planBriefService, MealPlanBriefService mealPlanBriefService) {
@@ -142,10 +142,14 @@ public class HealthBriefRouter {
                     "PLAN_FIELD_MODIFICATION", null);
         }
 
-        // 优先级 2：明确领域切换/作息提问（证据域与当前简报侧冲突）
+        // 优先级 2：明确领域切换/作息提问（证据域与当前简报侧冲突）。
+        // RC-8 守卫（2026-08-31 规格）：目标侧处于 OPEN 且当轮文本可解析为该侧真实字段值
+        // （如补充 chip 注入的“训练时段：下午六点到七点”或裸时间字段答案）时，
+        // “活动词×时间词”组合启发式不得把字段答案劫到作息域——只有真正的作息问句
+        // （显式作息主题词，或无字段值可解析的组合问句）才构成切出。
         HealthDomain evidence = domainEvidence(text);
         boolean evidenceConflicts = evidence != null && evidenceConflictsWith(evidence, sessionSide);
-        if (evidenceConflicts) {
+        if (evidenceConflicts && !openSideFieldSuppressesSwitch(state, targetSide, text, evidence)) {
             BriefSide currentSide = sessionSide == BriefSide.BOTH ? compositeActiveSide(state, text) : sessionSide;
             return new BriefRoutingDecision(true, currentSide, BriefEscape.DOMAIN_OR_ROUTINE,
                     "EXPLICIT_DOMAIN_OR_ROUTINE_SWITCH", evidence);
@@ -192,6 +196,19 @@ public class HealthBriefRouter {
     /** 文本是否包含计划字段修改表达（改为/改成/安排到等；结构化条件，供意图链共用）。 */
     public boolean hasModificationExpression(String text) {
         return containsAny(text == null ? "" : text, MODIFICATION_WORDS);
+    }
+
+    /**
+     * RC-8 守卫：切域证据仅来自"活动词×时间词"组合启发式（非显式作息主题词），
+     * 且目标侧生命周期 OPEN、当轮文本可解析为该侧真实字段值时，不构成切出。
+     */
+    private boolean openSideFieldSuppressesSwitch(HealthSessionState state, BriefSide targetSide,
+                                                  String text, HealthDomain evidence) {
+        if (evidence != HealthDomain.ROUTINE || containsAny(text, ROUTINE_WORDS)) {
+            return false;
+        }
+        return lifecycleOf(state, targetSide) == BriefLifecycle.OPEN
+                && fieldUpdateParses(state, targetSide, text);
     }
 
     /** 裸餐食计划词（无字段内容，仅计划词本身）。 */
@@ -296,8 +313,7 @@ public class HealthBriefRouter {
      */
     public HealthDomain domainEvidence(String text) {
         String value = text == null ? "" : text;
-        if (containsAny(value, ROUTINE_WORDS)
-                || (containsAny(value, ACTIVITY_WORDS) && containsAny(value, TIME_WORDS))) {
+        if (taskEvidence.hasRoutineTaskEvidence(value)) {
             return HealthDomain.ROUTINE;
         }
         if (containsAny(value, COMPOSITE_EVIDENCE_WORDS)) {
@@ -342,30 +358,37 @@ public class HealthBriefRouter {
 
     /**
      * 指定侧的生命周期：优先读取持久化值；旧会话 JSON 缺字段时按“task 为 PLAN 且领域匹配”
-     * 推导 OPEN，否则无状态（返回 null）。
+     * 推导 OPEN，否则无状态（返回 null）。推导规则的单一实现见
+     * {@link #resolveLifecycle(String, HealthTask, BriefSide, BriefSide)}。
      */
     public BriefLifecycle lifecycleOf(HealthSessionState state, BriefSide side) {
         return lifecycleOf(state, side, side);
     }
 
     private BriefLifecycle lifecycleOf(HealthSessionState state, BriefSide side, BriefSide sessionSide) {
-        Map<String, String> persisted = state.briefLifecycle();
-        String value = persisted.get(side.name());
-        if (value != null) {
+        return resolveLifecycle(state.briefLifecycle().get(side.name()), state.task(), sessionSide, side);
+    }
+
+    /**
+     * 生命周期解析的单一事实源（2026-08-31 规格：收敛路由器与会话回读的双份推导）：
+     * 持久化值优先；缺失时按“task 为 PLAN 且会话侧覆盖该侧”推导 OPEN（简报收集进行中视为开启）。
+     */
+    public static BriefLifecycle resolveLifecycle(String persistedValue, HealthTask task,
+                                                  BriefSide sessionSide, BriefSide side) {
+        if (persistedValue != null && !persistedValue.isBlank()) {
             try {
-                return BriefLifecycle.valueOf(value);
+                return BriefLifecycle.valueOf(persistedValue);
             } catch (Exception ignored) {
                 return null;
             }
         }
-        // 旧会话推导：task 为 PLAN 且领域与该侧匹配即 OPEN（简报收集进行中视为开启）
-        if (state.task() == HealthTask.PLAN && sessionSideMatches(sessionSide, side)) {
+        if (task == HealthTask.PLAN && sessionSideMatches(sessionSide, side)) {
             return BriefLifecycle.OPEN;
         }
         return null;
     }
 
-    private boolean sessionSideMatches(BriefSide sessionSide, BriefSide side) {
+    private static boolean sessionSideMatches(BriefSide sessionSide, BriefSide side) {
         if (sessionSide == BriefSide.BOTH) {
             return side == BriefSide.MEAL || side == BriefSide.EXERCISE;
         }

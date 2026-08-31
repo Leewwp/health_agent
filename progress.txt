@@ -26,3 +26,26 @@
 ### Notes:
 - 工作树基于提交 `f8b9bc5`（meal-facet-hardening）；Qdrant/真实模型仍按独立环境门控跳过。
 - 演示注意项：训练“增肌+全身+徒手+入门”组合当前零候选（诚实失败不放松），面试脚本若需增肌示例建议改“减脂”或调整约束。
+
+## [2026-08-30] - Task week-template-and-routing-adr: 周模板/训练优先调度/歧义路由决策固化（ADR-0018）
+### What was done:
+- 基于四个用户问题（目标周确认追问、固定需求输入指引、餐训时间冲突硬报错、无关输入误触发作息推荐）完成代码原因审查并固化产品决策；未修改生产代码。
+- 新增 ADR-0018（周模板与目标周移除、训练优先餐训适配、计划上下文优先路由、确定性路由+歧义仲裁、动态需求指引、既有规格替代范围、实现约束与验证），CONTEXT.md 补充训练优先餐训适配与歧义任务仲裁术语登记，map.md 登记本轮任务。
+- 按 `to-spec` 模板发布详细执行规格 `.scratch/health-agent-week-template-routing-repair/spec.md`；补充 ADR-0014 的部分替代说明，明确自动适配成功不触发冲突阻断。
+### Testing:
+- 本轮无生产实现变更，未运行 Maven 与浏览器验收；`git diff --check` 通过（本轮文档修改不含空白错误）。
+### Notes:
+- 工作树含未跟踪的 `docs/adr/0018-*.md` 与既有 CONTEXT.md/scripts/sync_local_media.py 修改；用户已确认审查结论，实施按 P0/P1 分批。
+
+## [2026-08-31] - Task chat-routing-and-plan-guidance: 计划引导、严格路由与日常聊天（六票据）
+### What was done:
+- 独立二次根因复核修正规格两处根因描述（isSocialPhrase 长度说法不成立；实例#2 触发点是澄清续轮零条件继承陈旧 MEAL+ADJUST 而非仲裁），并入 RC-1～RC-8（file:line 证据）后按票据 01-06 实施，07（聊天替换计划项目）留后续迭代。
+- 后端：澄清消费同轮原子 OPEN+空简报+(侧,PLAN)；澄清继承保真 task=state.task() 禁止 PLAN→RECOMMEND 覆写，继承需字段值/任务证据，clarifyEpoch 跨天失效；最终任务闸门（五类可执行证据白名单）紧贴检索前 + FINAL_TASK_GATE trace；CHAT_ESCAPE 快路径；HealthTaskEvidence 词表唯一所有者收编四处漂移副本；HealthChatAnswerService + health-chat.txt；澄清响应不继承旧标签、伪槽位 key 出清、SELECT_TASK/MODIFY_CURRENT_PLAN/NEW_PLAN_BRIEF 结构化选项。
+- 前端：等待文案“正在生成回答”；MODIFY_CURRENT_PLAN/NEW_PLAN_BRIEF/select-task 点击路径；未知槽位 key 空串不渲染；简报/当前字段术语退场（面板标题与综合文案）。
+- 浏览器验收发现并修复：真实仲裁低置信把预检确认“开始推荐”劫持成任务澄清（确认短语提升为模型链之前的结构化证据）；问候语落入仲裁失败澄清（补入聊天逃生词表）；可补充项空标签双顿号。顺带修复 withPlanBrief 覆盖 actions 导致 MODIFY_CURRENT_PLAN 从未下发的隐藏缺陷。
+### Testing:
+- `mvn test` 930（877 过 + 53 门控跳过）；`mvn test -Ditest.mysql=true` 930（926 过 + 4 Qdrant/真模型跳过）；前端 `node --test` 47/47。
+- 新增 ChatRoutingAndPlanGuidanceOrchestratorTest（14 例，含两条 P0 哨兵与种子 GENERATED 前置）、TaskEvidenceVocabularyDriftGuardTest（5 例）、HealthChatAnswerServiceTest（4 例）、chat-routing-guidance.test.mjs（4 例）。
+- 真实浏览器验收（ego-browser，http://localhost:8092/#/chat，真实 DashScope）：你好/你能帮我做什么/能陪我聊天吗 → CHAT 身份能力回答零资源卡；5 个快捷问题全部走通；自由输入“给我推荐一份餐食/一个训练动作”正确触发推荐；新建训练计划→周一到周三/下午六点到七点全程 EXERCISE+PLAN；修改当前计划创建 24 项编辑副本且启用计划不变；390px 无横向溢出。
+### Notes:
+- 规格与票据：`.scratch/health-agent-chat-routing-and-plan-guidance/`（01-06 resolved，07 needs-info）。

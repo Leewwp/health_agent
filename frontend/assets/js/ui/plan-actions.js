@@ -11,7 +11,7 @@ export function renderPlanActions(message) {
     const supplementable = message.supplementable || [];
     if (!actions.length && !supplementable.length) return "";
     const scope = message.planScope || (message.domain === "MEAL" ? "MEAL" : message.domain === "COMPOSITE" ? "COMPOSITE" : "EXERCISE");
-    const title = scope === "MEAL" ? "餐食计划需求简报" : scope === "COMPOSITE" ? "综合计划需求简报" : "训练计划需求简报";
+    const title = scope === "MEAL" ? "餐食计划需求" : scope === "COMPOSITE" ? "综合计划需求" : "训练计划需求";
     const summary = [message.planBriefSummary, message.mealPlanBriefSummary].filter(Boolean).join(" · ");
     const chips = supplementable.length
         ? `<div class="chips" aria-label="还可以补充的条件">${supplementable.map((item) =>
@@ -26,5 +26,16 @@ export function renderPlanActions(message) {
                 ? `<a class="btn primary" href="#/profile?return=chat">${escapeHtml(action.label)}</a>`
                 : `<button class="btn ${["GENERATE_PLAN", "APPEND_TO_CURRENT_PLAN"].includes(action.type) ? "primary" : "soft"}" data-action="plan-action" data-plan-action="${escapeHtml(action.type)}" data-plan-scope="${escapeHtml(scope)}" data-request-id="${escapeHtml(action.requestId || "")}">${escapeHtml(action.label)}</button>`).join("")}
         </div>
+    </div>`;
+}
+
+/** 任务澄清的结构化选项（SELECT_TASK）：点击发送携带任务证据的短语，由后端确定性路由。 */
+export function renderTaskChoices(message) {
+    const actions = (message.actions || []).filter((action) => action.type === "SELECT_TASK");
+    if (!actions.length) {
+        return "";
+    }
+    return `<div class="recommendation-actions" aria-label="任务选择">
+        ${actions.map((action) => `<button class="btn soft" data-action="select-task" data-message="${escapeHtml(action.requestId || action.label)}">${escapeHtml(action.label)}</button>`).join("")}
     </div>`;
 }

@@ -20,7 +20,8 @@ import {
 import { renderResourceCard } from "../ui/resource-card.js";
 import { bindFeedbackControl } from "../ui/feedback-control.js";
 import { bindDrawer } from "../ui/detail-drawer.js";
-import { renderPlanActions } from "../ui/plan-actions.js";
+import { renderPlanActions, renderTaskChoices } from "../ui/plan-actions.js";
+import { waitingMessageHtml } from "../ui/chat-waiting.js";
 import { navigate } from "../router.js";
 import { devConfig } from "../config.js";
 import { createChatRequestController } from "./chat-request.js";
@@ -111,7 +112,7 @@ export async function render(app) {
 
 function renderWaitingMessage() {
     if (!state.sending) return "";
-    return `<article class="message assistant chat-waiting" role="status"><div class="bubble"><span class="loading-spinner" aria-hidden="true"></span>正在等待推荐结果，请稍候…</div></article>`;
+    return waitingMessageHtml();
 }
 
 let listenersBound = false;
@@ -136,16 +137,18 @@ function renderMessage(message) {
                 : block.resourceType === "EXERCISE" ? () => getExerciseDetail(block.resourceId) : null
         })
     ).join("");
-    const missingSlots = message.missingSlots && message.missingSlots.length
-        ? `<div class="chips">${message.missingSlots.map((slot) => `<span class="chip selected">${escapeHtml(slotLabel(slot))}</span>`).join("")}</div>`
+    const missingSlotLabels = (message.missingSlots || []).map((slot) => slotLabel(slot)).filter(Boolean);
+    const missingSlots = missingSlotLabels.length
+        ? `<div class="chips">${missingSlotLabels.map((label) => `<span class="chip selected">${escapeHtml(label)}</span>`).join("")}</div>`
         : "";
     const planEntry = renderPlanActions(message);
     const recommendationActions = renderRecommendationActions(message);
+    const taskChoices = renderTaskChoices(message);
     const recommendationSummary = message.confirmedSlots?.length
         ? `<div class="chips"><span class="muted">已确认</span>${message.confirmedSlots.map((slot) => `<span class="chip selected">${escapeHtml(formatSlotSummary(slot))}</span>`).join("")}</div>`
         : "";
     const optionalSummary = message.optionalSlots?.length
-        ? `<p class="muted" style="margin:0;">可继续补充：${escapeHtml(message.optionalSlots.map(slotLabel).join("、"))}</p>`
+        ? `<p class="muted" style="margin:0;">可继续补充：${escapeHtml(message.optionalSlots.map(slotLabel).filter(Boolean).join("、"))}</p>`
         : "";
     const metaParts = [];
     if (message.traceId) {
@@ -164,6 +167,7 @@ function renderMessage(message) {
             <div class="bubble">${escapeHtml(message.text)}</div>
         ${planEntry}
             ${recommendationActions}
+            ${taskChoices}
             ${recommendationSummary}
             ${optionalSummary}
             ${missingSlots}
@@ -317,9 +321,14 @@ function handleClick(event) {
             const requestId = target.dataset.requestId || "";
             const scope = target.dataset.planScope || "EXERCISE";
             navigate(`/plans?generate=1&scope=${encodeURIComponent(scope)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`);
-        } else if (action === "APPEND_TO_CURRENT_PLAN") {
+        } else if (action === "APPEND_TO_CURRENT_PLAN" || action === "MODIFY_CURRENT_PLAN") {
+            // 修改当前计划与追加同语义：打开计划页编辑副本，启用计划保持不变
             const [, planId, appendScope] = String(target.dataset.requestId || "").split(":");
             if (planId) navigate(`/plans?appendPlanId=${encodeURIComponent(planId)}&appendScope=${encodeURIComponent(appendScope || "MEAL")}`);
+        } else if (action === "NEW_PLAN_BRIEF") {
+            const message = target.dataset.requestId || "新建";
+            state.messages.push({ role: "user", text: message });
+            void requestController.submit({ message });
         }
     } else if (target.dataset.action === "recommendation-preflight") {
         if (target.dataset.preflightAction === "CONFIRM_RECOMMENDATION") {
@@ -341,6 +350,12 @@ function handleClick(event) {
         }
     } else if (target.dataset.action === "alternative") {
         submitAlternative(target);
+    } else if (target.dataset.action === "select-task") {
+        const message = (target.dataset.message || "").trim();
+        if (message && !state.sending && !requestController.isPending()) {
+            state.messages.push({ role: "user", text: message });
+            void requestController.submit({ message });
+        }
     }
 }
 

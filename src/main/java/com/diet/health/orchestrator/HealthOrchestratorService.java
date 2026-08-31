@@ -121,6 +121,17 @@ public class HealthOrchestratorService {
     /** 歧义任务单次受约束仲裁（ADR-0018）；直接构造的旧契约测试为 null 时保持既有意图链。 */
     private final AmbiguityArbitrationAgentService arbitrationService;
 
+    /** CHAT 通道回答服务（2026-08-31 规格：身份/能力/健康常识，不检索资源）；旧契约测试可为 null。 */
+    private final com.diet.health.chat.HealthChatAnswerService chatAnswerService;
+
+    /** 当前轮任务硬证据词表的唯一消费者入口（HealthTaskEvidence 单一所有者）。 */
+    private final com.diet.health.intent.HealthTaskEvidence taskEvidence = new com.diet.health.intent.HealthTaskEvidence();
+
+    /** CHAT 通道确定性能力文案（模型不可用/服务未注入时的降级回答）。 */
+    private static final String CHAT_CAPABILITY_COPY =
+            "我是你的健康助手，可以帮你推荐餐食和健身动作、制定餐食、训练或综合的一周计划，也可以提供作息建议和一般健康常识。"
+                    + "你可以直接说，例如“推荐一份清淡的晚餐”或“帮我安排这周的健身计划”，也可以先和我聊聊健康相关的话题。";
+
     @org.springframework.beans.factory.annotation.Value("${diet.request.timeout-ms:5000}")
     private long requestTimeoutMs = 5000L;
 
@@ -146,7 +157,7 @@ public class HealthOrchestratorService {
     ) {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
-                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null, null, null, true, null, null);
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null, null, null, true, null, null, null);
     }
 
     /** 可关闭快路径供模型契约基准使用；线上默认开启。 */
@@ -171,11 +182,42 @@ public class HealthOrchestratorService {
         this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
                 routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper, null,
-                null, null, intentFastPathEnabled, null, null);
+                null, null, intentFastPathEnabled, null, null, null);
     }
 
     /** Spring 入口：健康档案只用于计划简报的缺档案提示，最终风险仍由计划服务 Guard 决定。 */
     @org.springframework.beans.factory.annotation.Autowired
+    public HealthOrchestratorService(
+            HealthSessionService sessionService,
+            SessionService messageService,
+            HealthIntentAgentService intentAgentService,
+            HealthIntentRevisionService intentRevisionService,
+            HealthInputNormalizer inputNormalizer,
+            HealthClarifyRuleService clarifyRuleService,
+            HealthClarifyAgentService clarifyAgentService,
+            HealthRiskRuleService riskRuleService,
+            MealModule mealModule,
+            ExerciseModule exerciseModule,
+            RoutineModule routineModule,
+            HealthResourceProvider resourceProvider,
+            HealthRecommendResponseService recommendResponseService,
+            AgentTraceService agentTraceService,
+            ObjectMapper objectMapper,
+            HealthProfileService profileService,
+            PlanBriefExtractionAgentService planBriefExtractionAgentService,
+            EnabledPlanContextService enabledPlanContextService,
+            HealthBriefRouter briefRouter,
+            AmbiguityArbitrationAgentService arbitrationService,
+            com.diet.health.chat.HealthChatAnswerService chatAnswerService
+    ) {
+        this(sessionService, messageService, intentAgentService, intentRevisionService, inputNormalizer,
+                clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
+                routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper,
+                profileService, planBriefExtractionAgentService, enabledPlanContextService, true, briefRouter,
+                arbitrationService, chatAnswerService);
+    }
+
+    /** 兼容旧签名入口：无 CHAT 回答服务时 CHAT 通道使用确定性能力文案。 */
     public HealthOrchestratorService(
             HealthSessionService sessionService,
             SessionService messageService,
@@ -202,7 +244,7 @@ public class HealthOrchestratorService {
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
                 routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper,
                 profileService, planBriefExtractionAgentService, enabledPlanContextService, true, briefRouter,
-                arbitrationService);
+                arbitrationService, null);
     }
 
     /** 旧契约测试兼容入口：等价路由器实例，行为与生产一致；仲裁未启用时走既有意图链。 */
@@ -230,7 +272,7 @@ public class HealthOrchestratorService {
                 clarifyRuleService, clarifyAgentService, riskRuleService, mealModule, exerciseModule,
                 routineModule, resourceProvider, recommendResponseService, agentTraceService, objectMapper,
                 profileService, planBriefExtractionAgentService, enabledPlanContextService, true,
-                new HealthBriefRouter(), null);
+                new HealthBriefRouter(), null, null);
     }
 
     private HealthOrchestratorService(
@@ -254,7 +296,8 @@ public class HealthOrchestratorService {
             EnabledPlanContextService enabledPlanContextService,
             boolean intentFastPathEnabled,
             HealthBriefRouter briefRouter,
-            AmbiguityArbitrationAgentService arbitrationService
+            AmbiguityArbitrationAgentService arbitrationService,
+            com.diet.health.chat.HealthChatAnswerService chatAnswerService
     ) {
         this.sessionService = sessionService;
         this.messageService = messageService;
@@ -277,6 +320,7 @@ public class HealthOrchestratorService {
         this.profileService = profileService;
         this.enabledPlanContextService = enabledPlanContextService;
         this.intentFastPathEnabled = intentFastPathEnabled;
+        this.chatAnswerService = chatAnswerService;
         // 直接构造的旧契约测试保持旧行为；Spring 生产入口带有档案服务，开启新的推荐前确认。
         this.recommendationPreflightEnabled = profileService != null;
         this.briefRouter = briefRouter == null ? new HealthBriefRouter() : briefRouter;
@@ -346,7 +390,7 @@ public class HealthOrchestratorService {
                 // 若直接以消费后的状态为基准，重置（如新建空简报）会被 mergeForWrite 当作未变更。
                 HealthSessionState base = state.withPendingPlanClarify(null);
                 return persistAndRespond(base, clarIntent, Map.of(), consumed.response(),
-                        traceId, deadlineNanos, Map.of(), null,
+                        traceId, deadlineNanos, consumed.lifecycleTransitions(), null,
                         consumed.state().planBrief(), consumed.state().mealPlanBrief());
             }
             state = state.withPendingPlanClarify(null);
@@ -383,7 +427,7 @@ public class HealthOrchestratorService {
                     state.riskFlags(), Map.of(), List.of(), 1.0);
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId, HealthDomain.MEAL,
                     HealthTask.PLAN, state.riskFlags(),
-                    "已经有一份餐食计划条件。要修改当前餐食计划，还是新建一份？", List.of("mealPlanAction"))
+                    "已经有一份餐食计划条件。要修改当前餐食计划，还是新建一份？", List.of())
                     .withMealPlanBrief(state.mealPlanBrief())
                     .withPlanBrief(state.planBrief(), List.of(), HealthNextAction.ASK_CLARIFY);
             return persistAndRespond(state.withPendingPlanClarify(PENDING_MEAL_NEW_VS_MODIFY), clarifyIntent,
@@ -396,7 +440,18 @@ public class HealthOrchestratorService {
         HealthSessionState turnState = state;
         HealthSessionState requestState = turnState;
         HealthIntentAgentService.Recognition recognition;
-        if (alternative != null) {
+        // 预检确认短语是结构化动作证据（用户点击“开始推荐”按钮）：确定性直达推荐，
+        // 不得落入仲裁链——真实模型对确认短语的低置信会把已确认请求劫持成任务澄清
+        // （2026-08-31 浏览器验收实测发现）。
+        boolean preflightConfirmation = alternative == null && state.recommendationPreflightPending()
+                && taskEvidence.isRecommendationConfirmation(userInput)
+                && (state.domain() == HealthDomain.MEAL || state.domain() == HealthDomain.EXERCISE);
+        if (preflightConfirmation) {
+            recognition = new HealthIntentAgentService.Recognition(
+                    HealthIntentResult.parsed(state.domain(), HealthTask.RECOMMEND,
+                            state.riskFlags(), Map.of(), List.of(), 1.0),
+                    "PREFLIGHT_CONFIRMATION");
+        } else if (alternative != null) {
             HealthDomain domain = alternativeDomain(alternative.resourceType());
             List<SessionResourceRef> added = alternative.addedExclusions().stream()
                     .filter(id -> id != null && !id.isBlank())
@@ -472,13 +527,21 @@ public class HealthOrchestratorService {
                     state.domain() == null ? HealthDomain.OTHER : state.domain(),
                     state.task() == null ? HealthTask.CHAT : state.task(),
                     state.riskFlags(), Map.of(), List.of(), 1.0);
+            // 澄清响应契约（2026-08-31 规格 RC-4/RC-6）：响应不继承展示旧 domain/task 标签
+            // （会话上下文仍保留供合法续轮），taskFocus 伪槽位 key 不进渲染通道；
+            // 四个任务选项以结构化动作下发，点击发送携带任务证据的短语。
             HealthChatResponse clarify = HealthChatResponse.clarify(sessionId, traceId,
-                    keepIntent.domain(), keepIntent.task(),
+                    HealthDomain.OTHER, HealthTask.CHAT,
                     state.riskFlags(),
                     "你的这句话有几种理解，为了不猜错，请说得更明确一些：是想新建一周计划、修改已有计划、做一次单次推荐，还是问作息建议？",
-                    List.of("taskFocus"))
+                    List.of())
                     .withPlanBrief(state.planBrief(), List.of(), HealthNextAction.ASK_CLARIFY)
-                    .withMealPlanBrief(state.mealPlanBrief());
+                    .withMealPlanBrief(state.mealPlanBrief())
+                    .withActions(List.of(
+                            new HealthAction("SELECT_TASK", "新建一周计划", "帮我制定一份饮食和训练的综合计划"),
+                            new HealthAction("SELECT_TASK", "修改已有计划", "修改当前计划"),
+                            new HealthAction("SELECT_TASK", "做一次单次推荐", "帮我推荐一下"),
+                            new HealthAction("SELECT_TASK", "问作息建议", "给我一些作息建议")));
             return persistAndRespond(state, keepIntent, mergeSlots(state.slots(), ruleSlots), clarify,
                     traceId, deadlineNanos, Map.of(), null);
         }
@@ -577,7 +640,7 @@ public class HealthOrchestratorService {
         if (intent.domain() == HealthDomain.OTHER || intent.task() == HealthTask.CHAT) {
             HealthChatResponse chat = HealthChatResponse.answer(sessionId, traceId, HealthDomain.OTHER,
                     HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
-                    "我可以帮你处理饮食、健身和作息相关的问题。这个问题不在当前健康助手的能力范围内。", List.of());
+                    withAdvisory(chatBoundaryCopy(userInput), advisoryCopy), List.of());
             return persistAndRespond(state, intent, mergedSlots, chat, traceId, deadlineNanos, Map.of(), null);
         }
 
@@ -663,6 +726,30 @@ public class HealthOrchestratorService {
             return persistAndRespond(state, intent, mergedSlots, notice, traceId, deadlineNanos, Map.of(), null);
         }
 
+        // 最终任务闸门（2026-08-31 规格）：在所有确定性路由与模型/仲裁修正之后、任何资源检索
+        // 或任务执行之前，当前轮必须存在“可执行证据”。没有证据的 RECOMMEND/ADJUST/ROUTINE
+        // 一律降级为 CHAT（封堵模型/仲裁单独启动任务，RC-5 与“能陪我聊天吗”直接复现路径）。
+        boolean gateAllowed = hasExecutableTaskEvidence(userInput, state, intent, routing, alternative,
+                recognition.source());
+        agentTraceService.recordEvent("FINAL_TASK_GATE", "ROUTE",
+                Map.of("input", userInput,
+                        "domain", intent.domain() == null ? "" : intent.domain().name(),
+                        "task", intent.task() == null ? "" : intent.task().name(),
+                        "resolutionSource", recognition.source()),
+                Map.of("allowed", gateAllowed,
+                        "reason", gateAllowed ? "EVIDENCE_PRESENT" : "NO_EXECUTABLE_TASK_EVIDENCE"));
+        if (!gateAllowed) {
+            // 降级不删除会话上下文（合法续轮仍可恢复），但本轮绝不检索资源。
+            HealthIntentResult keepIntent = HealthIntentResult.parsed(
+                    state.domain() == null ? HealthDomain.OTHER : state.domain(),
+                    state.task() == null ? HealthTask.CHAT : state.task(),
+                    state.riskFlags(), Map.of(), List.of(), 1.0);
+            HealthChatResponse denied = HealthChatResponse.answer(sessionId, traceId, HealthDomain.OTHER,
+                    HealthTask.CHAT, risk.matchedFlags(), HealthPhase.RESPOND,
+                    withAdvisory(chatBoundaryCopy(userInput), advisoryCopy), List.of());
+            return persistAndRespond(state, keepIntent, mergedSlots, denied, traceId, deadlineNanos, Map.of(), null);
+        }
+
         // ADJUST 排除（43 号票 + #69 类型化契约）：只取 MEAL/EXERCISE 类型化字符串 resourceId，
         // 作息事实不参与排除；fixture 种子 ID 原样传递，reviewed 数值解析在餐食模块查询前完成
         String resourceType = intent.domain() == HealthDomain.EXERCISE ? "EXERCISE" : "MEAL";
@@ -738,12 +825,15 @@ public class HealthOrchestratorService {
         String sideLabel = scope == PlanScope.MEAL ? "餐食" : "训练";
         HealthDomain domain = scope == PlanScope.MEAL ? HealthDomain.MEAL : HealthDomain.EXERCISE;
         String actionId = "APPEND:" + planId + ":" + scope.name();
+        // 结构化澄清选项（2026-08-31 规格）：修改=打开计划页编辑副本（不覆盖启用计划），
+        // 新建=点击发送“新建”，由挂起消费确定性进入新计划收集（RC-1 原子 OPEN）。
         return HealthChatResponse.clarify(sessionId, traceId, domain, HealthTask.PLAN, riskFlags,
-                withAdvisory("当前已有一份启用的" + sideLabel + "计划。要修改当前计划，还是新建一份简报？", advisoryCopy),
-                List.of("planAction"))
-                .withActions(List.of(new HealthAction("MODIFY_CURRENT_PLAN", "修改当前计划", actionId)))
+                withAdvisory("当前已有一份启用的" + sideLabel + "计划。要修改当前计划，还是新建一份？", advisoryCopy),
+                List.of())
                 .withPlanBrief(state.planBrief(), List.of(), HealthNextAction.ASK_CLARIFY)
-                .withMealPlanBrief(state.mealPlanBrief());
+                .withMealPlanBrief(state.mealPlanBrief())
+                .withActions(List.of(new HealthAction("MODIFY_CURRENT_PLAN", "修改当前计划", actionId),
+                        new HealthAction("NEW_PLAN_BRIEF", "新建一份", "新建")));
     }
 
     /** “修改当前 vs 新建”澄清的后续回答处理；null 表示不是明确的修改/新建回答（继续正常流程）。 */
@@ -775,12 +865,16 @@ public class HealthOrchestratorService {
                             List.of("mealTimes"))
                             .withMealPlanBrief(meal);
                 }
-                return new PlanClarifyConsumption(state.withPendingPlanClarify(null), response);
+                return new PlanClarifyConsumption(state.withPendingPlanClarify(null), response, Map.of());
             }
             if (redo && !modify) {
+                // 澄清消费是显式生命周期转移点（2026-08-31 规格 RC-1）：选择“新建”的同一轮
+                // 原子写入 侧=OPEN + 空简报 + (MEAL, PLAN)，残留的 GENERATED/PAUSED 不得让
+                // 下一轮落回通用意图链。
                 return new PlanClarifyConsumption(
                         state.withPendingPlanClarify(null).withMealPlanBrief(MealPlanBrief.empty()),
-                        newMealBriefStartResponse(sessionId, traceId, state));
+                        newMealBriefStartResponse(sessionId, traceId, state),
+                        Map.of("MEAL", BriefLifecycle.OPEN.name()));
             }
             return null;
         }
@@ -802,7 +896,7 @@ public class HealthOrchestratorService {
                                     "追加到当前计划", actionId)))
                             .withPlanBrief(state.planBrief(), List.of(), HealthNextAction.WAIT_USER)
                             .withMealPlanBrief(state.mealPlanBrief());
-                    return new PlanClarifyConsumption(state.withPendingPlanClarify(null), response);
+                    return new PlanClarifyConsumption(state.withPendingPlanClarify(null), response, Map.of());
                 }
                 // 已无启用计划：退回新建简报流程
             }
@@ -810,31 +904,43 @@ public class HealthOrchestratorService {
                 if (mealSide) {
                     return new PlanClarifyConsumption(
                             state.withPendingPlanClarify(null).withMealPlanBrief(MealPlanBrief.empty()),
-                            newMealBriefStartResponse(sessionId, traceId, state));
+                            newMealBriefStartResponse(sessionId, traceId, state),
+                            Map.of("MEAL", BriefLifecycle.OPEN.name()));
                 }
+                // “接下来开始新建一份训练计划”+ 点名第一个缺失必要条件（RC-1 原子 OPEN 转移同轮生效）。
+                List<String> missing = planBriefService.missing(PlanBrief.empty());
                 HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
                         HealthDomain.EXERCISE, HealthTask.PLAN, state.riskFlags(),
-                        withAdvisory("好的，已为你新建一份训练计划简报。" + planBriefService.update(
-                                PlanBrief.empty(), "").guidance(), null), List.of("trainingGoal"))
+                        withAdvisory("好的，接下来开始新建一份训练计划。"
+                                + planBriefService.question(missing), null),
+                        missing.isEmpty() ? List.of() : List.of(missing.get(0)))
                         .withPlanBrief(PlanBrief.empty(), List.of(), HealthNextAction.ASK_CLARIFY);
                 return new PlanClarifyConsumption(
-                        state.withPendingPlanClarify(null).withPlanBrief(PlanBrief.empty()), response);
+                        state.withPendingPlanClarify(null).withPlanBrief(PlanBrief.empty()), response,
+                        Map.of("EXERCISE", BriefLifecycle.OPEN.name()));
             }
             return null;
         }
         return null;
     }
 
-    /** 新建餐食简报的开场引导（动态可补充项来自空简报的同一计算）。 */
+    /** 新建餐食计划的开场引导：点名第一个缺失必要条件，不使用“简报/当前字段”内部术语。 */
     private HealthChatResponse newMealBriefStartResponse(String sessionId, String traceId, HealthSessionState state) {
         MealPlanBrief empty = MealPlanBrief.empty();
         String guidance = mealPlanBriefService.update(empty, "").guidance();
+        List<String> missing = mealPlanBriefService.missing(empty);
         return HealthChatResponse.clarify(sessionId, traceId, HealthDomain.MEAL, HealthTask.PLAN,
-                state.riskFlags(), withAdvisory("已为你新建一份餐食简报。" + guidance, null), List.of("mealTimes"))
+                state.riskFlags(), withAdvisory("好的，接下来开始新建一份餐食计划。" + guidance, null),
+                missing.isEmpty() ? List.of() : List.of(missing.get(0)))
                 .withMealPlanBrief(empty);
     }
 
-    private record PlanClarifyConsumption(HealthSessionState state, HealthChatResponse response) {
+    /**
+     * 澄清消费结果：state 为消费后的会话状态，lifecycleTransitions 为本轮显式生命周期转移
+     * （“新建”消费同轮原子写对应侧 OPEN，2026-08-31 规格 RC-1）。
+     */
+    private record PlanClarifyConsumption(HealthSessionState state, HealthChatResponse response,
+                                          Map<String, String> lifecycleTransitions) {
     }
 
     /** 综合简报两侧都完整时的侧归属澄清：要求“餐食：/训练：”前缀，不得猜测写入某一侧。 */
@@ -900,9 +1006,8 @@ public class HealthOrchestratorService {
     }
 
     private boolean isAppendToCurrentPlan(String input) {
-        if (input == null) return false;
-        return containsAny(input, "追加到当前计划", "加入当前计划", "追加到现有计划", "加入现有计划",
-                "当前计划追加", "现有计划追加", "在当前计划里加", "在现有计划里加");
+        // 共享词表唯一所有者（HealthTaskEvidence），编排器不持有第二份追加词清单。
+        return taskEvidence.isAppendToCurrentPlanExpression(input);
     }
 
     /** 训练简报闭环：解析/合并只在 PLAN 上下文运行，普通推荐不会触碰 planBrief。 */
@@ -1083,7 +1188,7 @@ public class HealthOrchestratorService {
         if (!training.isComplete()) {
             String trainingGuidance = trainingUpdate != null && trainingUpdate.guidance() != null && !trainingUpdate.guidance().isBlank()
                     ? trainingUpdate.guidance() : planBriefService.question(planBriefService.missing(training));
-            String guidance = "餐食简报已整理：" + mealPlanBriefService.summary(meal) + "。接下来请补充训练条件。"
+            String guidance = "餐食需求已整理：" + mealPlanBriefService.summary(meal) + "。接下来请补充训练条件。"
                     + trainingGuidance;
             List<String> missing = trainingUpdate == null ? planBriefService.missing(training) : trainingUpdate.missingFields();
             HealthChatResponse response = HealthChatResponse.clarify(sessionId, traceId,
@@ -1096,7 +1201,7 @@ public class HealthOrchestratorService {
         if (!hasHealthProfile(userId)) {
             HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.COMPOSITE,
                     HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                    withAdvisory("餐食和训练简报都已整理完成。请先完善健康档案，再回来生成综合计划。", advisoryCopy), List.of())
+                    withAdvisory("餐食和训练需求都已整理完成。请先完善健康档案，再回来生成综合计划。", advisoryCopy), List.of())
                     .withPlanBrief(training, List.of(new HealthAction("COMPLETE_PROFILE", "完善健康档案", null)),
                             HealthNextAction.COMPLETE_PROFILE);
             return persistCompositeBrief(state, intent, mergedSlots, sessionId, traceId, riskFlags,
@@ -1106,7 +1211,7 @@ public class HealthOrchestratorService {
                 + String.join("、", supplementable.stream().map(SupplementableItem::label).toList()) + "。";
         HealthChatResponse response = HealthChatResponse.answer(sessionId, traceId, HealthDomain.COMPOSITE,
                 HealthTask.PLAN, riskFlags, HealthPhase.RESPOND,
-                withAdvisory("餐食简报：" + mealPlanBriefService.summary(meal) + "。训练简报：" + planBriefService.summary(training)
+                withAdvisory("餐食需求：" + mealPlanBriefService.summary(meal) + "。训练需求：" + planBriefService.summary(training)
                         + "。" + supplementableCopy + "可以直接开始生成综合计划，或回复想补充的条件。", advisoryCopy), List.of())
                 .withPlanBrief(training,
                         List.of(new HealthAction("GENERATE_PLAN", "开始生成", requestId + "-composite"),
@@ -1401,9 +1506,79 @@ public class HealthOrchestratorService {
                 .toList();
     }
 
+    /**
+     * 最终闸门的可执行证据白名单（2026-08-31 规格）：
+     * ① 共享硬证据词表命中（该领域明确任务词/计划词/调整请求词）——确定性证据单独即可执行，
+     *    保留 ADR-0018 确定性直路由与无模型降级能力；
+     * ② 活跃简报解析器续轮（PLAN 字段收集）；
+     * ③ 结构化动作证据（alternative payload / 预检确认短语 / 计划澄清消费轮）；
+     * ④ 作息事实问答（结构化事实检索）；
+     * ⑤ 经边界复核的澄清续轮继承（本轮解析出字段值或含任务证据）。
+     * 模型/仲裁单独判定（无任何确定性证据）不得启动任务——这正是 authoritative 信任接缝的封堵点。
+     */
+    private boolean hasExecutableTaskEvidence(String userInput, HealthSessionState state, HealthIntentResult intent,
+                                              BriefRoutingDecision routing,
+                                              HealthChatRequest.AlternativeRequest alternative,
+                                              String resolutionSource) {
+        String text = userInput == null ? "" : userInput;
+        HealthDomain domain = intent.domain();
+        if (domain != null && taskEvidence.hasTaskEvidence(text, domain)) {
+            return true;
+        }
+        if (HealthPlanIntentMatcher.matches(text) || HealthPlanIntentMatcher.matchesComposite(text)) {
+            return true;
+        }
+        if (taskEvidence.hasAdjustRequestEvidence(text)) {
+            return true;
+        }
+        if ((intent.task() == HealthTask.RECOMMEND || intent.task() == HealthTask.ADJUST)
+                && taskEvidence.hasRecommendRequestEvidence(text)) {
+            return true;
+        }
+        if (routing != null && routing.briefActive() && routing.escape() == BriefEscape.NONE) {
+            return true;
+        }
+        if (alternative != null) {
+            return true;
+        }
+        if (state.recommendationPreflightPending() && taskEvidence.isRecommendationConfirmation(text)) {
+            return true;
+        }
+        if (state.pendingPlanClarify() != null) {
+            return true;
+        }
+        if (domain == HealthDomain.ROUTINE && routineModule.supportsFactQuery(text)) {
+            return true;
+        }
+        return state.phase() == HealthPhase.CLARIFY && isRecommendDomain(domain)
+                && (state.clarifyEpoch() == null
+                    || state.clarifyEpoch().equals(java.time.LocalDate.now().toString()))
+                && (!intent.slots().isEmpty() || taskEvidence.hasTaskEvidence(text, domain));
+    }
+
+    private boolean isRecommendDomain(HealthDomain domain) {
+        return domain == HealthDomain.MEAL || domain == HealthDomain.EXERCISE || domain == HealthDomain.ROUTINE;
+    }
+
+    /** CHAT 通道回答：优先专用回答服务（模型生成，受提示词边界约束），降级为确定性能力文案。 */
+    private String chatBoundaryCopy(String userInput) {
+        if (chatAnswerService != null) {
+            String answer = chatAnswerService.answer(userInput);
+            if (answer != null && !answer.isBlank()) {
+                return answer;
+            }
+        }
+        if (taskEvidence.isChatEscapeExpression(userInput)
+                || briefRouter.domainEvidence(userInput) == null) {
+            return CHAT_CAPABILITY_COPY;
+        }
+        return "这个问题不在当前健康助手的能力范围内。你可以问我饮食、训练、作息相关的问题，"
+                + "或让我开始一次推荐、制定一周计划。";
+    }
+
     private boolean isRecommendationConfirmation(String input) {
-        return input != null && containsAny(input.replaceAll("\\s+", ""),
-                "为我推荐", "可以推荐了", "确认推荐", "就这样推荐", "开始推荐", "按这个推荐");
+        // 共享词表唯一所有者（HealthTaskEvidence），编排器不持有第二份短语清单。
+        return taskEvidence.isRecommendationConfirmation(input);
     }
 
     /** 只处理明确的请求级否定，不写入会话槽位或长期偏好。 */
@@ -1495,7 +1670,10 @@ public class HealthOrchestratorService {
                 .withPreferenceSignals(intent.preferenceSignals())
                 .withPlanBrief(planBrief)
                 .withMealPlanBrief(mealPlanBrief)
-                .withBriefLifecycle(applyLifecycle(state.briefLifecycle(), lifecycleTransitions));
+                .withBriefLifecycle(applyLifecycle(state.briefLifecycle(), lifecycleTransitions))
+                // 澄清时效边界（RC-4）：澄清轮记录当天日期，跨天后澄清续轮不再被继承。
+                .withClarifyEpoch(response.phase() == HealthPhase.CLARIFY
+                        ? java.time.LocalDate.now().toString() : null);
         if (confirmationKey != null) {
             saved = saved.withRecommendationConfirmationKey(confirmationKey);
         }
@@ -1561,6 +1739,13 @@ public class HealthOrchestratorService {
                                                                           HealthSessionState state,
                                                                           Long userId, String sessionId,
                                                                           long deadlineNanos) {
+        if (taskEvidence.isChatEscapeExpression(userInput)) {
+            // P0 哨兵（2026-08-31 规格）：显式聊天/能力问句确定性进入 OTHER + CHAT，
+            // 不消耗模型预算、不受会话历史/仲裁影响。
+            return new HealthIntentAgentService.Recognition(
+                    HealthIntentResult.parsed(HealthDomain.OTHER, HealthTask.CHAT, List.of(), Map.of(), List.of(), 1.0),
+                    "CHAT_ESCAPE");
+        }
         if (arbitrationService == null) {
             return intentFastPathEnabled
                     ? intentAgentService.recognizeWithDiagnostics(userInput, state.slots(),
